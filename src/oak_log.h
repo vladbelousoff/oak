@@ -1,5 +1,20 @@
 #pragma once
 
+#if defined(_MSC_VER)
+#define oak_debug_break() __debugbreak()
+#elif defined(__clang__) || defined(__GNUC__)
+#define oak_debug_break() __builtin_trap()
+#else
+#include <signal.h>
+#define oak_debug_break() raise(SIGTRAP)
+#endif
+
+#define oak_assert(condition)                                                  \
+  if (!(condition))                                                            \
+  {                                                                            \
+    oak_debug_break();                                                         \
+  }
+
 const char* oak_filename(const char* path);
 
 typedef enum

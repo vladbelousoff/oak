@@ -1,6 +1,6 @@
 #include "oak_lex.h"
 
-#include "oak_consts.h"
+#include "oak_common.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_tok.h"

@@ -6,20 +6,20 @@
 #ifdef OAK_TRACK_MEMORY
 #include "oak_list.h"
 #include "oak_log.h"
-#include <assert.h>
 #endif
 
 #ifdef OAK_TRACK_MEMORY
+static oak_list_head_t memory_allocations;
+static int memory_tracking_enabled = 0;
+#endif
+
 #define OAK_MEM_SMB 0x77
 #define OAK_MEM_SIG 0xdeadbeef
-static oak_list_head_t mem_allocs;
-static int mem_inited = 0;
-#endif
 
 void* oak_mem_acquire(const oak_src_loc_t src_loc, const size_t size)
 {
 #ifdef OAK_TRACK_MEMORY
-  assert(mem_inited);
+  oak_assert(memory_tracking_enabled);
   // It's not a memory leak, it's just a trick to add a bit more
   // info about allocated memory, so...
   // ReSharper disable once CppDFAMemoryLeak
@@ -33,7 +33,7 @@ void* oak_mem_acquire(const oak_src_loc_t src_loc, const size_t size)
   header->signature = OAK_MEM_SIG;
   header->src_loc = src_loc;
   header->size = size;
-  oak_list_add_tail(&mem_allocs, &header->link);
+  oak_list_add_tail(&memory_allocations, &header->link);
   // Mark the memory with 0x77 to be able to debug uninitialized memory
   memset(&data[sizeof(oak_mem_header_t)], OAK_MEM_SMB, size);
   // Return only the necessary piece and hide the header
@@ -48,7 +48,7 @@ void* oak_mem_acquire(const oak_src_loc_t src_loc, const size_t size)
 void* oak_mem_realloc(const oak_src_loc_t src_loc, void* ptr, const size_t size)
 {
 #ifdef OAK_TRACK_MEMORY
-  assert(mem_inited);
+  oak_assert(memory_tracking_enabled);
   if (ptr == NULL)
   {
     return oak_mem_acquire(src_loc, size);
@@ -79,7 +79,7 @@ void* oak_mem_realloc(const oak_src_loc_t src_loc, void* ptr, const size_t size)
   }
 
   oak_mem_header_t* header = (oak_mem_header_t*)data;
-  oak_list_add_tail(&mem_allocs, &header->link);
+  oak_list_add_tail(&memory_allocations, &header->link);
 
   // Update header information
   header->signature = OAK_MEM_SIG;
@@ -98,7 +98,7 @@ void* oak_mem_realloc(const oak_src_loc_t src_loc, void* ptr, const size_t size)
 void oak_mem_release(const oak_src_loc_t src_loc, void* ptr)
 {
 #ifdef OAK_TRACK_MEMORY
-  assert(mem_inited);
+  oak_assert(memory_tracking_enabled);
   // Find the header with meta-information
   oak_mem_header_t* header =
       (oak_mem_header_t*)((char*)ptr - sizeof(oak_mem_header_t));
@@ -123,18 +123,18 @@ void oak_mem_release(const oak_src_loc_t src_loc, void* ptr)
 void oak_mem_init()
 {
 #ifdef OAK_TRACK_MEMORY
-  oak_list_init(&mem_allocs);
-  mem_inited = 1;
+  oak_list_init(&memory_allocations);
+  memory_tracking_enabled = 1;
 #endif
 }
 
 void oak_mem_shutdown()
 {
 #ifdef OAK_TRACK_MEMORY
-  assert(mem_inited);
+  oak_assert(memory_tracking_enabled);
   oak_list_entry_t* entry;
   oak_list_entry_t* safe;
-  oak_list_for_each_safe(entry, safe, &mem_allocs)
+  oak_list_for_each_safe(entry, safe, &memory_allocations)
   {
     oak_mem_header_t* header = oak_container_of(entry, oak_mem_header_t, link);
     oak_log(OAK_LOG_ERR,
@@ -145,11 +145,9 @@ void oak_mem_shutdown()
     oak_list_remove(&header->link);
     free(header);
   }
-  mem_inited = 0;
+  memory_tracking_enabled = 0;
 #endif
 }
 
-#ifdef OAK_TRACK_MEMORY
 #undef OAK_MEM_SMB
 #undef OAK_MEM_SIG
-#endif
