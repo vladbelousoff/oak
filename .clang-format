@@ -1,0 +1,19 @@
+BasedOnStyle: LLVM
+Language: C
+
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+
+BreakBeforeBraces: Allman
+AlignConsecutiveMacros: true
+
+PointerAlignment: Left
+
+BinPackArguments: false
+BinPackParameters: false
+
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+
+Cpp11BracedListStyle: false

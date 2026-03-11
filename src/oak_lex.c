@@ -1,0 +1,510 @@
+#include "oak_lex.h"
+
+#include "oak_consts.h"
+#include "oak_log.h"
+#include "oak_mem.h"
+#include "oak_tok.h"
+#include "oak_utf8.h"
+
+#include <stdio.h>
+#include <string.h>
+
+typedef struct
+{
+  int pos;
+  int utf8_pos;
+  int line;
+  int column;
+} oak_lex_cur_t;
+
+typedef struct
+{
+  oak_lex_t* lex;
+  oak_lex_cur_t* cur;
+} oak_lex_ctx_t;
+
+static void save_token(const oak_src_loc_t src_loc,
+                       const oak_lex_ctx_t* ctx,
+                       const oak_tok_type_t token_type,
+                       const char* buffer,
+                       const size_t buffer_size,
+                       const int start_utf8_pos,
+                       const int start_line,
+                       const int start_column)
+{
+  size_t token_size = sizeof(oak_tok_t);
+  if (buffer_size > 0)
+  {
+    token_size += buffer_size + 1;
+  }
+
+  oak_tok_t* token = oak_mem_acquire(src_loc, token_size);
+  token->type = token_type;
+  token->line = start_line;
+  token->column = start_column;
+  token->pos = start_utf8_pos;
+  token->size = buffer_size;
+
+  if (buffer)
+  {
+    memcpy(token->buf, buffer, buffer_size);
+  }
+
+  if (buffer_size > 0)
+  {
+    token->buf[buffer_size] = OAK_EOS;
+  }
+
+  oak_log_cond(token_type == OAK_TOK_IDENT || token_type == OAK_TOK_STRING,
+               OAK_LOG_DBG,
+               "%s %d:%d -> %s",
+               oak_tok_name(token_type),
+               token->line,
+               token->column,
+               buffer);
+
+  oak_log_cond(token_type == OAK_TOK_INT_NUM,
+               OAK_LOG_DBG,
+               "%s %d:%d -> %d",
+               oak_tok_name(token_type),
+               token->line,
+               token->column,
+               *(int*)buffer);
+
+  oak_log_cond(token_type == OAK_TOK_FLOAT_NUM,
+               OAK_LOG_DBG,
+               "%s %d:%d -> %f",
+               oak_tok_name(token_type),
+               token->line,
+               token->column,
+               *(float*)buffer);
+
+  oak_lex_t* lex = ctx->lex;
+  oak_list_add_tail(&lex->tokens, &token->link);
+}
+
+static oak_result_t try_scan_ws(const oak_lex_ctx_t* ctx, const char* input)
+{
+  oak_lex_cur_t* cur = ctx->cur;
+  for (;;)
+  {
+    uint32_t cp = 0;
+    const int n = oak_utf8_next(&input[cur->pos], &cp);
+
+    if (n < 0)
+    {
+      break;
+    }
+
+    if (cp == OAK_EOS)
+    {
+      break;
+    }
+
+    if (cp == OAK_SPACE || cp == OAK_TAB || cp == OAK_CR)
+    {
+      cur->column++;
+      cur->pos += n;
+      cur->utf8_pos++;
+      continue;
+    }
+
+    if (cp == OAK_EOL)
+    {
+      cur->column = 0;
+      cur->pos += n;
+      cur->utf8_pos++;
+      cur->line++;
+      continue;
+    }
+
+    break;
+  }
+
+  return OAK_FAILURE;
+}
+
+typedef struct
+{
+  char a, b;
+  oak_tok_type_t tok;
+} oak_two_char_op_t;
+
+typedef struct
+{
+  char c;
+  oak_tok_type_t tok;
+} oak_single_char_op_t;
+
+/* Two-character operators table */
+static const oak_two_char_op_t two_char_ops[] = {
+  { '=', '=', OAK_TOK_EQUAL },      { '!', '=', OAK_TOK_NOT_EQUAL },
+  { '-', '>', OAK_TOK_ARROW },      { '&', '&', OAK_TOK_AND },
+  { '|', '|', OAK_TOK_OR },         { '>', '=', OAK_TOK_GREATER_EQUAL },
+  { '<', '=', OAK_TOK_LESS_EQUAL },
+};
+
+/* Single-character operators table */
+static const oak_single_char_op_t single_char_ops[] = {
+  { ':', OAK_TOK_COLON },
+  { ',', OAK_TOK_COMMA },
+  { ';', OAK_TOK_SEMICOLON },
+  { '=', OAK_TOK_ASSIGN },
+  { '!', OAK_TOK_EXCLAMATION_MARK },
+  { '-', OAK_TOK_MINUS },
+  { '+', OAK_TOK_PLUS },
+  { '*', OAK_TOK_STAR },
+  { '/', OAK_TOK_SLASH },
+  { '(', OAK_TOK_LPAREN },
+  { ')', OAK_TOK_RPAREN },
+  { '{', OAK_TOK_LBRACE },
+  { '}', OAK_TOK_RBRACE },
+  { '[', OAK_TOK_LBRACKET },
+  { ']', OAK_TOK_RBRACKET },
+  { '>', OAK_TOK_GREATER },
+  { '<', OAK_TOK_LESS },
+  { '.', OAK_TOK_DOT },
+  { '?', OAK_TOK_QUESTION_MARK },
+};
+
+static oak_result_t try_scan_op(const oak_lex_ctx_t* ctx, const char* input)
+{
+  oak_lex_cur_t* cur = ctx->cur;
+  const char* p = &input[cur->pos];
+  const char c1 = p[0];
+  const char c2 = p[1];
+  size_t i;
+
+  const int start_utf8_pos = cur->utf8_pos;
+  const int start_line = cur->line;
+  const int start_column = cur->column;
+
+  /* Check two-character operators first */
+  for (i = 0; i < sizeof(two_char_ops) / sizeof(two_char_ops[0]); ++i)
+  {
+    if (c1 == two_char_ops[i].a && c2 == two_char_ops[i].b)
+    {
+      save_token(OAK_SRC_LOC,
+                 ctx,
+                 two_char_ops[i].tok,
+                 p,
+                 0,
+                 start_utf8_pos,
+                 start_line,
+                 start_column);
+      cur->pos += 2;
+      cur->column += 2;
+      cur->utf8_pos += 2;
+      return OAK_SUCCESS;
+    }
+  }
+
+  /* Check single-character operators */
+  for (i = 0; i < sizeof(single_char_ops) / sizeof(single_char_ops[0]); ++i)
+  {
+    if (c1 == single_char_ops[i].c)
+    {
+      save_token(OAK_SRC_LOC,
+                 ctx,
+                 single_char_ops[i].tok,
+                 p,
+                 0,
+                 start_utf8_pos,
+                 start_line,
+                 start_column);
+      cur->pos += 1;
+      cur->column += 1;
+      cur->utf8_pos += 1;
+      return OAK_SUCCESS;
+    }
+  }
+
+  return OAK_FAILURE;
+}
+
+static oak_result_t try_scan_string(const oak_lex_ctx_t* ctx, const char* input)
+{
+  oak_lex_cur_t* cur = ctx->cur;
+  const char* start = &input[cur->pos];
+
+  /* Not a string literal */
+  if (*start != '\'')
+  {
+    return OAK_FAILURE;
+  }
+
+  /* Save start positions */
+  const int start_utf8_pos = cur->utf8_pos;
+  const int start_line = cur->line;
+  const int start_column = cur->column;
+
+  /* Skip opening quote */
+  cur->pos++;
+  cur->column++;
+  cur->utf8_pos++;
+
+  /* Thread-local static buffer first */
+  static _Thread_local char tls_buffer[64];
+  char* buffer = tls_buffer;
+  size_t buffer_capacity = sizeof(tls_buffer);
+  size_t buffer_length = 0;
+  int dynamic_alloc = 0;
+
+  const char* p = start + 1;
+  while (*p)
+  {
+    uint32_t cp;
+    int n = oak_utf8_next(p, &cp);
+    if (n <= 0)
+    {
+      if (dynamic_alloc)
+        oak_mem_release(OAK_SRC_LOC, buffer);
+      /* Invalid UTF-8 */
+      return OAK_FAILURE;
+    }
+
+    /* Handle escape sequences */
+    if (cp == '\\')
+    {
+      p += n;
+      cur->pos += n;
+      cur->column++;
+      cur->utf8_pos++;
+
+      if (*p == '\0')
+        break;
+
+      switch (*p)
+      {
+      case 'n':
+        cp = '\n';
+        break;
+      case 't':
+        cp = '\t';
+        break;
+      case 'r':
+        cp = '\r';
+        break;
+      case '\\':
+      case '\'':
+      case '"':
+      default:
+        cp = (uint8_t)*p;
+        break;
+      }
+      n = 1;
+    }
+
+    /* Resize buffer if needed */
+    if (buffer_length + 4 >= buffer_capacity)
+    {
+      if (!dynamic_alloc)
+      {
+        buffer_capacity = 128;
+        char* new_buf = oak_mem_acquire(OAK_SRC_LOC, buffer_capacity);
+        if (!new_buf)
+          return OAK_FAILURE;
+        memcpy(new_buf, tls_buffer, buffer_length);
+        buffer = new_buf;
+        dynamic_alloc = 1;
+      }
+      else
+      {
+        buffer_capacity *= 2;
+        char* new_buf = oak_mem_realloc(OAK_SRC_LOC, buffer, buffer_capacity);
+        if (!new_buf)
+        {
+          oak_mem_release(OAK_SRC_LOC, buffer);
+          return OAK_FAILURE;
+        }
+        buffer = new_buf;
+      }
+    }
+
+    const int written = oak_utf8_encode(cp, buffer + buffer_length);
+    buffer_length += written;
+
+    p += n;
+    cur->pos += n;
+    cur->column++;
+    cur->utf8_pos++;
+
+    /* Closing quote found */
+    if (*p == '\'')
+    {
+      cur->pos++;
+      cur->column++;
+      cur->utf8_pos++;
+      save_token(OAK_SRC_LOC,
+                 ctx,
+                 OAK_TOK_STRING,
+                 buffer,
+                 buffer_length,
+                 start_utf8_pos,
+                 start_line,
+                 start_column);
+      if (dynamic_alloc)
+        oak_mem_release(OAK_SRC_LOC, buffer);
+      return OAK_SUCCESS;
+    }
+  }
+
+  /* Unterminated string literal */
+  if (dynamic_alloc)
+    oak_mem_release(OAK_SRC_LOC, buffer);
+  return OAK_FAILURE;
+}
+
+static oak_result_t try_scan_number(const oak_lex_ctx_t* ctx, const char* input)
+{
+  oak_lex_cur_t* cur = ctx->cur;
+  const char* start = &input[cur->pos];
+
+  const int start_utf8_pos = cur->utf8_pos;
+  const int start_line = cur->line;
+  const int start_column = cur->column;
+
+  const char* p = start;
+  int has_dot = 0;
+  int has_exp = 0;
+
+  // At least one digit
+  if (*p < '0' || *p > '9')
+    return OAK_FAILURE;
+
+  while (*p)
+  {
+    const char c = *p;
+
+    if (c >= '0' && c <= '9')
+    {
+      // digit
+      p++;
+      cur->pos++;
+      cur->column++;
+      cur->utf8_pos++;
+    }
+    else if (c == '.' && !has_dot && !has_exp)
+    {
+      has_dot = 1;
+      p++;
+      cur->pos++;
+      cur->column++;
+      cur->utf8_pos++;
+    }
+    else if ((c == 'e' || c == 'E') && !has_exp)
+    {
+      has_exp = 1;
+      p++;
+      cur->pos++;
+      cur->column++;
+      cur->utf8_pos++;
+
+      // Must have at least one digit after e/E
+      if (*p < '0' || *p > '9')
+        return OAK_FAILURE;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  const size_t len = p - start;
+  if (len == 0)
+    return OAK_FAILURE;
+
+  // Thread-local buffer to store number as string
+  static _Thread_local char tls_buffer[64];
+  if (len >= sizeof(tls_buffer))
+    return OAK_FAILURE;
+
+  memcpy(tls_buffer, start, len);
+  tls_buffer[len] = OAK_EOS;
+
+  if (has_dot || has_exp)
+  {
+    // Floating-point
+    float val = 0.0f;
+    if (sscanf_s(tls_buffer, "%f", &val) != 1)
+      return OAK_FAILURE;
+
+    save_token(OAK_SRC_LOC,
+               ctx,
+               OAK_TOK_FLOAT_NUM,
+               (char*)&val,
+               sizeof(float),
+               start_utf8_pos,
+               start_line,
+               start_column);
+  }
+  else
+  {
+    // Integer
+    int val = 0;
+    if (sscanf_s(tls_buffer, "%d", &val) != 1)
+      return OAK_FAILURE;
+
+    save_token(OAK_SRC_LOC,
+               ctx,
+               OAK_TOK_INT_NUM,
+               (char*)&val,
+               sizeof(int),
+               start_utf8_pos,
+               start_line,
+               start_column);
+  }
+
+  return OAK_SUCCESS;
+}
+
+static struct
+{
+  oak_result_t (*try_scan)(const oak_lex_ctx_t* ctx, const char* input);
+} scanners[] = {
+  try_scan_ws, try_scan_op, try_scan_string, try_scan_number, { NULL },
+};
+
+static oak_result_t try_scan(const oak_lex_ctx_t* ctx, const char* input)
+{
+  for (int i = 0; scanners[i].try_scan; ++i)
+  {
+    if (scanners[i].try_scan(ctx, input) != OAK_FAILURE)
+    {
+      return OAK_SUCCESS;
+    }
+  }
+
+  return OAK_FAILURE;
+}
+
+void oak_lex_tokenize(const char* input, oak_lex_t* output)
+{
+  oak_lex_cur_t cur = { .pos = 0, .utf8_pos = 0, .line = 1, .column = 0 };
+  const oak_lex_ctx_t ctx = { .lex = output, .cur = &cur };
+  oak_list_init(&output->tokens);
+
+  while (input[cur.pos] != OAK_EOS)
+  {
+    if (try_scan(&ctx, input) != OAK_SUCCESS)
+    {
+      uint32_t cp = 0;
+      oak_log_cond(oak_utf8_next(&input[cur.pos], &cp) < 0,
+                   OAK_LOG_ERR,
+                   "Invalid UTF-8 character: 0x%.8X",
+                   cp);
+    }
+  }
+}
+
+void oak_lex_cleanup(const oak_lex_t* lex)
+{
+  oak_list_entry_t* entry;
+  oak_list_entry_t* safe;
+  oak_list_for_each_safe(entry, safe, &lex->tokens)
+  {
+    oak_tok_t* token = oak_container_of(entry, oak_tok_t, link);
+    oak_list_remove(entry);
+    oak_mem_release(OAK_SRC_LOC, token);
+  }
+}
