@@ -188,6 +188,27 @@ static oak_result_t arithmetic_expression(void)
   return result;
 }
 
+static oak_result_t one_ident(void)
+{
+  oak_lex_t lex;
+  oak_lex_tokenize("variable", &lex);
+
+  static tok_attr_t tok_attr[] = {
+    {
+        .type = OAK_TOK_IDENT,
+        .line = 1,
+        .column = 0,
+        .pos = 0,
+        .str = "variable",
+    },
+  };
+
+  const oak_result_t result = test_tokens(&lex, tok_attr, 1);
+  oak_lex_cleanup(&lex);
+
+  return result;
+}
+
 static oak_test_t tests[] = {
   {
       "Empty",
@@ -204,6 +225,10 @@ static oak_test_t tests[] = {
   {
       "Arithmetic Expression",
       arithmetic_expression,
+  },
+  {
+      "Identifier",
+      one_ident,
   },
 };
 

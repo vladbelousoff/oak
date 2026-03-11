@@ -458,11 +458,107 @@ static oak_result_t try_scan_number(const oak_lex_ctx_t* ctx, const char* input)
   return OAK_SUCCESS;
 }
 
+static oak_result_t try_scan_ident(const oak_lex_ctx_t* ctx, const char* input)
+{
+  oak_lex_cur_t* cur = ctx->cur;
+  const char* start = &input[cur->pos];
+
+  const int start_utf8_pos = cur->utf8_pos;
+  const int start_line = cur->line;
+  const int start_column = cur->column;
+
+  uint32_t cp = 0;
+  int n = oak_utf8_next(start, &cp);
+  if (n != 1)
+    return OAK_FAILURE;
+
+  /* Identifier must start with a letter or underscore */
+  if (!((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') || cp == '_'))
+    return OAK_FAILURE;
+
+  const char* p = start;
+
+  /* Thread-local static buffer first */
+  static _Thread_local char tls_buffer[64];
+  char* buffer = tls_buffer;
+  size_t buffer_capacity = sizeof(tls_buffer);
+  size_t buffer_length = 0;
+  int dynamic_alloc = 0;
+
+  while (*p)
+  {
+    n = oak_utf8_next(p, &cp);
+    if (n <= 0)
+      break;
+
+    /* Valid identifier characters: letters, digits, underscore */
+    if (!((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') ||
+          (cp >= '0' && cp <= '9') || cp == '_'))
+      break;
+
+    /* Resize buffer if needed */
+    if (buffer_length + n >= buffer_capacity)
+    {
+      if (!dynamic_alloc)
+      {
+        buffer_capacity = 128;
+        char* new_buf = oak_mem_acquire(OAK_SRC_LOC, buffer_capacity);
+        if (!new_buf)
+          return OAK_FAILURE;
+        memcpy(new_buf, tls_buffer, buffer_length);
+        buffer = new_buf;
+        dynamic_alloc = 1;
+      }
+      else
+      {
+        buffer_capacity *= 2;
+        char* new_buf = oak_mem_realloc(OAK_SRC_LOC, buffer, buffer_capacity);
+        if (!new_buf)
+        {
+          oak_mem_release(OAK_SRC_LOC, buffer);
+          return OAK_FAILURE;
+        }
+        buffer = new_buf;
+      }
+    }
+
+    memcpy(buffer + buffer_length, p, n);
+    buffer_length += n;
+
+    p += n;
+    cur->pos += n;
+    cur->column++;
+    cur->utf8_pos++;
+  }
+
+  if (buffer_length == 0)
+  {
+    if (dynamic_alloc)
+      oak_mem_release(OAK_SRC_LOC, buffer);
+    return OAK_FAILURE;
+  }
+
+  save_token(OAK_SRC_LOC,
+             ctx,
+             OAK_TOK_IDENT,
+             buffer,
+             buffer_length,
+             start_utf8_pos,
+             start_line,
+             start_column);
+
+  if (dynamic_alloc)
+    oak_mem_release(OAK_SRC_LOC, buffer);
+
+  return OAK_SUCCESS;
+}
+
 static struct
 {
   oak_result_t (*try_scan)(const oak_lex_ctx_t* ctx, const char* input);
 } scanners[] = {
-  try_scan_ws, try_scan_op, try_scan_string, try_scan_number, { NULL },
+  try_scan_ws,     try_scan_op,    try_scan_string,
+  try_scan_number, try_scan_ident, { NULL },
 };
 
 static oak_result_t try_scan(const oak_lex_ctx_t* ctx, const char* input)
