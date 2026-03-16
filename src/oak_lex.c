@@ -550,7 +550,7 @@ static oak_result_t try_scan(const oak_lex_ctx_t* ctx, const char* input)
 
 void oak_lex_tokenize(const char* input, oak_lex_t* output)
 {
-  oak_lex_cur_t cur = { .buf_pos = 0, .pos = 0, .line = 1, .column = 0 };
+  oak_lex_cur_t cur = { .buf_pos = 0, .pos = 1, .line = 1, .column = 1 };
   const oak_lex_ctx_t ctx = { .lex = output, .cur = &cur };
   oak_list_init(&output->tokens);
 
