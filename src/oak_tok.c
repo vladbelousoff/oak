@@ -1,5 +1,7 @@
 #include "oak_tok.h"
 
+#include "oak_common.h"
+
 #include <string.h>
 
 oak_tok_type_t oak_ident_type(const char* ident, const size_t length)
@@ -21,7 +23,7 @@ oak_tok_type_t oak_ident_type(const char* ident, const size_t length)
     { "while", OAK_TOK_WHILE },
   };
 
-  for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i)
+  for (int i = 0; i < OAK_ARRAY_SIZE(keywords); ++i)
   {
     const char* kw = keywords[i].kw;
     if (strncmp(ident, kw, length + 1) == 0)

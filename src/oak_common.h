@@ -11,3 +11,5 @@ typedef enum
 #define OAK_TAB   '\t'
 #define OAK_CR    '\r'
 #define OAK_SPACE ' '
+
+#define OAK_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))

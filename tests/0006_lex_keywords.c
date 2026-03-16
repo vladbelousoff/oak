@@ -97,7 +97,7 @@ OAK_TEST_DECL(LexKeywords)
     },
   };
 
-  const size_t n = sizeof(attrs) / sizeof(attrs[0]);
+  const size_t n = OAK_ARRAY_SIZE(attrs);
   const oak_result_t result = oak_test_tokens(&lex, attrs, n);
   oak_lex_cleanup(&lex);
 

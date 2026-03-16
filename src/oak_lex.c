@@ -194,7 +194,7 @@ static oak_result_t try_scan_op(const oak_lex_ctx_t* ctx, const char* input)
   const oak_lex_cur_t sav_cur = *cur;
 
   /* Check two-character operators first */
-  for (i = 0; i < sizeof(two_char_ops) / sizeof(two_char_ops[0]); ++i)
+  for (i = 0; i < OAK_ARRAY_SIZE(two_char_ops); ++i)
   {
     if (c1 == two_char_ops[i].a && c2 == two_char_ops[i].b)
     {
@@ -206,7 +206,7 @@ static oak_result_t try_scan_op(const oak_lex_ctx_t* ctx, const char* input)
   }
 
   /* Check single-character operators */
-  for (i = 0; i < sizeof(single_char_ops) / sizeof(single_char_ops[0]); ++i)
+  for (i = 0; i < OAK_ARRAY_SIZE(single_char_ops); ++i)
   {
     if (c1 == single_char_ops[i].c)
     {
