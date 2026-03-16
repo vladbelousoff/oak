@@ -23,12 +23,16 @@ set(OAK_CORE_SOURCES
 
 # Tests
 set(OAK_TEST_SOURCES
-        ${OAK_TESTS_DIR}/0001_lex_empty_string.c
+        ${OAK_TESTS_DIR}/0001_lex_empty.c
         ${OAK_TESTS_DIR}/0002_lex_integer.c
         ${OAK_TESTS_DIR}/0003_lex_float.c
         ${OAK_TESTS_DIR}/0004_lex_arithmetic_expression.c
         ${OAK_TESTS_DIR}/0005_lex_ident.c
         ${OAK_TESTS_DIR}/0006_lex_keywords.c
+        ${OAK_TESTS_DIR}/0007_lex_ops.c
+        ${OAK_TESTS_DIR}/0008_lex_string.c
+        ${OAK_TESTS_DIR}/0009_lex_whitespace_newlines.c
+        ${OAK_TESTS_DIR}/0010_lex_float_exponent.c
 )
 
 set(OAK_APP_SOURCES

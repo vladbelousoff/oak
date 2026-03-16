@@ -66,7 +66,7 @@ static void save_token(const oak_src_loc_t src_loc,
     token->buf[buffer_size] = OAK_EOS;
   }
 
-  oak_log_cond(token_type == OAK_TOK_IDENT || token_type == OAK_TOK_STRING,
+  oak_log_cond(token_type == OAK_TOK_IDENT,
                OAK_LOG_DBG,
                "%s %d:%d '%s'",
                oak_tok_name(token_type),
@@ -90,8 +90,7 @@ static void save_token(const oak_src_loc_t src_loc,
                token->column,
                *(float*)buffer);
 
-  oak_log_cond(token_type != OAK_TOK_IDENT && token_type != OAK_TOK_STRING &&
-                   token_type != OAK_TOK_INT_NUM &&
+  oak_log_cond(token_type != OAK_TOK_IDENT && token_type != OAK_TOK_INT_NUM &&
                    token_type != OAK_TOK_FLOAT_NUM,
                OAK_LOG_DBG,
                "%s %d:%d",
