@@ -209,6 +209,107 @@ static oak_result_t one_ident(void)
   return result;
 }
 
+static oak_result_t keywords(void)
+{
+  oak_lex_t lex;
+  oak_lex_tokenize(
+      "let mut if else while for break continue return true false and or not",
+      &lex);
+
+  static tok_attr_t tok_attr[] = {
+    {
+        .type = OAK_TOK_LET,
+        .line = 1,
+        .column = 0,
+        .pos = 0,
+    },
+    {
+        .type = OAK_TOK_MUT,
+        .line = 1,
+        .column = 4,
+        .pos = 4,
+    },
+    {
+        .type = OAK_TOK_IF,
+        .line = 1,
+        .column = 8,
+        .pos = 8,
+    },
+    {
+        .type = OAK_TOK_ELSE,
+        .line = 1,
+        .column = 11,
+        .pos = 11,
+    },
+    {
+        .type = OAK_TOK_WHILE,
+        .line = 1,
+        .column = 16,
+        .pos = 16,
+    },
+    {
+        .type = OAK_TOK_FOR,
+        .line = 1,
+        .column = 22,
+        .pos = 22,
+    },
+    {
+        .type = OAK_TOK_BREAK,
+        .line = 1,
+        .column = 26,
+        .pos = 26,
+    },
+    {
+        .type = OAK_TOK_CONTINUE,
+        .line = 1,
+        .column = 32,
+        .pos = 32,
+    },
+    {
+        .type = OAK_TOK_RETURN,
+        .line = 1,
+        .column = 41,
+        .pos = 41,
+    },
+    {
+        .type = OAK_TOK_TRUE,
+        .line = 1,
+        .column = 48,
+        .pos = 48,
+    },
+    {
+        .type = OAK_TOK_FALSE,
+        .line = 1,
+        .column = 53,
+        .pos = 53,
+    },
+    {
+        .type = OAK_TOK_AND,
+        .line = 1,
+        .column = 59,
+        .pos = 59,
+    },
+    {
+        .type = OAK_TOK_OR,
+        .line = 1,
+        .column = 63,
+        .pos = 63,
+    },
+    {
+        .type = OAK_TOK_NOT,
+        .line = 1,
+        .column = 66,
+        .pos = 66,
+    },
+  };
+
+  const size_t n = sizeof(tok_attr) / sizeof(tok_attr[0]);
+  const oak_result_t result = test_tokens(&lex, tok_attr, n);
+  oak_lex_cleanup(&lex);
+
+  return result;
+}
+
 static oak_test_t tests[] = {
   {
       "Empty",
@@ -229,6 +330,10 @@ static oak_test_t tests[] = {
   {
       "Identifier",
       one_ident,
+  },
+  {
+      "Keywords",
+      keywords,
   },
 };
 

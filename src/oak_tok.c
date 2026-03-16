@@ -1,5 +1,36 @@
 #include "oak_tok.h"
 
+#include <string.h>
+
+oak_tok_type_t oak_ident_type(const char* ident, const size_t length)
+{
+  static const tea_kw_entry_t keywords[] = {
+    { "and", OAK_TOK_AND },
+    { "break", OAK_TOK_BREAK },
+    { "continue", OAK_TOK_CONTINUE },
+    { "else", OAK_TOK_ELSE },
+    { "false", OAK_TOK_FALSE },
+    { "for", OAK_TOK_FOR },
+    { "if", OAK_TOK_IF },
+    { "let", OAK_TOK_LET },
+    { "mut", OAK_TOK_MUT },
+    { "not", OAK_TOK_NOT },
+    { "or", OAK_TOK_OR },
+    { "return", OAK_TOK_RETURN },
+    { "true", OAK_TOK_TRUE },
+    { "while", OAK_TOK_WHILE },
+  };
+
+  for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i)
+  {
+    const char* kw = keywords[i].kw;
+    if (strncmp(ident, kw, length + 1) == 0)
+      return keywords[i].type;
+  }
+
+  return OAK_TOK_IDENT;
+}
+
 const char* oak_tok_name(const oak_tok_type_t token_type)
 {
   switch (token_type)
@@ -93,6 +124,6 @@ const char* oak_tok_name(const oak_tok_type_t token_type)
   case OAK_TOK_EOF:
     return "EOF";
   default:
-    return "INVALID";
+    return NULL;
   }
 }

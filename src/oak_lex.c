@@ -45,7 +45,7 @@ static void save_token(const oak_src_loc_t src_loc,
   token->pos = start_utf8_pos;
   token->size = buffer_size;
 
-  if (buffer)
+  if (buffer && buffer_size > 0)
   {
     memcpy(token->buf, buffer, buffer_size);
   }
@@ -57,7 +57,7 @@ static void save_token(const oak_src_loc_t src_loc,
 
   oak_log_cond(token_type == OAK_TOK_IDENT || token_type == OAK_TOK_STRING,
                OAK_LOG_DBG,
-               "%s %d:%d -> %s",
+               "%s %d:%d '%s'",
                oak_tok_name(token_type),
                token->line,
                token->column,
@@ -65,7 +65,7 @@ static void save_token(const oak_src_loc_t src_loc,
 
   oak_log_cond(token_type == OAK_TOK_INT_NUM,
                OAK_LOG_DBG,
-               "%s %d:%d -> %d",
+               "%s %d:%d %d",
                oak_tok_name(token_type),
                token->line,
                token->column,
@@ -73,11 +73,20 @@ static void save_token(const oak_src_loc_t src_loc,
 
   oak_log_cond(token_type == OAK_TOK_FLOAT_NUM,
                OAK_LOG_DBG,
-               "%s %d:%d -> %f",
+               "%s %d:%d %f",
                oak_tok_name(token_type),
                token->line,
                token->column,
                *(float*)buffer);
+
+  oak_log_cond(token_type != OAK_TOK_IDENT && token_type != OAK_TOK_STRING &&
+                   token_type != OAK_TOK_INT_NUM &&
+                   token_type != OAK_TOK_FLOAT_NUM,
+               OAK_LOG_DBG,
+               "%s %d:%d",
+               oak_tok_name(token_type),
+               token->line,
+               token->column);
 
   oak_lex_t* lex = ctx->lex;
   oak_list_add_tail(&lex->tokens, &token->link);
@@ -483,6 +492,7 @@ static oak_result_t try_scan_ident(const oak_lex_ctx_t* ctx, const char* input)
   char* buffer = tls_buffer;
   size_t buffer_capacity = sizeof(tls_buffer);
   size_t buffer_length = 0;
+  memset(buffer, 0, buffer_capacity);
   int dynamic_alloc = 0;
 
   while (*p)
@@ -503,6 +513,7 @@ static oak_result_t try_scan_ident(const oak_lex_ctx_t* ctx, const char* input)
       {
         buffer_capacity = 128;
         char* new_buf = oak_mem_acquire(OAK_SRC_LOC, buffer_capacity);
+        memset(new_buf, 0, buffer_capacity);
         if (!new_buf)
           return OAK_FAILURE;
         memcpy(new_buf, tls_buffer, buffer_length);
@@ -538,11 +549,12 @@ static oak_result_t try_scan_ident(const oak_lex_ctx_t* ctx, const char* input)
     return OAK_FAILURE;
   }
 
+  const oak_tok_type_t type = oak_ident_type(buffer, buffer_length);
   save_token(OAK_SRC_LOC,
              ctx,
-             OAK_TOK_IDENT,
+             type,
              buffer,
-             buffer_length,
+             type == OAK_TOK_IDENT ? buffer_length : 0,
              start_utf8_pos,
              start_line,
              start_column);

@@ -67,5 +67,5 @@ typedef struct
   char buf[0];
 } oak_tok_t;
 
-oak_tok_type_t oak_ident_type(const char* ident, int length);
+oak_tok_type_t oak_ident_type(const char* ident, size_t length);
 const char* oak_tok_name(oak_tok_type_t token_type);
