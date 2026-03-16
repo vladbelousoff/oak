@@ -24,13 +24,11 @@ typedef struct
 } oak_lex_ctx_t;
 
 static void save_token(const oak_src_loc_t src_loc,
-                       const oak_lex_ctx_t* ctx,
+                       oak_lex_t* lex,
+                       const oak_lex_cur_t* cur,
                        const oak_tok_type_t token_type,
                        const char* buffer,
-                       const size_t buffer_size,
-                       const int start_utf8_pos,
-                       const int start_line,
-                       const int start_column)
+                       const size_t buffer_size)
 {
   size_t token_size = sizeof(oak_tok_t);
   if (buffer_size > 0)
@@ -40,9 +38,9 @@ static void save_token(const oak_src_loc_t src_loc,
 
   oak_tok_t* token = oak_mem_acquire(src_loc, token_size);
   token->type = token_type;
-  token->line = start_line;
-  token->column = start_column;
-  token->pos = start_utf8_pos;
+  token->line = cur->line;
+  token->column = cur->column;
+  token->pos = cur->utf8_pos;
   token->size = buffer_size;
 
   if (buffer && buffer_size > 0)
@@ -88,7 +86,6 @@ static void save_token(const oak_src_loc_t src_loc,
                token->line,
                token->column);
 
-  oak_lex_t* lex = ctx->lex;
   oak_list_add_tail(&lex->tokens, &token->link);
 }
 
@@ -184,23 +181,16 @@ static oak_result_t try_scan_op(const oak_lex_ctx_t* ctx, const char* input)
   const char c2 = p[1];
   size_t i;
 
-  const int start_utf8_pos = cur->utf8_pos;
-  const int start_line = cur->line;
-  const int start_column = cur->column;
+  /* Save start positions */
+  const oak_lex_cur_t sav_cur = *cur;
 
   /* Check two-character operators first */
   for (i = 0; i < sizeof(two_char_ops) / sizeof(two_char_ops[0]); ++i)
   {
     if (c1 == two_char_ops[i].a && c2 == two_char_ops[i].b)
     {
-      save_token(OAK_SRC_LOC,
-                 ctx,
-                 two_char_ops[i].tok,
-                 p,
-                 0,
-                 start_utf8_pos,
-                 start_line,
-                 start_column);
+      const oak_tok_type_t tok = two_char_ops[i].tok;
+      save_token(OAK_SRC_LOC, ctx->lex, &sav_cur, tok, p, 0);
       cur->pos += 2;
       cur->column += 2;
       cur->utf8_pos += 2;
@@ -213,14 +203,8 @@ static oak_result_t try_scan_op(const oak_lex_ctx_t* ctx, const char* input)
   {
     if (c1 == single_char_ops[i].c)
     {
-      save_token(OAK_SRC_LOC,
-                 ctx,
-                 single_char_ops[i].tok,
-                 p,
-                 0,
-                 start_utf8_pos,
-                 start_line,
-                 start_column);
+      const oak_tok_type_t tok = single_char_ops[i].tok;
+      save_token(OAK_SRC_LOC, ctx->lex, &sav_cur, tok, p, 0);
       cur->pos += 1;
       cur->column += 1;
       cur->utf8_pos += 1;
@@ -243,9 +227,7 @@ static oak_result_t try_scan_string(const oak_lex_ctx_t* ctx, const char* input)
   }
 
   /* Save start positions */
-  const int start_utf8_pos = cur->utf8_pos;
-  const int start_line = cur->line;
-  const int start_column = cur->column;
+  const oak_lex_cur_t sav_cur = *cur;
 
   /* Skip opening quote */
   cur->pos++;
@@ -341,17 +323,17 @@ static oak_result_t try_scan_string(const oak_lex_ctx_t* ctx, const char* input)
     /* Closing quote found */
     if (*p == '\'')
     {
+      save_token(OAK_SRC_LOC,
+                 ctx->lex,
+                 &sav_cur,
+                 OAK_TOK_STRING,
+                 buffer,
+                 buffer_length);
+
       cur->pos++;
       cur->column++;
       cur->utf8_pos++;
-      save_token(OAK_SRC_LOC,
-                 ctx,
-                 OAK_TOK_STRING,
-                 buffer,
-                 buffer_length,
-                 start_utf8_pos,
-                 start_line,
-                 start_column);
+
       if (dynamic_alloc)
         oak_mem_release(OAK_SRC_LOC, buffer);
       return OAK_SUCCESS;
@@ -369,9 +351,8 @@ static oak_result_t try_scan_number(const oak_lex_ctx_t* ctx, const char* input)
   oak_lex_cur_t* cur = ctx->cur;
   const char* start = &input[cur->pos];
 
-  const int start_utf8_pos = cur->utf8_pos;
-  const int start_line = cur->line;
-  const int start_column = cur->column;
+  /* Save start positions */
+  const oak_lex_cur_t sav_cur = *cur;
 
   const char* p = start;
   int has_dot = 0;
@@ -423,45 +404,42 @@ static oak_result_t try_scan_number(const oak_lex_ctx_t* ctx, const char* input)
   if (len == 0)
     return OAK_FAILURE;
 
-  // Thread-local buffer to store number as string
+  /* Thread-local buffer to store number as string */
   static _Thread_local char tls_buffer[64];
   if (len >= sizeof(tls_buffer))
     return OAK_FAILURE;
 
+  memset(tls_buffer, 0, sizeof(tls_buffer));
   memcpy(tls_buffer, start, len);
   tls_buffer[len] = OAK_EOS;
 
   if (has_dot || has_exp)
   {
-    // Floating-point
+    /* Floating-point */
     float val = 0.0f;
     if (sscanf_s(tls_buffer, "%f", &val) != 1)
       return OAK_FAILURE;
 
     save_token(OAK_SRC_LOC,
-               ctx,
+               ctx->lex,
+               &sav_cur,
                OAK_TOK_FLOAT_NUM,
                (char*)&val,
-               sizeof(float),
-               start_utf8_pos,
-               start_line,
-               start_column);
+               sizeof(float));
   }
   else
   {
-    // Integer
+    /* Integer */
     int val = 0;
     if (sscanf_s(tls_buffer, "%d", &val) != 1)
       return OAK_FAILURE;
 
     save_token(OAK_SRC_LOC,
-               ctx,
+               ctx->lex,
+               &sav_cur,
                OAK_TOK_INT_NUM,
                (char*)&val,
-               sizeof(int),
-               start_utf8_pos,
-               start_line,
-               start_column);
+               sizeof(int));
   }
 
   return OAK_SUCCESS;
@@ -472,9 +450,8 @@ static oak_result_t try_scan_ident(const oak_lex_ctx_t* ctx, const char* input)
   oak_lex_cur_t* cur = ctx->cur;
   const char* start = &input[cur->pos];
 
-  const int start_utf8_pos = cur->utf8_pos;
-  const int start_line = cur->line;
-  const int start_column = cur->column;
+  /* Save start positions */
+  const oak_lex_cur_t sav_cur = *cur;
 
   uint32_t cp = 0;
   int n = oak_utf8_next(start, &cp);
@@ -551,13 +528,11 @@ static oak_result_t try_scan_ident(const oak_lex_ctx_t* ctx, const char* input)
 
   const oak_tok_type_t type = oak_ident_type(buffer, buffer_length);
   save_token(OAK_SRC_LOC,
-             ctx,
+             ctx->lex,
+             &sav_cur,
              type,
              buffer,
-             type == OAK_TOK_IDENT ? buffer_length : 0,
-             start_utf8_pos,
-             start_line,
-             start_column);
+             type == OAK_TOK_IDENT ? buffer_length : 0);
 
   if (dynamic_alloc)
     oak_mem_release(OAK_SRC_LOC, buffer);
