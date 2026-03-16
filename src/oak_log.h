@@ -55,7 +55,7 @@ void _oak_log_printf(oak_log_level_t lvl,
 #define oak_log(lvl, fmt, ...)                                                 \
   do                                                                           \
   {                                                                            \
-    if (lvl == OAK_LOG_ERR)                                                    \
+    if (lvl == OAK_LOG_ERR || lvl == OAK_LOG_INF)                              \
     {                                                                          \
       _oak_log_printf(lvl, fmt, ##__VA_ARGS__);                                \
     }                                                                          \
