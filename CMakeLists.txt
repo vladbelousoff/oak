@@ -23,7 +23,12 @@ set(OAK_CORE_SOURCES
 
 # Tests
 set(OAK_TEST_SOURCES
-        ${OAK_TESTS_DIR}/test_lex.c
+        ${OAK_TESTS_DIR}/0001_lex_empty_string.c
+        ${OAK_TESTS_DIR}/0002_lex_integer.c
+        ${OAK_TESTS_DIR}/0003_lex_float.c
+        ${OAK_TESTS_DIR}/0004_lex_arithmetic_expression.c
+        ${OAK_TESTS_DIR}/0005_lex_ident.c
+        ${OAK_TESTS_DIR}/0006_lex_keywords.c
 )
 
 set(OAK_APP_SOURCES
@@ -76,6 +81,7 @@ foreach (test_src ${OAK_TEST_SOURCES})
             PRIVATE
             ${OAK_INCLUDE_DIR}
             ${OAK_SRC_DIR}
+            ${OAK_TESTS_DIR}/shared
     )
 
     target_compile_definitions(${test_name}
