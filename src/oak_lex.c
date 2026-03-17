@@ -66,6 +66,7 @@ static void save_token(const oak_src_loc_t src_loc,
     token->buf[buffer_size] = OAK_EOS;
   }
 
+#if 0
   oak_log_cond(token_type == OAK_TOK_IDENT,
                OAK_LOG_DBG,
                "%s %d:%d '%s'",
@@ -97,6 +98,7 @@ static void save_token(const oak_src_loc_t src_loc,
                oak_tok_name(token_type),
                token->line,
                token->column);
+#endif
 
   oak_list_add_tail(&lex->tokens, &token->link);
 }
