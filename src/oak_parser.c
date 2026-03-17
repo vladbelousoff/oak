@@ -1,4 +1,5 @@
 #include "oak_parser.h"
+#include <stdio.h>
 
 #include "oak_common.h"
 #include "oak_log.h"
@@ -110,6 +111,22 @@ static oak_parser_rule_t oak_grammar[] = {
     .op = OAK_PARSER_OP_TOKEN,
     .tok_type = OAK_TOK_SEMICOLON,
   },
+};
+
+static const char* oak_parser_rule_names[] = {
+  [OAK_PARSER_RULE_NONE] = "NONE",
+  [OAK_PARSER_RULE_PROGRAM] = "PROGRAM",
+  [OAK_PARSER_RULE_PROGRAM_ITEM] = "PROGRAM_ITEM",
+  [OAK_PARSER_RULE_TYPE_DECL] = "TYPE_DECL",
+  [OAK_PARSER_RULE_TYPE_KEYWORD] = "TYPE_KEYWORD",
+  [OAK_PARSER_RULE_TYPE_NAME] = "TYPE_NAME",
+  [OAK_PARSER_RULE_TYPE_FIELD_DECLS] = "TYPE_FIELD_DECLS",
+  [OAK_PARSER_RULE_TYPE_FIELD_DECL] = "TYPE_FIELD_DECL",
+  [OAK_PARSER_RULE_LBRACE] = "LBRACE",
+  [OAK_PARSER_RULE_RBRACE] = "RBRACE",
+  [OAK_PARSER_RULE_IDENT] = "IDENT",
+  [OAK_PARSER_RULE_COLON] = "COLON",
+  [OAK_PARSER_RULE_SEMICOLON] = "SEMICOLON",
 };
 
 oak_ast_node_t* _oak_parse(oak_parser_t* p, oak_parser_rule_id_t rule_id);
@@ -257,4 +274,23 @@ oak_ast_node_t* oak_parse(const oak_lex_t* lex,
   };
 
   return _oak_parse(&parser, rule_id);
+}
+
+void oak_ast_node_free(oak_ast_node_t* node)
+{
+  if (!node)
+    return;
+
+  const oak_parser_rule_t* rule = &oak_grammar[node->rule_id];
+  if (rule->op != OAK_PARSER_OP_TOKEN)
+  {
+    oak_list_entry_t *curr, *n;
+    oak_list_for_each_safe(curr, n, &node->children)
+    {
+      oak_ast_node_t* child = oak_container_of(curr, oak_ast_node_t, link);
+      oak_ast_node_free(child);
+    }
+  }
+
+  oak_mem_release(OAK_SRC_LOC, node);
 }

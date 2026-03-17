@@ -33,3 +33,4 @@ typedef struct _oak_ast_node_t
 } oak_ast_node_t;
 
 oak_ast_node_t* oak_parse(const oak_lex_t* lex, oak_parser_rule_id_t rule_id);
+void oak_ast_node_free(oak_ast_node_t* node);

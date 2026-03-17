@@ -13,7 +13,8 @@ int main(const int argc, const char* argv[])
   oak_lex_tokenize("type SampleType { field1 : number; field2 : string; }",
                    &lex);
 
-  const oak_ast_node_t* program_node = oak_parse(&lex, OAK_PARSER_RULE_PROGRAM);
+  oak_ast_node_t* program_node = oak_parse(&lex, OAK_PARSER_RULE_PROGRAM);
+  oak_ast_node_free(program_node);
   oak_lex_cleanup(&lex);
 
   oak_mem_shutdown();
