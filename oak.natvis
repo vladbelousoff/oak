@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-    <Type Name="oak_tok_t">
-        <DisplayString Condition="size > 0">{type} &quot;{buf,s}&quot;</DisplayString>
+    <Type Name="_oak_tok_t">
+        <DisplayString Condition="size > 0">{type} {(char*)buf,s}</DisplayString>
         <DisplayString>{type}</DisplayString>
         <Expand HideRawView="true">
             <Item Name="type">type</Item>
-            <Item Name="text" Condition="size > 0">buf,s</Item>
+            <Item Name="text" Condition="size > 0">(char*)buf,s</Item>
             <Item Name="line">line</Item>
             <Item Name="column">column</Item>
             <Item Name="pos">pos</Item>
@@ -14,8 +14,25 @@
         </Expand>
     </Type>
 
+    <Type Name="_oak_lex_t">
+        <DisplayString>Tokens</DisplayString>
+        <Expand HideRawView="true">
+            <CustomListItems>
+                <Variable Name="entry" InitialValue="tokens.next"/>
+                <Loop>
+                    <If Condition="entry == &amp;tokens">
+                        <Break/>
+                    </If>
+                    <Item>*(_oak_tok_t*)entry</Item>
+                    <Exec>entry = entry->next</Exec>
+                </Loop>
+            </CustomListItems>
+        </Expand>
+    </Type>
+
     <Type Name="_oak_ast_node_t">
-        <DisplayString Condition="oak_grammar[rule_id].op == OAK_PARSER_OP_TOKEN">{rule_id} ({tok->type})</DisplayString>
+        <DisplayString Condition="oak_grammar[rule_id].op == OAK_PARSER_OP_TOKEN">{rule_id} ({tok->type})
+        </DisplayString>
         <DisplayString>{rule_id}</DisplayString>
 
         <Expand HideRawView="true">
@@ -26,20 +43,14 @@
             <CustomListItems Condition="oak_grammar[rule_id].op != OAK_PARSER_OP_TOKEN">
                 <Variable Name="entry" InitialValue="children.next"/>
                 <Loop>
-                    <If Condition="entry == &amp;children"><Break/></If>
+                    <If Condition="entry == &amp;children">
+                        <Break/>
+                    </If>
                     <Item>*(_oak_ast_node_t*)entry</Item>
                     <Exec>entry = entry->next</Exec>
                 </Loop>
             </CustomListItems>
         </Expand>
-    </Type>
-
-    <Type Name="oak_list_head_t">
-        <DisplayString>List Entry (next={next}, prev={prev})</DisplayString>
-    </Type>
-
-    <Type Name="oak_list_entry_t">
-        <DisplayString>List Entry (next={next}, prev={prev})</DisplayString>
     </Type>
 
 </AutoVisualizer>

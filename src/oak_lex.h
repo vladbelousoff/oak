@@ -2,7 +2,7 @@
 
 #include "oak_list.h"
 
-typedef struct
+typedef struct _oak_lex_t
 {
   oak_list_head_t tokens;
 } oak_lex_t;

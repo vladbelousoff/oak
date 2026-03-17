@@ -256,7 +256,7 @@ oak_ast_node_t* oak_parse(const oak_lex_t* lex,
   return _oak_parse(&parser, rule_id);
 }
 
-void oak_ast_node_free(oak_ast_node_t* node)
+void oak_ast_node_cleanup(oak_ast_node_t* node)
 {
   if (!node)
     return;
@@ -268,7 +268,7 @@ void oak_ast_node_free(oak_ast_node_t* node)
     oak_list_for_each_safe(curr, n, &node->children)
     {
       oak_ast_node_t* child = oak_container_of(curr, oak_ast_node_t, link);
-      oak_ast_node_free(child);
+      oak_ast_node_cleanup(child);
     }
   }
 

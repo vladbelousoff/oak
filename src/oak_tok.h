@@ -2,7 +2,7 @@
 
 #include "oak_list.h"
 
-typedef enum
+typedef enum _oak_tok_type_t
 {
   OAK_TOK_IDENT,
   OAK_TOK_TYPE,
@@ -57,7 +57,7 @@ typedef struct
   oak_tok_type_t type;
 } tea_kw_entry_t;
 
-typedef struct
+typedef struct _oak_tok_t
 {
   oak_list_entry_t link;
   oak_tok_type_t type;
