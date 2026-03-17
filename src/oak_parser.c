@@ -41,11 +41,12 @@ static oak_parser_rule_t oak_grammar[] = {
       OAK_PARSER_RULE_PROGRAM_ITEM,
     },
   },
-  // PROGRAM_ITEM -> TYPE_DECL
+  // PROGRAM_ITEM -> TYPE_DECL | STATEMENT
   [OAK_PARSER_RULE_PROGRAM_ITEM] = {
     .op = OAK_PARSER_OP_CHOICE,
     .rules = {
       OAK_PARSER_RULE_TYPE_DECL,
+      OAK_PARSER_RULE_STATEMENT,
     }
   },
   // TYPE_DECL -> TYPE_KEYWORD TYPE_NAME LBRACE TYPE_FIELD_DECLS RBRACE
@@ -110,6 +111,38 @@ static oak_parser_rule_t oak_grammar[] = {
   [OAK_PARSER_RULE_SEMICOLON] = {
     .op = OAK_PARSER_OP_TOKEN,
     .tok_type = OAK_TOK_SEMICOLON,
+  },
+  // STATEMENT -> EXPRESSION SEMICOLON
+  [OAK_PARSER_RULE_STATEMENT] = {
+    .op = OAK_PARSER_OP_SEQUENCE,
+    .rules = {
+      OAK_PARSER_RULE_EXPRESSION,
+      OAK_PARSER_RULE_SEMICOLON,
+    },
+  },
+  // EXPRESSION -> INT | FLOAT | STRING
+  [OAK_PARSER_RULE_EXPRESSION] = {
+    .op = OAK_PARSER_OP_CHOICE,
+    .rules = {
+      OAK_PARSER_RULE_INT,
+      OAK_PARSER_RULE_FLOAT,
+      OAK_PARSER_RULE_STRING,
+    },
+  },
+  // INT -> OAK_TOK_INT_NUM
+  [OAK_PARSER_RULE_INT] = {
+    .op = OAK_PARSER_OP_TOKEN,
+    .tok_type = OAK_TOK_INT_NUM,
+  },
+  // FLOAT -> OAK_TOK_FLOAT_NUM
+  [OAK_PARSER_RULE_FLOAT] = {
+    .op = OAK_PARSER_OP_TOKEN,
+    .tok_type = OAK_TOK_FLOAT_NUM,
+  },
+  // STRING -> OAK_TOK_STRING
+  [OAK_PARSER_RULE_STRING] = {
+    .op = OAK_PARSER_OP_TOKEN,
+    .tok_type = OAK_TOK_STRING,
   },
 };
 
@@ -195,7 +228,6 @@ static oak_ast_node_t* make_ast_node_choice(oak_parser_t* p,
       node->rule_id = rule_id;
       oak_list_init(&node->children);
       oak_list_add_tail(&node->children, &child_node->link);
-      oak_log(OAK_LOG_DBG, "Node: %d", rule_id);
       return node;
     }
   }
@@ -214,7 +246,7 @@ static oak_ast_node_t* make_ast_node_repeat(oak_parser_t* p,
   const oak_parser_rule_t* curr_rule = &oak_grammar[rule_id];
   for (;;)
   {
-    oak_ast_node_t* child_node = make_ast_node_sequence(p, curr_rule->rules[0]);
+    oak_ast_node_t* child_node = _oak_parse(p, curr_rule->rules[0]);
     if (!child_node)
       break;
     oak_list_add_tail(&node->children, &child_node->link);

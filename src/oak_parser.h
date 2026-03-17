@@ -18,6 +18,11 @@ typedef enum
   OAK_PARSER_RULE_IDENT,
   OAK_PARSER_RULE_COLON,
   OAK_PARSER_RULE_SEMICOLON,
+  OAK_PARSER_RULE_STATEMENT,
+  OAK_PARSER_RULE_EXPRESSION,
+  OAK_PARSER_RULE_INT,
+  OAK_PARSER_RULE_FLOAT,
+  OAK_PARSER_RULE_STRING,
 } oak_parser_rule_id_t;
 
 int oak_parser_rule_is_token(oak_parser_rule_id_t rule_id);

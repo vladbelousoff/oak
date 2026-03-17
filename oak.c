@@ -10,7 +10,8 @@ int main(const int argc, const char* argv[])
   oak_mem_init();
 
   oak_lex_t lex;
-  oak_lex_tokenize("type SampleType { field1 : number; field2 : string; }",
+  oak_lex_tokenize("type SampleType { field1 : number; field2 : string; }\n"
+                   "1000; 33.100; 'Hello';\n",
                    &lex);
 
   oak_ast_node_t* root = oak_parse(&lex, OAK_PARSER_RULE_PROGRAM);
