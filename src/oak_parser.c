@@ -112,16 +112,16 @@ static oak_parser_rule_t oak_grammar[] = {
     .op = OAK_PARSER_OP_TOKEN,
     .tok_type = OAK_TOK_SEMICOLON,
   },
-  // STATEMENT -> EXPRESSION SEMICOLON
+  // STATEMENT -> EXPR SEMICOLON
   [OAK_PARSER_RULE_STATEMENT] = {
     .op = OAK_PARSER_OP_SEQUENCE,
     .rules = {
-      OAK_PARSER_RULE_EXPRESSION,
+      OAK_PARSER_RULE_EXPR,
       OAK_PARSER_RULE_SEMICOLON,
     },
   },
-  // EXPRESSION -> INT | FLOAT | STRING
-  [OAK_PARSER_RULE_EXPRESSION] = {
+  // EXPR -> INT | FLOAT | STRING
+  [OAK_PARSER_RULE_EXPR] = {
     .op = OAK_PARSER_OP_CHOICE,
     .rules = {
       OAK_PARSER_RULE_INT,
