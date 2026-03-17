@@ -20,6 +20,28 @@ typedef enum
   OAK_PARSER_RULE_SEMICOLON,
 } oak_parser_rule_id_t;
 
+typedef enum
+{
+  OAK_PARSER_OP_TOKEN,      // Match one specific token (terminal)
+  OAK_PARSER_OP_SEQUENCE,   // Match all children in order (A B C)
+  OAK_PARSER_OP_CHOICE,     // Match first succeeding child (A | B | C)
+  OAK_PARSER_OP_REPEAT,     // Match child zero or more times (A*)
+  OAK_PARSER_OP_REPEAT_ONE, // Match child one or more times (A+)
+  OAK_PARSER_OP_OPTIONAL,   // Match child zero or one times (A?)
+} oak_parser_rule_op_t;
+
+typedef struct
+{
+  oak_parser_rule_op_t op;
+  union
+  {
+    oak_parser_rule_id_t rules[16];
+    oak_tok_type_t tok_type;
+  };
+} oak_parser_rule_t;
+
+extern oak_parser_rule_t oak_grammar[];
+
 typedef struct _oak_ast_node_t
 {
   oak_list_entry_t link;
