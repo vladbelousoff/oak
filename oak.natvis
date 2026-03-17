@@ -31,16 +31,15 @@
     </Type>
 
     <Type Name="_oak_ast_node_t">
-        <DisplayString Condition="oak_grammar[rule_id].op == OAK_PARSER_OP_TOKEN">{rule_id} ({tok->type})
-        </DisplayString>
+        <DisplayString Condition="oak_parser_rule_is_token(rule_id)">{rule_id} ({tok->type})</DisplayString>
         <DisplayString>{rule_id}</DisplayString>
 
         <Expand HideRawView="true">
             <Item Name="rule">rule_id</Item>
 
-            <Item Name="tok" Condition="oak_grammar[rule_id].op == OAK_PARSER_OP_TOKEN">tok</Item>
+            <Item Name="tok" Condition="oak_parser_rule_is_token(rule_id)">tok</Item>
 
-            <CustomListItems Condition="oak_grammar[rule_id].op != OAK_PARSER_OP_TOKEN">
+            <CustomListItems Condition="!oak_parser_rule_is_token(rule_id)">
                 <Variable Name="entry" InitialValue="children.next"/>
                 <Loop>
                     <If Condition="entry == &amp;children">

@@ -13,7 +13,27 @@ typedef struct
 
 typedef int (*oak_parser_rule_fn_t)(oak_parser_t*);
 
-oak_parser_rule_t oak_grammar[] = {
+typedef enum
+{
+  OAK_PARSER_OP_TOKEN,      // Match one specific token (terminal)
+  OAK_PARSER_OP_SEQUENCE,   // Match all children in order (A B C)
+  OAK_PARSER_OP_CHOICE,     // Match first succeeding child (A | B | C)
+  OAK_PARSER_OP_REPEAT,     // Match child zero or more times (A*)
+  OAK_PARSER_OP_REPEAT_ONE, // Match child one or more times (A+)
+  OAK_PARSER_OP_OPTIONAL,   // Match child zero or one times (A?)
+} oak_parser_rule_op_t;
+
+typedef struct
+{
+  oak_parser_rule_op_t op;
+  union
+  {
+    oak_parser_rule_id_t rules[16];
+    oak_tok_type_t tok_type;
+  };
+} oak_parser_rule_t;
+
+static oak_parser_rule_t oak_grammar[] = {
   // PROGRAM -> (PROGRAM_ITEM)*
   [OAK_PARSER_RULE_PROGRAM] = {
     .op = OAK_PARSER_OP_REPEAT,
@@ -93,21 +113,10 @@ oak_parser_rule_t oak_grammar[] = {
   },
 };
 
-static const char* oak_parser_rule_names[] = {
-  [OAK_PARSER_RULE_NONE] = "NONE",
-  [OAK_PARSER_RULE_PROGRAM] = "PROGRAM",
-  [OAK_PARSER_RULE_PROGRAM_ITEM] = "PROGRAM_ITEM",
-  [OAK_PARSER_RULE_TYPE_DECL] = "TYPE_DECL",
-  [OAK_PARSER_RULE_TYPE_KEYWORD] = "TYPE_KEYWORD",
-  [OAK_PARSER_RULE_TYPE_NAME] = "TYPE_NAME",
-  [OAK_PARSER_RULE_TYPE_FIELD_DECLS] = "TYPE_FIELD_DECLS",
-  [OAK_PARSER_RULE_TYPE_FIELD_DECL] = "TYPE_FIELD_DECL",
-  [OAK_PARSER_RULE_LBRACE] = "LBRACE",
-  [OAK_PARSER_RULE_RBRACE] = "RBRACE",
-  [OAK_PARSER_RULE_IDENT] = "IDENT",
-  [OAK_PARSER_RULE_COLON] = "COLON",
-  [OAK_PARSER_RULE_SEMICOLON] = "SEMICOLON",
-};
+int oak_parser_rule_is_token(const oak_parser_rule_id_t rule_id)
+{
+  return oak_grammar[rule_id].op == OAK_PARSER_OP_TOKEN;
+}
 
 oak_ast_node_t* _oak_parse(oak_parser_t* p, oak_parser_rule_id_t rule_id);
 
