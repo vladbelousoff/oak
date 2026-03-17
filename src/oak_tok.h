@@ -5,6 +5,7 @@
 typedef enum
 {
   OAK_TOK_IDENT,
+  OAK_TOK_TYPE,
   OAK_TOK_LPAREN,
   OAK_TOK_RPAREN,
   OAK_TOK_LBRACE,

@@ -20,6 +20,7 @@ oak_tok_type_t oak_ident_type(const char* ident, const size_t length)
     { "or", OAK_TOK_OR },
     { "return", OAK_TOK_RETURN },
     { "true", OAK_TOK_TRUE },
+    { "type", OAK_TOK_TYPE },
     { "while", OAK_TOK_WHILE },
   };
 
@@ -39,6 +40,8 @@ const char* oak_tok_name(const oak_tok_type_t token_type)
   {
   case OAK_TOK_IDENT:
     return "IDENT";
+  case OAK_TOK_TYPE:
+    return "TYPE";
   case OAK_TOK_LPAREN:
     return "LPAREN";
   case OAK_TOK_RPAREN:

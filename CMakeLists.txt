@@ -19,6 +19,7 @@ set(OAK_CORE_SOURCES
         ${OAK_SRC_DIR}/oak_mem.c
         ${OAK_SRC_DIR}/oak_lex.c
         ${OAK_SRC_DIR}/oak_tok.c
+        ${OAK_SRC_DIR}/oak_parser.c
 )
 
 # Tests
@@ -63,6 +64,13 @@ target_compile_definitions(oak-core
 # Executable
 add_executable(oak ${OAK_APP_SOURCES})
 target_link_libraries(oak PRIVATE oak-core)
+
+target_include_directories(oak
+        PUBLIC
+        ${OAK_INCLUDE_DIR}
+        PRIVATE
+        ${OAK_SRC_DIR}
+)
 
 target_compile_definitions(oak
         PRIVATE
