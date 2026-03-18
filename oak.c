@@ -14,7 +14,7 @@ int main(const int argc, const char* argv[])
                    "1000; 33.100; 'Hello';\n",
                    &lex);
 
-  oak_ast_node_t* root = oak_parse(&lex, OAK_PARSER_RULE_PROGRAM);
+  oak_ast_node_t* root = oak_parse(&lex, OAK_NODE_KIND_PROGRAM);
   oak_ast_node_cleanup(root);
   oak_lex_cleanup(&lex);
 

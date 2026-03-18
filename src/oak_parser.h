@@ -5,32 +5,32 @@
 
 typedef enum
 {
-  OAK_PARSER_RULE_NONE,
-  OAK_PARSER_RULE_PROGRAM,
-  OAK_PARSER_RULE_PROGRAM_ITEM,
-  OAK_PARSER_RULE_TYPE_DECL,
-  OAK_PARSER_RULE_TYPE_KEYWORD,
-  OAK_PARSER_RULE_TYPE_NAME,
-  OAK_PARSER_RULE_TYPE_FIELD_DECLS,
-  OAK_PARSER_RULE_TYPE_FIELD_DECL,
-  OAK_PARSER_RULE_LBRACE,
-  OAK_PARSER_RULE_RBRACE,
-  OAK_PARSER_RULE_IDENT,
-  OAK_PARSER_RULE_COLON,
-  OAK_PARSER_RULE_SEMICOLON,
-  OAK_PARSER_RULE_STATEMENT,
-  OAK_PARSER_RULE_EXPR,
-  OAK_PARSER_RULE_INT,
-  OAK_PARSER_RULE_FLOAT,
-  OAK_PARSER_RULE_STRING,
-} oak_parser_rule_id_t;
+  OAK_NODE_KIND_NONE,
+  OAK_NODE_KIND_PROGRAM,
+  OAK_NODE_KIND_PROGRAM_ITEM,
+  OAK_NODE_KIND_TYPE_DECL,
+  OAK_NODE_KIND_TYPE_KEYWORD,
+  OAK_NODE_KIND_TYPE_NAME,
+  OAK_NODE_KIND_TYPE_FIELD_DECLS,
+  OAK_NODE_KIND_TYPE_FIELD_DECL,
+  OAK_NODE_KIND_LBRACE,
+  OAK_NODE_KIND_RBRACE,
+  OAK_NODE_KIND_IDENT,
+  OAK_NODE_KIND_COLON,
+  OAK_NODE_KIND_SEMICOLON,
+  OAK_NODE_KIND_STATEMENT,
+  OAK_NODE_KIND_EXPR,
+  OAK_NODE_KIND_INT,
+  OAK_NODE_KIND_FLOAT,
+  OAK_NODE_KIND_STRING,
+} oak_node_kind_t;
 
-int oak_parser_rule_is_token(oak_parser_rule_id_t rule_id);
+int oak_node_kind_is_token(oak_node_kind_t kind);
 
 typedef struct _oak_ast_node_t
 {
   oak_list_entry_t link;
-  oak_parser_rule_id_t rule_id;
+  oak_node_kind_t kind;
 
   union
   {
@@ -39,5 +39,5 @@ typedef struct _oak_ast_node_t
   };
 } oak_ast_node_t;
 
-oak_ast_node_t* oak_parse(const oak_lex_t* lex, oak_parser_rule_id_t rule_id);
+oak_ast_node_t* oak_parse(const oak_lex_t* lex, oak_node_kind_t kind);
 void oak_ast_node_cleanup(oak_ast_node_t* node);

@@ -11,163 +11,161 @@ typedef struct
   oak_list_head_t* curr;
 } oak_parser_t;
 
-typedef int (*oak_parser_rule_fn_t)(oak_parser_t*);
-
 typedef enum
 {
-  OAK_PARSER_OP_TOKEN,      // Match one specific token (terminal)
-  OAK_PARSER_OP_SEQUENCE,   // Match all children in order (A B C)
-  OAK_PARSER_OP_CHOICE,     // Match first succeeding child (A | B | C)
-  OAK_PARSER_OP_REPEAT,     // Match child zero or more times (A*)
-  OAK_PARSER_OP_REPEAT_ONE, // Match child one or more times (A+)
-  OAK_PARSER_OP_OPTIONAL,   // Match child zero or one times (A?)
-} oak_parser_rule_op_t;
+  OAK_GRAMMAR_OP_TOKEN,      // Match one specific token (terminal)
+  OAK_GRAMMAR_OP_SEQUENCE,   // Match all children in order (A B C)
+  OAK_GRAMMAR_OP_CHOICE,     // Match first succeeding child (A | B | C)
+  OAK_GRAMMAR_OP_REPEAT,     // Match child zero or more times (A*)
+  OAK_GRAMMAR_OP_REPEAT_ONE, // Match child one or more times (A+)
+  OAK_GRAMMAR_OP_OPTIONAL,   // Match child zero or one times (A?)
+} oak_grammar_op_t;
 
 typedef struct
 {
-  oak_parser_rule_op_t op;
+  oak_grammar_op_t op;
   union
   {
-    oak_parser_rule_id_t rules[16];
+    oak_node_kind_t rules[16];
     oak_tok_type_t tok_type;
   };
-} oak_parser_rule_t;
+} oak_grammar_entry_t;
 
-static oak_parser_rule_t oak_grammar[] = {
+static oak_grammar_entry_t oak_grammar[] = {
   // PROGRAM -> (PROGRAM_ITEM)*
-  [OAK_PARSER_RULE_PROGRAM] = {
-    .op = OAK_PARSER_OP_REPEAT,
+  [OAK_NODE_KIND_PROGRAM] = {
+    .op = OAK_GRAMMAR_OP_REPEAT,
     .rules = {
-      OAK_PARSER_RULE_PROGRAM_ITEM,
+      OAK_NODE_KIND_PROGRAM_ITEM,
     },
   },
   // PROGRAM_ITEM -> TYPE_DECL | STATEMENT
-  [OAK_PARSER_RULE_PROGRAM_ITEM] = {
-    .op = OAK_PARSER_OP_CHOICE,
+  [OAK_NODE_KIND_PROGRAM_ITEM] = {
+    .op = OAK_GRAMMAR_OP_CHOICE,
     .rules = {
-      OAK_PARSER_RULE_TYPE_DECL,
-      OAK_PARSER_RULE_STATEMENT,
+      OAK_NODE_KIND_TYPE_DECL,
+      OAK_NODE_KIND_STATEMENT,
     }
   },
   // TYPE_DECL -> TYPE_KEYWORD TYPE_NAME LBRACE TYPE_FIELD_DECLS RBRACE
-  [OAK_PARSER_RULE_TYPE_DECL] = {
-    .op = OAK_PARSER_OP_SEQUENCE,
+  [OAK_NODE_KIND_TYPE_DECL] = {
+    .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
-      OAK_PARSER_RULE_TYPE_KEYWORD,
-      OAK_PARSER_RULE_TYPE_NAME,
-      OAK_PARSER_RULE_LBRACE,
-      OAK_PARSER_RULE_TYPE_FIELD_DECLS,
-      OAK_PARSER_RULE_RBRACE,
+      OAK_NODE_KIND_TYPE_KEYWORD,
+      OAK_NODE_KIND_TYPE_NAME,
+      OAK_NODE_KIND_LBRACE,
+      OAK_NODE_KIND_TYPE_FIELD_DECLS,
+      OAK_NODE_KIND_RBRACE,
     }
   },
   // TYPE_FIELD_DECLS -> (TYPE_FIELD_DECL)*
-  [OAK_PARSER_RULE_TYPE_FIELD_DECLS] = {
-    .op = OAK_PARSER_OP_REPEAT,
+  [OAK_NODE_KIND_TYPE_FIELD_DECLS] = {
+    .op = OAK_GRAMMAR_OP_REPEAT,
     .rules = {
-      OAK_PARSER_RULE_TYPE_FIELD_DECL,
+      OAK_NODE_KIND_TYPE_FIELD_DECL,
     }
   },
   // TYPE_FIELD_DECL -> IDENT COLON IDENT SEMICOLON
-  [OAK_PARSER_RULE_TYPE_FIELD_DECL] = {
-    .op = OAK_PARSER_OP_SEQUENCE,
+  [OAK_NODE_KIND_TYPE_FIELD_DECL] = {
+    .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
-      OAK_PARSER_RULE_IDENT,
-      OAK_PARSER_RULE_COLON,
-      OAK_PARSER_RULE_IDENT,
-      OAK_PARSER_RULE_SEMICOLON,
+      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_COLON,
+      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_SEMICOLON,
     },
   },
   // TYPE_KEYWORD -> 'type'
-  [OAK_PARSER_RULE_TYPE_KEYWORD] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_TYPE_KEYWORD] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_TYPE,
   },
   // TYPE_NAME -> IDENT
-  [OAK_PARSER_RULE_TYPE_NAME] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_TYPE_NAME] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_IDENT,
   },
   // LBRACE -> '{'
-  [OAK_PARSER_RULE_LBRACE] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_LBRACE] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_LBRACE,
   },
   // RBRACE -> '}'
-  [OAK_PARSER_RULE_RBRACE] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_RBRACE] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_RBRACE,
   },
   // IDENT -> OAK_TOK_IDENT
-  [OAK_PARSER_RULE_IDENT] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_IDENT] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_IDENT,
   },
   // COLON -> ':'
-  [OAK_PARSER_RULE_COLON] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_COLON] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_COLON,
   },
   // SEMICOLON -> ';'
-  [OAK_PARSER_RULE_SEMICOLON] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_SEMICOLON] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_SEMICOLON,
   },
   // STATEMENT -> EXPR SEMICOLON
-  [OAK_PARSER_RULE_STATEMENT] = {
-    .op = OAK_PARSER_OP_SEQUENCE,
+  [OAK_NODE_KIND_STATEMENT] = {
+    .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
-      OAK_PARSER_RULE_EXPR,
-      OAK_PARSER_RULE_SEMICOLON,
+      OAK_NODE_KIND_EXPR,
+      OAK_NODE_KIND_SEMICOLON,
     },
   },
   // EXPR -> INT | FLOAT | STRING
-  [OAK_PARSER_RULE_EXPR] = {
-    .op = OAK_PARSER_OP_CHOICE,
+  [OAK_NODE_KIND_EXPR] = {
+    .op = OAK_GRAMMAR_OP_CHOICE,
     .rules = {
-      OAK_PARSER_RULE_INT,
-      OAK_PARSER_RULE_FLOAT,
-      OAK_PARSER_RULE_STRING,
+      OAK_NODE_KIND_INT,
+      OAK_NODE_KIND_FLOAT,
+      OAK_NODE_KIND_STRING,
     },
   },
   // INT -> OAK_TOK_INT_NUM
-  [OAK_PARSER_RULE_INT] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_INT] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_INT_NUM,
   },
   // FLOAT -> OAK_TOK_FLOAT_NUM
-  [OAK_PARSER_RULE_FLOAT] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_FLOAT] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_FLOAT_NUM,
   },
   // STRING -> OAK_TOK_STRING
-  [OAK_PARSER_RULE_STRING] = {
-    .op = OAK_PARSER_OP_TOKEN,
+  [OAK_NODE_KIND_STRING] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_STRING,
   },
 };
 
-int oak_parser_rule_is_token(const oak_parser_rule_id_t rule_id)
+int oak_node_kind_is_token(const oak_node_kind_t kind)
 {
-  return oak_grammar[rule_id].op == OAK_PARSER_OP_TOKEN;
+  return oak_grammar[kind].op == OAK_GRAMMAR_OP_TOKEN;
 }
 
-oak_ast_node_t* _oak_parse(oak_parser_t* p, oak_parser_rule_id_t rule_id);
+static oak_ast_node_t* parse_rule(oak_parser_t* p, oak_node_kind_t kind);
 
 static oak_ast_node_t* make_ast_node_token(oak_parser_t* p,
-                                           const oak_parser_rule_id_t rule_id)
+                                           const oak_node_kind_t kind)
 {
   oak_assert(p);
   oak_assert(p->curr);
   oak_assert(p->curr->next);
 
   const oak_tok_t* tok = oak_container_of(p->curr, oak_tok_t, link);
-  const oak_parser_rule_t* curr_rule = &oak_grammar[rule_id];
-  if (tok->type != curr_rule->tok_type)
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
+  if (tok->type != entry->tok_type)
     return NULL;
   oak_ast_node_t* node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
   if (!node)
     return NULL;
-  node->rule_id = rule_id;
+  node->kind = kind;
   node->tok = tok;
 
   // Advance parser
@@ -178,27 +176,27 @@ static oak_ast_node_t* make_ast_node_token(oak_parser_t* p,
 }
 
 static oak_ast_node_t*
-make_ast_node_sequence(oak_parser_t* p, const oak_parser_rule_id_t rule_id)
+make_ast_node_sequence(oak_parser_t* p, const oak_node_kind_t kind)
 {
   oak_list_entry_t* saved = p->curr;
   oak_ast_node_t* node = NULL;
-  const oak_parser_rule_t* curr_rule = &oak_grammar[rule_id];
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
 
-  for (size_t i = 0; i < OAK_ARRAY_SIZE(curr_rule->rules) &&
-                     curr_rule->rules[i] != OAK_PARSER_RULE_NONE;
+  for (size_t i = 0; i < OAK_ARRAY_SIZE(entry->rules) &&
+                     entry->rules[i] != OAK_NODE_KIND_NONE;
        ++i)
   {
-    oak_ast_node_t* child_node = _oak_parse(p, curr_rule->rules[i]);
-    if (child_node)
+    oak_ast_node_t* child = parse_rule(p, entry->rules[i]);
+    if (child)
     {
       // Allocate node if it's NULL
       if (!node)
       {
         node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
-        node->rule_id = rule_id;
+        node->kind = kind;
         oak_list_init(&node->children);
       }
-      oak_list_add_tail(&node->children, &child_node->link);
+      oak_list_add_tail(&node->children, &child->link);
     }
     else
     {
@@ -211,23 +209,23 @@ make_ast_node_sequence(oak_parser_t* p, const oak_parser_rule_id_t rule_id)
 }
 
 static oak_ast_node_t* make_ast_node_choice(oak_parser_t* p,
-                                            const oak_parser_rule_id_t rule_id)
+                                            const oak_node_kind_t kind)
 {
   oak_list_entry_t* saved = p->curr;
-  const oak_parser_rule_t* curr_rule = &oak_grammar[rule_id];
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
 
-  for (size_t i = 0; i < OAK_ARRAY_SIZE(curr_rule->rules) &&
-                     curr_rule->rules[i] != OAK_PARSER_RULE_NONE;
+  for (size_t i = 0; i < OAK_ARRAY_SIZE(entry->rules) &&
+                     entry->rules[i] != OAK_NODE_KIND_NONE;
        ++i)
   {
-    oak_ast_node_t* child_node = _oak_parse(p, curr_rule->rules[i]);
-    if (child_node)
+    oak_ast_node_t* child = parse_rule(p, entry->rules[i]);
+    if (child)
     {
       oak_ast_node_t* node =
           oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
-      node->rule_id = rule_id;
+      node->kind = kind;
       oak_list_init(&node->children);
-      oak_list_add_tail(&node->children, &child_node->link);
+      oak_list_add_tail(&node->children, &child->link);
       return node;
     }
   }
@@ -237,64 +235,63 @@ static oak_ast_node_t* make_ast_node_choice(oak_parser_t* p,
 }
 
 static oak_ast_node_t* make_ast_node_repeat(oak_parser_t* p,
-                                            const oak_parser_rule_id_t rule_id)
+                                            const oak_node_kind_t kind)
 {
   oak_ast_node_t* node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
-  node->rule_id = rule_id;
+  node->kind = kind;
   oak_list_init(&node->children);
 
-  const oak_parser_rule_t* curr_rule = &oak_grammar[rule_id];
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
   for (;;)
   {
-    oak_ast_node_t* child_node = _oak_parse(p, curr_rule->rules[0]);
-    if (!child_node)
+    oak_ast_node_t* child = parse_rule(p, entry->rules[0]);
+    if (!child)
       break;
-    oak_list_add_tail(&node->children, &child_node->link);
+    oak_list_add_tail(&node->children, &child->link);
   }
 
   return node;
 }
 
-oak_ast_node_t* _oak_parse(oak_parser_t* p, const oak_parser_rule_id_t rule_id)
+static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
 {
-  if (rule_id == OAK_PARSER_RULE_NONE)
+  if (kind == OAK_NODE_KIND_NONE)
     return NULL;
   if (p->curr == p->head)
     return NULL;
 
   oak_ast_node_t* node = NULL;
-  const oak_parser_rule_t* curr_rule = &oak_grammar[rule_id];
-  switch (curr_rule->op)
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
+  switch (entry->op)
   {
-  case OAK_PARSER_OP_TOKEN:
-    node = make_ast_node_token(p, rule_id);
+  case OAK_GRAMMAR_OP_TOKEN:
+    node = make_ast_node_token(p, kind);
     break;
-  case OAK_PARSER_OP_SEQUENCE:
-    node = make_ast_node_sequence(p, rule_id);
+  case OAK_GRAMMAR_OP_SEQUENCE:
+    node = make_ast_node_sequence(p, kind);
     break;
-  case OAK_PARSER_OP_CHOICE:
-    node = make_ast_node_choice(p, rule_id);
+  case OAK_GRAMMAR_OP_CHOICE:
+    node = make_ast_node_choice(p, kind);
     break;
-  case OAK_PARSER_OP_REPEAT:
-    node = make_ast_node_repeat(p, rule_id);
+  case OAK_GRAMMAR_OP_REPEAT:
+    node = make_ast_node_repeat(p, kind);
     break;
-  case OAK_PARSER_OP_REPEAT_ONE:
-  case OAK_PARSER_OP_OPTIONAL:
+  case OAK_GRAMMAR_OP_REPEAT_ONE:
+  case OAK_GRAMMAR_OP_OPTIONAL:
     break;
   }
 
   return node;
 }
 
-oak_ast_node_t* oak_parse(const oak_lex_t* lex,
-                          const oak_parser_rule_id_t rule_id)
+oak_ast_node_t* oak_parse(const oak_lex_t* lex, const oak_node_kind_t kind)
 {
   oak_parser_t parser = {
     .head = &lex->tokens,
     .curr = lex->tokens.next,
   };
 
-  return _oak_parse(&parser, rule_id);
+  return parse_rule(&parser, kind);
 }
 
 void oak_ast_node_cleanup(oak_ast_node_t* node)
@@ -302,8 +299,8 @@ void oak_ast_node_cleanup(oak_ast_node_t* node)
   if (!node)
     return;
 
-  const oak_parser_rule_t* rule = &oak_grammar[node->rule_id];
-  if (rule->op != OAK_PARSER_OP_TOKEN)
+  const oak_grammar_entry_t* entry = &oak_grammar[node->kind];
+  if (entry->op != OAK_GRAMMAR_OP_TOKEN)
   {
     oak_list_entry_t *curr, *n;
     oak_list_for_each_safe(curr, n, &node->children)
