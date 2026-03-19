@@ -11,6 +11,9 @@ typedef struct
   oak_list_head_t* curr;
 } oak_parser_t;
 
+#define OAK_NODE_SKIP      ((oak_node_kind_t)(1 << 15))
+#define OAK_NODE_KIND_MASK ((oak_node_kind_t)~OAK_NODE_SKIP)
+
 typedef enum
 {
   OAK_GRAMMAR_OP_TOKEN,      // Match one specific token (terminal)
@@ -89,11 +92,11 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_TYPE_DECL] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
-      OAK_NODE_KIND_TYPE_KEYWORD,
+      OAK_NODE_KIND_TYPE_KEYWORD | OAK_NODE_SKIP,
       OAK_NODE_KIND_TYPE_NAME,
-      OAK_NODE_KIND_LBRACE,
+      OAK_NODE_KIND_LBRACE | OAK_NODE_SKIP,
       OAK_NODE_KIND_TYPE_FIELD_DECLS,
-      OAK_NODE_KIND_RBRACE,
+      OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,
     }
   },
   // TYPE_FIELD_DECLS -> (TYPE_FIELD_DECL)*
@@ -108,9 +111,9 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_COLON,
+      OAK_NODE_KIND_COLON | OAK_NODE_SKIP,
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_SEMICOLON,
+      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
     },
   },
   // TYPE_KEYWORD -> 'type'
@@ -153,7 +156,7 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
       OAK_NODE_KIND_EXPR,
-      OAK_NODE_KIND_SEMICOLON,
+      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
     },
   },
   // EXPR -> Pratt-parsed expression with operator precedence
@@ -246,14 +249,20 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
   oak_ast_node_t* node = NULL;
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
 
-  for (size_t i = 0; i < OAK_ARRAY_SIZE(entry->rules) &&
-                     entry->rules[i] != OAK_NODE_KIND_NONE;
+  for (size_t i = 0;
+       i < OAK_ARRAY_SIZE(entry->rules) &&
+       (entry->rules[i] & OAK_NODE_KIND_MASK) != OAK_NODE_KIND_NONE;
        ++i)
   {
-    oak_ast_node_t* child = parse_rule(p, entry->rules[i]);
+    const oak_node_kind_t rule = entry->rules[i];
+    oak_ast_node_t* child = parse_rule(p, rule & OAK_NODE_KIND_MASK);
     if (child)
     {
-      // Allocate node if it's NULL
+      if (rule & OAK_NODE_SKIP)
+      {
+        oak_ast_node_cleanup(child);
+        continue;
+      }
       if (!node)
       {
         node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
