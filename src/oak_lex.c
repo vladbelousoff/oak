@@ -171,6 +171,7 @@ static const oak_single_char_op_t single_char_ops[] = {
   { '+', OAK_TOK_PLUS },
   { '*', OAK_TOK_STAR },
   { '/', OAK_TOK_SLASH },
+  { '%', OAK_TOK_PERCENT },
   { '(', OAK_TOK_LPAREN },
   { ')', OAK_TOK_RPAREN },
   { '{', OAK_TOK_LBRACE },

@@ -38,12 +38,12 @@
     </Type>
 
     <Type Name="_oak_ast_node_t">
-        <DisplayString Condition="oak_parser_rule_is_token(rule_id)">{rule_id} ({tok->type})</DisplayString>
-        <DisplayString>{rule_id}</DisplayString>
+        <DisplayString Condition="oak_node_kind_is_token(kind)">{kind} ({tok->type})</DisplayString>
+        <DisplayString>{kind}</DisplayString>
         <Expand HideRawView="true">
-            <Item Name="rule">rule_id</Item>
-            <Item Name="token" Condition="oak_parser_rule_is_token(rule_id)">tok</Item>
-            <CustomListItems Condition="!oak_parser_rule_is_token(rule_id)">
+            <Item Name="rule">kind</Item>
+            <Item Name="token" Condition="oak_node_kind_is_token(kind)">tok</Item>
+            <CustomListItems Condition="!oak_node_kind_is_token(kind)">
                 <Variable Name="entry" InitialValue="children.next"/>
                 <Loop>
                     <If Condition="entry == &amp;children">
