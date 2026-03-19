@@ -224,7 +224,6 @@ static oak_ast_node_t* make_ast_node_token(oak_parser_t* p,
   oak_assert(p);
   oak_assert(p->curr);
   oak_assert(p->curr->next);
-
   const oak_tok_t* tok = oak_container_of(p->curr, oak_tok_t, link);
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
   if (tok->type != entry->tok_type)
@@ -234,11 +233,7 @@ static oak_ast_node_t* make_ast_node_token(oak_parser_t* p,
     return NULL;
   node->kind = kind;
   node->tok = tok;
-
-  // Advance parser
-  if (p->curr)
-    p->curr = p->curr->next;
-
+  p->curr = p->curr->next;
   return node;
 }
 
@@ -255,14 +250,21 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
        ++i)
   {
     const oak_node_kind_t rule = entry->rules[i];
-    oak_ast_node_t* child = parse_rule(p, rule & OAK_NODE_KIND_MASK);
+    const oak_node_kind_t child_kind = rule & OAK_NODE_KIND_MASK;
+    if (rule & OAK_NODE_SKIP)
+    {
+      const oak_tok_t* tok = oak_container_of(p->curr, oak_tok_t, link);
+      if (tok->type != oak_grammar[child_kind].tok_type)
+      {
+        p->curr = saved;
+        break;
+      }
+      p->curr = p->curr->next;
+      continue;
+    }
+    oak_ast_node_t* child = parse_rule(p, child_kind);
     if (child)
     {
-      if (rule & OAK_NODE_SKIP)
-      {
-        oak_ast_node_cleanup(child);
-        continue;
-      }
       if (!node)
       {
         node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
