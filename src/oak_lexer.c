@@ -301,7 +301,7 @@ static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx,
     {
       if (!dynamic_alloc)
       {
-        buffer_capacity = 128;
+        buffer_capacity = sizeof(tls_buffer) * 2;
         char* new_buf = oak_mem_acquire(OAK_SRC_LOC, buffer_capacity);
         if (!new_buf)
           return OAK_FAILURE;
@@ -474,7 +474,7 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
     {
       if (!dynamic_alloc)
       {
-        buffer_capacity = 128;
+        buffer_capacity = sizeof(tls_buffer) * 2;
         char* new_buf = oak_mem_acquire(OAK_SRC_LOC, buffer_capacity);
         memset(new_buf, 0, buffer_capacity);
         if (!new_buf)
