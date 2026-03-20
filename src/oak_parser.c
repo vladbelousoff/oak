@@ -270,6 +270,7 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
       if (token->kind != oak_grammar[child_kind].token_kind)
       {
         p->curr = saved;
+        node = NULL;
         break;
       }
       p->curr = p->curr->next;
@@ -289,6 +290,7 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
     else
     {
       p->curr = saved;
+      node = NULL;
       break;
     }
   }
@@ -478,6 +480,20 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
   };
 
   result->root = parse_rule(&parser, kind);
+
+  if (parser.curr != parser.head)
+  {
+    const oak_token_t* token = oak_container_of(parser.curr, oak_token_t, link);
+    oak_log(OAK_LOG_ERR,
+            "Parse error at %d:%d: unexpected token '%s'",
+            token->line,
+            token->column,
+            token->kind != OAK_TOKEN_IDENT ? oak_token_name(token->kind)
+                                           : token->buf);
+    oak_parser_cleanup(result);
+    return NULL;
+  }
+
   return result;
 }
 
