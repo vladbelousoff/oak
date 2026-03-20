@@ -90,13 +90,12 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_PROGRAM_ITEM,
     },
   },
-  // PROGRAM_ITEM -> TYPE_DECL | STATEMENT | ASSIGNMENT
+  // PROGRAM_ITEM -> TYPE_DECL | STMT
   [OAK_NODE_KIND_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_OP_CHOICE,
     .rules = {
       OAK_NODE_KIND_TYPE_DECL,
-      OAK_NODE_KIND_STATEMENT,
-      OAK_NODE_KIND_ASSIGNMENT,
+      OAK_NODE_KIND_STMT,
     }
   },
   // TYPE_DECL -> TYPE_KEYWORD TYPE_NAME LBRACE TYPE_FIELD_DECLS RBRACE
@@ -162,8 +161,17 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
     .token_kind = OAK_TOKEN_SEMICOLON,
   },
-  // STATEMENT -> EXPR SEMICOLON
-  [OAK_NODE_KIND_STATEMENT] = {
+  // STMT -> STMT_LET_ASSIGNMENT | STMT_EXPR | STMT_ASSIGNMENT
+  [OAK_NODE_KIND_STMT] = {
+    .op = OAK_GRAMMAR_OP_CHOICE,
+    .rules = {
+      OAK_NODE_KIND_STMT_LET_ASSIGNMENT,
+      OAK_NODE_KIND_STMT_EXPR,
+      OAK_NODE_KIND_STMT_ASSIGNMENT,
+    }
+  },
+  // STMT_EXPR -> EXPR SEMICOLON
+  [OAK_NODE_KIND_STMT_EXPR] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
       OAK_NODE_KIND_EXPR,
@@ -205,7 +213,7 @@ static oak_grammar_entry_t oak_grammar[] = {
     .token_kind = OAK_TOKEN_STRING,
   },
   // ASSIGNMENT -> IDENT ASSIGN EXPR SEMICOLON
-  [OAK_NODE_KIND_ASSIGNMENT] = {
+  [OAK_NODE_KIND_STMT_ASSIGNMENT] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
       OAK_NODE_KIND_IDENT,
@@ -218,6 +226,19 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_ASSIGN] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
     .token_kind = OAK_TOKEN_ASSIGN,
+  },
+  // LET_ASSIGNMENT -> LET ASSIGNMENT
+  [OAK_NODE_KIND_STMT_LET_ASSIGNMENT] = {
+    .op = OAK_GRAMMAR_OP_SEQUENCE,
+    .rules = {
+      OAK_NODE_KIND_LET_KEYWORD,
+      OAK_NODE_KIND_STMT_ASSIGNMENT,
+    },
+  },
+  // LET -> OAK_TOKEN_LET
+  [OAK_NODE_KIND_LET_KEYWORD] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
+    .token_kind = OAK_TOKEN_LET,
   },
   [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_OP_BINARY },
   [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_OP_BINARY },

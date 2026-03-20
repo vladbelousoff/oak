@@ -14,10 +14,10 @@ OAK_TEST_DECL(ParseExpression)
     return OAK_FAILURE;
 
   const oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
-  if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STATEMENT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_EXPR) != OAK_SUCCESS)
     return OAK_FAILURE;
 
-  /* STATEMENT has one child: the expression (semicolon is skipped).
+  /* STMT has one child: the expression (semicolon is skipped).
      Multiplication binds tighter than addition, so the tree should be:
        BINARY_ADD
          INT(1)
