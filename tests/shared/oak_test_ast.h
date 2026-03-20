@@ -6,6 +6,9 @@
 static oak_ast_node_t* oak_test_ast_child(const oak_ast_node_t* node,
                                           const size_t index)
 {
+  if (oak_node_grammar_op_unary(node->kind))
+    return index == 0 ? node->child : NULL;
+
   size_t i;
   oak_list_entry_t* pos;
   oak_list_for_each_indexed(i, pos, &node->children)
@@ -18,6 +21,9 @@ static oak_ast_node_t* oak_test_ast_child(const oak_ast_node_t* node,
 
 static size_t oak_test_ast_child_count(const oak_ast_node_t* node)
 {
+  if (oak_node_grammar_op_unary(node->kind))
+    return node->child ? 1 : 0;
+
   return oak_list_length(&node->children);
 }
 

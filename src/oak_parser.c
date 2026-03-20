@@ -31,6 +31,7 @@ typedef enum
   OAK_GRAMMAR_OP_REPEAT_ONE, // Match child one or more times (A+)
   OAK_GRAMMAR_OP_OPTIONAL,   // Match child zero or one times (A?)
   OAK_GRAMMAR_OP_PRATT,      // Pratt parser for operator precedence
+  OAK_GRAMMAR_OP_UNARY,      // Unary node with a single child (built by Pratt)
   OAK_GRAMMAR_OP_BINARY,     // Binary node with lhs and rhs (built by Pratt)
 } oak_grammar_op_t;
 
@@ -215,13 +216,18 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_BINARY_GREATER_EQ] = { .op = OAK_GRAMMAR_OP_BINARY },
   [OAK_NODE_KIND_BINARY_AND]        = { .op = OAK_GRAMMAR_OP_BINARY },
   [OAK_NODE_KIND_BINARY_OR]         = { .op = OAK_GRAMMAR_OP_BINARY },
-  [OAK_NODE_KIND_UNARY_NEG]         = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_OP_SEQUENCE },
+  [OAK_NODE_KIND_UNARY_NEG]         = { .op = OAK_GRAMMAR_OP_UNARY },
+  [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_OP_UNARY },
 };
 
 int oak_node_grammar_op_token(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_OP_TOKEN;
+}
+
+int oak_node_grammar_op_unary(const oak_node_kind_t kind)
+{
+  return oak_grammar[kind].op == OAK_GRAMMAR_OP_UNARY;
 }
 
 int oak_node_grammar_op_binary(const oak_node_kind_t kind)
@@ -360,8 +366,7 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
         if (!lhs)
           return NULL;
         lhs->kind = r->node_kind;
-        oak_list_init(&lhs->children);
-        oak_list_add_tail(&lhs->children, &operand->link);
+        lhs->child = operand;
         break;
       }
     }
@@ -452,6 +457,7 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
     break;
   case OAK_GRAMMAR_OP_REPEAT_ONE:
   case OAK_GRAMMAR_OP_OPTIONAL:
+  case OAK_GRAMMAR_OP_UNARY:
   case OAK_GRAMMAR_OP_BINARY:
     break;
   case OAK_GRAMMAR_OP_PRATT:

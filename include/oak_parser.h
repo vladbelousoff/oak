@@ -42,6 +42,7 @@ typedef enum
 } oak_node_kind_t;
 
 int oak_node_grammar_op_token(oak_node_kind_t kind);
+int oak_node_grammar_op_unary(oak_node_kind_t kind);
 int oak_node_grammar_op_binary(oak_node_kind_t kind);
 
 typedef struct _oak_ast_node_t
@@ -53,6 +54,7 @@ typedef struct _oak_ast_node_t
   {
     const oak_token_t* token;
     oak_list_head_t children;
+    struct _oak_ast_node_t* child;
 
     struct
     {

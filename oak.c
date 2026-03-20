@@ -11,9 +11,7 @@ int main(const int argc, const char* argv[])
 
   oak_lexer_result_t* lexer = oak_lexer_tokenize(
       "type SampleType { field1 : number; field2 : string; }\n"
-      "-1000 + (10 - 7) * 10;\n"
-      "z = 100 * 3;\n"
-      "sum(a : number, b : number) -> number { return a + b; }\n");
+      "-1000 + (10 - 7) * 10;\n");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   (void)oak_parser_root(result);
