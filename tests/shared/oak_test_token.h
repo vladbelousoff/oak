@@ -14,7 +14,7 @@
 
 typedef struct
 {
-  oak_token_type_t type;
+  oak_token_kind_t kind;
   int line;
   int column;
   int pos;
@@ -29,7 +29,7 @@ typedef struct
 static oak_result_t oak_test_token(const oak_token_t* token,
                                    const oak_token_attr_t* attr)
 {
-  if (token->type != attr->type)
+  if (token->kind != attr->kind)
     return OAK_FAILURE;
   if (token->line != attr->line)
     return OAK_FAILURE;
@@ -38,19 +38,19 @@ static oak_result_t oak_test_token(const oak_token_t* token,
   if (token->pos != attr->pos)
     return OAK_FAILURE;
 
-  if (token->type == OAK_TOKEN_INT_NUM)
+  if (token->kind == OAK_TOKEN_INT_NUM)
   {
     if (attr->i_val != *(int*)token->buf)
       return OAK_FAILURE;
   }
 
-  if (token->type == OAK_TOKEN_FLOAT_NUM)
+  if (token->kind == OAK_TOKEN_FLOAT_NUM)
   {
     if (fabsf(attr->f_val - *(float*)token->buf) > 0.0001f)
       return OAK_FAILURE;
   }
 
-  if (token->type == OAK_TOKEN_STRING)
+  if (token->kind == OAK_TOKEN_STRING)
   {
     if (strcmp(token->buf, attr->str) != 0)
       return OAK_FAILURE;

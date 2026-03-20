@@ -25,8 +25,7 @@ static oak_arena_block_t* arena_new_block(const size_t capacity)
 
 void oak_arena_init(oak_arena_t* arena, const size_t block_size)
 {
-  arena->block_size =
-      block_size ? block_size : OAK_ARENA_DEFAULT_BLOCK_SIZE;
+  arena->block_size = block_size ? block_size : OAK_ARENA_DEFAULT_BLOCK_SIZE;
   arena->current = NULL;
 }
 
@@ -34,8 +33,7 @@ void* oak_arena_alloc(oak_arena_t* arena, size_t size)
 {
   size = align_up(size, OAK_ARENA_ALIGN);
 
-  if (!arena->current ||
-      arena->current->used + size > arena->current->capacity)
+  if (!arena->current || arena->current->used + size > arena->current->capacity)
   {
     size_t cap = arena->block_size;
     if (size > cap)

@@ -15,33 +15,34 @@ OAK_TEST_DECL(LexString)
 {
   /* Includes escapes + UTF-8 bytes (π) + a long string to hit a dynamic buffer.
    */
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' "
-                                           "'" LONG_A "'");
+  oak_lexer_result_t* lexer =
+      oak_lexer_tokenize("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' "
+                         "'" LONG_A "'");
 
   static oak_token_attr_t attrs[] = {
     {
-        .type = OAK_TOKEN_STRING,
+        .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 1,
         .pos = 1,
         .str = "hello",
     },
     {
-        .type = OAK_TOKEN_STRING,
+        .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 9,
         .pos = 9,
         .str = "\n\t\r'\\",
     },
     {
-        .type = OAK_TOKEN_STRING,
+        .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 22,
         .pos = 22,
         .str = "\xCF\x80",
     },
     {
-        .type = OAK_TOKEN_STRING,
+        .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 26,
         .pos = 26,

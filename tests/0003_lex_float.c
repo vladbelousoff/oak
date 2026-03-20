@@ -9,7 +9,7 @@ OAK_TEST_DECL(LexFloat)
 
   static oak_token_attr_t attrs[] = {
     {
-        .type = OAK_TOKEN_FLOAT_NUM,
+        .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
         .column = 1,
         .pos = 1,

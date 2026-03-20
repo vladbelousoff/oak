@@ -9,33 +9,33 @@ OAK_TEST_DECL(LexArithmeticExpression)
 
   static oak_token_attr_t attrs[] = {
     {
-        .type = OAK_TOKEN_INT_NUM,
+        .kind = OAK_TOKEN_INT_NUM,
         .line = 1,
         .column = 1,
         .pos = 1,
         .i_val = 1,
     },
     {
-        .type = OAK_TOKEN_PLUS,
+        .kind = OAK_TOKEN_PLUS,
         .line = 1,
         .column = 3,
         .pos = 3,
     },
     {
-        .type = OAK_TOKEN_INT_NUM,
+        .kind = OAK_TOKEN_INT_NUM,
         .line = 1,
         .column = 5,
         .pos = 5,
         .i_val = 2,
     },
     {
-        .type = OAK_TOKEN_STAR,
+        .kind = OAK_TOKEN_STAR,
         .line = 1,
         .column = 7,
         .pos = 7,
     },
     {
-        .type = OAK_TOKEN_INT_NUM,
+        .kind = OAK_TOKEN_INT_NUM,
         .line = 1,
         .column = 9,
         .pos = 9,

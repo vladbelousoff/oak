@@ -9,7 +9,7 @@ OAK_TEST_DECL(LexIdent)
 
   static oak_token_attr_t attrs[] = {
     {
-        .type = OAK_TOKEN_IDENT,
+        .kind = OAK_TOKEN_IDENT,
         .line = 1,
         .column = 1,
         .pos = 1,

@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-    <Type Name="_oak_tok_t">
-        <DisplayString Condition="type == OAK_TOK_INT_NUM">{type} {*(int*)buf}</DisplayString>
-        <DisplayString Condition="type == OAK_TOK_FLOAT_NUM">{type} {*(float*)buf}</DisplayString>
-        <DisplayString Condition="size > 0">{type} {(char*)buf,s}</DisplayString>
-        <DisplayString>{type}</DisplayString>
+    <Type Name="_oak_token_t">
+        <DisplayString Condition="kind == OAK_TOKEN_INT_NUM">{kind} {*(int*)buf}</DisplayString>
+        <DisplayString Condition="kind == OAK_TOKEN_FLOAT_NUM">{kind} {*(float*)buf}</DisplayString>
+        <DisplayString Condition="size > 0">{kind} {(char*)buf,s}</DisplayString>
+        <DisplayString>{kind}</DisplayString>
         <Expand HideRawView="true">
-            <Item Name="type">type</Item>
-            <Item Name="value" Condition="type == OAK_TOK_INT_NUM">*(int*)buf</Item>
-            <Item Name="value" Condition="type == OAK_TOK_FLOAT_NUM">*(float*)buf</Item>
+            <Item Name="kind">kind</Item>
+            <Item Name="value" Condition="kind == OAK_TOKEN_INT_NUM">*(int*)buf</Item>
+            <Item Name="value" Condition="kind == OAK_TOKEN_FLOAT_NUM">*(float*)buf</Item>
             <Item Name="value"
-                  Condition="size > 0 &amp;&amp; type != OAK_TOK_INT_NUM &amp;&amp; type != OAK_TOK_FLOAT_NUM">
+                  Condition="size > 0 &amp;&amp; kind != OAK_TOKEN_INT_NUM &amp;&amp; kind != OAK_TOKEN_FLOAT_NUM">
                 (char*)buf,s
             </Item>
             <Item Name="line">line</Item>
@@ -21,8 +21,8 @@
         </Expand>
     </Type>
 
-    <Type Name="_oak_lex_t">
-        <DisplayString>Tokens</DisplayString>
+    <Type Name="oak_lexer_result_t">
+        <DisplayString>tokens</DisplayString>
         <Expand HideRawView="true">
             <CustomListItems>
                 <Variable Name="entry" InitialValue="tokens.next"/>
@@ -30,7 +30,7 @@
                     <If Condition="entry == &amp;tokens">
                         <Break/>
                     </If>
-                    <Item>*(_oak_tok_t*)entry</Item>
+                    <Item>*(_oak_token_t*)entry</Item>
                     <Exec>entry = entry->next</Exec>
                 </Loop>
             </CustomListItems>
@@ -38,11 +38,11 @@
     </Type>
 
     <Type Name="_oak_ast_node_t">
-        <DisplayString Condition="oak_node_kind_is_token(kind)">{kind} ({tok->type})</DisplayString>
+        <DisplayString Condition="oak_node_kind_is_token(kind)">{kind} ({token->kind})</DisplayString>
         <DisplayString>{kind}</DisplayString>
         <Expand HideRawView="true">
             <Item Name="rule">kind</Item>
-            <Item Name="token" Condition="oak_node_kind_is_token(kind)">tok</Item>
+            <Item Name="token" Condition="oak_node_kind_is_token(kind)">token</Item>
             <Item Name="lhs" Condition="oak_node_kind_is_binary(kind)">*lhs</Item>
             <Item Name="rhs" Condition="oak_node_kind_is_binary(kind)">*rhs</Item>
             <CustomListItems Condition="!oak_node_kind_is_token(kind) &amp;&amp; !oak_node_kind_is_binary(kind)">

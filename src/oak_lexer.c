@@ -45,7 +45,7 @@ static void new_line(oak_lexer_cur_t* cur)
 
 static void save_token(oak_lexer_result_t* lexer,
                        const oak_lexer_cur_t* cur,
-                       const oak_token_type_t token_type,
+                       const oak_token_kind_t token_kind,
                        const char* buffer,
                        const size_t buffer_size)
 {
@@ -56,7 +56,7 @@ static void save_token(oak_lexer_result_t* lexer,
   }
 
   oak_token_t* token = oak_arena_alloc(&lexer->arena, token_size);
-  token->type = token_type;
+  token->kind = token_kind;
   token->line = cur->line;
   token->column = cur->column;
   token->pos = cur->pos;
@@ -73,35 +73,35 @@ static void save_token(oak_lexer_result_t* lexer,
   }
 
 #if 0
-  oak_log_cond(token_type == OAK_TOKEN_IDENT,
+  oak_log_cond(token_kind == OAK_TOKEN_IDENT,
                OAK_LOG_DBG,
                "%s %d:%d '%s'",
-               oak_token_name(token_type),
+               oak_token_name(token_kind),
                token->line,
                token->column,
                buffer);
 
-  oak_log_cond(token_type == OAK_TOKEN_INT_NUM,
+  oak_log_cond(token_kind == OAK_TOKEN_INT_NUM,
                OAK_LOG_DBG,
                "%s %d:%d %d",
-               oak_token_name(token_type),
+               oak_token_name(token_kind),
                token->line,
                token->column,
                *(int*)buffer);
 
-  oak_log_cond(token_type == OAK_TOKEN_FLOAT_NUM,
+  oak_log_cond(token_kind == OAK_TOKEN_FLOAT_NUM,
                OAK_LOG_DBG,
                "%s %d:%d %f",
-               oak_token_name(token_type),
+               oak_token_name(token_kind),
                token->line,
                token->column,
                *(float*)buffer);
 
-  oak_log_cond(token_type != OAK_TOKEN_IDENT && token_type != OAK_TOKEN_INT_NUM &&
-                   token_type != OAK_TOKEN_FLOAT_NUM,
+  oak_log_cond(token_kind != OAK_TOKEN_IDENT && token_kind != OAK_TOKEN_INT_NUM &&
+                   token_kind != OAK_TOKEN_FLOAT_NUM,
                OAK_LOG_DBG,
                "%s %d:%d",
-               oak_token_name(token_type),
+               oak_token_name(token_kind),
                token->line,
                token->column);
 #endif
@@ -149,13 +149,13 @@ static oak_result_t try_scan_ws(const oak_lexer_ctx_t* ctx, const char* input)
 typedef struct
 {
   char a, b;
-  oak_token_type_t token;
+  oak_token_kind_t token;
 } oak_two_char_op_t;
 
 typedef struct
 {
   char c;
-  oak_token_type_t token;
+  oak_token_kind_t token;
 } oak_single_char_op_t;
 
 /* Two-character operators table */
@@ -206,7 +206,7 @@ static oak_result_t try_scan_op(const oak_lexer_ctx_t* ctx, const char* input)
   {
     if (c1 == two_char_ops[i].a && c2 == two_char_ops[i].b)
     {
-      const oak_token_type_t token = two_char_ops[i].token;
+      const oak_token_kind_t token = two_char_ops[i].token;
       save_token(ctx->lexer, &sav_cur, token, p, 0);
       advance_cursor(cur, 2, 2);
       return OAK_SUCCESS;
@@ -218,7 +218,7 @@ static oak_result_t try_scan_op(const oak_lexer_ctx_t* ctx, const char* input)
   {
     if (c1 == single_char_ops[i].c)
     {
-      const oak_token_type_t token = single_char_ops[i].token;
+      const oak_token_kind_t token = single_char_ops[i].token;
       save_token(ctx->lexer, &sav_cur, token, p, 0);
       advance_cursor(cur, 1, 1);
       return OAK_SUCCESS;
@@ -228,7 +228,8 @@ static oak_result_t try_scan_op(const oak_lexer_ctx_t* ctx, const char* input)
   return OAK_FAILURE;
 }
 
-static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx, const char* input)
+static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx,
+                                    const char* input)
 {
   oak_lexer_cur_t* cur = ctx->cur;
   const char* start = &input[cur->buf_pos];
@@ -331,11 +332,7 @@ static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx, const char* inpu
     if (*p == '\'')
     {
       advance_cursor(cur, 1, 1);
-      save_token(ctx->lexer,
-                 &sav_cur,
-                 OAK_TOKEN_STRING,
-                 buffer,
-                 buffer_length);
+      save_token(ctx->lexer, &sav_cur, OAK_TOKEN_STRING, buffer, buffer_length);
 
       if (dynamic_alloc)
         oak_mem_release(OAK_SRC_LOC, buffer);
@@ -349,7 +346,8 @@ static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx, const char* inpu
   return OAK_FAILURE;
 }
 
-static oak_result_t try_scan_number(const oak_lexer_ctx_t* ctx, const char* input)
+static oak_result_t try_scan_number(const oak_lexer_ctx_t* ctx,
+                                    const char* input)
 {
   oak_lexer_cur_t* cur = ctx->cur;
   const char* start = &input[cur->buf_pos];
@@ -416,11 +414,8 @@ static oak_result_t try_scan_number(const oak_lexer_ctx_t* ctx, const char* inpu
     if (sscanf_s(tls_buffer, "%f", &val) != 1)
       return OAK_FAILURE;
 
-    save_token(ctx->lexer,
-               &sav_cur,
-               OAK_TOKEN_FLOAT_NUM,
-               (char*)&val,
-               sizeof(float));
+    save_token(
+        ctx->lexer, &sav_cur, OAK_TOKEN_FLOAT_NUM, (char*)&val, sizeof(float));
   }
   else
   {
@@ -429,17 +424,15 @@ static oak_result_t try_scan_number(const oak_lexer_ctx_t* ctx, const char* inpu
     if (sscanf_s(tls_buffer, "%d", &val) != 1)
       return OAK_FAILURE;
 
-    save_token(ctx->lexer,
-               &sav_cur,
-               OAK_TOKEN_INT_NUM,
-               (char*)&val,
-               sizeof(int));
+    save_token(
+        ctx->lexer, &sav_cur, OAK_TOKEN_INT_NUM, (char*)&val, sizeof(int));
   }
 
   return OAK_SUCCESS;
 }
 
-static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx, const char* input)
+static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
+                                   const char* input)
 {
   oak_lexer_cur_t* cur = ctx->cur;
   const char* start = &input[cur->buf_pos];
@@ -518,12 +511,12 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx, const char* input
     return OAK_FAILURE;
   }
 
-  const oak_token_type_t type = oak_ident_type(buffer, buffer_length);
+  const oak_token_kind_t kind = oak_ident_kind(buffer, buffer_length);
   save_token(ctx->lexer,
              &sav_cur,
-             type,
+             kind,
              buffer,
-             type == OAK_TOKEN_IDENT ? buffer_length : 0);
+             kind == OAK_TOKEN_IDENT ? buffer_length : 0);
 
   if (dynamic_alloc)
     oak_mem_release(OAK_SRC_LOC, buffer);

@@ -9,21 +9,21 @@ OAK_TEST_DECL(LexFloatExponent)
 
   static oak_token_attr_t attrs[] = {
     {
-        .type = OAK_TOKEN_FLOAT_NUM,
+        .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
         .column = 1,
         .pos = 1,
         .f_val = 100.0f,
     },
     {
-        .type = OAK_TOKEN_FLOAT_NUM,
+        .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
         .column = 5,
         .pos = 5,
         .f_val = 30.0f,
     },
     {
-        .type = OAK_TOKEN_FLOAT_NUM,
+        .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
         .column = 11,
         .pos = 11,

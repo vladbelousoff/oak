@@ -8,7 +8,8 @@
 
 OAK_TEST_DECL(ParseTypeDecl)
 {
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("type Point { x : i32; y : i32; }");
+  oak_lexer_result_t* lexer =
+      oak_lexer_tokenize("type Point { x : i32; y : i32; }");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   oak_ast_node_t* root = oak_parser_root(result);

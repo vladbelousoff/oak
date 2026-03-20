@@ -2,7 +2,7 @@
 
 #include "oak_list.h"
 
-typedef enum _oak_token_type_t
+typedef enum _oak_token_kind_t
 {
   OAK_TOKEN_IDENT,
   OAK_TOKEN_TYPE,
@@ -49,18 +49,18 @@ typedef enum _oak_token_type_t
   OAK_TOKEN_STRING,
   OAK_TOKEN_ASSIGN,
   OAK_TOKEN_EOF,
-} oak_token_type_t;
+} oak_token_kind_t;
 
 typedef struct
 {
   const char* kw;
-  oak_token_type_t type;
+  oak_token_kind_t kind;
 } tea_kw_entry_t;
 
 typedef struct _oak_token_t
 {
   oak_list_entry_t link;
-  oak_token_type_t type;
+  oak_token_kind_t kind;
   int line;
   int column;
   int pos;
@@ -68,5 +68,5 @@ typedef struct _oak_token_t
   char buf[0];
 } oak_token_t;
 
-oak_token_type_t oak_ident_type(const char* ident, size_t length);
-const char* oak_token_name(oak_token_type_t token_type);
+oak_token_kind_t oak_ident_kind(const char* ident, size_t length);
+const char* oak_token_name(oak_token_kind_t token_kind);

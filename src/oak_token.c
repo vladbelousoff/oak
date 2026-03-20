@@ -4,7 +4,7 @@
 
 #include <string.h>
 
-oak_token_type_t oak_ident_type(const char* ident, const size_t length)
+oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
 {
   static const tea_kw_entry_t keywords[] = {
     { "and", OAK_TOKEN_AND },
@@ -28,15 +28,15 @@ oak_token_type_t oak_ident_type(const char* ident, const size_t length)
   {
     const char* kw = keywords[i].kw;
     if (strncmp(ident, kw, length + 1) == 0)
-      return keywords[i].type;
+      return keywords[i].kind;
   }
 
   return OAK_TOKEN_IDENT;
 }
 
-const char* oak_token_name(const oak_token_type_t token_type)
+const char* oak_token_name(const oak_token_kind_t token_kind)
 {
-  switch (token_type)
+  switch (token_kind)
   {
   case OAK_TOKEN_IDENT:
     return "IDENT";
