@@ -16,14 +16,14 @@ static int oak_test_run(const oak_test_t* tests, const int count)
   for (int i = 0; i < count; ++i)
   {
     const oak_test_t* t = &tests[i];
-    oak_log(OAK_LOG_INF, "Running %s...", t->name);
+    oak_log(OAK_LOG_INF, "running %s...", t->name);
     result = t->fn();
     if (result != OAK_SUCCESS)
     {
-      oak_log(OAK_LOG_ERR, "FAILED: %s", t->name);
+      oak_log(OAK_LOG_ERR, "failed: %s", t->name);
       break;
     }
-    oak_log(OAK_LOG_INF, "PASSED: %s", t->name);
+    oak_log(OAK_LOG_INF, "passed: %s", t->name);
   }
 
   oak_mem_shutdown();

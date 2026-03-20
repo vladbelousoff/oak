@@ -105,7 +105,7 @@ void oak_mem_release(const oak_src_loc_t src_loc, void* ptr)
   if (header->signature != OAK_MEM_SIG)
   {
     oak_log(OAK_LOG_ERR,
-            "Memory signature mismatch: %s:%lu",
+            "memory signature mismatch: %s:%lu",
             oak_filename(src_loc.file),
             src_loc.line);
   }
@@ -138,7 +138,7 @@ void oak_mem_shutdown()
   {
     oak_mem_header_t* header = oak_container_of(entry, oak_mem_header_t, link);
     oak_log(OAK_LOG_ERR,
-            "Leaked memory: %s:%lu, size: %lu",
+            "leaked memory: %s:%lu, size: %lu",
             oak_filename(header->src_loc.file),
             header->src_loc.line,
             header->size);

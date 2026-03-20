@@ -485,7 +485,7 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
   {
     const oak_token_t* token = oak_container_of(parser.curr, oak_token_t, link);
     oak_log(OAK_LOG_ERR,
-            "Parse error at %d:%d: unexpected token '%s'",
+            "parse error at %d:%d: unexpected token '%s'",
             token->line,
             token->column,
             token->kind != OAK_TOKEN_IDENT ? oak_token_name(token->kind)

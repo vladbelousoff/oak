@@ -563,7 +563,7 @@ oak_lexer_result_t* oak_lexer_tokenize(const char* input)
       uint32_t cp = 0;
       oak_log_cond(oak_utf8_next(&input[cur.buf_pos], &cp) < 0,
                    OAK_LOG_ERR,
-                   "Invalid UTF-8 character: 0x%.8X",
+                   "invalid utf8 character: 0x%.8X",
                    cp);
     }
   }
