@@ -231,7 +231,7 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_STMT_LET_ASSIGNMENT] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
-      OAK_NODE_KIND_LET_KEYWORD,
+      OAK_NODE_KIND_LET_KEYWORD | OAK_NODE_SKIP,
       OAK_NODE_KIND_STMT_ASSIGNMENT,
     },
   },
