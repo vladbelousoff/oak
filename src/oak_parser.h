@@ -42,6 +42,7 @@ typedef enum
 } oak_node_kind_t;
 
 int oak_node_kind_is_token(oak_node_kind_t kind);
+int oak_node_kind_is_binary(oak_node_kind_t kind);
 
 typedef struct _oak_ast_node_t
 {
@@ -52,6 +53,12 @@ typedef struct _oak_ast_node_t
   {
     const oak_tok_t* tok;
     oak_list_head_t children;
+
+    struct
+    {
+      struct _oak_ast_node_t* lhs;
+      struct _oak_ast_node_t* rhs;
+    };
   };
 } oak_ast_node_t;
 

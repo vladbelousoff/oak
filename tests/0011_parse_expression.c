@@ -27,31 +27,24 @@ OAK_TEST_DECL(ParseExpression)
   const oak_ast_node_t* add = oak_test_ast_child(stmt, 0);
   if (oak_test_ast_kind(add, OAK_NODE_KIND_BINARY_ADD) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_child_count(add) != 2)
+
+  if (oak_test_ast_kind(add->lhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
+    return OAK_FAILURE;
+  if (*(int*)add->lhs->tok->buf != 1)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* lhs = oak_test_ast_child(add, 0);
-  if (oak_test_ast_kind(lhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (*(int*)lhs->tok->buf != 1)
-    return OAK_FAILURE;
-
-  const oak_ast_node_t* mul = oak_test_ast_child(add, 1);
+  const oak_ast_node_t* mul = add->rhs;
   if (oak_test_ast_kind(mul, OAK_NODE_KIND_BINARY_MUL) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_child_count(mul) != 2)
+
+  if (oak_test_ast_kind(mul->lhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
+    return OAK_FAILURE;
+  if (*(int*)mul->lhs->tok->buf != 2)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* mul_lhs = oak_test_ast_child(mul, 0);
-  if (oak_test_ast_kind(mul_lhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(mul->rhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (*(int*)mul_lhs->tok->buf != 2)
-    return OAK_FAILURE;
-
-  const oak_ast_node_t* mul_rhs = oak_test_ast_child(mul, 1);
-  if (oak_test_ast_kind(mul_rhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (*(int*)mul_rhs->tok->buf != 3)
+  if (*(int*)mul->rhs->tok->buf != 3)
     return OAK_FAILURE;
 
   oak_ast_node_cleanup(root);

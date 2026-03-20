@@ -43,7 +43,9 @@
         <Expand HideRawView="true">
             <Item Name="rule">kind</Item>
             <Item Name="token" Condition="oak_node_kind_is_token(kind)">tok</Item>
-            <CustomListItems Condition="!oak_node_kind_is_token(kind)">
+            <Item Name="lhs" Condition="oak_node_kind_is_binary(kind)">*lhs</Item>
+            <Item Name="rhs" Condition="oak_node_kind_is_binary(kind)">*rhs</Item>
+            <CustomListItems Condition="!oak_node_kind_is_token(kind) &amp;&amp; !oak_node_kind_is_binary(kind)">
                 <Variable Name="entry" InitialValue="children.next"/>
                 <Loop>
                     <If Condition="entry == &amp;children">

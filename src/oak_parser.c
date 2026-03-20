@@ -23,6 +23,7 @@ typedef enum
   OAK_GRAMMAR_OP_REPEAT_ONE, // Match child one or more times (A+)
   OAK_GRAMMAR_OP_OPTIONAL,   // Match child zero or one times (A?)
   OAK_GRAMMAR_OP_PRATT,      // Pratt parser for operator precedence
+  OAK_GRAMMAR_OP_BINARY,     // Binary node with lhs and rhs (built by Pratt)
 } oak_grammar_op_t;
 
 typedef struct
@@ -193,20 +194,19 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
     .tok_type = OAK_TOK_STRING,
   },
-  // Pratt-produced nodes (need non-TOKEN op so cleanup recurses into children)
-  [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_MUL]        = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_DIV]        = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_MOD]        = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_EQ]         = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_NEQ]        = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_LESS]       = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_LESS_EQ]    = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_GREATER]    = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_GREATER_EQ] = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_AND]        = { .op = OAK_GRAMMAR_OP_SEQUENCE },
-  [OAK_NODE_KIND_BINARY_OR]         = { .op = OAK_GRAMMAR_OP_SEQUENCE },
+  [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_MUL]        = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_DIV]        = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_MOD]        = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_EQ]         = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_NEQ]        = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_LESS]       = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_LESS_EQ]    = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_GREATER]    = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_GREATER_EQ] = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_AND]        = { .op = OAK_GRAMMAR_OP_BINARY },
+  [OAK_NODE_KIND_BINARY_OR]         = { .op = OAK_GRAMMAR_OP_BINARY },
   [OAK_NODE_KIND_UNARY_NEG]         = { .op = OAK_GRAMMAR_OP_SEQUENCE },
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_OP_SEQUENCE },
 };
@@ -214,6 +214,11 @@ static oak_grammar_entry_t oak_grammar[] = {
 int oak_node_kind_is_token(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_OP_TOKEN;
+}
+
+int oak_node_kind_is_binary(const oak_node_kind_t kind)
+{
+  return oak_grammar[kind].op == OAK_GRAMMAR_OP_BINARY;
 }
 
 static oak_ast_node_t* parse_rule(oak_parser_t* p, oak_node_kind_t kind);
@@ -322,7 +327,7 @@ static oak_ast_node_t* make_ast_node_repeat(oak_parser_t* p,
 }
 
 static oak_ast_node_t*
-parse_pratt(oak_parser_t* p, oak_node_kind_t kind, int min_bp)
+parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
 {
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
   oak_ast_node_t* lhs = NULL;
@@ -404,9 +409,8 @@ parse_pratt(oak_parser_t* p, oak_node_kind_t kind, int min_bp)
     if (!node)
       return NULL;
     node->kind = rule->node_kind;
-    oak_list_init(&node->children);
-    oak_list_add_tail(&node->children, &lhs->link);
-    oak_list_add_tail(&node->children, &rhs->link);
+    node->lhs = lhs;
+    node->rhs = rhs;
     lhs = node;
   }
 
@@ -438,6 +442,7 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
     break;
   case OAK_GRAMMAR_OP_REPEAT_ONE:
   case OAK_GRAMMAR_OP_OPTIONAL:
+  case OAK_GRAMMAR_OP_BINARY:
     break;
   case OAK_GRAMMAR_OP_PRATT:
     node = parse_pratt(p, kind, 0);
@@ -463,7 +468,12 @@ void oak_ast_node_cleanup(oak_ast_node_t* node)
     return;
 
   const oak_grammar_entry_t* entry = &oak_grammar[node->kind];
-  if (entry->op != OAK_GRAMMAR_OP_TOKEN)
+  if (entry->op == OAK_GRAMMAR_OP_BINARY)
+  {
+    oak_ast_node_cleanup(node->lhs);
+    oak_ast_node_cleanup(node->rhs);
+  }
+  else if (entry->op != OAK_GRAMMAR_OP_TOKEN)
   {
     oak_list_entry_t *curr, *n;
     oak_list_for_each_safe(curr, n, &node->children)
