@@ -442,11 +442,11 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
 
   uint32_t cp = 0;
   int n = oak_utf8_next(start, &cp);
-  if (n != 1)
+  if (n <= 0)
     return OAK_FAILURE;
 
   /* Identifier must start with a letter or underscore */
-  if (!((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') || cp == '_'))
+  if (!(oak_utf8_is_alpha(cp) || cp == '_'))
     return OAK_FAILURE;
 
   const char* p = start;
@@ -466,8 +466,7 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
       break;
 
     /* Valid identifier characters: letters, digits, underscore */
-    if (!((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') ||
-          (cp >= '0' && cp <= '9') || cp == '_'))
+    if (!(oak_utf8_is_alpha(cp) || (cp >= '0' && cp <= '9') || cp == '_'))
       break;
 
     /* Resize buffer if needed */

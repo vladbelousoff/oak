@@ -106,6 +106,20 @@ static int oak_utf8_next(const char* s, uint32_t* out)
 }
 
 /*
+ * oak_utf8_is_alpha
+ *
+ * Returns non-zero if the codepoint is a Unicode letter.
+ * Covers ASCII a-z/A-Z plus codepoints >= U+00C0, excluding
+ * the multiplication sign (U+00D7) and division sign (U+00F7).
+ */
+static int oak_utf8_is_alpha(const uint32_t cp)
+{
+  if ((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z'))
+    return 1;
+  return cp >= 0x00C0 && cp != 0x00D7 && cp != 0x00F7;
+}
+
+/*
  * oak_utf8_encode
  *
  * Encodes a Unicode codepoint into UTF-8 bytes.
