@@ -90,12 +90,13 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_PROGRAM_ITEM,
     },
   },
-  // PROGRAM_ITEM -> TYPE_DECL | STATEMENT
+  // PROGRAM_ITEM -> TYPE_DECL | STATEMENT | ASSIGN
   [OAK_NODE_KIND_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_OP_CHOICE,
     .rules = {
       OAK_NODE_KIND_TYPE_DECL,
       OAK_NODE_KIND_STATEMENT,
+      OAK_NODE_KIND_ASSIGNMENT,
     }
   },
   // TYPE_DECL -> TYPE_KEYWORD TYPE_NAME LBRACE TYPE_FIELD_DECLS RBRACE
@@ -202,6 +203,21 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_STRING] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
     .token_kind = OAK_TOKEN_STRING,
+  },
+  // ASSIGNMENT -> IDENT ASSIGN EXPR SEMICOLON
+  [OAK_NODE_KIND_ASSIGNMENT] = {
+    .op = OAK_GRAMMAR_OP_SEQUENCE,
+    .rules = {
+      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_ASSIGN | OAK_NODE_SKIP,
+      OAK_NODE_KIND_EXPR,
+      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
+    },
+  },
+  // ASSIGN -> OAK_TOKEN_ASSIGN
+  [OAK_NODE_KIND_ASSIGN] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
+    .token_kind = OAK_TOKEN_ASSIGN,
   },
   [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_OP_BINARY },
   [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_OP_BINARY },
