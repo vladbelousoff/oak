@@ -36,8 +36,7 @@ static void new_line(oak_lex_cur_t* cur)
   cur->column = 0;
 }
 
-static void save_token(const oak_src_loc_t src_loc,
-                       oak_lex_t* lex,
+static void save_token(oak_lex_t* lex,
                        const oak_lex_cur_t* cur,
                        const oak_tok_type_t token_type,
                        const char* buffer,
@@ -49,7 +48,7 @@ static void save_token(const oak_src_loc_t src_loc,
     token_size += buffer_size + 1;
   }
 
-  oak_tok_t* token = oak_mem_acquire(src_loc, token_size);
+  oak_tok_t* token = oak_arena_alloc(&lex->arena, token_size);
   token->type = token_type;
   token->line = cur->line;
   token->column = cur->column;
@@ -201,7 +200,7 @@ static oak_result_t try_scan_op(const oak_lex_ctx_t* ctx, const char* input)
     if (c1 == two_char_ops[i].a && c2 == two_char_ops[i].b)
     {
       const oak_tok_type_t tok = two_char_ops[i].tok;
-      save_token(OAK_SRC_LOC, ctx->lex, &sav_cur, tok, p, 0);
+      save_token(ctx->lex, &sav_cur, tok, p, 0);
       advance_cursor(cur, 2, 2);
       return OAK_SUCCESS;
     }
@@ -213,7 +212,7 @@ static oak_result_t try_scan_op(const oak_lex_ctx_t* ctx, const char* input)
     if (c1 == single_char_ops[i].c)
     {
       const oak_tok_type_t tok = single_char_ops[i].tok;
-      save_token(OAK_SRC_LOC, ctx->lex, &sav_cur, tok, p, 0);
+      save_token(ctx->lex, &sav_cur, tok, p, 0);
       advance_cursor(cur, 1, 1);
       return OAK_SUCCESS;
     }
@@ -325,8 +324,7 @@ static oak_result_t try_scan_string(const oak_lex_ctx_t* ctx, const char* input)
     if (*p == '\'')
     {
       advance_cursor(cur, 1, 1);
-      save_token(OAK_SRC_LOC,
-                 ctx->lex,
+      save_token(ctx->lex,
                  &sav_cur,
                  OAK_TOK_STRING,
                  buffer,
@@ -411,8 +409,7 @@ static oak_result_t try_scan_number(const oak_lex_ctx_t* ctx, const char* input)
     if (sscanf_s(tls_buffer, "%f", &val) != 1)
       return OAK_FAILURE;
 
-    save_token(OAK_SRC_LOC,
-               ctx->lex,
+    save_token(ctx->lex,
                &sav_cur,
                OAK_TOK_FLOAT_NUM,
                (char*)&val,
@@ -425,8 +422,7 @@ static oak_result_t try_scan_number(const oak_lex_ctx_t* ctx, const char* input)
     if (sscanf_s(tls_buffer, "%d", &val) != 1)
       return OAK_FAILURE;
 
-    save_token(OAK_SRC_LOC,
-               ctx->lex,
+    save_token(ctx->lex,
                &sav_cur,
                OAK_TOK_INT_NUM,
                (char*)&val,
@@ -516,8 +512,7 @@ static oak_result_t try_scan_ident(const oak_lex_ctx_t* ctx, const char* input)
   }
 
   const oak_tok_type_t type = oak_ident_type(buffer, buffer_length);
-  save_token(OAK_SRC_LOC,
-             ctx->lex,
+  save_token(ctx->lex,
              &sav_cur,
              type,
              buffer,
@@ -555,6 +550,7 @@ void oak_lex_tokenize(const char* input, oak_lex_t* output)
   oak_lex_cur_t cur = { .buf_pos = 0, .pos = 1, .line = 1, .column = 1 };
   const oak_lex_ctx_t ctx = { .lex = output, .cur = &cur };
   oak_list_init(&output->tokens);
+  oak_arena_init(&output->arena, 0);
 
   while (input[cur.buf_pos] != OAK_EOS)
   {
@@ -569,14 +565,7 @@ void oak_lex_tokenize(const char* input, oak_lex_t* output)
   }
 }
 
-void oak_lex_cleanup(const oak_lex_t* lex)
+void oak_lex_cleanup(oak_lex_t* lex)
 {
-  oak_list_entry_t* entry;
-  oak_list_entry_t* safe;
-  oak_list_for_each_safe(entry, safe, &lex->tokens)
-  {
-    oak_tok_t* token = oak_container_of(entry, oak_tok_t, link);
-    oak_list_remove(entry);
-    oak_mem_release(OAK_SRC_LOC, token);
-  }
+  oak_arena_destroy(&lex->arena);
 }
