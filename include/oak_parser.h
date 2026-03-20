@@ -1,7 +1,7 @@
 #pragma once
 
-#include "oak_lex.h"
-#include "oak_tok.h"
+#include "oak_lexer.h"
+#include "oak_token.h"
 
 typedef enum
 {
@@ -51,7 +51,7 @@ typedef struct _oak_ast_node_t
 
   union
   {
-    const oak_tok_t* tok;
+    const oak_token_t* token;
     oak_list_head_t children;
 
     struct
@@ -64,6 +64,6 @@ typedef struct _oak_ast_node_t
 
 typedef struct oak_parser_result_t oak_parser_result_t;
 
-oak_parser_result_t* oak_parse(const oak_lex_result_t* lex, oak_node_kind_t kind);
+oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer, oak_node_kind_t kind);
 oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result);
 void oak_parser_cleanup(oak_parser_result_t* result);

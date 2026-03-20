@@ -1,15 +1,15 @@
-#include "oak_lex.h"
+#include "oak_lexer.h"
 #include "oak_test.h"
 #include "oak_test_run.h"
-#include "oak_test_tok.h"
+#include "oak_test_token.h"
 
 OAK_TEST_DECL(LexInteger)
 {
-  oak_lex_result_t* lex = oak_lex_tokenize("1000");
+  oak_lexer_result_t* lexer = oak_lexer_tokenize("1000");
 
-  static oak_tok_attr_t attrs[] = {
+  static oak_token_attr_t attrs[] = {
     {
-        .type = OAK_TOK_INT_NUM,
+        .type = OAK_TOKEN_INT_NUM,
         .line = 1,
         .column = 1,
         .pos = 1,
@@ -17,8 +17,8 @@ OAK_TEST_DECL(LexInteger)
     },
   };
 
-  const oak_result_t result = oak_test_tokens(lex, attrs, 1);
-  oak_lex_cleanup(lex);
+  const oak_result_t result = oak_test_tokens(lexer, attrs, 1);
+  oak_lexer_cleanup(lexer);
 
   return result;
 }

@@ -18,8 +18,8 @@ set(OAK_CORE_SOURCES
         ${OAK_SRC_DIR}/oak_log.c
         ${OAK_SRC_DIR}/oak_mem.c
         ${OAK_SRC_DIR}/oak_arena.c
-        ${OAK_SRC_DIR}/oak_lex.c
-        ${OAK_SRC_DIR}/oak_tok.c
+        ${OAK_SRC_DIR}/oak_lexer.c
+        ${OAK_SRC_DIR}/oak_token.c
         ${OAK_SRC_DIR}/oak_parser.c
 )
 

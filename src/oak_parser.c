@@ -36,7 +36,7 @@ typedef enum
 
 typedef struct
 {
-  oak_tok_type_t op_tok;
+  oak_token_type_t op_token;
   int lbp;
   int rbp;
   oak_node_kind_t node_kind;
@@ -48,7 +48,7 @@ typedef struct
   union
   {
     oak_node_kind_t rules[16];
-    oak_tok_type_t tok_type;
+    oak_token_type_t token_type;
     struct
     {
       oak_node_kind_t primary_rule;
@@ -59,25 +59,25 @@ typedef struct
 } oak_grammar_entry_t;
 
 static const oak_pratt_rule_t expr_prefix[] = {
-  { OAK_TOK_MINUS, 0, 13, OAK_NODE_KIND_UNARY_NEG },
-  { OAK_TOK_EXCLAMATION_MARK, 0, 13, OAK_NODE_KIND_UNARY_NOT },
+  { OAK_TOKEN_MINUS, 0, 13, OAK_NODE_KIND_UNARY_NEG },
+  { OAK_TOKEN_EXCLAMATION_MARK, 0, 13, OAK_NODE_KIND_UNARY_NOT },
   { 0 },
 };
 
 static const oak_pratt_rule_t expr_infix[] = {
-  { OAK_TOK_OR, 1, 2, OAK_NODE_KIND_BINARY_OR },
-  { OAK_TOK_AND, 3, 4, OAK_NODE_KIND_BINARY_AND },
-  { OAK_TOK_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_EQ },
-  { OAK_TOK_NOT_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_NEQ },
-  { OAK_TOK_LESS, 7, 8, OAK_NODE_KIND_BINARY_LESS },
-  { OAK_TOK_LESS_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_LESS_EQ },
-  { OAK_TOK_GREATER, 7, 8, OAK_NODE_KIND_BINARY_GREATER },
-  { OAK_TOK_GREATER_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_GREATER_EQ },
-  { OAK_TOK_PLUS, 9, 10, OAK_NODE_KIND_BINARY_ADD },
-  { OAK_TOK_MINUS, 9, 10, OAK_NODE_KIND_BINARY_SUB },
-  { OAK_TOK_STAR, 11, 12, OAK_NODE_KIND_BINARY_MUL },
-  { OAK_TOK_SLASH, 11, 12, OAK_NODE_KIND_BINARY_DIV },
-  { OAK_TOK_PERCENT, 11, 12, OAK_NODE_KIND_BINARY_MOD },
+  { OAK_TOKEN_OR, 1, 2, OAK_NODE_KIND_BINARY_OR },
+  { OAK_TOKEN_AND, 3, 4, OAK_NODE_KIND_BINARY_AND },
+  { OAK_TOKEN_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_EQ },
+  { OAK_TOKEN_NOT_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_NEQ },
+  { OAK_TOKEN_LESS, 7, 8, OAK_NODE_KIND_BINARY_LESS },
+  { OAK_TOKEN_LESS_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_LESS_EQ },
+  { OAK_TOKEN_GREATER, 7, 8, OAK_NODE_KIND_BINARY_GREATER },
+  { OAK_TOKEN_GREATER_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_GREATER_EQ },
+  { OAK_TOKEN_PLUS, 9, 10, OAK_NODE_KIND_BINARY_ADD },
+  { OAK_TOKEN_MINUS, 9, 10, OAK_NODE_KIND_BINARY_SUB },
+  { OAK_TOKEN_STAR, 11, 12, OAK_NODE_KIND_BINARY_MUL },
+  { OAK_TOKEN_SLASH, 11, 12, OAK_NODE_KIND_BINARY_DIV },
+  { OAK_TOKEN_PERCENT, 11, 12, OAK_NODE_KIND_BINARY_MOD },
   { 0 },
 };
 
@@ -128,37 +128,37 @@ static oak_grammar_entry_t oak_grammar[] = {
   // TYPE_KEYWORD -> 'type'
   [OAK_NODE_KIND_TYPE_KEYWORD] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_TYPE,
+    .token_type = OAK_TOKEN_TYPE,
   },
   // TYPE_NAME -> IDENT
   [OAK_NODE_KIND_TYPE_NAME] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_IDENT,
+    .token_type = OAK_TOKEN_IDENT,
   },
   // LBRACE -> '{'
   [OAK_NODE_KIND_LBRACE] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_LBRACE,
+    .token_type = OAK_TOKEN_LBRACE,
   },
   // RBRACE -> '}'
   [OAK_NODE_KIND_RBRACE] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_RBRACE,
+    .token_type = OAK_TOKEN_RBRACE,
   },
-  // IDENT -> OAK_TOK_IDENT
+  // IDENT -> OAK_TOKEN_IDENT
   [OAK_NODE_KIND_IDENT] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_IDENT,
+    .token_type = OAK_TOKEN_IDENT,
   },
   // COLON -> ':'
   [OAK_NODE_KIND_COLON] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_COLON,
+    .token_type = OAK_TOKEN_COLON,
   },
   // SEMICOLON -> ';'
   [OAK_NODE_KIND_SEMICOLON] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_SEMICOLON,
+    .token_type = OAK_TOKEN_SEMICOLON,
   },
   // STATEMENT -> EXPR SEMICOLON
   [OAK_NODE_KIND_STATEMENT] = {
@@ -187,20 +187,20 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_IDENT,
     },
   },
-  // INT -> OAK_TOK_INT_NUM
+  // INT -> OAK_TOKEN_INT_NUM
   [OAK_NODE_KIND_INT] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_INT_NUM,
+    .token_type = OAK_TOKEN_INT_NUM,
   },
-  // FLOAT -> OAK_TOK_FLOAT_NUM
+  // FLOAT -> OAK_TOKEN_FLOAT_NUM
   [OAK_NODE_KIND_FLOAT] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_FLOAT_NUM,
+    .token_type = OAK_TOKEN_FLOAT_NUM,
   },
-  // STRING -> OAK_TOK_STRING
+  // STRING -> OAK_TOKEN_STRING
   [OAK_NODE_KIND_STRING] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
-    .tok_type = OAK_TOK_STRING,
+    .token_type = OAK_TOKEN_STRING,
   },
   [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_OP_BINARY },
   [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_OP_BINARY },
@@ -237,15 +237,15 @@ static oak_ast_node_t* make_ast_node_token(oak_parser_t* p,
   oak_assert(p);
   oak_assert(p->curr);
   oak_assert(p->curr->next);
-  const oak_tok_t* tok = oak_container_of(p->curr, oak_tok_t, link);
+  const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
-  if (tok->type != entry->tok_type)
+  if (token->type != entry->token_type)
     return NULL;
   oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
     return NULL;
   node->kind = kind;
-  node->tok = tok;
+  node->token = token;
   p->curr = p->curr->next;
   return node;
 }
@@ -266,8 +266,8 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
     const oak_node_kind_t child_kind = rule & OAK_NODE_KIND_MASK;
     if (rule & OAK_NODE_SKIP)
     {
-      const oak_tok_t* tok = oak_container_of(p->curr, oak_tok_t, link);
-      if (tok->type != oak_grammar[child_kind].tok_type)
+      const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
+      if (token->type != oak_grammar[child_kind].token_type)
       {
         p->curr = saved;
         break;
@@ -342,12 +342,12 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
 
   if (p->curr != p->head && entry->pratt.prefix)
   {
-    const oak_tok_t* tok = oak_container_of(p->curr, oak_tok_t, link);
+    const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
     for (const oak_pratt_rule_t* r = entry->pratt.prefix;
          r->node_kind != OAK_NODE_KIND_NONE;
          r++)
     {
-      if (tok->type == r->op_tok)
+      if (token->type == r->op_token)
       {
         p->curr = p->curr->next;
         oak_ast_node_t* operand = parse_pratt(p, kind, r->rbp);
@@ -367,15 +367,15 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
 
   if (!lhs && p->curr != p->head)
   {
-    const oak_tok_t* peek = oak_container_of(p->curr, oak_tok_t, link);
-    if (peek->type == OAK_TOK_LPAREN)
+    const oak_token_t* peek = oak_container_of(p->curr, oak_token_t, link);
+    if (peek->type == OAK_TOKEN_LPAREN)
     {
       p->curr = p->curr->next;
       lhs = parse_pratt(p, kind, 0);
       if (!lhs || p->curr == p->head)
         return NULL;
-      peek = oak_container_of(p->curr, oak_tok_t, link);
-      if (peek->type != OAK_TOK_RPAREN)
+      peek = oak_container_of(p->curr, oak_token_t, link);
+      if (peek->type != OAK_TOKEN_RPAREN)
         return NULL;
       p->curr = p->curr->next;
     }
@@ -392,14 +392,14 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
   {
     if (p->curr == p->head)
       break;
-    const oak_tok_t* tok = oak_container_of(p->curr, oak_tok_t, link);
+    const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
 
     const oak_pratt_rule_t* rule = NULL;
     for (const oak_pratt_rule_t* r = entry->pratt.infix;
          r->node_kind != OAK_NODE_KIND_NONE;
          r++)
     {
-      if (tok->type == r->op_tok)
+      if (token->type == r->op_token)
       {
         rule = r;
         break;
@@ -460,7 +460,7 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
   return node;
 }
 
-oak_parser_result_t* oak_parse(const oak_lex_result_t* lex,
+oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
                                const oak_node_kind_t kind)
 {
   oak_parser_result_t* result =
@@ -470,7 +470,7 @@ oak_parser_result_t* oak_parse(const oak_lex_result_t* lex,
 
   oak_arena_init(&result->arena, 0);
 
-  const oak_list_head_t* tokens = oak_lex_tokens(lex);
+  const oak_list_head_t* tokens = oak_lexer_tokens(lexer);
   oak_parser_t parser = {
     .head = tokens,
     .curr = tokens->next,

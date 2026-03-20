@@ -1,4 +1,4 @@
-#include "oak_lex.h"
+#include "oak_lexer.h"
 #include "oak_parser.h"
 #include "oak_test.h"
 #include "oak_test_ast.h"
@@ -8,9 +8,9 @@
 
 OAK_TEST_DECL(ParseTypeDecl)
 {
-  oak_lex_result_t* lex = oak_lex_tokenize("type Point { x : i32; y : i32; }");
+  oak_lexer_result_t* lexer = oak_lexer_tokenize("type Point { x : i32; y : i32; }");
 
-  oak_parser_result_t* result = oak_parse(lex, OAK_NODE_KIND_PROGRAM);
+  oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   oak_ast_node_t* root = oak_parser_root(result);
   if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
     return OAK_FAILURE;
@@ -37,7 +37,7 @@ OAK_TEST_DECL(ParseTypeDecl)
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
   if (oak_test_ast_kind(name, OAK_NODE_KIND_TYPE_NAME) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (strcmp(name->tok->buf, "Point") != 0)
+  if (strcmp(name->token->buf, "Point") != 0)
     return OAK_FAILURE;
 
   const oak_ast_node_t* fields = oak_test_ast_child(decl, 1);
@@ -55,13 +55,13 @@ OAK_TEST_DECL(ParseTypeDecl)
   const oak_ast_node_t* f0_name = oak_test_ast_child(field0, 0);
   if (oak_test_ast_kind(f0_name, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (strcmp(f0_name->tok->buf, "x") != 0)
+  if (strcmp(f0_name->token->buf, "x") != 0)
     return OAK_FAILURE;
 
   const oak_ast_node_t* f0_type = oak_test_ast_child(field0, 1);
   if (oak_test_ast_kind(f0_type, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (strcmp(f0_type->tok->buf, "i32") != 0)
+  if (strcmp(f0_type->token->buf, "i32") != 0)
     return OAK_FAILURE;
 
   const oak_ast_node_t* field1 = oak_test_ast_child(fields, 1);
@@ -73,17 +73,17 @@ OAK_TEST_DECL(ParseTypeDecl)
   const oak_ast_node_t* f1_name = oak_test_ast_child(field1, 0);
   if (oak_test_ast_kind(f1_name, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (strcmp(f1_name->tok->buf, "y") != 0)
+  if (strcmp(f1_name->token->buf, "y") != 0)
     return OAK_FAILURE;
 
   const oak_ast_node_t* f1_type = oak_test_ast_child(field1, 1);
   if (oak_test_ast_kind(f1_type, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (strcmp(f1_type->tok->buf, "i32") != 0)
+  if (strcmp(f1_type->token->buf, "i32") != 0)
     return OAK_FAILURE;
 
   oak_parser_cleanup(result);
-  oak_lex_cleanup(lex);
+  oak_lexer_cleanup(lexer);
 
   return OAK_SUCCESS;
 }
