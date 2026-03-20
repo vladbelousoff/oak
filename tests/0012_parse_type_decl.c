@@ -8,10 +8,9 @@
 
 OAK_TEST_DECL(ParseTypeDecl)
 {
-  oak_lex_t lex;
-  oak_lex_tokenize("type Point { x : i32; y : i32; }", &lex);
+  oak_lex_result_t* lex = oak_lex_tokenize("type Point { x : i32; y : i32; }");
 
-  oak_parser_result_t* result = oak_parse(&lex, OAK_NODE_KIND_PROGRAM);
+  oak_parser_result_t* result = oak_parse(lex, OAK_NODE_KIND_PROGRAM);
   oak_ast_node_t* root = oak_parser_root(result);
   if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
     return OAK_FAILURE;
@@ -84,7 +83,7 @@ OAK_TEST_DECL(ParseTypeDecl)
     return OAK_FAILURE;
 
   oak_parser_cleanup(result);
-  oak_lex_cleanup(&lex);
+  oak_lex_cleanup(lex);
 
   return OAK_SUCCESS;
 }

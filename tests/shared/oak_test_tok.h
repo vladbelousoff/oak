@@ -59,14 +59,14 @@ static oak_result_t oak_test_token(const oak_tok_t* tok,
   return OAK_SUCCESS;
 }
 
-static oak_result_t oak_test_tokens(const oak_lex_t* lex,
+static oak_result_t oak_test_tokens(const oak_lex_result_t* lex,
                                     const oak_tok_attr_t* attrs,
                                     const size_t count)
 {
   size_t tok_index;
   oak_list_entry_t* tok_entry;
 
-  oak_list_for_each_indexed(tok_index, tok_entry, &lex->tokens)
+  oak_list_for_each_indexed(tok_index, tok_entry, oak_lex_tokens(lex))
   {
     if (tok_index >= count)
       return OAK_FAILURE;

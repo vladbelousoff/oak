@@ -5,8 +5,7 @@
 
 OAK_TEST_DECL(LexFloat)
 {
-  oak_lex_t lex;
-  oak_lex_tokenize("77.23", &lex);
+  oak_lex_result_t* lex = oak_lex_tokenize("77.23");
 
   static oak_tok_attr_t attrs[] = {
     {
@@ -18,8 +17,8 @@ OAK_TEST_DECL(LexFloat)
     },
   };
 
-  const oak_result_t result = oak_test_tokens(&lex, attrs, 1);
-  oak_lex_cleanup(&lex);
+  const oak_result_t result = oak_test_tokens(lex, attrs, 1);
+  oak_lex_cleanup(lex);
 
   return result;
 }

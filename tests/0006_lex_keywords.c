@@ -5,10 +5,8 @@
 
 OAK_TEST_DECL(LexKeywords)
 {
-  oak_lex_t lex;
-  oak_lex_tokenize(
-      "let mut if else while for break continue return true false and or not",
-      &lex);
+  oak_lex_result_t* lex = oak_lex_tokenize(
+      "let mut if else while for break continue return true false and or not");
 
   static oak_tok_attr_t attrs[] = {
     {
@@ -98,8 +96,8 @@ OAK_TEST_DECL(LexKeywords)
   };
 
   const size_t n = OAK_ARRAY_SIZE(attrs);
-  const oak_result_t result = oak_test_tokens(&lex, attrs, n);
-  oak_lex_cleanup(&lex);
+  const oak_result_t result = oak_test_tokens(lex, attrs, n);
+  oak_lex_cleanup(lex);
 
   return result;
 }

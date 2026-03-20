@@ -460,7 +460,8 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
   return node;
 }
 
-oak_parser_result_t* oak_parse(const oak_lex_t* lex, const oak_node_kind_t kind)
+oak_parser_result_t* oak_parse(const oak_lex_result_t* lex,
+                               const oak_node_kind_t kind)
 {
   oak_parser_result_t* result =
       oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_parser_result_t));
@@ -469,9 +470,10 @@ oak_parser_result_t* oak_parse(const oak_lex_t* lex, const oak_node_kind_t kind)
 
   oak_arena_init(&result->arena, 0);
 
+  const oak_list_head_t* tokens = oak_lex_tokens(lex);
   oak_parser_t parser = {
-    .head = &lex->tokens,
-    .curr = lex->tokens.next,
+    .head = tokens,
+    .curr = tokens->next,
     .arena = &result->arena,
   };
 

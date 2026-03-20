@@ -1,5 +1,6 @@
 #include "oak_lex.h"
 
+#include "oak_arena.h"
 #include "oak_common.h"
 #include "oak_log.h"
 #include "oak_mem.h"
@@ -8,6 +9,12 @@
 
 #include <stdio.h>
 #include <string.h>
+
+struct oak_lex_result_t
+{
+  oak_list_head_t tokens;
+  oak_arena_t arena;
+};
 
 typedef struct
 {
@@ -19,7 +26,7 @@ typedef struct
 
 typedef struct
 {
-  oak_lex_t* lex;
+  oak_lex_result_t* lex;
   oak_lex_cur_t* cur;
 } oak_lex_ctx_t;
 
@@ -36,7 +43,7 @@ static void new_line(oak_lex_cur_t* cur)
   cur->column = 0;
 }
 
-static void save_token(oak_lex_t* lex,
+static void save_token(oak_lex_result_t* lex,
                        const oak_lex_cur_t* cur,
                        const oak_tok_type_t token_type,
                        const char* buffer,
@@ -545,12 +552,17 @@ static oak_result_t try_scan(const oak_lex_ctx_t* ctx, const char* input)
   return OAK_FAILURE;
 }
 
-void oak_lex_tokenize(const char* input, oak_lex_t* output)
+oak_lex_result_t* oak_lex_tokenize(const char* input)
 {
+  oak_lex_result_t* result =
+      oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_lex_result_t));
+  if (!result)
+    return NULL;
+
   oak_lex_cur_t cur = { .buf_pos = 0, .pos = 1, .line = 1, .column = 1 };
-  const oak_lex_ctx_t ctx = { .lex = output, .cur = &cur };
-  oak_list_init(&output->tokens);
-  oak_arena_init(&output->arena, 0);
+  const oak_lex_ctx_t ctx = { .lex = result, .cur = &cur };
+  oak_list_init(&result->tokens);
+  oak_arena_init(&result->arena, 0);
 
   while (input[cur.buf_pos] != OAK_EOS)
   {
@@ -563,9 +575,19 @@ void oak_lex_tokenize(const char* input, oak_lex_t* output)
                    cp);
     }
   }
+
+  return result;
 }
 
-void oak_lex_cleanup(oak_lex_t* lex)
+const oak_list_head_t* oak_lex_tokens(const oak_lex_result_t* result)
 {
-  oak_arena_destroy(&lex->arena);
+  return result ? &result->tokens : NULL;
+}
+
+void oak_lex_cleanup(oak_lex_result_t* result)
+{
+  if (!result)
+    return;
+  oak_arena_destroy(&result->arena);
+  oak_mem_release(OAK_SRC_LOC, result);
 }

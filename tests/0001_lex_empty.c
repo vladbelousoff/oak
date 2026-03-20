@@ -5,11 +5,10 @@
 
 OAK_TEST_DECL(LexEmptyString)
 {
-  oak_lex_t lex;
-  oak_lex_tokenize("", &lex);
+  oak_lex_result_t* lex = oak_lex_tokenize("");
   const oak_result_t result =
-      oak_list_empty(&lex.tokens) ? OAK_SUCCESS : OAK_FAILURE;
-  oak_lex_cleanup(&lex);
+      oak_list_empty(oak_lex_tokens(lex)) ? OAK_SUCCESS : OAK_FAILURE;
+  oak_lex_cleanup(lex);
   return result;
 }
 
