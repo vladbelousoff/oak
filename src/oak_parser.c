@@ -212,7 +212,7 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
     .token_kind = OAK_TOKEN_STRING,
   },
-  // ASSIGNMENT -> IDENT ASSIGN EXPR SEMICOLON
+  // STMT_ASSIGNMENT -> IDENT ASSIGN EXPR SEMICOLON
   [OAK_NODE_KIND_STMT_ASSIGNMENT] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
@@ -227,7 +227,7 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_OP_TOKEN,
     .token_kind = OAK_TOKEN_ASSIGN,
   },
-  // LET_ASSIGNMENT -> LET ASSIGNMENT
+  // STMT_LET_ASSIGNMENT -> LET STMT_ASSIGNMENT
   [OAK_NODE_KIND_STMT_LET_ASSIGNMENT] = {
     .op = OAK_GRAMMAR_OP_SEQUENCE,
     .rules = {
