@@ -90,7 +90,7 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_PROGRAM_ITEM,
     },
   },
-  // PROGRAM_ITEM -> TYPE_DECL | STATEMENT | ASSIGN
+  // PROGRAM_ITEM -> TYPE_DECL | STATEMENT | ASSIGNMENT
   [OAK_NODE_KIND_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_OP_CHOICE,
     .rules = {
