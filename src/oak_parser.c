@@ -219,12 +219,12 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_OP_SEQUENCE },
 };
 
-int oak_node_kind_is_token(const oak_node_kind_t kind)
+int oak_node_grammar_op_token(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_OP_TOKEN;
 }
 
-int oak_node_kind_is_binary(const oak_node_kind_t kind)
+int oak_node_grammar_op_binary(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_OP_BINARY;
 }

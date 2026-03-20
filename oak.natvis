@@ -38,14 +38,14 @@
     </Type>
 
     <Type Name="_oak_ast_node_t">
-        <DisplayString Condition="oak_node_kind_is_token(kind)">{kind} ({token->kind})</DisplayString>
+        <DisplayString Condition="oak_node_grammar_op_token(kind)">{kind} ({token->kind})</DisplayString>
         <DisplayString>{kind}</DisplayString>
         <Expand HideRawView="true">
             <Item Name="rule">kind</Item>
-            <Item Name="token" Condition="oak_node_kind_is_token(kind)">token</Item>
-            <Item Name="lhs" Condition="oak_node_kind_is_binary(kind)">*lhs</Item>
-            <Item Name="rhs" Condition="oak_node_kind_is_binary(kind)">*rhs</Item>
-            <CustomListItems Condition="!oak_node_kind_is_token(kind) &amp;&amp; !oak_node_kind_is_binary(kind)">
+            <Item Name="token" Condition="oak_node_grammar_op_token(kind)">token</Item>
+            <Item Name="lhs" Condition="oak_node_grammar_op_binary(kind)">*lhs</Item>
+            <Item Name="rhs" Condition="oak_node_grammar_op_binary(kind)">*rhs</Item>
+            <CustomListItems Condition="!oak_node_grammar_op_token(kind) &amp;&amp; !oak_node_grammar_op_binary(kind)">
                 <Variable Name="entry" InitialValue="children.next"/>
                 <Loop>
                     <If Condition="entry == &amp;children">

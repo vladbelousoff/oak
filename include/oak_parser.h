@@ -41,8 +41,8 @@ typedef enum
   OAK_NODE_KIND_UNARY_NOT,
 } oak_node_kind_t;
 
-int oak_node_kind_is_token(oak_node_kind_t kind);
-int oak_node_kind_is_binary(oak_node_kind_t kind);
+int oak_node_grammar_op_token(oak_node_kind_t kind);
+int oak_node_grammar_op_binary(oak_node_kind_t kind);
 
 typedef struct _oak_ast_node_t
 {
