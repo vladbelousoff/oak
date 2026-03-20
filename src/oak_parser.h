@@ -62,5 +62,8 @@ typedef struct _oak_ast_node_t
   };
 } oak_ast_node_t;
 
-oak_ast_node_t* oak_parse(const oak_lex_t* lex, oak_node_kind_t kind);
-void oak_ast_node_cleanup(oak_ast_node_t* node);
+typedef struct oak_parser_result_t oak_parser_result_t;
+
+oak_parser_result_t* oak_parse(const oak_lex_t* lex, oak_node_kind_t kind);
+oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result);
+void oak_parser_cleanup(oak_parser_result_t* result);

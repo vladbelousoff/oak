@@ -14,8 +14,10 @@ int main(const int argc, const char* argv[])
                    "-1000 + (10 - 7) * 10;\n",
                    &lex);
 
-  oak_ast_node_t* root = oak_parse(&lex, OAK_NODE_KIND_PROGRAM);
-  oak_ast_node_cleanup(root);
+  oak_parser_result_t* result = oak_parse(&lex, OAK_NODE_KIND_PROGRAM);
+  (void)oak_parser_root(result);
+
+  oak_parser_cleanup(result);
   oak_lex_cleanup(&lex);
 
   oak_mem_shutdown();

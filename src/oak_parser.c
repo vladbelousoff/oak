@@ -1,14 +1,22 @@
 #include "oak_parser.h"
 #include <stdio.h>
 
+#include "oak_arena.h"
 #include "oak_common.h"
 #include "oak_log.h"
 #include "oak_mem.h"
+
+struct oak_parser_result_t
+{
+  oak_ast_node_t* root;
+  oak_arena_t arena;
+};
 
 typedef struct
 {
   const oak_list_head_t* head;
   oak_list_head_t* curr;
+  oak_arena_t* arena;
 } oak_parser_t;
 
 #define OAK_NODE_SKIP      ((oak_node_kind_t)(1 << 15))
@@ -233,7 +241,7 @@ static oak_ast_node_t* make_ast_node_token(oak_parser_t* p,
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
   if (tok->type != entry->tok_type)
     return NULL;
-  oak_ast_node_t* node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
+  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
     return NULL;
   node->kind = kind;
@@ -272,7 +280,7 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
     {
       if (!node)
       {
-        node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
+        node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         node->kind = kind;
         oak_list_init(&node->children);
       }
@@ -310,7 +318,7 @@ static oak_ast_node_t* make_ast_node_choice(oak_parser_t* p,
 static oak_ast_node_t* make_ast_node_repeat(oak_parser_t* p,
                                             const oak_node_kind_t kind)
 {
-  oak_ast_node_t* node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
+  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   node->kind = kind;
   oak_list_init(&node->children);
 
@@ -346,7 +354,7 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
         if (!operand)
           return NULL;
 
-        lhs = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
+        lhs = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         if (!lhs)
           return NULL;
         lhs->kind = r->node_kind;
@@ -405,7 +413,7 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
     if (!rhs)
       return NULL;
 
-    oak_ast_node_t* node = oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_ast_node_t));
+    oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
     if (!node)
       return NULL;
     node->kind = rule->node_kind;
@@ -452,36 +460,34 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
   return node;
 }
 
-oak_ast_node_t* oak_parse(const oak_lex_t* lex, const oak_node_kind_t kind)
+oak_parser_result_t* oak_parse(const oak_lex_t* lex, const oak_node_kind_t kind)
 {
+  oak_parser_result_t* result =
+      oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_parser_result_t));
+  if (!result)
+    return NULL;
+
+  oak_arena_init(&result->arena, 0);
+
   oak_parser_t parser = {
     .head = &lex->tokens,
     .curr = lex->tokens.next,
+    .arena = &result->arena,
   };
 
-  return parse_rule(&parser, kind);
+  result->root = parse_rule(&parser, kind);
+  return result;
 }
 
-void oak_ast_node_cleanup(oak_ast_node_t* node)
+oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result)
 {
-  if (!node)
+  return result ? result->root : NULL;
+}
+
+void oak_parser_cleanup(oak_parser_result_t* result)
+{
+  if (!result)
     return;
-
-  const oak_grammar_entry_t* entry = &oak_grammar[node->kind];
-  if (entry->op == OAK_GRAMMAR_OP_BINARY)
-  {
-    oak_ast_node_cleanup(node->lhs);
-    oak_ast_node_cleanup(node->rhs);
-  }
-  else if (entry->op != OAK_GRAMMAR_OP_TOKEN)
-  {
-    oak_list_entry_t *curr, *n;
-    oak_list_for_each_safe(curr, n, &node->children)
-    {
-      oak_ast_node_t* child = oak_container_of(curr, oak_ast_node_t, link);
-      oak_ast_node_cleanup(child);
-    }
-  }
-
-  oak_mem_release(OAK_SRC_LOC, node);
+  oak_arena_destroy(&result->arena);
+  oak_mem_release(OAK_SRC_LOC, result);
 }

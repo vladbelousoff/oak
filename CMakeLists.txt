@@ -17,6 +17,7 @@ set(OAK_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 set(OAK_CORE_SOURCES
         ${OAK_SRC_DIR}/oak_log.c
         ${OAK_SRC_DIR}/oak_mem.c
+        ${OAK_SRC_DIR}/oak_arena.c
         ${OAK_SRC_DIR}/oak_lex.c
         ${OAK_SRC_DIR}/oak_tok.c
         ${OAK_SRC_DIR}/oak_parser.c
