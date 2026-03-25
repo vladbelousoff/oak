@@ -261,7 +261,7 @@ static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx,
     if (n <= 0)
     {
       if (dynamic_alloc)
-        oak_free(OAK_SRC_LOC, buffer);
+        oak_free(buffer, OAK_SRC_LOC);
       /* Invalid UTF-8 */
       return OAK_FAILURE;
     }
@@ -302,7 +302,7 @@ static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx,
       if (!dynamic_alloc)
       {
         buffer_capacity = sizeof(tls_buffer) * 2;
-        char* new_buf = oak_alloc(OAK_SRC_LOC, buffer_capacity);
+        char* new_buf = oak_alloc(buffer_capacity, OAK_SRC_LOC);
         if (!new_buf)
           return OAK_FAILURE;
         memcpy(new_buf, tls_buffer, buffer_length);
@@ -312,10 +312,10 @@ static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx,
       else
       {
         buffer_capacity *= 2;
-        char* new_buf = oak_realloc(OAK_SRC_LOC, buffer, buffer_capacity);
+        char* new_buf = oak_realloc(buffer, buffer_capacity, OAK_SRC_LOC);
         if (!new_buf)
         {
-          oak_free(OAK_SRC_LOC, buffer);
+          oak_free(buffer, OAK_SRC_LOC);
           return OAK_FAILURE;
         }
         buffer = new_buf;
@@ -335,14 +335,14 @@ static oak_result_t try_scan_string(const oak_lexer_ctx_t* ctx,
       save_token(ctx->lexer, &sav_cur, OAK_TOKEN_STRING, buffer, buffer_length);
 
       if (dynamic_alloc)
-        oak_free(OAK_SRC_LOC, buffer);
+        oak_free(buffer, OAK_SRC_LOC);
       return OAK_SUCCESS;
     }
   }
 
   /* Unterminated string literal */
   if (dynamic_alloc)
-    oak_free(OAK_SRC_LOC, buffer);
+    oak_free(buffer, OAK_SRC_LOC);
   return OAK_FAILURE;
 }
 
@@ -475,7 +475,7 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
       if (!dynamic_alloc)
       {
         buffer_capacity = sizeof(tls_buffer) * 2;
-        char* new_buf = oak_alloc(OAK_SRC_LOC, buffer_capacity);
+        char* new_buf = oak_alloc(buffer_capacity, OAK_SRC_LOC);
         memset(new_buf, 0, buffer_capacity);
         if (!new_buf)
           return OAK_FAILURE;
@@ -486,10 +486,10 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
       else
       {
         buffer_capacity *= 2;
-        char* new_buf = oak_realloc(OAK_SRC_LOC, buffer, buffer_capacity);
+        char* new_buf = oak_realloc(buffer, buffer_capacity, OAK_SRC_LOC);
         if (!new_buf)
         {
-          oak_free(OAK_SRC_LOC, buffer);
+          oak_free(buffer, OAK_SRC_LOC);
           return OAK_FAILURE;
         }
         buffer = new_buf;
@@ -506,7 +506,7 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
   if (buffer_length == 0)
   {
     if (dynamic_alloc)
-      oak_free(OAK_SRC_LOC, buffer);
+      oak_free(buffer, OAK_SRC_LOC);
     return OAK_FAILURE;
   }
 
@@ -518,7 +518,7 @@ static oak_result_t try_scan_ident(const oak_lexer_ctx_t* ctx,
              kind == OAK_TOKEN_IDENT ? buffer_length : 0);
 
   if (dynamic_alloc)
-    oak_free(OAK_SRC_LOC, buffer);
+    oak_free(buffer, OAK_SRC_LOC);
 
   return OAK_SUCCESS;
 }
@@ -547,7 +547,7 @@ static oak_result_t try_scan(const oak_lexer_ctx_t* ctx, const char* input)
 oak_lexer_result_t* oak_lexer_tokenize(const char* input)
 {
   oak_lexer_result_t* result =
-      oak_alloc(OAK_SRC_LOC, sizeof(oak_lexer_result_t));
+      oak_alloc(sizeof(oak_lexer_result_t), OAK_SRC_LOC);
   if (!result)
     return NULL;
 
@@ -581,5 +581,5 @@ void oak_lexer_cleanup(oak_lexer_result_t* result)
   if (!result)
     return;
   oak_arena_destroy(&result->arena);
-  oak_free(OAK_SRC_LOC, result);
+  oak_free(result, OAK_SRC_LOC);
 }

@@ -16,7 +16,7 @@ static int memory_tracking_enabled = 0;
 #define OAK_MEM_SMB 0x77
 #define OAK_MEM_SIG 0xdeadbeef
 
-void* oak_alloc(const oak_src_loc_t src_loc, const size_t size)
+void* oak_alloc(const size_t size, const oak_src_loc_t src_loc)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);
@@ -45,13 +45,13 @@ void* oak_alloc(const oak_src_loc_t src_loc, const size_t size)
 #endif
 }
 
-void* oak_realloc(const oak_src_loc_t src_loc, void* ptr, const size_t size)
+void* oak_realloc(void* ptr, const size_t size, const oak_src_loc_t src_loc)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);
   if (ptr == NULL)
   {
-    return oak_alloc(src_loc, size);
+    return oak_alloc(size, src_loc);
   }
 
   // Find the header with meta-information
@@ -95,7 +95,7 @@ void* oak_realloc(const oak_src_loc_t src_loc, void* ptr, const size_t size)
 #endif
 }
 
-void oak_free(const oak_src_loc_t src_loc, void* ptr)
+void oak_free(void* ptr, const oak_src_loc_t src_loc)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);

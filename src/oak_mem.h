@@ -30,9 +30,9 @@ typedef struct
   size_t size;
 } oak_mem_header_t;
 
-void* oak_alloc(oak_src_loc_t src_loc, size_t size);
-void* oak_realloc(oak_src_loc_t src_loc, void* ptr, size_t size);
-void oak_free(oak_src_loc_t src_loc, void* ptr);
+void* oak_alloc(size_t size, oak_src_loc_t src_loc);
+void* oak_realloc(void* ptr, size_t size, oak_src_loc_t src_loc);
+void oak_free(void* ptr, oak_src_loc_t src_loc);
 
 void oak_mem_init();
 void oak_mem_shutdown();
