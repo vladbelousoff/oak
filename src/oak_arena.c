@@ -4,11 +4,10 @@
 
 #include "oak_mem.h"
 
-#define OAK_ARENA_ALIGN 16
-
-static size_t align_up(const size_t n, const size_t align)
+static size_t align_up(const size_t n)
 {
-  return (n + align - 1) & ~(align - 1);
+  const size_t mask = sizeof(size_t) * 2 - 1;
+  return n + mask & ~mask;
 }
 
 static oak_arena_block_t* arena_new_block(const size_t capacity)
@@ -31,7 +30,7 @@ void oak_arena_init(oak_arena_t* arena, const size_t block_size)
 
 void* oak_arena_alloc(oak_arena_t* arena, size_t size)
 {
-  size = align_up(size, OAK_ARENA_ALIGN);
+  size = align_up(size);
 
   if (!arena->current || arena->current->used + size > arena->current->capacity)
   {
