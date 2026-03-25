@@ -509,7 +509,7 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
                                const oak_node_kind_t kind)
 {
   oak_parser_result_t* result =
-      oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_parser_result_t));
+      oak_alloc(OAK_SRC_LOC, sizeof(oak_parser_result_t));
   if (!result)
     return NULL;
 
@@ -550,5 +550,5 @@ void oak_parser_cleanup(oak_parser_result_t* result)
   if (!result)
     return;
   oak_arena_destroy(&result->arena);
-  oak_mem_release(OAK_SRC_LOC, result);
+  oak_free(OAK_SRC_LOC, result);
 }

@@ -14,7 +14,7 @@ static size_t align_up(const size_t n, const size_t align)
 static oak_arena_block_t* arena_new_block(const size_t capacity)
 {
   oak_arena_block_t* block =
-      oak_mem_acquire(OAK_SRC_LOC, sizeof(oak_arena_block_t) + capacity);
+      oak_alloc(OAK_SRC_LOC, sizeof(oak_arena_block_t) + capacity);
   if (!block)
     return NULL;
   block->next = NULL;
@@ -57,7 +57,7 @@ void oak_arena_destroy(oak_arena_t* arena)
   while (block)
   {
     oak_arena_block_t* next = block->next;
-    oak_mem_release(OAK_SRC_LOC, block);
+    oak_free(OAK_SRC_LOC, block);
     block = next;
   }
   arena->current = NULL;
