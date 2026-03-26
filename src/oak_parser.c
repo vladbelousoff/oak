@@ -119,7 +119,7 @@ static oak_grammar_entry_t oak_grammar[] = {
   },
   // STRUCT_FIELD_DECL -> IDENT COLON IDENT SEMICOLON
   [OAK_NODE_KIND_STRUCT_FIELD_DECL] = {
-    .op = OAK_GRAMMAR_OP_SEQUENCE,
+    .op = OAK_GRAMMAR_OP_BINARY,
     .rules = {
       OAK_NODE_KIND_IDENT,
       OAK_NODE_KIND_COLON | OAK_NODE_SKIP,
@@ -347,6 +347,62 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
   return node;
 }
 
+static oak_ast_node_t* make_ast_node_binary(oak_parser_t* p,
+                                            const oak_node_kind_t kind)
+{
+  oak_list_entry_t* saved = p->curr;
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
+  oak_ast_node_t* lhs = NULL;
+  oak_ast_node_t* rhs = NULL;
+
+  for (size_t i = 0;
+       i < OAK_ARRAY_SIZE(entry->rules) &&
+       (entry->rules[i] & OAK_NODE_KIND_MASK) != OAK_NODE_KIND_NONE;
+       ++i)
+  {
+    const oak_node_kind_t rule = entry->rules[i];
+    const oak_node_kind_t child_kind = rule & OAK_NODE_KIND_MASK;
+    if (rule & OAK_NODE_SKIP)
+    {
+      const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
+      if (token->kind != oak_grammar[child_kind].token_kind)
+      {
+        p->curr = saved;
+        return NULL;
+      }
+      p->curr = p->curr->next;
+      continue;
+    }
+    oak_ast_node_t* child = parse_rule(p, child_kind);
+    if (!child)
+    {
+      p->curr = saved;
+      return NULL;
+    }
+    if (!lhs)
+      lhs = child;
+    else
+      rhs = child;
+  }
+
+  if (!lhs || !rhs)
+  {
+    p->curr = saved;
+    return NULL;
+  }
+
+  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+  if (!node)
+  {
+    p->curr = saved;
+    return NULL;
+  }
+  node->kind = kind;
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
 static oak_ast_node_t* make_ast_node_choice(oak_parser_t* p,
                                             const oak_node_kind_t kind)
 {
@@ -498,10 +554,12 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
   case OAK_GRAMMAR_OP_REPEAT:
     node = make_ast_node_repeat(p, kind);
     break;
+  case OAK_GRAMMAR_OP_BINARY:
+    node = make_ast_node_binary(p, kind);
+    break;
   case OAK_GRAMMAR_OP_REPEAT_ONE:
   case OAK_GRAMMAR_OP_OPTIONAL:
   case OAK_GRAMMAR_OP_UNARY:
-  case OAK_GRAMMAR_OP_BINARY:
     break;
   case OAK_GRAMMAR_OP_PRATT:
     node = parse_pratt(p, kind, 0);

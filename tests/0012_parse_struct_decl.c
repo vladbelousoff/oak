@@ -21,12 +21,12 @@ OAK_TEST_DECL(ParseStructDecl)
        STRUCT_DECL
          TYPE_NAME("Point")
          STRUCT_FIELD_DECLS
-           STRUCT_FIELD_DECL
-             IDENT("x")
-             IDENT("number")
-           STRUCT_FIELD_DECL
-             IDENT("y")
-             IDENT("number")
+           STRUCT_FIELD_DECL  (binary: lhs=IDENT, rhs=IDENT)
+             lhs: IDENT("x")
+             rhs: IDENT("number")
+           STRUCT_FIELD_DECL  (binary: lhs=IDENT, rhs=IDENT)
+             lhs: IDENT("y")
+             rhs: IDENT("number")
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
@@ -51,37 +51,29 @@ OAK_TEST_DECL(ParseStructDecl)
   const oak_ast_node_t* field0 = oak_test_ast_child(fields, 0);
   if (oak_test_ast_kind(field0, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_child_count(field0) != 2)
+
+  if (oak_test_ast_kind(field0->lhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+    return OAK_FAILURE;
+  if (strcmp(field0->lhs->token->buf, "x") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* f0_name = oak_test_ast_child(field0, 0);
-  if (oak_test_ast_kind(f0_name, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(field0->rhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (strcmp(f0_name->token->buf, "x") != 0)
-    return OAK_FAILURE;
-
-  const oak_ast_node_t* f0_type = oak_test_ast_child(field0, 1);
-  if (oak_test_ast_kind(f0_type, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(f0_type->token->buf, "number") != 0)
+  if (strcmp(field0->rhs->token->buf, "number") != 0)
     return OAK_FAILURE;
 
   const oak_ast_node_t* field1 = oak_test_ast_child(fields, 1);
   if (oak_test_ast_kind(field1, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_child_count(field1) != 2)
+
+  if (oak_test_ast_kind(field1->lhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+    return OAK_FAILURE;
+  if (strcmp(field1->lhs->token->buf, "y") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* f1_name = oak_test_ast_child(field1, 0);
-  if (oak_test_ast_kind(f1_name, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(field1->rhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (strcmp(f1_name->token->buf, "y") != 0)
-    return OAK_FAILURE;
-
-  const oak_ast_node_t* f1_type = oak_test_ast_child(field1, 1);
-  if (oak_test_ast_kind(f1_type, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(f1_type->token->buf, "number") != 0)
+  if (strcmp(field1->rhs->token->buf, "number") != 0)
     return OAK_FAILURE;
 
   oak_parser_cleanup(result);
