@@ -19,6 +19,7 @@ oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
     { "not", OAK_TOKEN_NOT },
     { "or", OAK_TOKEN_OR },
     { "return", OAK_TOKEN_RETURN },
+    { "struct", OAK_TOKEN_STRUCT },
     { "true", OAK_TOKEN_TRUE },
     { "type", OAK_TOKEN_TYPE },
     { "while", OAK_TOKEN_WHILE },
@@ -126,8 +127,8 @@ const char* oak_token_name(const oak_token_kind_t token_kind)
     return "STRING";
   case OAK_TOKEN_ASSIGN:
     return "ASSIGN";
-  case OAK_TOKEN_EOF:
-    return "EOF";
+  case OAK_TOKEN_STRUCT:
+    return "STRUCT";
   default:
     return NULL;
   }

@@ -6,13 +6,13 @@
 
 #include <string.h>
 
-OAK_TEST_DECL(ParseTypeDecl)
+OAK_TEST_DECL(ParseStructDecl)
 {
   oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("type Point { x : i32; y : i32; }");
+      oak_lexer_tokenize("type Point struct { x : i32; y : i32; }");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
-  oak_ast_node_t* root = oak_parser_root(result);
+  const oak_ast_node_t* root = oak_parser_root(result);
   if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
     return OAK_FAILURE;
 
@@ -20,17 +20,18 @@ OAK_TEST_DECL(ParseTypeDecl)
      child of PROGRAM is the TYPE_DECL itself.  The 'type' keyword, braces
      are all marked OAK_NODE_SKIP and therefore absent from the AST.
      Expected shape:
-       TYPE_DECL
+       STRUCT_DECL
          TYPE_NAME("Point")
-         TYPE_FIELD_DECLS
-           TYPE_FIELD_DECL
+         STRUCT_KEYWORD
+         STRUCT_FIELD_DECLS
+           STRUCT_FIELD_DECL
              IDENT("x")
              IDENT("i32")
-           TYPE_FIELD_DECL
+           STRUCT_FIELD_DECL
              IDENT("y")
              IDENT("i32") */
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
-  if (oak_test_ast_kind(decl, OAK_NODE_KIND_TYPE_DECL) != OAK_SUCCESS)
+  if (oak_test_ast_kind(decl, OAK_NODE_KIND_STRUCT_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (oak_test_ast_child_count(decl) != 2)
     return OAK_FAILURE;
@@ -42,13 +43,14 @@ OAK_TEST_DECL(ParseTypeDecl)
     return OAK_FAILURE;
 
   const oak_ast_node_t* fields = oak_test_ast_child(decl, 1);
-  if (oak_test_ast_kind(fields, OAK_NODE_KIND_TYPE_FIELD_DECLS) != OAK_SUCCESS)
+  if (oak_test_ast_kind(fields, OAK_NODE_KIND_STRUCT_FIELD_DECLS) !=
+      OAK_SUCCESS)
     return OAK_FAILURE;
   if (oak_test_ast_child_count(fields) != 2)
     return OAK_FAILURE;
 
   const oak_ast_node_t* field0 = oak_test_ast_child(fields, 0);
-  if (oak_test_ast_kind(field0, OAK_NODE_KIND_TYPE_FIELD_DECL) != OAK_SUCCESS)
+  if (oak_test_ast_kind(field0, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (oak_test_ast_child_count(field0) != 2)
     return OAK_FAILURE;
@@ -66,7 +68,7 @@ OAK_TEST_DECL(ParseTypeDecl)
     return OAK_FAILURE;
 
   const oak_ast_node_t* field1 = oak_test_ast_child(fields, 1);
-  if (oak_test_ast_kind(field1, OAK_NODE_KIND_TYPE_FIELD_DECL) != OAK_SUCCESS)
+  if (oak_test_ast_kind(field1, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (oak_test_ast_child_count(field1) != 2)
     return OAK_FAILURE;
@@ -89,4 +91,4 @@ OAK_TEST_DECL(ParseTypeDecl)
   return OAK_SUCCESS;
 }
 
-OAK_TEST_MAIN(ParseTypeDecl)
+OAK_TEST_MAIN(ParseStructDecl)
