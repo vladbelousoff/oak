@@ -280,6 +280,37 @@ int oak_node_grammar_op_binary(const oak_node_kind_t kind)
 
 static oak_ast_node_t* parse_rule(oak_parser_t* p, oak_node_kind_t kind);
 
+static int try_skip_token(oak_parser_t* p, const oak_node_kind_t child_kind)
+{
+  const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
+  if (token->kind != oak_grammar[child_kind].token_kind)
+    return 0;
+  p->curr = p->curr->next;
+  return 1;
+}
+
+static size_t grammar_rule_count(const oak_grammar_entry_t* entry)
+{
+  size_t n = 0;
+  while (n < OAK_ARRAY_SIZE(entry->rules) &&
+         (entry->rules[n] & OAK_NODE_KIND_MASK) != OAK_NODE_KIND_NONE)
+    ++n;
+  return n;
+}
+
+static const oak_pratt_rule_t*
+find_pratt_rule(const oak_pratt_rule_t* rules,
+                const oak_token_kind_t token_kind)
+{
+  for (const oak_pratt_rule_t* r = rules; r->node_kind != OAK_NODE_KIND_NONE;
+       r++)
+  {
+    if (token_kind == r->op_token)
+      return r;
+  }
+  return NULL;
+}
+
 static oak_ast_node_t* make_ast_node_token(oak_parser_t* p,
                                            const oak_node_kind_t kind)
 {
@@ -306,23 +337,19 @@ static oak_ast_node_t* make_ast_node_sequence(oak_parser_t* p,
   oak_ast_node_t* node = NULL;
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
 
-  for (size_t i = 0;
-       i < OAK_ARRAY_SIZE(entry->rules) &&
-       (entry->rules[i] & OAK_NODE_KIND_MASK) != OAK_NODE_KIND_NONE;
-       ++i)
+  const size_t seq_count = grammar_rule_count(entry);
+  for (size_t i = 0; i < seq_count; ++i)
   {
     const oak_node_kind_t rule = entry->rules[i];
     const oak_node_kind_t child_kind = rule & OAK_NODE_KIND_MASK;
     if (rule & OAK_NODE_SKIP)
     {
-      const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
-      if (token->kind != oak_grammar[child_kind].token_kind)
+      if (!try_skip_token(p, child_kind))
       {
         p->curr = saved;
         node = NULL;
         break;
       }
-      p->curr = p->curr->next;
       continue;
     }
     oak_ast_node_t* child = parse_rule(p, child_kind);
@@ -355,22 +382,18 @@ static oak_ast_node_t* make_ast_node_binary(oak_parser_t* p,
   oak_ast_node_t* lhs = NULL;
   oak_ast_node_t* rhs = NULL;
 
-  for (size_t i = 0;
-       i < OAK_ARRAY_SIZE(entry->rules) &&
-       (entry->rules[i] & OAK_NODE_KIND_MASK) != OAK_NODE_KIND_NONE;
-       ++i)
+  const size_t bin_count = grammar_rule_count(entry);
+  for (size_t i = 0; i < bin_count; ++i)
   {
     const oak_node_kind_t rule = entry->rules[i];
     const oak_node_kind_t child_kind = rule & OAK_NODE_KIND_MASK;
     if (rule & OAK_NODE_SKIP)
     {
-      const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
-      if (token->kind != oak_grammar[child_kind].token_kind)
+      if (!try_skip_token(p, child_kind))
       {
         p->curr = saved;
         return NULL;
       }
-      p->curr = p->curr->next;
       continue;
     }
     oak_ast_node_t* child = parse_rule(p, child_kind);
@@ -409,9 +432,8 @@ static oak_ast_node_t* make_ast_node_choice(oak_parser_t* p,
   oak_list_entry_t* saved = p->curr;
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
 
-  for (size_t i = 0; i < OAK_ARRAY_SIZE(entry->rules) &&
-                     entry->rules[i] != OAK_NODE_KIND_NONE;
-       ++i)
+  const size_t choice_count = grammar_rule_count(entry);
+  for (size_t i = 0; i < choice_count; ++i)
   {
     oak_ast_node_t* child = parse_rule(p, entry->rules[i]);
     if (child)
@@ -450,24 +472,20 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
   if (p->curr != p->head && entry->pratt.prefix)
   {
     const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
-    for (const oak_pratt_rule_t* r = entry->pratt.prefix;
-         r->node_kind != OAK_NODE_KIND_NONE;
-         r++)
+    const oak_pratt_rule_t* r =
+        find_pratt_rule(entry->pratt.prefix, token->kind);
+    if (r)
     {
-      if (token->kind == r->op_token)
-      {
-        p->curr = p->curr->next;
-        oak_ast_node_t* operand = parse_pratt(p, kind, r->rbp);
-        if (!operand)
-          return NULL;
+      p->curr = p->curr->next;
+      oak_ast_node_t* operand = parse_pratt(p, kind, r->rbp);
+      if (!operand)
+        return NULL;
 
-        lhs = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
-        if (!lhs)
-          return NULL;
-        lhs->kind = r->node_kind;
-        lhs->child = operand;
-        break;
-      }
+      lhs = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+      if (!lhs)
+        return NULL;
+      lhs->kind = r->node_kind;
+      lhs->child = operand;
     }
   }
 
@@ -500,17 +518,8 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
       break;
     const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
 
-    const oak_pratt_rule_t* rule = NULL;
-    for (const oak_pratt_rule_t* r = entry->pratt.infix;
-         r->node_kind != OAK_NODE_KIND_NONE;
-         r++)
-    {
-      if (token->kind == r->op_token)
-      {
-        rule = r;
-        break;
-      }
-    }
+    const oak_pratt_rule_t* rule =
+        find_pratt_rule(entry->pratt.infix, token->kind);
     if (!rule || rule->lbp < min_bp)
       break;
 

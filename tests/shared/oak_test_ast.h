@@ -11,8 +11,10 @@ static oak_ast_node_t* oak_test_ast_child(const oak_ast_node_t* node,
 
   if (oak_node_grammar_op_binary(node->kind))
   {
-    if (index == 0) return node->lhs;
-    if (index == 1) return node->rhs;
+    if (index == 0)
+      return node->lhs;
+    if (index == 1)
+      return node->rhs;
     return NULL;
   }
 
