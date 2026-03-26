@@ -16,20 +16,19 @@ OAK_TEST_DECL(ParseStructDecl)
   if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
     return OAK_FAILURE;
 
-  /* PROGRAM_ITEM is a choice that returns its child directly, so the first
-     child of PROGRAM is the TYPE_DECL itself.  The 'type' keyword, braces
-     are all marked OAK_NODE_SKIP and therefore absent from the AST.
+  /*
      Expected shape:
        STRUCT_DECL
          TYPE_NAME("Point")
-         STRUCT_KEYWORD
          STRUCT_FIELD_DECLS
            STRUCT_FIELD_DECL
              IDENT("x")
              IDENT("number")
            STRUCT_FIELD_DECL
              IDENT("y")
-             IDENT("number") */
+             IDENT("number")
+  */
+
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
   if (oak_test_ast_kind(decl, OAK_NODE_KIND_STRUCT_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
