@@ -35,7 +35,7 @@ static const char* oak_time_stamp(void)
   return buf;
 }
 
-static char* oak_lvl_to_str(const oak_log_level_t lvl)
+static char* oak_log_lvl_to_str(const oak_log_level_t lvl)
 {
   switch (lvl)
   {
@@ -69,7 +69,7 @@ void _oak_log_printf(const oak_log_level_t lvl,
     off = snprintf(buf,
                    sizeof(buf),
                    "%s|%s %s:%u ",
-                   oak_lvl_to_str(lvl),
+                   oak_log_lvl_to_str(lvl),
                    oak_time_stamp(),
                    oak_filename(file),
                    line);
