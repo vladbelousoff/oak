@@ -1,5 +1,4 @@
 #include "oak_parser.h"
-#include <stdio.h>
 
 #include "oak_arena.h"
 #include "oak_common.h"
