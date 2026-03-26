@@ -20,16 +20,15 @@ OAK_TEST_DECL(ParseEnumDecl)
      Expected shape:
        ENUM_DECL
          IDENT("Color")
-         ENUM_FIELD_DECLS
-           IDENT("Red")
-           IDENT("Green")
-           IDENT("Blue")
+         IDENT("Red")
+         IDENT("Green")
+         IDENT("Blue")
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
   if (oak_test_ast_kind(decl, OAK_NODE_KIND_ENUM_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_child_count(decl) != 2)
+  if (oak_test_ast_child_count(decl) != 4)
     return OAK_FAILURE;
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
@@ -38,25 +37,19 @@ OAK_TEST_DECL(ParseEnumDecl)
   if (strcmp(name->token->buf, "Color") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* fields = oak_test_ast_child(decl, 1);
-  if (oak_test_ast_kind(fields, OAK_NODE_KIND_ENUM_FIELD_DECLS) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(fields) != 3)
-    return OAK_FAILURE;
-
-  const oak_ast_node_t* field0 = oak_test_ast_child(fields, 0);
+  const oak_ast_node_t* field0 = oak_test_ast_child(decl, 1);
   if (oak_test_ast_kind(field0, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (strcmp(field0->token->buf, "Red") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* field1 = oak_test_ast_child(fields, 1);
+  const oak_ast_node_t* field1 = oak_test_ast_child(decl, 2);
   if (oak_test_ast_kind(field1, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (strcmp(field1->token->buf, "Green") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* field2 = oak_test_ast_child(fields, 2);
+  const oak_ast_node_t* field2 = oak_test_ast_child(decl, 3);
   if (oak_test_ast_kind(field2, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (strcmp(field2->token->buf, "Blue") != 0)

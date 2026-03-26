@@ -20,19 +20,18 @@ OAK_TEST_DECL(ParseStructDecl)
      Expected shape:
        STRUCT_DECL
          TYPE_NAME("Point")
-         STRUCT_FIELD_DECLS
-           STRUCT_FIELD_DECL  (binary: lhs=IDENT, rhs=IDENT)
-             lhs: IDENT("x")
-             rhs: IDENT("number")
-           STRUCT_FIELD_DECL  (binary: lhs=IDENT, rhs=IDENT)
-             lhs: IDENT("y")
-             rhs: IDENT("number")
+         STRUCT_FIELD_DECL  (binary: lhs=IDENT, rhs=IDENT)
+           lhs: IDENT("x")
+           rhs: IDENT("number")
+         STRUCT_FIELD_DECL  (binary: lhs=IDENT, rhs=IDENT)
+           lhs: IDENT("y")
+           rhs: IDENT("number")
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
   if (oak_test_ast_kind(decl, OAK_NODE_KIND_STRUCT_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_child_count(decl) != 2)
+  if (oak_test_ast_child_count(decl) != 3)
     return OAK_FAILURE;
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
@@ -41,14 +40,7 @@ OAK_TEST_DECL(ParseStructDecl)
   if (strcmp(name->token->buf, "Point") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* fields = oak_test_ast_child(decl, 1);
-  if (oak_test_ast_kind(fields, OAK_NODE_KIND_STRUCT_FIELD_DECLS) !=
-      OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(fields) != 2)
-    return OAK_FAILURE;
-
-  const oak_ast_node_t* field0 = oak_test_ast_child(fields, 0);
+  const oak_ast_node_t* field0 = oak_test_ast_child(decl, 1);
   if (oak_test_ast_kind(field0, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
 
@@ -62,7 +54,7 @@ OAK_TEST_DECL(ParseStructDecl)
   if (strcmp(field0->rhs->token->buf, "number") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* field1 = oak_test_ast_child(fields, 1);
+  const oak_ast_node_t* field1 = oak_test_ast_child(decl, 2);
   if (oak_test_ast_kind(field1, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
 
