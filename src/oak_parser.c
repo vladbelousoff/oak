@@ -31,8 +31,8 @@ typedef enum
   OAK_GRAMMAR_OP_REPEAT_ONE, // Match child one or more times (A+)
   OAK_GRAMMAR_OP_OPTIONAL,   // Match child zero or one times (A?)
   OAK_GRAMMAR_OP_PRATT,      // Pratt parser for operator precedence
-  OAK_GRAMMAR_OP_UNARY,      // Unary node with a single child (built by Pratt)
-  OAK_GRAMMAR_OP_BINARY,     // Binary node with lhs and rhs (built by Pratt)
+  OAK_GRAMMAR_OP_UNARY,      // Unary node with a single child
+  OAK_GRAMMAR_OP_BINARY,     // Binary node with lhs and rhs
 } oak_grammar_op_t;
 
 typedef struct
