@@ -89,11 +89,12 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_PROGRAM_ITEM,
     },
   },
-  // PROGRAM_ITEM -> STRUCT_DECL | STMT
+  // PROGRAM_ITEM -> STRUCT_DECL | ENUM_DECL | STMT
   [OAK_NODE_KIND_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_OP_CHOICE,
     .rules = {
       OAK_NODE_KIND_STRUCT_DECL,
+      OAK_NODE_KIND_ENUM_DECL,
       OAK_NODE_KIND_STMT,
     }
   },
@@ -124,6 +125,30 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_COLON | OAK_NODE_SKIP,
       OAK_NODE_KIND_IDENT,
       OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
+    },
+  },
+  // ENUM_DECL -> TYPE_KEYWORD IDENT ENUM_KEYWORD LBRACE ENUM_FIELD_DECLS RBRACE
+  [OAK_NODE_KIND_ENUM_DECL] = {
+    .op = OAK_GRAMMAR_OP_SEQUENCE,
+    .rules = {
+      OAK_NODE_KIND_TYPE_KEYWORD | OAK_NODE_SKIP,
+      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_ENUM_KEYWORD | OAK_NODE_SKIP,
+      OAK_NODE_KIND_LBRACE | OAK_NODE_SKIP,
+      OAK_NODE_KIND_ENUM_FIELD_DECLS,
+      OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,
+    },
+  },
+  // ENUM_KEYWORD -> 'enum'
+  [OAK_NODE_KIND_ENUM_KEYWORD] = {
+    .op = OAK_GRAMMAR_OP_TOKEN,
+    .token_kind = OAK_TOKEN_ENUM,
+  },
+  // ENUM_FIELD_DECLS -> (IDENT)*
+  [OAK_NODE_KIND_ENUM_FIELD_DECLS] = {
+    .op = OAK_GRAMMAR_OP_REPEAT,
+    .rules = {
+      OAK_NODE_KIND_IDENT,
     },
   },
   // TYPE_KEYWORD -> 'type'

@@ -37,6 +37,7 @@ set(OAK_TEST_SOURCES
         ${OAK_TESTS_DIR}/0010_lex_float_exponent.c
         ${OAK_TESTS_DIR}/0011_parse_expression.c
         ${OAK_TESTS_DIR}/0012_parse_struct_decl.c
+        ${OAK_TESTS_DIR}/0013_parse_enum_decl.c
 )
 
 set(OAK_APP_SOURCES

@@ -10,7 +10,8 @@ int main(const int argc, const char* argv[])
   oak_mem_init();
 
   oak_lexer_result_t* lexer = oak_lexer_tokenize(
-      "type SampleType struct { field1 : number; field2 : string; }\n"
+      "type SampleStruct struct { field1 : number; field2 : string; }\n"
+      "type SampleEnum enum { Field1 Field2 }\n"
       "let x = -1000 + (10 - 7) * 10;\n");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
