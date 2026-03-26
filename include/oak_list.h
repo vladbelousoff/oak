@@ -82,6 +82,20 @@ inline oak_list_entry_t* oak_list_next(const oak_list_entry_t* current,
   return current->next;
 }
 
+inline void oak_list_move(const oak_list_entry_t* from, oak_list_entry_t* to)
+{
+  if (!oak_list_empty(from))
+  {
+    *to = *from;
+    to->next->prev = to;
+    to->prev->next = to;
+  }
+  else
+  {
+    oak_list_init(to);
+  }
+}
+
 inline size_t oak_list_length(const oak_list_entry_t* head)
 {
   size_t length = 0;
