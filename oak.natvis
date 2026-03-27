@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
+    <Intrinsic Name="oak_node_grammar_op_token" Expression="oak_grammar[kind].op == OAK_GRAMMAR_TOKEN">
+        <Parameter Name="kind" Type="oak_node_kind_t"/>
+    </Intrinsic>
+    <Intrinsic Name="oak_node_grammar_op_unary" Expression="oak_grammar[kind].op == OAK_GRAMMAR_UNARY">
+        <Parameter Name="kind" Type="oak_node_kind_t"/>
+    </Intrinsic>
+    <Intrinsic Name="oak_node_grammar_op_binary" Expression="oak_grammar[kind].op == OAK_GRAMMAR_BINARY">
+        <Parameter Name="kind" Type="oak_node_kind_t"/>
+    </Intrinsic>
+
     <Type Name="_oak_token_t">
         <DisplayString Condition="kind == OAK_TOKEN_INT_NUM">{kind} {*(int*)buf}</DisplayString>
         <DisplayString Condition="kind == OAK_TOKEN_FLOAT_NUM">{kind} {*(float*)buf}</DisplayString>
