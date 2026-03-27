@@ -24,21 +24,7 @@ set(OAK_CORE_SOURCES
 )
 
 # Tests
-set(OAK_TEST_SOURCES
-        ${OAK_TESTS_DIR}/0001_lex_empty.c
-        ${OAK_TESTS_DIR}/0002_lex_integer.c
-        ${OAK_TESTS_DIR}/0003_lex_float.c
-        ${OAK_TESTS_DIR}/0004_lex_arithmetic_expression.c
-        ${OAK_TESTS_DIR}/0005_lex_ident.c
-        ${OAK_TESTS_DIR}/0006_lex_keywords.c
-        ${OAK_TESTS_DIR}/0007_lex_ops.c
-        ${OAK_TESTS_DIR}/0008_lex_string.c
-        ${OAK_TESTS_DIR}/0009_lex_whitespace_newlines.c
-        ${OAK_TESTS_DIR}/0010_lex_float_exponent.c
-        ${OAK_TESTS_DIR}/0011_parse_expression.c
-        ${OAK_TESTS_DIR}/0012_parse_struct_decl.c
-        ${OAK_TESTS_DIR}/0013_parse_enum_decl.c
-)
+file(GLOB_RECURSE OAK_TEST_SOURCES ${OAK_TESTS_DIR}/*/*.c)
 
 set(OAK_APP_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/oak.c
@@ -97,7 +83,7 @@ foreach (test_src ${OAK_TEST_SOURCES})
             PRIVATE
             ${OAK_INCLUDE_DIR}
             ${OAK_SRC_DIR}
-            ${OAK_TESTS_DIR}/shared
+            ${OAK_TESTS_DIR}/common
     )
 
     target_compile_definitions(${test_name}
