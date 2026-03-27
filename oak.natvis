@@ -1,16 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-    <Intrinsic Name="oak_node_grammar_op_token" Expression="oak_grammar[kind].op == OAK_GRAMMAR_TOKEN">
-        <Parameter Name="kind" Type="oak_node_kind_t"/>
-    </Intrinsic>
-    <Intrinsic Name="oak_node_grammar_op_unary" Expression="oak_grammar[kind].op == OAK_GRAMMAR_UNARY">
-        <Parameter Name="kind" Type="oak_node_kind_t"/>
-    </Intrinsic>
-    <Intrinsic Name="oak_node_grammar_op_binary" Expression="oak_grammar[kind].op == OAK_GRAMMAR_BINARY">
-        <Parameter Name="kind" Type="oak_node_kind_t"/>
-    </Intrinsic>
-
     <Type Name="_oak_token_t">
         <DisplayString Condition="kind == OAK_TOKEN_INT_NUM">{kind} {*(int*)buf}</DisplayString>
         <DisplayString Condition="kind == OAK_TOKEN_FLOAT_NUM">{kind} {*(float*)buf}</DisplayString>
@@ -48,15 +38,28 @@
     </Type>
 
     <Type Name="_oak_ast_node_t">
-        <DisplayString Condition="oak_node_grammar_op_token(kind)">{kind} ({token->kind})</DisplayString>
+        <Intrinsic Name="op_token" Expression="oak_grammar[kind].op == OAK_GRAMMAR_TOKEN">
+            <Parameter Name="kind" Type="oak_node_kind_t"/>
+        </Intrinsic>
+        <Intrinsic Name="op_unary" Expression="oak_grammar[kind].op == OAK_GRAMMAR_UNARY">
+            <Parameter Name="kind" Type="oak_node_kind_t"/>
+        </Intrinsic>
+        <Intrinsic Name="op_binary" Expression="oak_grammar[kind].op == OAK_GRAMMAR_BINARY">
+            <Parameter Name="kind" Type="oak_node_kind_t"/>
+        </Intrinsic>
+        <Intrinsic Name="op_list"
+                   Expression="oak_grammar[kind].op != OAK_GRAMMAR_TOKEN &amp;&amp; oak_grammar[kind].op != OAK_GRAMMAR_UNARY &amp;&amp; oak_grammar[kind].op != OAK_GRAMMAR_BINARY">
+            <Parameter Name="kind" Type="oak_node_kind_t"/>
+        </Intrinsic>
+        <DisplayString Condition="op_token(kind)">{kind} ({token->kind})</DisplayString>
         <DisplayString>{kind}</DisplayString>
         <Expand HideRawView="true">
             <Item Name="rule">kind</Item>
-            <Item Name="token" Condition="oak_node_grammar_op_token(kind)">token</Item>
-            <Item Name="child" Condition="oak_node_grammar_op_unary(kind)">*child</Item>
-            <Item Name="lhs" Condition="oak_node_grammar_op_binary(kind)">*lhs</Item>
-            <Item Name="rhs" Condition="oak_node_grammar_op_binary(kind)">*rhs</Item>
-            <CustomListItems Condition="!oak_node_grammar_op_token(kind) &amp;&amp; !oak_node_grammar_op_unary(kind) &amp;&amp; !oak_node_grammar_op_binary(kind)">
+            <Item Name="token" Condition="op_token(kind)">token</Item>
+            <Item Name="child" Condition="op_unary(kind)">*child</Item>
+            <Item Name="lhs" Condition="op_binary(kind)">*lhs</Item>
+            <Item Name="rhs" Condition="op_binary(kind)">*rhs</Item>
+            <CustomListItems Condition="op_list(kind)">
                 <Variable Name="entry" InitialValue="children.next"/>
                 <Loop>
                     <If Condition="entry == &amp;children">
