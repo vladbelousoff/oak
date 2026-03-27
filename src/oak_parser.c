@@ -318,6 +318,16 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_UNARY },
 };
 
+int oak_node_grammar_op_unary(const oak_node_kind_t kind)
+{
+  return oak_grammar[kind].op == OAK_GRAMMAR_UNARY;
+}
+
+int oak_node_grammar_op_binary(const oak_node_kind_t kind)
+{
+  return oak_grammar[kind].op == OAK_GRAMMAR_BINARY;
+}
+
 static oak_ast_node_t* parse_rule(oak_parser_t* p, oak_node_kind_t kind);
 
 static int try_skip_token(oak_parser_t* p, const oak_node_kind_t child_kind)

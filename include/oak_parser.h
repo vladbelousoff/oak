@@ -80,3 +80,6 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
                                oak_node_kind_t kind);
 oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result);
 void oak_parser_cleanup(oak_parser_result_t* result);
+
+int oak_node_grammar_op_unary(oak_node_kind_t kind);
+int oak_node_grammar_op_binary(oak_node_kind_t kind);
