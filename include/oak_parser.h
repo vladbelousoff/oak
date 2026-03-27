@@ -46,6 +46,13 @@ typedef enum
   OAK_NODE_KIND_BINARY_OR,
   OAK_NODE_KIND_UNARY_NEG,
   OAK_NODE_KIND_UNARY_NOT,
+  OAK_NODE_KIND_FN_DECL,
+  OAK_NODE_KIND_FN_KEYWORD,
+  OAK_NODE_KIND_FN_PARAM,
+  OAK_NODE_KIND_LPAREN,
+  OAK_NODE_KIND_RPAREN,
+  OAK_NODE_KIND_COMMA,
+  OAK_NODE_KIND_ARROW,
 } oak_node_kind_t;
 
 int oak_node_grammar_op_token(oak_node_kind_t kind);

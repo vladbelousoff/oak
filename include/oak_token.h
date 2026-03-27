@@ -50,6 +50,7 @@ typedef enum _oak_token_kind_t
   OAK_TOKEN_ASSIGN,
   OAK_TOKEN_STRUCT,
   OAK_TOKEN_ENUM,
+  OAK_TOKEN_FN,
 } oak_token_kind_t;
 
 typedef struct

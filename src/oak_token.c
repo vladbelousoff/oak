@@ -10,6 +10,7 @@ oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
     { "and", OAK_TOKEN_AND },           { "break", OAK_TOKEN_BREAK },
     { "continue", OAK_TOKEN_CONTINUE }, { "else", OAK_TOKEN_ELSE },
     { "enum", OAK_TOKEN_ENUM },         { "false", OAK_TOKEN_FALSE },
+    { "fn", OAK_TOKEN_FN },
     { "for", OAK_TOKEN_FOR },           { "if", OAK_TOKEN_IF },
     { "let", OAK_TOKEN_LET },           { "mut", OAK_TOKEN_MUT },
     { "not", OAK_TOKEN_NOT },           { "or", OAK_TOKEN_OR },
@@ -124,6 +125,8 @@ const char* oak_token_name(const oak_token_kind_t token_kind)
     return "STRUCT";
   case OAK_TOKEN_ENUM:
     return "ENUM";
+  case OAK_TOKEN_FN:
+    return "FN";
   default:
     return NULL;
   }

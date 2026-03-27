@@ -88,10 +88,11 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_PROGRAM_ITEM | OAK_NODE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> STRUCT_DECL | ENUM_DECL | STMT
+  // PROGRAM_ITEM -> FN_DECL | STRUCT_DECL | ENUM_DECL | STMT
   [OAK_NODE_KIND_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
+      OAK_NODE_KIND_FN_DECL,
       OAK_NODE_KIND_STRUCT_DECL,
       OAK_NODE_KIND_ENUM_DECL,
       OAK_NODE_KIND_STMT,
@@ -249,6 +250,56 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_LET_KEYWORD] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_LET,
+  },
+  // FN_DECL -> 'fn' IDENT '(' FN_PARAM* ')' ':' TYPE_NAME '{' STMT* '}'
+  [OAK_NODE_KIND_FN_DECL] = {
+    .rules = {
+      OAK_NODE_KIND_FN_KEYWORD | OAK_NODE_SKIP,
+      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_LPAREN | OAK_NODE_SKIP,
+      OAK_NODE_KIND_FN_PARAM | OAK_NODE_REPEAT,
+      OAK_NODE_KIND_RPAREN | OAK_NODE_SKIP,
+      OAK_NODE_KIND_ARROW | OAK_NODE_SKIP,
+      OAK_NODE_KIND_TYPE_NAME,
+      OAK_NODE_KIND_LBRACE | OAK_NODE_SKIP,
+      OAK_NODE_KIND_STMT | OAK_NODE_REPEAT,
+      OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,
+    }
+  },
+  // FN_PARAM -> IDENT ':' IDENT ','?
+  [OAK_NODE_KIND_FN_PARAM] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_COLON | OAK_NODE_SKIP,
+      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_COMMA | OAK_NODE_SKIP | OAK_NODE_OPTIONAL,
+    },
+  },
+  // FN_KEYWORD -> 'fn'
+  [OAK_NODE_KIND_FN_KEYWORD] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_FN,
+  },
+  // LPAREN -> '('
+  [OAK_NODE_KIND_LPAREN] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_LPAREN,
+  },
+  // RPAREN -> ')'
+  [OAK_NODE_KIND_RPAREN] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_RPAREN,
+  },
+  // COMMA -> ','
+  [OAK_NODE_KIND_COMMA] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_COMMA,
+  },
+  // ARROW -> '->'
+  [OAK_NODE_KIND_ARROW] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_ARROW,
   },
   [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_BINARY },
