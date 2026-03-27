@@ -15,15 +15,13 @@ OAK_TEST_DECL(ParseLogical)
   if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
     return OAK_FAILURE;
 
-  /*
-     && binds tighter than ||, so the tree should be:
+  /* && binds tighter than ||:
        STMT_EXPR
          BINARY_OR
            BINARY_AND
              IDENT("a")
              IDENT("b")
-           IDENT("c")
-  */
+           IDENT("c") */
 
   const oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
   if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_EXPR) != OAK_SUCCESS)

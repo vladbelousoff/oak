@@ -4,7 +4,7 @@
 #include "oak_test_ast.h"
 #include "oak_test_run.h"
 
-OAK_TEST_DECL(ParseExpression)
+OAK_TEST_DECL(ParseExprPrecedence)
 {
   oak_lexer_result_t* lexer = oak_lexer_tokenize("1 + 2 * 3;");
 
@@ -17,8 +17,7 @@ OAK_TEST_DECL(ParseExpression)
   if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_EXPR) != OAK_SUCCESS)
     return OAK_FAILURE;
 
-  /* STMT has one child: the expression (semicolon is skipped).
-     Multiplication binds tighter than addition, so the tree should be:
+  /* Multiplication binds tighter than addition:
        BINARY_ADD
          INT(1)
          BINARY_MUL
@@ -53,4 +52,4 @@ OAK_TEST_DECL(ParseExpression)
   return OAK_SUCCESS;
 }
 
-OAK_TEST_MAIN(ParseExpression)
+OAK_TEST_MAIN(ParseExprPrecedence)

@@ -13,15 +13,13 @@ OAK_TEST_DECL(ParseParenthesized)
   if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
     return OAK_FAILURE;
 
-  /*
-     Parentheses override default precedence, so the tree should be:
+  /* Parentheses override default precedence:
        STMT_EXPR
          BINARY_MUL
            BINARY_ADD
              INT(1)
              INT(2)
-           INT(3)
-  */
+           INT(3) */
 
   const oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
   if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_EXPR) != OAK_SUCCESS)
