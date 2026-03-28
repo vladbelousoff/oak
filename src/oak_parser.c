@@ -266,15 +266,20 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,
     }
   },
-  // FN_PARAM -> IDENT ':' IDENT ','?
+  // FN_PARAM -> 'mut'? IDENT ':' IDENT ','?
   [OAK_NODE_KIND_FN_PARAM] = {
-    .op = OAK_GRAMMAR_BINARY,
     .rules = {
+      OAK_NODE_KIND_MUT_KEYWORD | OAK_NODE_OPTIONAL,
       OAK_NODE_KIND_IDENT,
       OAK_NODE_KIND_COLON | OAK_NODE_SKIP,
       OAK_NODE_KIND_IDENT,
       OAK_NODE_KIND_COMMA | OAK_NODE_SKIP | OAK_NODE_OPTIONAL,
     },
+  },
+  // MUT_KEYWORD -> 'mut'
+  [OAK_NODE_KIND_MUT_KEYWORD] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_MUT,
   },
   // FN_KEYWORD -> 'fn'
   [OAK_NODE_KIND_FN_KEYWORD] = {
