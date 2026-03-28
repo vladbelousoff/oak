@@ -175,10 +175,11 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_SEMICOLON,
   },
-  // STMT -> STMT_LET_ASSIGNMENT | STMT_EXPR | STMT_ASSIGNMENT
+  // STMT -> STMT_RETURN | STMT_LET_ASSIGNMENT | STMT_EXPR | STMT_ASSIGNMENT
   [OAK_NODE_KIND_STMT] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
+      OAK_NODE_KIND_STMT_RETURN,
       OAK_NODE_KIND_STMT_LET_ASSIGNMENT,
       OAK_NODE_KIND_STMT_EXPR,
       OAK_NODE_KIND_STMT_ASSIGNMENT,
@@ -321,6 +322,19 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_BINARY_OR]         = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_UNARY_NEG]         = { .op = OAK_GRAMMAR_UNARY },
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_UNARY },
+  // STMT_RETURN -> 'return' EXPR ';'
+  [OAK_NODE_KIND_STMT_RETURN] = {
+    .rules = {
+      OAK_NODE_KIND_RETURN_KEYWORD | OAK_NODE_SKIP,
+      OAK_NODE_KIND_EXPR,
+      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
+    },
+  },
+  // RETURN_KEYWORD -> 'return'
+  [OAK_NODE_KIND_RETURN_KEYWORD] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_RETURN,
+  },
 };
 
 int oak_node_grammar_op_unary(const oak_node_kind_t kind)

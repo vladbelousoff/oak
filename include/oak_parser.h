@@ -54,6 +54,8 @@ typedef enum
   OAK_NODE_KIND_COMMA,
   OAK_NODE_KIND_ARROW,
   OAK_NODE_KIND_MUT_KEYWORD,
+  OAK_NODE_KIND_STMT_RETURN,
+  OAK_NODE_KIND_RETURN_KEYWORD,
 } oak_node_kind_t;
 
 typedef struct _oak_ast_node_t
