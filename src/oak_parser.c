@@ -252,7 +252,7 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_LET,
   },
-  // FN_DECL -> 'fn' IDENT '(' FN_PARAM* ')' ':' TYPE_NAME '{' STMT* '}'
+  // FN_DECL -> 'fn' IDENT '(' FN_PARAM* ')' ('->' TYPE_NAME)? '{' STMT* '}'
   [OAK_NODE_KIND_FN_DECL] = {
     .rules = {
       OAK_NODE_KIND_FN_KEYWORD | OAK_NODE_SKIP,
@@ -260,8 +260,8 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_LPAREN | OAK_NODE_SKIP,
       OAK_NODE_KIND_FN_PARAM | OAK_NODE_REPEAT,
       OAK_NODE_KIND_RPAREN | OAK_NODE_SKIP,
-      OAK_NODE_KIND_ARROW | OAK_NODE_SKIP,
-      OAK_NODE_KIND_TYPE_NAME,
+      OAK_NODE_KIND_ARROW | OAK_NODE_SKIP | OAK_NODE_OPTIONAL,
+      OAK_NODE_KIND_TYPE_NAME | OAK_NODE_OPTIONAL,
       OAK_NODE_KIND_LBRACE | OAK_NODE_SKIP,
       OAK_NODE_KIND_STMT | OAK_NODE_REPEAT,
       OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,

@@ -9,7 +9,7 @@
 OAK_TEST_DECL(ParseFnDecl)
 {
   oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("fn add(x : int, y : int) -> int { x = 1; }");
+      oak_lexer_tokenize("fn add(x : int, y : int) { x = 1; }");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
@@ -22,7 +22,6 @@ OAK_TEST_DECL(ParseFnDecl)
          IDENT("add")
          FN_PARAM [IDENT("x"), IDENT("int")]
          FN_PARAM [IDENT("y"), IDENT("int")]
-         TYPE_NAME("int")
          STMT_ASSIGNMENT
            IDENT("x")
            INT(1)
@@ -31,7 +30,7 @@ OAK_TEST_DECL(ParseFnDecl)
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
   if (oak_test_ast_kind(decl, OAK_NODE_KIND_FN_DECL) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_child_count(decl) != 5)
+  if (oak_test_ast_child_count(decl) != 4)
     return OAK_FAILURE;
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
@@ -68,13 +67,7 @@ OAK_TEST_DECL(ParseFnDecl)
   if (strcmp(oak_test_ast_child(param1, 1)->token->buf, "int") != 0)
     return OAK_FAILURE;
 
-  const oak_ast_node_t* ret_type = oak_test_ast_child(decl, 3);
-  if (oak_test_ast_kind(ret_type, OAK_NODE_KIND_TYPE_NAME) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(ret_type->token->buf, "int") != 0)
-    return OAK_FAILURE;
-
-  const oak_ast_node_t* stmt = oak_test_ast_child(decl, 4);
+  const oak_ast_node_t* stmt = oak_test_ast_child(decl, 3);
   if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_ASSIGNMENT) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (oak_test_ast_child_count(stmt) != 2)
