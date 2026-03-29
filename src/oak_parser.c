@@ -18,11 +18,13 @@ typedef struct
   oak_arena_t* arena;
 } oak_parser_t;
 
-#define OAK_NODE_SKIP     ((oak_node_kind_t)(1 << 15))
-#define OAK_NODE_REPEAT   ((oak_node_kind_t)(1 << 14))
-#define OAK_NODE_OPTIONAL ((oak_node_kind_t)(1 << 13))
-#define OAK_NODE_KIND_MASK                                                     \
-  ((oak_node_kind_t) ~(OAK_NODE_SKIP | OAK_NODE_REPEAT | OAK_NODE_OPTIONAL))
+typedef unsigned short oak_rule_item_t;
+
+#define OAK_RULE_TOKEN    ((oak_rule_item_t)(1 << 15))
+#define OAK_RULE_REPEAT   ((oak_rule_item_t)(1 << 14))
+#define OAK_RULE_OPTIONAL ((oak_rule_item_t)(1 << 13))
+#define OAK_RULE_KIND_MASK                                                     \
+  ((oak_rule_item_t) ~(OAK_RULE_TOKEN | OAK_RULE_REPEAT | OAK_RULE_OPTIONAL))
 
 typedef enum
 {
@@ -47,7 +49,7 @@ typedef struct
   oak_grammar_op_t op;
   union
   {
-    oak_node_kind_t rules[16];
+    oak_rule_item_t rules[16];
     oak_token_kind_t token_kind;
     struct
     {
@@ -82,10 +84,10 @@ static const oak_pratt_rule_t expr_infix[] = {
 };
 
 static oak_grammar_entry_t oak_grammar[] = {
-  // PROGRAM -> (PROGRAM_ITEM)*
+  // PROGRAM -> PROGRAM_ITEM*
   [OAK_NODE_KIND_PROGRAM] = {
     .rules = {
-      OAK_NODE_KIND_PROGRAM_ITEM | OAK_NODE_REPEAT,
+      OAK_NODE_KIND_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
   // PROGRAM_ITEM -> FN_DECL | STRUCT_DECL | ENUM_DECL | STMT
@@ -96,84 +98,47 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_STRUCT_DECL,
       OAK_NODE_KIND_ENUM_DECL,
       OAK_NODE_KIND_STMT,
-    }
+    },
   },
-  // STRUCT_DECL -> 'type' TYPE_NAME 'struct' '{' (STRUCT_FIELD_DECL)* '}'
+  // STRUCT_DECL -> 'type' TYPE_NAME 'struct' '{' STRUCT_FIELD_DECL* '}'
   [OAK_NODE_KIND_STRUCT_DECL] = {
     .rules = {
-      OAK_NODE_KIND_TYPE_KEYWORD | OAK_NODE_SKIP,
+      OAK_TOKEN_TYPE | OAK_RULE_TOKEN,
       OAK_NODE_KIND_TYPE_NAME,
-      OAK_NODE_KIND_STRUCT_KEYWORD | OAK_NODE_SKIP,
-      OAK_NODE_KIND_LBRACE | OAK_NODE_SKIP,
-      OAK_NODE_KIND_STRUCT_FIELD_DECL | OAK_NODE_REPEAT,
-      OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,
-    }
+      OAK_TOKEN_STRUCT | OAK_RULE_TOKEN,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_STRUCT_FIELD_DECL | OAK_RULE_REPEAT,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
   },
-  // STRUCT_FIELD_DECL -> IDENT COLON IDENT SEMICOLON
+  // STRUCT_FIELD_DECL -> IDENT ':' IDENT ';'
   [OAK_NODE_KIND_STRUCT_FIELD_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_COLON | OAK_NODE_SKIP,
+      OAK_TOKEN_COLON | OAK_RULE_TOKEN,
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // ENUM_DECL -> 'type' IDENT 'enum' '{' (IDENT)* '}'
+  // ENUM_DECL -> 'type' IDENT 'enum' '{' IDENT* '}'
   [OAK_NODE_KIND_ENUM_DECL] = {
     .rules = {
-      OAK_NODE_KIND_TYPE_KEYWORD | OAK_NODE_SKIP,
+      OAK_TOKEN_TYPE | OAK_RULE_TOKEN,
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_ENUM_KEYWORD | OAK_NODE_SKIP,
-      OAK_NODE_KIND_LBRACE | OAK_NODE_SKIP,
-      OAK_NODE_KIND_IDENT | OAK_NODE_REPEAT,
-      OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,
+      OAK_TOKEN_ENUM | OAK_RULE_TOKEN,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_IDENT | OAK_RULE_REPEAT,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // ENUM_KEYWORD -> 'enum'
-  [OAK_NODE_KIND_ENUM_KEYWORD] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_ENUM,
-  },
-  // TYPE_KEYWORD -> 'type'
-  [OAK_NODE_KIND_TYPE_KEYWORD] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_TYPE,
-  },
-  // STRUCT_KEYWORD -> 'struct'
-  [OAK_NODE_KIND_STRUCT_KEYWORD] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_STRUCT,
-  },
-  // TYPE_NAME -> IDENT
   [OAK_NODE_KIND_TYPE_NAME] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_IDENT,
   },
-  // LBRACE -> '{'
-  [OAK_NODE_KIND_LBRACE] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_LBRACE,
-  },
-  // RBRACE -> '}'
-  [OAK_NODE_KIND_RBRACE] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_RBRACE,
-  },
-  // IDENT -> OAK_TOKEN_IDENT
   [OAK_NODE_KIND_IDENT] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_IDENT,
-  },
-  // COLON -> ':'
-  [OAK_NODE_KIND_COLON] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_COLON,
-  },
-  // SEMICOLON -> ';'
-  [OAK_NODE_KIND_SEMICOLON] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_SEMICOLON,
   },
   // STMT -> STMT_RETURN | STMT_LET_ASSIGNMENT | STMT_EXPR | STMT_ASSIGNMENT
   [OAK_NODE_KIND_STMT] = {
@@ -183,16 +148,15 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_STMT_LET_ASSIGNMENT,
       OAK_NODE_KIND_STMT_EXPR,
       OAK_NODE_KIND_STMT_ASSIGNMENT,
-    }
+    },
   },
-  // STMT_EXPR -> EXPR SEMICOLON
+  // STMT_EXPR -> EXPR ';'
   [OAK_NODE_KIND_STMT_EXPR] = {
     .rules = {
       OAK_NODE_KIND_EXPR,
-      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // EXPR -> Pratt-parsed expression with operator precedence
   [OAK_NODE_KIND_EXPR] = {
     .op = OAK_GRAMMAR_PRATT,
     .pratt = {
@@ -211,101 +175,62 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_IDENT,
     },
   },
-  // INT -> OAK_TOKEN_INT_NUM
   [OAK_NODE_KIND_INT] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_INT_NUM,
   },
-  // FLOAT -> OAK_TOKEN_FLOAT_NUM
   [OAK_NODE_KIND_FLOAT] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_FLOAT_NUM,
   },
-  // STRING -> OAK_TOKEN_STRING
   [OAK_NODE_KIND_STRING] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_STRING,
   },
-  // STMT_ASSIGNMENT -> IDENT ASSIGN EXPR SEMICOLON
+  // STMT_ASSIGNMENT -> IDENT '=' EXPR ';'
   [OAK_NODE_KIND_STMT_ASSIGNMENT] = {
     .rules = {
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_ASSIGN | OAK_NODE_SKIP,
+      OAK_TOKEN_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
-      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // ASSIGN -> OAK_TOKEN_ASSIGN
-  [OAK_NODE_KIND_ASSIGN] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_ASSIGN,
-  },
-  // STMT_LET_ASSIGNMENT -> LET STMT_ASSIGNMENT
+  // STMT_LET_ASSIGNMENT -> 'let' STMT_ASSIGNMENT
   [OAK_NODE_KIND_STMT_LET_ASSIGNMENT] = {
     .rules = {
-      OAK_NODE_KIND_LET_KEYWORD | OAK_NODE_SKIP,
+      OAK_TOKEN_LET | OAK_RULE_TOKEN,
       OAK_NODE_KIND_STMT_ASSIGNMENT,
     },
-  },
-  // LET -> OAK_TOKEN_LET
-  [OAK_NODE_KIND_LET_KEYWORD] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_LET,
   },
   // FN_DECL -> 'fn' IDENT '(' FN_PARAM* ')' ('->' TYPE_NAME)? '{' STMT* '}'
   [OAK_NODE_KIND_FN_DECL] = {
     .rules = {
-      OAK_NODE_KIND_FN_KEYWORD | OAK_NODE_SKIP,
+      OAK_TOKEN_FN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_LPAREN | OAK_NODE_SKIP,
-      OAK_NODE_KIND_FN_PARAM | OAK_NODE_REPEAT,
-      OAK_NODE_KIND_RPAREN | OAK_NODE_SKIP,
-      OAK_NODE_KIND_ARROW | OAK_NODE_SKIP | OAK_NODE_OPTIONAL,
-      OAK_NODE_KIND_TYPE_NAME | OAK_NODE_OPTIONAL,
-      OAK_NODE_KIND_LBRACE | OAK_NODE_SKIP,
-      OAK_NODE_KIND_STMT | OAK_NODE_REPEAT,
-      OAK_NODE_KIND_RBRACE | OAK_NODE_SKIP,
-    }
+      OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_FN_PARAM | OAK_RULE_REPEAT,
+      OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,
+      OAK_TOKEN_ARROW | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
+      OAK_NODE_KIND_TYPE_NAME | OAK_RULE_OPTIONAL,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
   },
   // FN_PARAM -> 'mut'? IDENT ':' IDENT ','?
   [OAK_NODE_KIND_FN_PARAM] = {
     .rules = {
-      OAK_NODE_KIND_MUT_KEYWORD | OAK_NODE_OPTIONAL,
+      OAK_NODE_KIND_MUT_KEYWORD | OAK_RULE_OPTIONAL,
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_COLON | OAK_NODE_SKIP,
+      OAK_TOKEN_COLON | OAK_RULE_TOKEN,
       OAK_NODE_KIND_IDENT,
-      OAK_NODE_KIND_COMMA | OAK_NODE_SKIP | OAK_NODE_OPTIONAL,
+      OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },
-  // MUT_KEYWORD -> 'mut'
   [OAK_NODE_KIND_MUT_KEYWORD] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_MUT,
-  },
-  // FN_KEYWORD -> 'fn'
-  [OAK_NODE_KIND_FN_KEYWORD] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_FN,
-  },
-  // LPAREN -> '('
-  [OAK_NODE_KIND_LPAREN] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_LPAREN,
-  },
-  // RPAREN -> ')'
-  [OAK_NODE_KIND_RPAREN] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_RPAREN,
-  },
-  // COMMA -> ','
-  [OAK_NODE_KIND_COMMA] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_COMMA,
-  },
-  // ARROW -> '->'
-  [OAK_NODE_KIND_ARROW] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_ARROW,
   },
   [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_BINARY },
@@ -325,15 +250,10 @@ static oak_grammar_entry_t oak_grammar[] = {
   // STMT_RETURN -> 'return' EXPR ';'
   [OAK_NODE_KIND_STMT_RETURN] = {
     .rules = {
-      OAK_NODE_KIND_RETURN_KEYWORD | OAK_NODE_SKIP,
+      OAK_TOKEN_RETURN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
-      OAK_NODE_KIND_SEMICOLON | OAK_NODE_SKIP,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
-  },
-  // RETURN_KEYWORD -> 'return'
-  [OAK_NODE_KIND_RETURN_KEYWORD] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_RETURN,
   },
 };
 
@@ -349,10 +269,12 @@ int oak_node_grammar_op_binary(const oak_node_kind_t kind)
 
 static oak_ast_node_t* parse_rule(oak_parser_t* p, oak_node_kind_t kind);
 
-static int try_skip_token(oak_parser_t* p, const oak_node_kind_t child_kind)
+static int try_skip_token(oak_parser_t* p, const oak_token_kind_t token_kind)
 {
+  if (p->curr == p->head)
+    return 0;
   const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
-  if (token->kind != oak_grammar[child_kind].token_kind)
+  if (token->kind != token_kind)
     return 0;
   p->curr = p->curr->next;
   return 1;
@@ -361,8 +283,7 @@ static int try_skip_token(oak_parser_t* p, const oak_node_kind_t child_kind)
 static size_t grammar_rule_count(const oak_grammar_entry_t* entry)
 {
   size_t n = 0;
-  while (n < OAK_ARRAY_SIZE(entry->rules) &&
-         (entry->rules[n] & OAK_NODE_KIND_MASK) != OAK_NODE_KIND_NONE)
+  while (n < OAK_ARRAY_SIZE(entry->rules) && entry->rules[n] != 0)
     ++n;
   return n;
 }
@@ -408,31 +329,37 @@ static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
   const size_t count = grammar_rule_count(entry);
   for (size_t i = 0; i < count; ++i)
   {
-    const oak_node_kind_t rule = entry->rules[i];
-    const oak_node_kind_t child_kind = rule & OAK_NODE_KIND_MASK;
+    const oak_rule_item_t rule = entry->rules[i];
+    const int is_repeat = rule & OAK_RULE_REPEAT;
+    const int is_optional = rule & OAK_RULE_OPTIONAL;
 
-    if (rule & OAK_NODE_SKIP)
+    if (rule & OAK_RULE_TOKEN)
     {
-      if (rule & OAK_NODE_REPEAT)
+      const oak_token_kind_t tok =
+          (oak_token_kind_t)(rule & OAK_RULE_KIND_MASK);
+      if (is_repeat)
       {
-        while (try_skip_token(p, child_kind))
+        while (try_skip_token(p, tok))
         {
         }
         continue;
       }
-      if (rule & OAK_NODE_OPTIONAL)
+      if (is_optional)
       {
-        try_skip_token(p, child_kind);
+        try_skip_token(p, tok);
         continue;
       }
-      if (!try_skip_token(p, child_kind))
+      if (!try_skip_token(p, tok))
       {
         p->curr = saved;
         return NULL;
       }
       continue;
     }
-    if (rule & OAK_NODE_REPEAT)
+
+    const oak_node_kind_t child_kind =
+        (oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
+    if (is_repeat)
     {
       for (;;)
       {
@@ -445,7 +372,7 @@ static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
     }
 
     oak_ast_node_t* child = parse_rule(p, child_kind);
-    if (rule & OAK_NODE_OPTIONAL)
+    if (is_optional)
     {
       if (child)
         oak_list_add_tail(&collected, &child->link);
@@ -508,7 +435,7 @@ static oak_ast_node_t* parse_choice(oak_parser_t* p, const oak_node_kind_t kind)
   const size_t choice_count = grammar_rule_count(entry);
   for (size_t i = 0; i < choice_count; ++i)
   {
-    oak_ast_node_t* child = parse_rule(p, entry->rules[i]);
+    oak_ast_node_t* child = parse_rule(p, (oak_node_kind_t)entry->rules[i]);
     if (child)
       return child;
   }
