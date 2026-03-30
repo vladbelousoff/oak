@@ -5,7 +5,8 @@
 #include "oak_log.h"
 #include "oak_mem.h"
 
-struct oak_parser_result_t
+// ReSharper disable once CppClassNeverUsed
+struct _oak_parser_result_t
 {
   oak_ast_node_t* root;
   oak_arena_t arena;

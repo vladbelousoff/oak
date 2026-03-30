@@ -61,7 +61,7 @@ typedef struct _oak_ast_node_t
   };
 } oak_ast_node_t;
 
-typedef struct oak_parser_result_t oak_parser_result_t;
+typedef struct _oak_parser_result_t oak_parser_result_t;
 
 oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
                                oak_node_kind_t kind);
