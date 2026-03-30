@@ -219,15 +219,19 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // FN_PARAM -> 'mut'? IDENT ':' IDENT ','?
+  // FN_PARAM -> MUT_KEYWORD? IDENT ':' IDENT ','?
   [OAK_NODE_KIND_FN_PARAM] = {
     .rules = {
-      OAK_TOKEN_MUT | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
+      OAK_NODE_KIND_MUT_KEYWORD | OAK_RULE_OPTIONAL,
       OAK_NODE_KIND_IDENT,
       OAK_TOKEN_COLON | OAK_RULE_TOKEN,
       OAK_NODE_KIND_IDENT,
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
+  },
+  [OAK_NODE_KIND_MUT_KEYWORD] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_MUT,
   },
   [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_BINARY },
@@ -244,6 +248,16 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_BINARY_OR]         = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_UNARY_NEG]         = { .op = OAK_GRAMMAR_UNARY },
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_UNARY },
+  // FN_CALL_ARG -> IDENT '=' EXPR ','?
+  [OAK_NODE_KIND_FN_CALL_ARG] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_KIND_IDENT,
+      OAK_TOKEN_ASSIGN | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_EXPR,
+      OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
+    },
+  },
   // STMT_RETURN -> 'return' EXPR ';'
   [OAK_NODE_KIND_STMT_RETURN] = {
     .rules = {
@@ -495,6 +509,35 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
     if (p->curr == p->head)
       break;
     const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
+
+    if (token->kind == OAK_TOKEN_LPAREN && 15 >= min_bp)
+    {
+      p->curr = p->curr->next;
+      oak_ast_node_t* call = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+      if (!call)
+        return NULL;
+      call->kind = OAK_NODE_KIND_FN_CALL;
+      oak_list_init(&call->children);
+      oak_list_add_tail(&call->children, &lhs->link);
+
+      while (p->curr != p->head)
+      {
+        const oak_token_t* peek =
+            oak_container_of(p->curr, oak_token_t, link);
+        if (peek->kind == OAK_TOKEN_RPAREN)
+          break;
+        oak_ast_node_t* arg = parse_rule(p, OAK_NODE_KIND_FN_CALL_ARG);
+        if (!arg)
+          return NULL;
+        oak_list_add_tail(&call->children, &arg->link);
+      }
+
+      if (!try_skip_token(p, OAK_TOKEN_RPAREN))
+        return NULL;
+
+      lhs = call;
+      continue;
+    }
 
     const oak_pratt_rule_t* rule =
         find_pratt_rule(entry->pratt.infix, token->kind);
