@@ -47,10 +47,10 @@ typedef enum
 
 typedef struct
 {
-  oak_pratt_op_t op;
-  oak_token_kind_t op_token;
-  int lbp;
-  int rbp;
+  oak_pratt_op_t kind;
+  oak_token_kind_t trigger_token;
+  int l_bp;
+  int r_bp;
   oak_node_kind_t node_kind;
   oak_token_kind_t close_token;
   oak_node_kind_t arg_rule;
@@ -73,37 +73,126 @@ typedef struct
 } oak_grammar_entry_t;
 
 static const oak_pratt_rule_t expr_prefix[] = {
-  { OAK_PRATT_OP, OAK_TOKEN_MINUS, 0, 13, OAK_NODE_KIND_UNARY_NEG },
-  { OAK_PRATT_OP, OAK_TOKEN_EXCLAMATION_MARK, 0, 13, OAK_NODE_KIND_UNARY_NOT },
-  { OAK_PRATT_GROUP, OAK_TOKEN_LPAREN, 0, 0, 0, OAK_TOKEN_RPAREN },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_MINUS,
+      .r_bp = 13,
+      .node_kind = OAK_NODE_KIND_UNARY_NEG,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_EXCLAMATION_MARK,
+      .r_bp = 13,
+      .node_kind = OAK_NODE_KIND_UNARY_NOT,
+  },
+  {
+      .kind = OAK_PRATT_GROUP,
+      .trigger_token = OAK_TOKEN_LPAREN,
+      .close_token = OAK_TOKEN_RPAREN,
+  },
   { 0 },
 };
 
 static const oak_pratt_rule_t expr_infix[] = {
-  { OAK_PRATT_OP, OAK_TOKEN_OR, 1, 2, OAK_NODE_KIND_BINARY_OR },
-  { OAK_PRATT_OP, OAK_TOKEN_AND, 3, 4, OAK_NODE_KIND_BINARY_AND },
-  { OAK_PRATT_OP, OAK_TOKEN_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_EQ },
-  { OAK_PRATT_OP, OAK_TOKEN_NOT_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_NEQ },
-  { OAK_PRATT_OP, OAK_TOKEN_LESS, 7, 8, OAK_NODE_KIND_BINARY_LESS },
-  { OAK_PRATT_OP, OAK_TOKEN_LESS_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_LESS_EQ },
-  { OAK_PRATT_OP, OAK_TOKEN_GREATER, 7, 8, OAK_NODE_KIND_BINARY_GREATER },
-  { OAK_PRATT_OP,
-    OAK_TOKEN_GREATER_EQUAL,
-    7,
-    8,
-    OAK_NODE_KIND_BINARY_GREATER_EQ },
-  { OAK_PRATT_OP, OAK_TOKEN_PLUS, 9, 10, OAK_NODE_KIND_BINARY_ADD },
-  { OAK_PRATT_OP, OAK_TOKEN_MINUS, 9, 10, OAK_NODE_KIND_BINARY_SUB },
-  { OAK_PRATT_OP, OAK_TOKEN_STAR, 11, 12, OAK_NODE_KIND_BINARY_MUL },
-  { OAK_PRATT_OP, OAK_TOKEN_SLASH, 11, 12, OAK_NODE_KIND_BINARY_DIV },
-  { OAK_PRATT_OP, OAK_TOKEN_PERCENT, 11, 12, OAK_NODE_KIND_BINARY_MOD },
-  { OAK_PRATT_CALL,
-    OAK_TOKEN_LPAREN,
-    15,
-    0,
-    OAK_NODE_KIND_FN_CALL,
-    OAK_TOKEN_RPAREN,
-    OAK_NODE_KIND_FN_CALL_ARG },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_OR,
+      .l_bp = 1,
+      .r_bp = 2,
+      .node_kind = OAK_NODE_KIND_BINARY_OR,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_AND,
+      .l_bp = 3,
+      .r_bp = 4,
+      .node_kind = OAK_NODE_KIND_BINARY_AND,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_EQUAL,
+      .l_bp = 5,
+      .r_bp = 6,
+      .node_kind = OAK_NODE_KIND_BINARY_EQ,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_NOT_EQUAL,
+      .l_bp = 5,
+      .r_bp = 6,
+      .node_kind = OAK_NODE_KIND_BINARY_NEQ,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_LESS,
+      .l_bp = 7,
+      .r_bp = 8,
+      .node_kind = OAK_NODE_KIND_BINARY_LESS,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_LESS_EQUAL,
+      .l_bp = 7,
+      .r_bp = 8,
+      .node_kind = OAK_NODE_KIND_BINARY_LESS_EQ,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_GREATER,
+      .l_bp = 7,
+      .r_bp = 8,
+      .node_kind = OAK_NODE_KIND_BINARY_GREATER,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_GREATER_EQUAL,
+      .l_bp = 7,
+      .r_bp = 8,
+      .node_kind = OAK_NODE_KIND_BINARY_GREATER_EQ,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_PLUS,
+      .l_bp = 9,
+      .r_bp = 10,
+      .node_kind = OAK_NODE_KIND_BINARY_ADD,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_MINUS,
+      .l_bp = 9,
+      .r_bp = 10,
+      .node_kind = OAK_NODE_KIND_BINARY_SUB,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_STAR,
+      .l_bp = 11,
+      .r_bp = 12,
+      .node_kind = OAK_NODE_KIND_BINARY_MUL,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_SLASH,
+      .l_bp = 11,
+      .r_bp = 12,
+      .node_kind = OAK_NODE_KIND_BINARY_DIV,
+  },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_PERCENT,
+      .l_bp = 11,
+      .r_bp = 12,
+      .node_kind = OAK_NODE_KIND_BINARY_MOD,
+  },
+  {
+      .kind = OAK_PRATT_CALL,
+      .trigger_token = OAK_TOKEN_LPAREN,
+      .l_bp = 15,
+      .node_kind = OAK_NODE_KIND_FN_CALL,
+      .close_token = OAK_TOKEN_RPAREN,
+      .arg_rule = OAK_NODE_KIND_FN_CALL_ARG,
+  },
   { 0 },
 };
 
@@ -326,9 +415,9 @@ static const oak_pratt_rule_t*
 find_pratt_rule(const oak_pratt_rule_t* rules,
                 const oak_token_kind_t token_kind)
 {
-  for (const oak_pratt_rule_t* r = rules; r->op != OAK_PRATT_END; r++)
+  for (const oak_pratt_rule_t* r = rules; r->kind != OAK_PRATT_END; r++)
   {
-    if (token_kind == r->op_token)
+    if (token_kind == r->trigger_token)
       return r;
   }
   return NULL;
@@ -484,7 +573,7 @@ static oak_ast_node_t* parse_pratt_unary(oak_parser_t* p,
                                          const oak_node_kind_t kind,
                                          const oak_pratt_rule_t* rule)
 {
-  oak_ast_node_t* operand = parse_pratt(p, kind, rule->rbp);
+  oak_ast_node_t* operand = parse_pratt(p, kind, rule->r_bp);
   if (!operand)
     return NULL;
   oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
@@ -500,7 +589,7 @@ static oak_ast_node_t* parse_pratt_binary(oak_parser_t* p,
                                           const oak_pratt_rule_t* rule,
                                           oak_ast_node_t* lhs)
 {
-  oak_ast_node_t* rhs = parse_pratt(p, kind, rule->rbp);
+  oak_ast_node_t* rhs = parse_pratt(p, kind, rule->r_bp);
   if (!rhs)
     return NULL;
   oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
@@ -526,7 +615,7 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
     if (r)
     {
       p->curr = p->curr->next;
-      switch (r->op)
+      switch (r->kind)
       {
       case OAK_PRATT_GROUP:
         lhs = parse_pratt(p, kind, 0);
@@ -557,12 +646,12 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
 
     const oak_pratt_rule_t* rule =
         find_pratt_rule(entry->pratt.infix, token->kind);
-    if (!rule || rule->lbp < min_bp)
+    if (!rule || rule->l_bp < min_bp)
       break;
 
     p->curr = p->curr->next;
 
-    switch (rule->op)
+    switch (rule->kind)
     {
     case OAK_PRATT_CALL:
     {
