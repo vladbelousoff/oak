@@ -40,19 +40,23 @@ OAK_TEST_DECL(ParseFnParamMut)
   if (strcmp(name->token->buf, "foo") != 0)
     return OAK_FAILURE;
 
-  // First param has 'mut' before the name: [MUT_KEYWORD, IDENT("x"), IDENT("int")]
+  // First param has 'mut' before the name: [MUT_KEYWORD, IDENT("x"),
+  // IDENT("int")]
   const oak_ast_node_t* param0 = oak_test_ast_child(decl, 1);
   if (oak_test_ast_kind(param0, OAK_NODE_KIND_FN_PARAM) != OAK_SUCCESS)
     return OAK_FAILURE;
   if (oak_test_ast_child_count(param0) != 3)
     return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param0, 0), OAK_NODE_KIND_MUT_KEYWORD) != OAK_SUCCESS)
+  if (oak_test_ast_kind(oak_test_ast_child(param0, 0),
+                        OAK_NODE_KIND_MUT_KEYWORD) != OAK_SUCCESS)
     return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param0, 1), OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(oak_test_ast_child(param0, 1), OAK_NODE_KIND_IDENT) !=
+      OAK_SUCCESS)
     return OAK_FAILURE;
   if (strcmp(oak_test_ast_child(param0, 1)->token->buf, "x") != 0)
     return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param0, 2), OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(oak_test_ast_child(param0, 2), OAK_NODE_KIND_IDENT) !=
+      OAK_SUCCESS)
     return OAK_FAILURE;
   if (strcmp(oak_test_ast_child(param0, 2)->token->buf, "int") != 0)
     return OAK_FAILURE;
@@ -63,11 +67,13 @@ OAK_TEST_DECL(ParseFnParamMut)
     return OAK_FAILURE;
   if (oak_test_ast_child_count(param1) != 2)
     return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param1, 0), OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(oak_test_ast_child(param1, 0), OAK_NODE_KIND_IDENT) !=
+      OAK_SUCCESS)
     return OAK_FAILURE;
   if (strcmp(oak_test_ast_child(param1, 0)->token->buf, "y") != 0)
     return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param1, 1), OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
+  if (oak_test_ast_kind(oak_test_ast_child(param1, 1), OAK_NODE_KIND_IDENT) !=
+      OAK_SUCCESS)
     return OAK_FAILURE;
   if (strcmp(oak_test_ast_child(param1, 1)->token->buf, "int") != 0)
     return OAK_FAILURE;

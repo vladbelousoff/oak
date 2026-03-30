@@ -37,12 +37,23 @@ typedef enum
   OAK_GRAMMAR_UNARY,    // Produce unary node (single child)
 } oak_grammar_op_t;
 
+typedef enum
+{
+  OAK_PRATT_END,
+  OAK_PRATT_OP,
+  OAK_PRATT_GROUP,
+  OAK_PRATT_CALL,
+} oak_pratt_op_t;
+
 typedef struct
 {
+  oak_pratt_op_t op;
   oak_token_kind_t op_token;
   int lbp;
   int rbp;
   oak_node_kind_t node_kind;
+  oak_token_kind_t close_token;
+  oak_node_kind_t arg_rule;
 } oak_pratt_rule_t;
 
 typedef struct
@@ -62,25 +73,37 @@ typedef struct
 } oak_grammar_entry_t;
 
 static const oak_pratt_rule_t expr_prefix[] = {
-  { OAK_TOKEN_MINUS, 0, 13, OAK_NODE_KIND_UNARY_NEG },
-  { OAK_TOKEN_EXCLAMATION_MARK, 0, 13, OAK_NODE_KIND_UNARY_NOT },
+  { OAK_PRATT_OP, OAK_TOKEN_MINUS, 0, 13, OAK_NODE_KIND_UNARY_NEG },
+  { OAK_PRATT_OP, OAK_TOKEN_EXCLAMATION_MARK, 0, 13, OAK_NODE_KIND_UNARY_NOT },
+  { OAK_PRATT_GROUP, OAK_TOKEN_LPAREN, 0, 0, 0, OAK_TOKEN_RPAREN },
   { 0 },
 };
 
 static const oak_pratt_rule_t expr_infix[] = {
-  { OAK_TOKEN_OR, 1, 2, OAK_NODE_KIND_BINARY_OR },
-  { OAK_TOKEN_AND, 3, 4, OAK_NODE_KIND_BINARY_AND },
-  { OAK_TOKEN_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_EQ },
-  { OAK_TOKEN_NOT_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_NEQ },
-  { OAK_TOKEN_LESS, 7, 8, OAK_NODE_KIND_BINARY_LESS },
-  { OAK_TOKEN_LESS_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_LESS_EQ },
-  { OAK_TOKEN_GREATER, 7, 8, OAK_NODE_KIND_BINARY_GREATER },
-  { OAK_TOKEN_GREATER_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_GREATER_EQ },
-  { OAK_TOKEN_PLUS, 9, 10, OAK_NODE_KIND_BINARY_ADD },
-  { OAK_TOKEN_MINUS, 9, 10, OAK_NODE_KIND_BINARY_SUB },
-  { OAK_TOKEN_STAR, 11, 12, OAK_NODE_KIND_BINARY_MUL },
-  { OAK_TOKEN_SLASH, 11, 12, OAK_NODE_KIND_BINARY_DIV },
-  { OAK_TOKEN_PERCENT, 11, 12, OAK_NODE_KIND_BINARY_MOD },
+  { OAK_PRATT_OP, OAK_TOKEN_OR, 1, 2, OAK_NODE_KIND_BINARY_OR },
+  { OAK_PRATT_OP, OAK_TOKEN_AND, 3, 4, OAK_NODE_KIND_BINARY_AND },
+  { OAK_PRATT_OP, OAK_TOKEN_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_EQ },
+  { OAK_PRATT_OP, OAK_TOKEN_NOT_EQUAL, 5, 6, OAK_NODE_KIND_BINARY_NEQ },
+  { OAK_PRATT_OP, OAK_TOKEN_LESS, 7, 8, OAK_NODE_KIND_BINARY_LESS },
+  { OAK_PRATT_OP, OAK_TOKEN_LESS_EQUAL, 7, 8, OAK_NODE_KIND_BINARY_LESS_EQ },
+  { OAK_PRATT_OP, OAK_TOKEN_GREATER, 7, 8, OAK_NODE_KIND_BINARY_GREATER },
+  { OAK_PRATT_OP,
+    OAK_TOKEN_GREATER_EQUAL,
+    7,
+    8,
+    OAK_NODE_KIND_BINARY_GREATER_EQ },
+  { OAK_PRATT_OP, OAK_TOKEN_PLUS, 9, 10, OAK_NODE_KIND_BINARY_ADD },
+  { OAK_PRATT_OP, OAK_TOKEN_MINUS, 9, 10, OAK_NODE_KIND_BINARY_SUB },
+  { OAK_PRATT_OP, OAK_TOKEN_STAR, 11, 12, OAK_NODE_KIND_BINARY_MUL },
+  { OAK_PRATT_OP, OAK_TOKEN_SLASH, 11, 12, OAK_NODE_KIND_BINARY_DIV },
+  { OAK_PRATT_OP, OAK_TOKEN_PERCENT, 11, 12, OAK_NODE_KIND_BINARY_MOD },
+  { OAK_PRATT_CALL,
+    OAK_TOKEN_LPAREN,
+    15,
+    0,
+    OAK_NODE_KIND_FN_CALL,
+    OAK_TOKEN_RPAREN,
+    OAK_NODE_KIND_FN_CALL_ARG },
   { 0 },
 };
 
@@ -303,8 +326,7 @@ static const oak_pratt_rule_t*
 find_pratt_rule(const oak_pratt_rule_t* rules,
                 const oak_token_kind_t token_kind)
 {
-  for (const oak_pratt_rule_t* r = rules; r->node_kind != OAK_NODE_KIND_NONE;
-       r++)
+  for (const oak_pratt_rule_t* r = rules; r->op != OAK_PRATT_END; r++)
   {
     if (token_kind == r->op_token)
       return r;
@@ -456,6 +478,41 @@ static oak_ast_node_t* parse_choice(oak_parser_t* p, const oak_node_kind_t kind)
 }
 
 static oak_ast_node_t*
+parse_pratt(oak_parser_t* p, oak_node_kind_t kind, int min_bp);
+
+static oak_ast_node_t* parse_pratt_unary(oak_parser_t* p,
+                                         const oak_node_kind_t kind,
+                                         const oak_pratt_rule_t* rule)
+{
+  oak_ast_node_t* operand = parse_pratt(p, kind, rule->rbp);
+  if (!operand)
+    return NULL;
+  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+  if (!node)
+    return NULL;
+  node->kind = rule->node_kind;
+  node->child = operand;
+  return node;
+}
+
+static oak_ast_node_t* parse_pratt_binary(oak_parser_t* p,
+                                          const oak_node_kind_t kind,
+                                          const oak_pratt_rule_t* rule,
+                                          oak_ast_node_t* lhs)
+{
+  oak_ast_node_t* rhs = parse_pratt(p, kind, rule->rbp);
+  if (!rhs)
+    return NULL;
+  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+  if (!node)
+    return NULL;
+  node->kind = rule->node_kind;
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+static oak_ast_node_t*
 parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
 {
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
@@ -469,31 +526,19 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
     if (r)
     {
       p->curr = p->curr->next;
-      oak_ast_node_t* operand = parse_pratt(p, kind, r->rbp);
-      if (!operand)
-        return NULL;
-
-      lhs = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
-      if (!lhs)
-        return NULL;
-      lhs->kind = r->node_kind;
-      lhs->child = operand;
-    }
-  }
-
-  if (!lhs && p->curr != p->head)
-  {
-    const oak_token_t* peek = oak_container_of(p->curr, oak_token_t, link);
-    if (peek->kind == OAK_TOKEN_LPAREN)
-    {
-      p->curr = p->curr->next;
-      lhs = parse_pratt(p, kind, 0);
-      if (!lhs || p->curr == p->head)
-        return NULL;
-      peek = oak_container_of(p->curr, oak_token_t, link);
-      if (peek->kind != OAK_TOKEN_RPAREN)
-        return NULL;
-      p->curr = p->curr->next;
+      switch (r->op)
+      {
+      case OAK_PRATT_GROUP:
+        lhs = parse_pratt(p, kind, 0);
+        if (!lhs || !try_skip_token(p, r->close_token))
+          return NULL;
+        break;
+      default:
+        lhs = parse_pratt_unary(p, kind, r);
+        if (!lhs)
+          return NULL;
+        break;
+      }
     }
   }
 
@@ -510,52 +555,47 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
       break;
     const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
 
-    if (token->kind == OAK_TOKEN_LPAREN && 15 >= min_bp)
-    {
-      p->curr = p->curr->next;
-      oak_ast_node_t* call = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
-      if (!call)
-        return NULL;
-      call->kind = OAK_NODE_KIND_FN_CALL;
-      oak_list_init(&call->children);
-      oak_list_add_tail(&call->children, &lhs->link);
-
-      while (p->curr != p->head)
-      {
-        const oak_token_t* peek =
-            oak_container_of(p->curr, oak_token_t, link);
-        if (peek->kind == OAK_TOKEN_RPAREN)
-          break;
-        oak_ast_node_t* arg = parse_rule(p, OAK_NODE_KIND_FN_CALL_ARG);
-        if (!arg)
-          return NULL;
-        oak_list_add_tail(&call->children, &arg->link);
-      }
-
-      if (!try_skip_token(p, OAK_TOKEN_RPAREN))
-        return NULL;
-
-      lhs = call;
-      continue;
-    }
-
     const oak_pratt_rule_t* rule =
         find_pratt_rule(entry->pratt.infix, token->kind);
     if (!rule || rule->lbp < min_bp)
       break;
 
     p->curr = p->curr->next;
-    oak_ast_node_t* rhs = parse_pratt(p, kind, rule->rbp);
-    if (!rhs)
-      return NULL;
 
-    oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
-    if (!node)
-      return NULL;
-    node->kind = rule->node_kind;
-    node->lhs = lhs;
-    node->rhs = rhs;
-    lhs = node;
+    switch (rule->op)
+    {
+    case OAK_PRATT_CALL:
+    {
+      oak_ast_node_t* call = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+      if (!call)
+        return NULL;
+      call->kind = rule->node_kind;
+      oak_list_init(&call->children);
+      oak_list_add_tail(&call->children, &lhs->link);
+
+      while (p->curr != p->head)
+      {
+        const oak_token_t* peek = oak_container_of(p->curr, oak_token_t, link);
+        if (peek->kind == rule->close_token)
+          break;
+        oak_ast_node_t* arg = parse_rule(p, rule->arg_rule);
+        if (!arg)
+          return NULL;
+        oak_list_add_tail(&call->children, &arg->link);
+      }
+
+      if (!try_skip_token(p, rule->close_token))
+        return NULL;
+
+      lhs = call;
+      break;
+    }
+    default:
+      lhs = parse_pratt_binary(p, kind, rule, lhs);
+      if (!lhs)
+        return NULL;
+      break;
+    }
   }
 
   return lhs;

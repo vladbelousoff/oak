@@ -8,8 +8,7 @@
 
 OAK_TEST_DECL(ParseFnCallExpr)
 {
-  oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("1 + foo(x = 2) * 3;");
+  oak_lexer_result_t* lexer = oak_lexer_tokenize("1 + foo(x = 2) * 3;");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
