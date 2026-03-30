@@ -221,16 +221,12 @@ static oak_grammar_entry_t oak_grammar[] = {
   // FN_PARAM -> 'mut'? IDENT ':' IDENT ','?
   [OAK_NODE_KIND_FN_PARAM] = {
     .rules = {
-      OAK_NODE_KIND_MUT_KEYWORD | OAK_RULE_OPTIONAL,
+      OAK_TOKEN_MUT | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
       OAK_NODE_KIND_IDENT,
       OAK_TOKEN_COLON | OAK_RULE_TOKEN,
       OAK_NODE_KIND_IDENT,
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
-  },
-  [OAK_NODE_KIND_MUT_KEYWORD] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_MUT,
   },
   [OAK_NODE_KIND_BINARY_ADD]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_BINARY_SUB]        = { .op = OAK_GRAMMAR_BINARY },
