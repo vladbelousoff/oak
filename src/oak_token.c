@@ -129,6 +129,16 @@ const char* oak_token_name(const oak_token_kind_t token_kind)
     return "STRING";
   case OAK_TOKEN_ASSIGN:
     return "ASSIGN";
+  case OAK_TOKEN_PLUS_ASSIGN:
+    return "PLUS_ASSIGN";
+  case OAK_TOKEN_MINUS_ASSIGN:
+    return "MINUS_ASSIGN";
+  case OAK_TOKEN_STAR_ASSIGN:
+    return "STAR_ASSIGN";
+  case OAK_TOKEN_SLASH_ASSIGN:
+    return "SLASH_ASSIGN";
+  case OAK_TOKEN_PERCENT_ASSIGN:
+    return "PERCENT_ASSIGN";
   case OAK_TOKEN_STRUCT:
     return "STRUCT";
   case OAK_TOKEN_ENUM:
