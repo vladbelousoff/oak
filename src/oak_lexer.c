@@ -160,15 +160,12 @@ typedef struct
 
 /* Two-character operators table */
 static const oak_two_char_op_t two_char_ops[] = {
-  { '=', '=', OAK_TOKEN_EQUAL },      { '!', '=', OAK_TOKEN_NOT_EQUAL },
-  { '-', '>', OAK_TOKEN_ARROW },      { '&', '&', OAK_TOKEN_AND },
-  { '|', '|', OAK_TOKEN_OR },         { '>', '=', OAK_TOKEN_GREATER_EQUAL },
-  { '<', '=', OAK_TOKEN_LESS_EQUAL },
-  { '+', '=', OAK_TOKEN_PLUS_ASSIGN },
-  { '-', '=', OAK_TOKEN_MINUS_ASSIGN },
-  { '*', '=', OAK_TOKEN_STAR_ASSIGN },
-  { '/', '=', OAK_TOKEN_SLASH_ASSIGN },
-  { '%', '=', OAK_TOKEN_PERCENT_ASSIGN },
+  { '=', '=', OAK_TOKEN_EQUAL },        { '!', '=', OAK_TOKEN_NOT_EQUAL },
+  { '-', '>', OAK_TOKEN_ARROW },        { '&', '&', OAK_TOKEN_AND },
+  { '|', '|', OAK_TOKEN_OR },           { '>', '=', OAK_TOKEN_GREATER_EQUAL },
+  { '<', '=', OAK_TOKEN_LESS_EQUAL },   { '+', '=', OAK_TOKEN_PLUS_ASSIGN },
+  { '-', '=', OAK_TOKEN_MINUS_ASSIGN }, { '*', '=', OAK_TOKEN_STAR_ASSIGN },
+  { '/', '=', OAK_TOKEN_SLASH_ASSIGN }, { '%', '=', OAK_TOKEN_PERCENT_ASSIGN },
 };
 
 /* Single-character operators table */
