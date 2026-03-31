@@ -43,6 +43,8 @@ typedef enum
   OAK_NODE_KIND_FN_CALL,
   OAK_NODE_KIND_FN_CALL_ARG,
   OAK_NODE_KIND_STMT_RETURN,
+  OAK_NODE_KIND_STMT_IF,
+  OAK_NODE_KIND_ELSE_BLOCK,
 } oak_node_kind_t;
 
 typedef struct _oak_ast_node_t
