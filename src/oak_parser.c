@@ -253,12 +253,15 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_IDENT,
   },
-  // STMT -> STMT_IF | STMT_RETURN | STMT_LET_ASSIGNMENT | STMT_EXPR
-  //       | STMT_ASSIGNMENT
+  // STMT -> STMT_IF | STMT_WHILE | STMT_BREAK | STMT_CONTINUE
+  //       | STMT_RETURN | STMT_LET_ASSIGNMENT | STMT_EXPR | STMT_ASSIGNMENT
   [OAK_NODE_KIND_STMT] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_KIND_STMT_IF,
+      OAK_NODE_KIND_STMT_WHILE,
+      OAK_NODE_KIND_STMT_BREAK,
+      OAK_NODE_KIND_STMT_CONTINUE,
       OAK_NODE_KIND_STMT_RETURN,
       OAK_NODE_KIND_STMT_LET_ASSIGNMENT,
       OAK_NODE_KIND_STMT_EXPR,
@@ -389,6 +392,30 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
       OAK_NODE_KIND_ELSE_BLOCK | OAK_RULE_OPTIONAL,
+    },
+  },
+  // STMT_WHILE -> 'while' EXPR '{' STMT* '}'
+  [OAK_NODE_KIND_STMT_WHILE] = {
+    .rules = {
+      OAK_TOKEN_WHILE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_EXPR,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // STMT_BREAK -> 'break' ';'
+  [OAK_NODE_KIND_STMT_BREAK] = {
+    .rules = {
+      OAK_TOKEN_BREAK | OAK_RULE_TOKEN,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
+    },
+  },
+  // STMT_CONTINUE -> 'continue' ';'
+  [OAK_NODE_KIND_STMT_CONTINUE] = {
+    .rules = {
+      OAK_TOKEN_CONTINUE | OAK_RULE_TOKEN,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
   // ELSE_BLOCK -> 'else' '{' STMT* '}'
