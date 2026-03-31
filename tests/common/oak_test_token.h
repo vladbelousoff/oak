@@ -91,7 +91,7 @@ static oak_result_t oak_test_token(const oak_token_t* token,
     }
   }
 
-  if (token->kind == OAK_TOKEN_STRING)
+  if (token->kind == OAK_TOKEN_STRING || token->kind == OAK_TOKEN_IDENT)
   {
     if (strcmp(token->buf, attr->str) != 0)
     {
