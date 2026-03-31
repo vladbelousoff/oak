@@ -327,10 +327,11 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_STMT_ASSIGNMENT,
     },
   },
-  // FN_DECL -> 'fn' IDENT '(' FN_PARAM* ')' ('->' TYPE_NAME)? '{' STMT* '}'
+  // FN_DECL -> 'fn' FN_RECEIVER? IDENT '(' FN_PARAM* ')' ('->' TYPE_NAME)? '{' STMT* '}'
   [OAK_NODE_KIND_FN_DECL] = {
     .rules = {
       OAK_TOKEN_FN | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_FN_RECEIVER | OAK_RULE_OPTIONAL,
       OAK_NODE_KIND_IDENT,
       OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_FN_PARAM | OAK_RULE_REPEAT,
@@ -340,6 +341,14 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
       OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // FN_RECEIVER -> IDENT '.'
+  [OAK_NODE_KIND_FN_RECEIVER] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_NODE_KIND_IDENT,
+      OAK_TOKEN_DOT | OAK_RULE_TOKEN,
     },
   },
   // FN_PARAM -> MUT_KEYWORD? IDENT ':' IDENT ','?
