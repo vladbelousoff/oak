@@ -37,7 +37,7 @@ OAK_TEST_DECL(ParseReturnStmt)
   OAK_CHECK_NODE_KIND(param1, OAK_NODE_KIND_FN_PARAM);
 
   const oak_ast_node_t* ret_type = oak_test_ast_child(decl, 3);
-  OAK_CHECK_NODE_KIND(ret_type, OAK_NODE_KIND_TYPE_NAME);
+  OAK_CHECK_NODE_KIND(ret_type, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(ret_type, "int");
 
   const oak_ast_node_t* ret_stmt = oak_test_ast_child(decl, 4);

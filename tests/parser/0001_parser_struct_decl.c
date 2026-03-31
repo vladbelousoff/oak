@@ -26,7 +26,7 @@ OAK_TEST_DECL(ParseStructDecl)
   OAK_CHECK_CHILD_COUNT(decl, 3);
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
-  OAK_CHECK_NODE_KIND(name, OAK_NODE_KIND_TYPE_NAME);
+  OAK_CHECK_NODE_KIND(name, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(name, "Point");
 
   const oak_ast_node_t* field0 = oak_test_ast_child(decl, 1);

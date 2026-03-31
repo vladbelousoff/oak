@@ -252,9 +252,34 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
+  // TYPE_NAME -> TYPE_ARRAY | TYPE_MAP | IDENT
   [OAK_NODE_KIND_TYPE_NAME] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_IDENT,
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_KIND_TYPE_ARRAY,
+      OAK_NODE_KIND_TYPE_MAP,
+      OAK_NODE_KIND_IDENT,
+    },
+  },
+  // TYPE_ARRAY -> IDENT '[' ']'
+  [OAK_NODE_KIND_TYPE_ARRAY] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_NODE_KIND_IDENT,
+      OAK_TOKEN_LBRACKET | OAK_RULE_TOKEN,
+      OAK_TOKEN_RBRACKET | OAK_RULE_TOKEN,
+    },
+  },
+  // TYPE_MAP -> '[' IDENT ':' IDENT ']'
+  [OAK_NODE_KIND_TYPE_MAP] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_TOKEN_LBRACKET | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_IDENT,
+      OAK_TOKEN_COLON | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_IDENT,
+      OAK_TOKEN_RBRACKET | OAK_RULE_TOKEN,
+    },
   },
   [OAK_NODE_KIND_IDENT] = {
     .op = OAK_GRAMMAR_TOKEN,

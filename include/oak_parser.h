@@ -56,6 +56,8 @@ typedef enum
   OAK_NODE_KIND_STMT_DIV_ASSIGN,
   OAK_NODE_KIND_STMT_MOD_ASSIGN,
   OAK_NODE_KIND_MEMBER_ACCESS,
+  OAK_NODE_KIND_TYPE_ARRAY,
+  OAK_NODE_KIND_TYPE_MAP,
 } oak_node_kind_t;
 
 typedef struct _oak_ast_node_t
