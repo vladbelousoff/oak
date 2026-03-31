@@ -1,7 +1,9 @@
 #pragma once
 
-#include "oak_list.h"
 #include "oak_parser.h"
+#include "oak_test_run.h"
+
+#include <string.h>
 
 static oak_ast_node_t* oak_test_ast_child(const oak_ast_node_t* node,
                                           const size_t index)
@@ -44,5 +46,68 @@ static oak_result_t oak_test_ast_kind(const oak_ast_node_t* node,
 {
   if (!node)
     return OAK_FAILURE;
-  return node->kind == expected ? OAK_SUCCESS : OAK_FAILURE;
+  if (node->kind != expected)
+    return OAK_FAILURE;
+  return OAK_SUCCESS;
 }
+
+#define OAK_CHECK_NODE_KIND(node, expected)                                    \
+  do                                                                           \
+  {                                                                            \
+    if (oak_test_ast_kind((node), (expected)) != OAK_SUCCESS)                  \
+    {                                                                          \
+      oak_log(OAK_LOG_ERR,                                                     \
+              "check failed: node kind != %s (%s:%d)",                         \
+              #expected,                                                       \
+              oak_filename(__FILE__),                                          \
+              __LINE__);                                                       \
+      return OAK_FAILURE;                                                      \
+    }                                                                          \
+  } while (0)
+
+#define OAK_CHECK_CHILD_COUNT(node, expected)                                  \
+  do                                                                           \
+  {                                                                            \
+    const size_t _count = oak_test_ast_child_count(node);                      \
+    if (_count != (size_t)(expected))                                          \
+    {                                                                          \
+      oak_log(OAK_LOG_ERR,                                                     \
+              "check failed: child count %zu != %d (%s:%d)",                   \
+              _count,                                                          \
+              (int)(expected),                                                 \
+              oak_filename(__FILE__),                                          \
+              __LINE__);                                                       \
+      return OAK_FAILURE;                                                      \
+    }                                                                          \
+  } while (0)
+
+#define OAK_CHECK_TOKEN_STR(node, expected)                                    \
+  do                                                                           \
+  {                                                                            \
+    if (strcmp((node)->token->buf, (expected)) != 0)                           \
+    {                                                                          \
+      oak_log(OAK_LOG_ERR,                                                     \
+              "check failed: token \"%s\" != \"%s\" (%s:%d)",                  \
+              (node)->token->buf,                                              \
+              (expected),                                                      \
+              oak_filename(__FILE__),                                          \
+              __LINE__);                                                       \
+      return OAK_FAILURE;                                                      \
+    }                                                                          \
+  } while (0)
+
+#define OAK_CHECK_INT_VAL(node, expected)                                      \
+  do                                                                           \
+  {                                                                            \
+    const int _val = *(int*)(node)->token->buf;                                \
+    if (_val != (expected))                                                    \
+    {                                                                          \
+      oak_log(OAK_LOG_ERR,                                                     \
+              "check failed: int value %d != %d (%s:%d)",                      \
+              _val,                                                            \
+              (int)(expected),                                                 \
+              oak_filename(__FILE__),                                          \
+              __LINE__);                                                       \
+      return OAK_FAILURE;                                                      \
+    }                                                                          \
+  } while (0)

@@ -1,10 +1,4 @@
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
 #include "oak_test_ast.h"
-#include "oak_test_run.h"
-
-#include <string.h>
 
 OAK_TEST_DECL(ParseRelational)
 {
@@ -12,8 +6,7 @@ OAK_TEST_DECL(ParseRelational)
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
-  if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /*
      Expected shape:
@@ -24,22 +17,14 @@ OAK_TEST_DECL(ParseRelational)
   */
 
   const oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
-  if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_EXPR) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_EXPR);
 
   const oak_ast_node_t* less = oak_test_ast_child(stmt, 0);
-  if (oak_test_ast_kind(less, OAK_NODE_KIND_BINARY_LESS) != OAK_SUCCESS)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(less->lhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(less->lhs->token->buf, "a") != 0)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(less->rhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(less->rhs->token->buf, "b") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(less, OAK_NODE_KIND_BINARY_LESS);
+  OAK_CHECK_NODE_KIND(less->lhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(less->lhs, "a");
+  OAK_CHECK_NODE_KIND(less->rhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(less->rhs, "b");
 
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);

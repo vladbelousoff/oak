@@ -1,8 +1,4 @@
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
 #include "oak_test_ast.h"
-#include "oak_test_run.h"
 
 OAK_TEST_DECL(ParseParenthesized)
 {
@@ -10,8 +6,7 @@ OAK_TEST_DECL(ParseParenthesized)
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
-  if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /* Parentheses override default precedence:
        STMT_EXPR
@@ -22,31 +17,20 @@ OAK_TEST_DECL(ParseParenthesized)
            INT(3) */
 
   const oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
-  if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_EXPR) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_EXPR);
 
   const oak_ast_node_t* mul = oak_test_ast_child(stmt, 0);
-  if (oak_test_ast_kind(mul, OAK_NODE_KIND_BINARY_MUL) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(mul, OAK_NODE_KIND_BINARY_MUL);
 
   const oak_ast_node_t* add = mul->lhs;
-  if (oak_test_ast_kind(add, OAK_NODE_KIND_BINARY_ADD) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(add, OAK_NODE_KIND_BINARY_ADD);
+  OAK_CHECK_NODE_KIND(add->lhs, OAK_NODE_KIND_INT);
+  OAK_CHECK_INT_VAL(add->lhs, 1);
+  OAK_CHECK_NODE_KIND(add->rhs, OAK_NODE_KIND_INT);
+  OAK_CHECK_INT_VAL(add->rhs, 2);
 
-  if (oak_test_ast_kind(add->lhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (*(int*)add->lhs->token->buf != 1)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(add->rhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (*(int*)add->rhs->token->buf != 2)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(mul->rhs, OAK_NODE_KIND_INT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (*(int*)mul->rhs->token->buf != 3)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(mul->rhs, OAK_NODE_KIND_INT);
+  OAK_CHECK_INT_VAL(mul->rhs, 3);
 
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);

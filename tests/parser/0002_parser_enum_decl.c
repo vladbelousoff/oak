@@ -1,10 +1,4 @@
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
 #include "oak_test_ast.h"
-#include "oak_test_run.h"
-
-#include <string.h>
 
 OAK_TEST_DECL(ParseEnumDecl)
 {
@@ -13,8 +7,7 @@ OAK_TEST_DECL(ParseEnumDecl)
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
-  if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /*
      Expected shape:
@@ -26,34 +19,24 @@ OAK_TEST_DECL(ParseEnumDecl)
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
-  if (oak_test_ast_kind(decl, OAK_NODE_KIND_ENUM_DECL) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(decl) != 4)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(decl, OAK_NODE_KIND_ENUM_DECL);
+  OAK_CHECK_CHILD_COUNT(decl, 4);
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
-  if (oak_test_ast_kind(name, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(name->token->buf, "Color") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(name, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(name, "Color");
 
   const oak_ast_node_t* field0 = oak_test_ast_child(decl, 1);
-  if (oak_test_ast_kind(field0, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(field0->token->buf, "Red") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(field0, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(field0, "Red");
 
   const oak_ast_node_t* field1 = oak_test_ast_child(decl, 2);
-  if (oak_test_ast_kind(field1, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(field1->token->buf, "Green") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(field1, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(field1, "Green");
 
   const oak_ast_node_t* field2 = oak_test_ast_child(decl, 3);
-  if (oak_test_ast_kind(field2, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(field2->token->buf, "Blue") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(field2, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(field2, "Blue");
 
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "oak_common.h"
+#include "oak_log.h"
 
 typedef struct
 {
@@ -25,3 +26,17 @@ typedef struct
     .fn = (label),                                                             \
     .name = (#label),                                                          \
   }
+
+#define OAK_CHECK(expr)                                                        \
+  do                                                                           \
+  {                                                                            \
+    if (!(expr))                                                               \
+    {                                                                          \
+      oak_log(OAK_LOG_ERR,                                                     \
+              "check failed: %s (%s:%d)",                                      \
+              #expr,                                                           \
+              oak_filename(__FILE__),                                          \
+              __LINE__);                                                       \
+      return OAK_FAILURE;                                                      \
+    }                                                                          \
+  } while (0)

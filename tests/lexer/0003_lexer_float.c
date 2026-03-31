@@ -1,6 +1,3 @@
-#include "oak_lexer.h"
-#include "oak_test.h"
-#include "oak_test_run.h"
 #include "oak_test_token.h"
 
 OAK_TEST_DECL(LexFloat)

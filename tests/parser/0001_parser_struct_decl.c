@@ -1,10 +1,4 @@
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
 #include "oak_test_ast.h"
-#include "oak_test_run.h"
-
-#include <string.h>
 
 OAK_TEST_DECL(ParseStructDecl)
 {
@@ -13,8 +7,7 @@ OAK_TEST_DECL(ParseStructDecl)
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
-  if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /*
      Expected shape:
@@ -29,44 +22,26 @@ OAK_TEST_DECL(ParseStructDecl)
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
-  if (oak_test_ast_kind(decl, OAK_NODE_KIND_STRUCT_DECL) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(decl) != 3)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(decl, OAK_NODE_KIND_STRUCT_DECL);
+  OAK_CHECK_CHILD_COUNT(decl, 3);
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
-  if (oak_test_ast_kind(name, OAK_NODE_KIND_TYPE_NAME) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(name->token->buf, "Point") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(name, OAK_NODE_KIND_TYPE_NAME);
+  OAK_CHECK_TOKEN_STR(name, "Point");
 
   const oak_ast_node_t* field0 = oak_test_ast_child(decl, 1);
-  if (oak_test_ast_kind(field0, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(field0->lhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(field0->lhs->token->buf, "x") != 0)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(field0->rhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(field0->rhs->token->buf, "number") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(field0, OAK_NODE_KIND_STRUCT_FIELD_DECL);
+  OAK_CHECK_NODE_KIND(field0->lhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(field0->lhs, "x");
+  OAK_CHECK_NODE_KIND(field0->rhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(field0->rhs, "number");
 
   const oak_ast_node_t* field1 = oak_test_ast_child(decl, 2);
-  if (oak_test_ast_kind(field1, OAK_NODE_KIND_STRUCT_FIELD_DECL) != OAK_SUCCESS)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(field1->lhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(field1->lhs->token->buf, "y") != 0)
-    return OAK_FAILURE;
-
-  if (oak_test_ast_kind(field1->rhs, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(field1->rhs->token->buf, "number") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(field1, OAK_NODE_KIND_STRUCT_FIELD_DECL);
+  OAK_CHECK_NODE_KIND(field1->lhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(field1->lhs, "y");
+  OAK_CHECK_NODE_KIND(field1->rhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(field1->rhs, "number");
 
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);

@@ -1,10 +1,4 @@
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
 #include "oak_test_ast.h"
-#include "oak_test_run.h"
-
-#include <string.h>
 
 OAK_TEST_DECL(ParseFnDecl)
 {
@@ -13,8 +7,7 @@ OAK_TEST_DECL(ParseFnDecl)
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
-  if (oak_test_ast_kind(root, OAK_NODE_KIND_PROGRAM) != OAK_SUCCESS)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /*
      Expected shape:
@@ -28,66 +21,40 @@ OAK_TEST_DECL(ParseFnDecl)
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
-  if (oak_test_ast_kind(decl, OAK_NODE_KIND_FN_DECL) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(decl) != 4)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(decl, OAK_NODE_KIND_FN_DECL);
+  OAK_CHECK_CHILD_COUNT(decl, 4);
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
-  if (oak_test_ast_kind(name, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(name->token->buf, "add") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(name, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(name, "add");
 
   const oak_ast_node_t* param0 = oak_test_ast_child(decl, 1);
-  if (oak_test_ast_kind(param0, OAK_NODE_KIND_FN_PARAM) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(param0) != 2)
-    return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param0, 0), OAK_NODE_KIND_IDENT) !=
-      OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(oak_test_ast_child(param0, 0)->token->buf, "x") != 0)
-    return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param0, 1), OAK_NODE_KIND_IDENT) !=
-      OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(oak_test_ast_child(param0, 1)->token->buf, "int") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(param0, OAK_NODE_KIND_FN_PARAM);
+  OAK_CHECK_CHILD_COUNT(param0, 2);
+  OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 0), OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param0, 0), "x");
+  OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 1), OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param0, 1), "int");
 
   const oak_ast_node_t* param1 = oak_test_ast_child(decl, 2);
-  if (oak_test_ast_kind(param1, OAK_NODE_KIND_FN_PARAM) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(param1) != 2)
-    return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param1, 0), OAK_NODE_KIND_IDENT) !=
-      OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(oak_test_ast_child(param1, 0)->token->buf, "y") != 0)
-    return OAK_FAILURE;
-  if (oak_test_ast_kind(oak_test_ast_child(param1, 1), OAK_NODE_KIND_IDENT) !=
-      OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(oak_test_ast_child(param1, 1)->token->buf, "int") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(param1, OAK_NODE_KIND_FN_PARAM);
+  OAK_CHECK_CHILD_COUNT(param1, 2);
+  OAK_CHECK_NODE_KIND(oak_test_ast_child(param1, 0), OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param1, 0), "y");
+  OAK_CHECK_NODE_KIND(oak_test_ast_child(param1, 1), OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param1, 1), "int");
 
   const oak_ast_node_t* stmt = oak_test_ast_child(decl, 3);
-  if (oak_test_ast_kind(stmt, OAK_NODE_KIND_STMT_ASSIGNMENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (oak_test_ast_child_count(stmt) != 2)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_ASSIGNMENT);
+  OAK_CHECK_CHILD_COUNT(stmt, 2);
 
   const oak_ast_node_t* stmt_ident = oak_test_ast_child(stmt, 0);
-  if (oak_test_ast_kind(stmt_ident, OAK_NODE_KIND_IDENT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (strcmp(stmt_ident->token->buf, "x") != 0)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(stmt_ident, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_TOKEN_STR(stmt_ident, "x");
 
   const oak_ast_node_t* stmt_val = oak_test_ast_child(stmt, 1);
-  if (oak_test_ast_kind(stmt_val, OAK_NODE_KIND_INT) != OAK_SUCCESS)
-    return OAK_FAILURE;
-  if (*(int*)stmt_val->token->buf != 1)
-    return OAK_FAILURE;
+  OAK_CHECK_NODE_KIND(stmt_val, OAK_NODE_KIND_INT);
+  OAK_CHECK_INT_VAL(stmt_val, 1);
 
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);
