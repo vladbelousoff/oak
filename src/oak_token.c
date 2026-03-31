@@ -15,6 +15,7 @@ oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
     { "false", OAK_TOKEN_FALSE },
     { "fn", OAK_TOKEN_FN },
     { "for", OAK_TOKEN_FOR },
+    { "from", OAK_TOKEN_FROM },
     { "if", OAK_TOKEN_IF },
     { "let", OAK_TOKEN_LET },
     { "mut", OAK_TOKEN_MUT },
@@ -22,6 +23,7 @@ oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
     { "or", OAK_TOKEN_OR },
     { "return", OAK_TOKEN_RETURN },
     { "struct", OAK_TOKEN_STRUCT },
+    { "to", OAK_TOKEN_TO },
     { "true", OAK_TOKEN_TRUE },
     { "type", OAK_TOKEN_TYPE },
     { "while", OAK_TOKEN_WHILE },
@@ -105,6 +107,10 @@ const char* oak_token_name(const oak_token_kind_t token_kind)
     return "WHILE";
   case OAK_TOKEN_FOR:
     return "FOR";
+  case OAK_TOKEN_FROM:
+    return "FROM";
+  case OAK_TOKEN_TO:
+    return "TO";
   case OAK_TOKEN_BREAK:
     return "BREAK";
   case OAK_TOKEN_CONTINUE:

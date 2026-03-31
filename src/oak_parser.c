@@ -260,6 +260,7 @@ static oak_grammar_entry_t oak_grammar[] = {
     .rules = {
       OAK_NODE_KIND_STMT_IF,
       OAK_NODE_KIND_STMT_WHILE,
+      OAK_NODE_KIND_STMT_FOR,
       OAK_NODE_KIND_STMT_BREAK,
       OAK_NODE_KIND_STMT_CONTINUE,
       OAK_NODE_KIND_STMT_RETURN,
@@ -403,6 +404,20 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_STMT_WHILE] = {
     .rules = {
       OAK_TOKEN_WHILE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_EXPR,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // STMT_FOR -> 'for' IDENT 'from' EXPR 'to' EXPR '{' STMT* '}'
+  [OAK_NODE_KIND_STMT_FOR] = {
+    .rules = {
+      OAK_TOKEN_FOR | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_IDENT,
+      OAK_TOKEN_FROM | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_EXPR,
+      OAK_TOKEN_TO | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
       OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
