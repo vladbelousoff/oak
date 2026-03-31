@@ -193,6 +193,13 @@ static const oak_pratt_rule_t expr_infix[] = {
       .close_token = OAK_TOKEN_RPAREN,
       .arg_rule = OAK_NODE_KIND_FN_CALL_ARG,
   },
+  {
+      .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_DOT,
+      .l_bp = 17,
+      .r_bp = 18,
+      .node_kind = OAK_NODE_KIND_MEMBER_ACCESS,
+  },
   { 0 },
 };
 
@@ -380,6 +387,7 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_BINARY_OR]         = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_UNARY_NEG]         = { .op = OAK_GRAMMAR_UNARY },
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_UNARY },
+  [OAK_NODE_KIND_MEMBER_ACCESS]     = { .op = OAK_GRAMMAR_BINARY },
   // FN_CALL_ARG -> IDENT '=' EXPR ','?
   [OAK_NODE_KIND_FN_CALL_ARG] = {
     .op = OAK_GRAMMAR_BINARY,
