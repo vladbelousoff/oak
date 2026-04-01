@@ -413,7 +413,7 @@ static oak_result_t try_scan_number(const oak_lexer_ctx_t* ctx,
   {
     /* Floating-point */
     float val = 0.0f;
-    if (sscanf_s(tls_buffer, "%f", &val) != 1)
+    if (sscanf(tls_buffer, "%f", &val) != 1)
       return OAK_FAILURE;
 
     save_token(
@@ -423,7 +423,7 @@ static oak_result_t try_scan_number(const oak_lexer_ctx_t* ctx,
   {
     /* Integer */
     int val = 0;
-    if (sscanf_s(tls_buffer, "%d", &val) != 1)
+    if (sscanf(tls_buffer, "%d", &val) != 1)
       return OAK_FAILURE;
 
     save_token(
