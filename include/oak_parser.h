@@ -58,6 +58,8 @@ typedef enum
   OAK_NODE_KIND_MEMBER_ACCESS,
   OAK_NODE_KIND_TYPE_ARRAY,
   OAK_NODE_KIND_TYPE_MAP,
+  OAK_NODE_KIND_EXPR_EMPTY_ARRAY,
+  OAK_NODE_KIND_EXPR_EMPTY_MAP,
 } oak_node_kind_t;
 
 typedef struct _oak_ast_node_t

@@ -321,14 +321,31 @@ static oak_grammar_entry_t oak_grammar[] = {
       .infix = expr_infix,
     },
   },
-  // EXPR_PRIMARY -> INT | FLOAT | STRING | IDENT
+  // EXPR_PRIMARY -> INT | FLOAT | STRING | '[]' | '[:]' | IDENT
   [OAK_NODE_KIND_EXPR_PRIMARY] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_KIND_INT,
       OAK_NODE_KIND_FLOAT,
       OAK_NODE_KIND_STRING,
+      OAK_NODE_KIND_EXPR_EMPTY_ARRAY,
+      OAK_NODE_KIND_EXPR_EMPTY_MAP,
       OAK_NODE_KIND_IDENT,
+    },
+  },
+  // EXPR_EMPTY_ARRAY -> '[' ']'
+  [OAK_NODE_KIND_EXPR_EMPTY_ARRAY] = {
+    .rules = {
+      OAK_TOKEN_LBRACKET | OAK_RULE_TOKEN,
+      OAK_TOKEN_RBRACKET | OAK_RULE_TOKEN,
+    },
+  },
+  // EXPR_EMPTY_MAP -> '[' ':' ']'
+  [OAK_NODE_KIND_EXPR_EMPTY_MAP] = {
+    .rules = {
+      OAK_TOKEN_LBRACKET | OAK_RULE_TOKEN,
+      OAK_TOKEN_COLON | OAK_RULE_TOKEN,
+      OAK_TOKEN_RBRACKET | OAK_RULE_TOKEN,
     },
   },
   [OAK_NODE_KIND_INT] = {
