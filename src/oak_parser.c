@@ -43,6 +43,7 @@ typedef enum
   OAK_PRATT_OP,
   OAK_PRATT_GROUP,
   OAK_PRATT_CALL,
+  OAK_PRATT_INDEX,
 } oak_pratt_op_t;
 
 typedef struct
@@ -192,6 +193,13 @@ static const oak_pratt_rule_t expr_infix[] = {
       .node_kind = OAK_NODE_KIND_FN_CALL,
       .close_token = OAK_TOKEN_RPAREN,
       .arg_rule = OAK_NODE_KIND_FN_CALL_ARG,
+  },
+  {
+      .kind = OAK_PRATT_INDEX,
+      .trigger_token = OAK_TOKEN_LBRACKET,
+      .l_bp = 15,
+      .node_kind = OAK_NODE_KIND_INDEX_ACCESS,
+      .close_token = OAK_TOKEN_RBRACKET,
   },
   {
       .kind = OAK_PRATT_OP,
@@ -360,10 +368,10 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_STRING,
   },
-  // STMT_ASSIGNMENT -> IDENT '=' EXPR ';'
+  // STMT_ASSIGNMENT -> EXPR '=' EXPR ';'
   [OAK_NODE_KIND_STMT_ASSIGNMENT] = {
     .rules = {
-      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_EXPR,
       OAK_TOKEN_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
@@ -430,6 +438,7 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_UNARY_NEG]         = { .op = OAK_GRAMMAR_UNARY },
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_UNARY },
   [OAK_NODE_KIND_MEMBER_ACCESS]     = { .op = OAK_GRAMMAR_BINARY },
+  [OAK_NODE_KIND_INDEX_ACCESS]      = { .op = OAK_GRAMMAR_BINARY },
   // FN_CALL_ARG -> IDENT '=' EXPR ','?
   [OAK_NODE_KIND_FN_CALL_ARG] = {
     .op = OAK_GRAMMAR_BINARY,
@@ -497,51 +506,51 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // STMT_ADD_ASSIGN -> IDENT '+=' EXPR ';'
+  // STMT_ADD_ASSIGN -> EXPR '+=' EXPR ';'
   [OAK_NODE_KIND_STMT_ADD_ASSIGN] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_EXPR,
       OAK_TOKEN_PLUS_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // STMT_SUB_ASSIGN -> IDENT '-=' EXPR ';'
+  // STMT_SUB_ASSIGN -> EXPR '-=' EXPR ';'
   [OAK_NODE_KIND_STMT_SUB_ASSIGN] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_EXPR,
       OAK_TOKEN_MINUS_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // STMT_MUL_ASSIGN -> IDENT '*=' EXPR ';'
+  // STMT_MUL_ASSIGN -> EXPR '*=' EXPR ';'
   [OAK_NODE_KIND_STMT_MUL_ASSIGN] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_EXPR,
       OAK_TOKEN_STAR_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // STMT_DIV_ASSIGN -> IDENT '/=' EXPR ';'
+  // STMT_DIV_ASSIGN -> EXPR '/=' EXPR ';'
   [OAK_NODE_KIND_STMT_DIV_ASSIGN] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_EXPR,
       OAK_TOKEN_SLASH_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // STMT_MOD_ASSIGN -> IDENT '%=' EXPR ';'
+  // STMT_MOD_ASSIGN -> EXPR '%=' EXPR ';'
   [OAK_NODE_KIND_STMT_MOD_ASSIGN] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_NODE_KIND_IDENT,
+      OAK_NODE_KIND_EXPR,
       OAK_TOKEN_PERCENT_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
@@ -855,6 +864,22 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
         return NULL;
 
       lhs = call;
+      break;
+    }
+    case OAK_PRATT_INDEX:
+    {
+      oak_ast_node_t* index_expr = parse_pratt(p, kind, 0);
+      if (!index_expr)
+        return NULL;
+      if (!try_skip_token(p, rule->close_token))
+        return NULL;
+      oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+      if (!node)
+        return NULL;
+      node->kind = rule->node_kind;
+      node->lhs = lhs;
+      node->rhs = index_expr;
+      lhs = node;
       break;
     }
     default:
