@@ -15,14 +15,14 @@ typedef struct
   int pos;
   union
   {
-    char str[64];
-    float f_val;
-    int i_val;
+    char string[64];
+    float floating;
+    int integer;
   };
-} oak_token_attr_t;
+} oak_expected_token_t;
 
 static oak_result_t oak_test_token(const oak_token_t* token,
-                                   const oak_token_attr_t* attr,
+                                   const oak_expected_token_t* attr,
                                    const size_t index)
 {
   if (token->kind != attr->kind)
@@ -67,39 +67,39 @@ static oak_result_t oak_test_token(const oak_token_t* token,
 
   if (token->kind == OAK_TOKEN_INT_NUM)
   {
-    if (attr->i_val != *(int*)token->buf)
+    if (attr->integer != *(int*)token->buf)
     {
       oak_log(OAK_LOG_ERR,
               "token[%zu]: int value %d != expected %d",
               index,
               *(int*)token->buf,
-              attr->i_val);
+              attr->integer);
       return OAK_FAILURE;
     }
   }
 
   if (token->kind == OAK_TOKEN_FLOAT_NUM)
   {
-    if (fabsf(attr->f_val - *(float*)token->buf) > 0.0001f)
+    if (fabsf(attr->floating - *(float*)token->buf) > 0.0001f)
     {
       oak_log(OAK_LOG_ERR,
               "token[%zu]: float value %f != expected %f",
               index,
               (double)*(float*)token->buf,
-              (double)attr->f_val);
+              (double)attr->floating);
       return OAK_FAILURE;
     }
   }
 
   if (token->kind == OAK_TOKEN_STRING || token->kind == OAK_TOKEN_IDENT)
   {
-    if (strcmp(token->buf, attr->str) != 0)
+    if (strcmp(token->buf, attr->string) != 0)
     {
       oak_log(OAK_LOG_ERR,
               "token[%zu]: string \"%s\" != expected \"%s\"",
               index,
               token->buf,
-              attr->str);
+              attr->string);
       return OAK_FAILURE;
     }
   }
@@ -108,7 +108,7 @@ static oak_result_t oak_test_token(const oak_token_t* token,
 }
 
 static oak_result_t oak_test_tokens(const oak_lexer_result_t* lexer,
-                                    const oak_token_attr_t* attrs,
+                                    const oak_expected_token_t* attrs,
                                     const size_t count)
 {
   size_t token_index;
@@ -126,7 +126,7 @@ static oak_result_t oak_test_tokens(const oak_lexer_result_t* lexer,
     }
 
     const oak_token_t* token = oak_container_of(token_entry, oak_token_t, link);
-    const oak_token_attr_t* attr = &attrs[token_index];
+    const oak_expected_token_t* attr = &attrs[token_index];
 
     if (oak_test_token(token, attr, token_index) != OAK_SUCCESS)
       return OAK_FAILURE;

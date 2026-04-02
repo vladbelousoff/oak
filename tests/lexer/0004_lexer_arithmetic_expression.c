@@ -4,13 +4,13 @@ OAK_TEST_DECL(LexArithmeticExpression)
 {
   oak_lexer_result_t* lexer = oak_lexer_tokenize("1 + 2 * 3");
 
-  static oak_token_attr_t attrs[] = {
+  static oak_expected_token_t attrs[] = {
     {
         .kind = OAK_TOKEN_INT_NUM,
         .line = 1,
         .column = 1,
         .pos = 1,
-        .i_val = 1,
+        .integer = 1,
     },
     {
         .kind = OAK_TOKEN_PLUS,
@@ -23,7 +23,7 @@ OAK_TEST_DECL(LexArithmeticExpression)
         .line = 1,
         .column = 5,
         .pos = 5,
-        .i_val = 2,
+        .integer = 2,
     },
     {
         .kind = OAK_TOKEN_STAR,
@@ -36,7 +36,7 @@ OAK_TEST_DECL(LexArithmeticExpression)
         .line = 1,
         .column = 9,
         .pos = 9,
-        .i_val = 3,
+        .integer = 3,
     },
   };
 

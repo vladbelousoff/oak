@@ -16,34 +16,34 @@ OAK_TEST_DECL(LexString)
       oak_lexer_tokenize("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' "
                          "'" LONG_A "'");
 
-  static oak_token_attr_t attrs[] = {
+  static oak_expected_token_t attrs[] = {
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 1,
         .pos = 1,
-        .str = "hello",
+        .string = "hello",
     },
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 9,
         .pos = 9,
-        .str = "\n\t\r'\\",
+        .string = "\n\t\r'\\",
     },
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 22,
         .pos = 22,
-        .str = "\xCF\x80",
+        .string = "\xCF\x80",
     },
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 26,
         .pos = 26,
-        .str = LONG_A,
+        .string = LONG_A,
     },
   };
 

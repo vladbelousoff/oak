@@ -4,13 +4,13 @@ OAK_TEST_DECL(LexInteger)
 {
   oak_lexer_result_t* lexer = oak_lexer_tokenize("1000");
 
-  static oak_token_attr_t attrs[] = {
+  static oak_expected_token_t attrs[] = {
     {
         .kind = OAK_TOKEN_INT_NUM,
         .line = 1,
         .column = 1,
         .pos = 1,
-        .i_val = 1000,
+        .integer = 1000,
     },
   };
 

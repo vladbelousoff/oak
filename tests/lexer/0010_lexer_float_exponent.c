@@ -4,27 +4,27 @@ OAK_TEST_DECL(LexFloatExponent)
 {
   oak_lexer_result_t* lexer = oak_lexer_tokenize("1e2 3.0E1 0.5e3");
 
-  static oak_token_attr_t attrs[] = {
+  static oak_expected_token_t attrs[] = {
     {
         .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
         .column = 1,
         .pos = 1,
-        .f_val = 100.0f,
+        .floating = 100.0f,
     },
     {
         .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
         .column = 5,
         .pos = 5,
-        .f_val = 30.0f,
+        .floating = 30.0f,
     },
     {
         .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
         .column = 11,
         .pos = 11,
-        .f_val = 500.0f,
+        .floating = 500.0f,
     },
   };
 
