@@ -16,7 +16,7 @@ OAK_TEST_DECL(LexString)
       oak_lexer_tokenize("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' "
                          "'" LONG_A "'");
 
-  static oak_expected_token_t attrs[] = {
+  static oak_expected_token_t expected_tokens[] = {
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
@@ -47,8 +47,8 @@ OAK_TEST_DECL(LexString)
     },
   };
 
-  const size_t n = OAK_ARRAY_SIZE(attrs);
-  const oak_result_t result = oak_test_tokens(lexer, attrs, n);
+  const size_t n = OAK_ARRAY_SIZE(expected_tokens);
+  const oak_result_t result = oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);
   return result;
 }

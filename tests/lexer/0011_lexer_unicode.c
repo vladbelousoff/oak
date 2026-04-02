@@ -12,7 +12,7 @@ OAK_TEST_DECL(LexUnicode)
   oak_lexer_result_t* lexer = oak_lexer_tokenize(
       "caf\xC3\xA9 \xE5\x90\x8D = '\xE4\xB8\x96\xE7\x95\x8C'");
 
-  static oak_expected_token_t attrs[] = {
+  static oak_expected_token_t expected_tokens[] = {
     {
         .kind = OAK_TOKEN_IDENT,
         .line = 1,
@@ -42,8 +42,8 @@ OAK_TEST_DECL(LexUnicode)
     },
   };
 
-  const size_t n = OAK_ARRAY_SIZE(attrs);
-  const oak_result_t result = oak_test_tokens(lexer, attrs, n);
+  const size_t n = OAK_ARRAY_SIZE(expected_tokens);
+  const oak_result_t result = oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);
   return result;
 }
