@@ -5,6 +5,8 @@
 #include "oak_log.h"
 #include "oak_mem.h"
 
+#include <stdarg.h>
+
 // ReSharper disable once CppClassNeverUsed
 struct _oak_parser_result_t
 {
@@ -575,6 +577,24 @@ int oak_node_grammar_op_unary(const oak_node_kind_t kind)
 int oak_node_grammar_op_binary(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_BINARY;
+}
+void oak_ast_node_unpack_children(oak_ast_node_t* node, ...)
+{
+  oak_assert(node);
+  oak_assert(oak_grammar[node->kind].op != OAK_GRAMMAR_BINARY);
+  oak_assert(oak_grammar[node->kind].op != OAK_GRAMMAR_UNARY);
+
+  va_list args;
+  va_start(args, node);
+
+  oak_list_entry_t* entry;
+  oak_list_for_each(entry, &node->children)
+  {
+    oak_ast_node_t* child = oak_container_of(entry, oak_ast_node_t, link);
+    *va_arg(args, oak_ast_node_t**) = child;
+  }
+
+  va_end(args);
 }
 
 static oak_ast_node_t* parse_rule(oak_parser_t* p, oak_node_kind_t kind);

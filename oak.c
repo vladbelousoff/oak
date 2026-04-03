@@ -15,7 +15,17 @@ int main(const int argc, const char* argv[])
       "let x = -1000 + (10 - 7) * 10;\n");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
-  (void)oak_parser_root(result);
+  oak_ast_node_t* root = oak_parser_root(result);
+
+  struct
+  {
+    oak_ast_node_t* struct_decl;
+    oak_ast_node_t* enum_decl;
+    oak_ast_node_t* let_assignment;
+  } program;
+
+  oak_ast_node_unpack_children(
+      root, &program.struct_decl, &program.enum_decl, &program.let_assignment);
 
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);
