@@ -24,7 +24,7 @@ int main(const int argc, const char* argv[])
     oak_ast_node_t* let_assignment;
   } program;
 
-  oak_ast_node_unpack_children(
+  oak_ast_node_unpack(
       root, &program.struct_decl, &program.enum_decl, &program.let_assignment);
 
   oak_parser_cleanup(result);

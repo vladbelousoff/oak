@@ -92,4 +92,4 @@ void oak_parser_cleanup(oak_parser_result_t* result);
 int oak_node_grammar_op_unary(oak_node_kind_t kind);
 int oak_node_grammar_op_binary(oak_node_kind_t kind);
 
-void oak_ast_node_unpack_children(oak_ast_node_t* node, ...);
+void oak_ast_node_unpack(oak_ast_node_t* node, ...);

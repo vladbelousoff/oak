@@ -578,7 +578,7 @@ int oak_node_grammar_op_binary(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_BINARY;
 }
-void oak_ast_node_unpack_children(oak_ast_node_t* node, ...)
+void oak_ast_node_unpack(oak_ast_node_t* node, ...)
 {
   oak_assert(node);
   oak_assert(oak_grammar[node->kind].op != OAK_GRAMMAR_BINARY);
