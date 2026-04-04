@@ -9,11 +9,19 @@
 #define oak_debug_break() raise(SIGTRAP)
 #endif
 
+#ifdef OAK_DEBUG_LOGGING
 #define oak_assert(condition)                                                  \
   if (!(condition))                                                            \
   {                                                                            \
     oak_debug_break();                                                         \
   }
+#else
+#define oak_assert(condition)                                                  \
+  do                                                                           \
+  {                                                                            \
+    (void)(condition);                                                         \
+  } while (0)
+#endif
 
 const char* oak_filename(const char* path);
 

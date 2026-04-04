@@ -21,6 +21,7 @@ set(OAK_CORE_SOURCES
         ${OAK_SRC_DIR}/oak_lexer.c
         ${OAK_SRC_DIR}/oak_token.c
         ${OAK_SRC_DIR}/oak_parser.c
+        ${OAK_SRC_DIR}/oak_value.c
 )
 
 # Tests
@@ -46,10 +47,7 @@ target_include_directories(liboak
         ${OAK_SRC_DIR}
 )
 
-target_compile_definitions(liboak
-        PRIVATE
-        ${OAK_DEBUG_DEFINES}
-)
+target_compile_definitions(liboak PRIVATE ${OAK_DEBUG_DEFINES})
 
 # Executable
 add_executable(oak ${OAK_APP_SOURCES})
