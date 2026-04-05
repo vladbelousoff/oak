@@ -47,7 +47,7 @@ typedef enum
   OAK_NODE_KIND_STMT_IF,
   OAK_NODE_KIND_ELSE_BLOCK,
   OAK_NODE_KIND_STMT_WHILE,
-  OAK_NODE_KIND_STMT_FOR,
+  OAK_NODE_KIND_STMT_FOR_FROM,
   OAK_NODE_KIND_STMT_BREAK,
   OAK_NODE_KIND_STMT_CONTINUE,
   OAK_NODE_KIND_STMT_ADD_ASSIGN,
@@ -92,4 +92,4 @@ void oak_parser_cleanup(oak_parser_result_t* result);
 int oak_node_grammar_op_unary(oak_node_kind_t kind);
 int oak_node_grammar_op_binary(oak_node_kind_t kind);
 
-void oak_ast_node_unpack(oak_ast_node_t* node, ...);
+void oak_ast_node_unpack(const oak_ast_node_t* node, ...);

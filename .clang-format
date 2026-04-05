@@ -17,3 +17,5 @@ AllowShortFunctionsOnASingleLine: None
 AllowShortBlocksOnASingleLine: Never
 
 Cpp11BracedListStyle: false
+
+IndentCaseLabels: true

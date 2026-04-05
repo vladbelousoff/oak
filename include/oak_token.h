@@ -1,6 +1,7 @@
 #pragma once
 
 #include "oak_list.h"
+#include "oak_log.h"
 
 typedef enum _oak_token_kind_t
 {
@@ -76,6 +77,23 @@ typedef struct _oak_token_t
   size_t size;
   char buf[0];
 } oak_token_t;
+
+static int oak_token_line(const oak_token_t* token)
+{
+  return token->line;
+}
+
+static int oak_token_as_i32(const oak_token_t* token)
+{
+  oak_assert(token->kind == OAK_TOKEN_INT_NUM);
+  return *(int*)token->buf;
+}
+
+static float oak_token_as_f32(const oak_token_t* token)
+{
+  oak_assert(token->kind == OAK_TOKEN_FLOAT_NUM);
+  return *(float*)token->buf;
+}
 
 oak_token_kind_t oak_ident_kind(const char* ident, size_t length);
 const char* oak_token_name(oak_token_kind_t token_kind);

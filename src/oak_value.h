@@ -57,36 +57,36 @@ typedef struct
   } as;
 } oak_value_t;
 
-static inline oak_value_t oak_make_bool(const int b)
-{
-  return (oak_value_t){
-    .type = OAK_VAL_BOOL,
-    .as.boolean = b,
-  };
-}
+#define OAK_VALUE_BOOL(_b)                                                     \
+  ((oak_value_t){                                                              \
+      .type = OAK_VAL_BOOL,                                                    \
+      .as.boolean = (_b),                                                      \
+  })
 
-static inline oak_value_t oak_make_i32(const int i)
-{
-  return (oak_value_t){
-    .type = OAK_VAL_NUMBER,
-    .as.number =
-        (oak_number_t){
-            .integer = i,
-        },
-  };
-}
+#define OAK_VALUE_I32(_i)                                                      \
+  ((oak_value_t){                                                              \
+      .type = OAK_VAL_NUMBER,                                                  \
+      .as.number =                                                             \
+          (oak_number_t){                                                      \
+              .integer = (_i),                                                 \
+          },                                                                   \
+  })
 
-static inline oak_value_t oak_make_f32(const float f)
-{
-  return (oak_value_t){
-    .type = OAK_VAL_NUMBER,
-    .as.number =
-        (oak_number_t){
-            .flags = OAK_NUMBER_FLAG_FLOAT,
-            .floating = f,
-        },
-  };
-}
+#define OAK_VALUE_F32(_f)                                                      \
+  ((oak_value_t){                                                              \
+      .type = OAK_VAL_NUMBER,                                                  \
+      .as.number =                                                             \
+          (oak_number_t){                                                      \
+              .flags = OAK_NUMBER_FLAG_FLOAT,                                  \
+              .floating = (_f),                                                \
+          },                                                                   \
+  })
+
+#define OAK_VALUE_OBJ(_obj)                                                    \
+  ((oak_value_t){                                                              \
+      .type = OAK_VAL_OBJ,                                                     \
+      .as.obj = (oak_obj_t*)(_obj),                                            \
+  })
 
 oak_obj_string_t* oak_make_string(const char* chars, size_t length);
 
@@ -122,14 +122,6 @@ static inline int oak_is_i32(const oak_value_t value)
 static inline int oak_is_f32(const oak_value_t value)
 {
   return oak_is_number(value) && value.as.number.flags & OAK_NUMBER_FLAG_FLOAT;
-}
-
-static inline oak_value_t oak_value_obj(oak_obj_t* obj)
-{
-  return (oak_value_t){
-    .type = OAK_VAL_OBJ,
-    .as.obj = obj,
-  };
 }
 
 static inline int oak_as_bool(const oak_value_t value)

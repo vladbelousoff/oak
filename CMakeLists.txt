@@ -22,6 +22,9 @@ set(OAK_CORE_SOURCES
         ${OAK_SRC_DIR}/oak_token.c
         ${OAK_SRC_DIR}/oak_parser.c
         ${OAK_SRC_DIR}/oak_value.c
+        ${OAK_SRC_DIR}/oak_chunk.c
+        ${OAK_SRC_DIR}/oak_compiler.c
+        ${OAK_SRC_DIR}/oak_vm.c
 )
 
 # Tests

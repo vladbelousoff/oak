@@ -7,7 +7,7 @@ OAK_TEST_DECL(ParseForStmt)
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_STMT);
   const oak_ast_node_t* root = oak_parser_root(result);
-  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_STMT_FOR);
+  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_STMT_FOR_FROM);
 
   /*
      Expected shape:

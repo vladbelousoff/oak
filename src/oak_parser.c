@@ -295,14 +295,14 @@ static oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_IDENT,
   },
-  // STMT -> STMT_IF | STMT_WHILE | STMT_FOR | STMT_BREAK | STMT_CONTINUE
+  // STMT -> STMT_IF | STMT_WHILE | STMT_FOR_FROM | STMT_BREAK | STMT_CONTINUE
   //       | STMT_RETURN | STMT_LET_ASSIGNMENT | STMT_ASSIGNMENT | STMT_EXPR
   [OAK_NODE_KIND_STMT] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_KIND_STMT_IF,
       OAK_NODE_KIND_STMT_WHILE,
-      OAK_NODE_KIND_STMT_FOR,
+      OAK_NODE_KIND_STMT_FOR_FROM,
       OAK_NODE_KIND_STMT_BREAK,
       OAK_NODE_KIND_STMT_CONTINUE,
       OAK_NODE_KIND_STMT_RETURN,
@@ -372,6 +372,7 @@ static oak_grammar_entry_t oak_grammar[] = {
   },
   // STMT_ASSIGNMENT -> EXPR '=' EXPR ';'
   [OAK_NODE_KIND_STMT_ASSIGNMENT] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_ASSIGN | OAK_RULE_TOKEN,
@@ -381,6 +382,7 @@ static oak_grammar_entry_t oak_grammar[] = {
   },
   // STMT_LET_ASSIGNMENT -> 'let' STMT_ASSIGNMENT
   [OAK_NODE_KIND_STMT_LET_ASSIGNMENT] = {
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_LET | OAK_RULE_TOKEN,
       OAK_NODE_KIND_STMT_ASSIGNMENT,
@@ -480,8 +482,8 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // STMT_FOR -> 'for' IDENT 'from' EXPR 'to' EXPR '{' STMT* '}'
-  [OAK_NODE_KIND_STMT_FOR] = {
+  // STMT_FOR_FROM -> 'for' IDENT 'from' EXPR 'to' EXPR '{' STMT* '}'
+  [OAK_NODE_KIND_STMT_FOR_FROM] = {
     .rules = {
       OAK_TOKEN_FOR | OAK_RULE_TOKEN,
       OAK_NODE_KIND_IDENT,
@@ -578,7 +580,7 @@ int oak_node_grammar_op_binary(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_BINARY;
 }
-void oak_ast_node_unpack(oak_ast_node_t* node, ...)
+void oak_ast_node_unpack(const oak_ast_node_t* node, ...)
 {
   oak_assert(node);
   oak_assert(oak_grammar[node->kind].op != OAK_GRAMMAR_BINARY);
@@ -824,16 +826,16 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
       p->curr = p->curr->next;
       switch (r->kind)
       {
-      case OAK_PRATT_GROUP:
-        lhs = parse_pratt(p, kind, 0);
-        if (!lhs || !try_skip_token(p, r->close_token))
-          return NULL;
-        break;
-      default:
-        lhs = parse_pratt_unary(p, kind, r);
-        if (!lhs)
-          return NULL;
-        break;
+        case OAK_PRATT_GROUP:
+          lhs = parse_pratt(p, kind, 0);
+          if (!lhs || !try_skip_token(p, r->close_token))
+            return NULL;
+          break;
+        default:
+          lhs = parse_pratt_unary(p, kind, r);
+          if (!lhs)
+            return NULL;
+          break;
       }
     }
   }
@@ -860,53 +862,56 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
 
     switch (rule->kind)
     {
-    case OAK_PRATT_CALL:
-    {
-      oak_ast_node_t* call = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
-      if (!call)
-        return NULL;
-      call->kind = rule->node_kind;
-      oak_list_init(&call->children);
-      oak_list_add_tail(&call->children, &lhs->link);
-
-      while (p->curr != p->head)
+      case OAK_PRATT_CALL:
       {
-        const oak_token_t* peek = oak_container_of(p->curr, oak_token_t, link);
-        if (peek->kind == rule->close_token)
-          break;
-        oak_ast_node_t* arg = parse_rule(p, rule->arg_rule);
-        if (!arg)
+        oak_ast_node_t* call =
+            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+        if (!call)
           return NULL;
-        oak_list_add_tail(&call->children, &arg->link);
+        call->kind = rule->node_kind;
+        oak_list_init(&call->children);
+        oak_list_add_tail(&call->children, &lhs->link);
+
+        while (p->curr != p->head)
+        {
+          const oak_token_t* peek =
+              oak_container_of(p->curr, oak_token_t, link);
+          if (peek->kind == rule->close_token)
+            break;
+          oak_ast_node_t* arg = parse_rule(p, rule->arg_rule);
+          if (!arg)
+            return NULL;
+          oak_list_add_tail(&call->children, &arg->link);
+        }
+
+        if (!try_skip_token(p, rule->close_token))
+          return NULL;
+
+        lhs = call;
+        break;
       }
-
-      if (!try_skip_token(p, rule->close_token))
-        return NULL;
-
-      lhs = call;
-      break;
-    }
-    case OAK_PRATT_INDEX:
-    {
-      oak_ast_node_t* index_expr = parse_pratt(p, kind, 0);
-      if (!index_expr)
-        return NULL;
-      if (!try_skip_token(p, rule->close_token))
-        return NULL;
-      oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
-      if (!node)
-        return NULL;
-      node->kind = rule->node_kind;
-      node->lhs = lhs;
-      node->rhs = index_expr;
-      lhs = node;
-      break;
-    }
-    default:
-      lhs = parse_pratt_binary(p, kind, rule, lhs);
-      if (!lhs)
-        return NULL;
-      break;
+      case OAK_PRATT_INDEX:
+      {
+        oak_ast_node_t* index_expr = parse_pratt(p, kind, 0);
+        if (!index_expr)
+          return NULL;
+        if (!try_skip_token(p, rule->close_token))
+          return NULL;
+        oak_ast_node_t* node =
+            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+        if (!node)
+          return NULL;
+        node->kind = rule->node_kind;
+        node->lhs = lhs;
+        node->rhs = index_expr;
+        lhs = node;
+        break;
+      }
+      default:
+        lhs = parse_pratt_binary(p, kind, rule, lhs);
+        if (!lhs)
+          return NULL;
+        break;
     }
   }
 
@@ -922,16 +927,16 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
 
   switch (oak_grammar[kind].op)
   {
-  case OAK_GRAMMAR_TOKEN:
-    return parse_token(p, kind);
-  case OAK_GRAMMAR_CHOICE:
-    return parse_choice(p, kind);
-  case OAK_GRAMMAR_PRATT:
-    return parse_pratt(p, kind, 0);
-  case OAK_GRAMMAR_BINARY:
-  case OAK_GRAMMAR_UNARY:
-  case OAK_GRAMMAR_SEQUENCE:
-    return parse_rules(p, kind);
+    case OAK_GRAMMAR_TOKEN:
+      return parse_token(p, kind);
+    case OAK_GRAMMAR_CHOICE:
+      return parse_choice(p, kind);
+    case OAK_GRAMMAR_PRATT:
+      return parse_pratt(p, kind, 0);
+    case OAK_GRAMMAR_BINARY:
+    case OAK_GRAMMAR_UNARY:
+    case OAK_GRAMMAR_SEQUENCE:
+      return parse_rules(p, kind);
   }
   return NULL;
 }
