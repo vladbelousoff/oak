@@ -14,7 +14,8 @@ OAK_TEST_DECL(ParseIfNoElse)
          BINARY_EQ
            IDENT("x")
            INT(1)
-         STMT_ASSIGNMENT [IDENT("y"), INT(2)]
+         BLOCK
+           STMT_ASSIGNMENT [IDENT("y"), INT(2)]
   */
 
   OAK_CHECK_CHILD_COUNT(root, 2);
@@ -26,7 +27,10 @@ OAK_TEST_DECL(ParseIfNoElse)
   OAK_CHECK_NODE_KIND(cond_lhs, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(cond_lhs, "x");
 
-  const oak_ast_node_t* then_stmt = oak_test_ast_child(root, 1);
+  const oak_ast_node_t* then_block = oak_test_ast_child(root, 1);
+  OAK_CHECK_NODE_KIND(then_block, OAK_NODE_KIND_BLOCK);
+  OAK_CHECK_CHILD_COUNT(then_block, 1);
+  const oak_ast_node_t* then_stmt = oak_test_ast_child(then_block, 0);
   OAK_CHECK_NODE_KIND(then_stmt, OAK_NODE_KIND_STMT_ASSIGNMENT);
 
   oak_parser_cleanup(result);

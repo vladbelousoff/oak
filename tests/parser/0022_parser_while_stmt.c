@@ -10,15 +10,16 @@ OAK_TEST_DECL(ParseWhileStmt)
 
   /*
      Expected shape:
-       STMT_WHILE
+       STMT_WHILE (binary: lhs=cond, rhs=block)
          BINARY_LESS
            IDENT("x")
            INT(10)
-         STMT_ASSIGNMENT
-           IDENT("x")
-           BINARY_ADD
+         BLOCK
+           STMT_ASSIGNMENT
              IDENT("x")
-             INT(1)
+             BINARY_ADD
+               IDENT("x")
+               INT(1)
   */
 
   OAK_CHECK_CHILD_COUNT(root, 2);
@@ -30,7 +31,11 @@ OAK_TEST_DECL(ParseWhileStmt)
   OAK_CHECK_NODE_KIND(cond_lhs, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(cond_lhs, "x");
 
-  const oak_ast_node_t* body_stmt = oak_test_ast_child(root, 1);
+  const oak_ast_node_t* body = oak_test_ast_child(root, 1);
+  OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);
+  OAK_CHECK_CHILD_COUNT(body, 1);
+
+  const oak_ast_node_t* body_stmt = oak_test_ast_child(body, 0);
   OAK_CHECK_NODE_KIND(body_stmt, OAK_NODE_KIND_STMT_ASSIGNMENT);
 
   const oak_ast_node_t* assign_lhs = oak_test_ast_child(body_stmt, 0);

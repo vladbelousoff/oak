@@ -15,11 +15,12 @@ OAK_TEST_DECL(ParseTypeArray)
            IDENT("items")
            TYPE_ARRAY (unary)
              child: IDENT("int")
+           BLOCK (empty)
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
   OAK_CHECK_NODE_KIND(decl, OAK_NODE_KIND_FN_DECL);
-  OAK_CHECK_CHILD_COUNT(decl, 2);
+  OAK_CHECK_CHILD_COUNT(decl, 3);
 
   const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
   OAK_CHECK_NODE_KIND(name, OAK_NODE_KIND_IDENT);

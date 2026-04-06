@@ -388,7 +388,7 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_STMT_ASSIGNMENT,
     },
   },
-  // FN_DECL -> 'fn' FN_RECEIVER? IDENT '(' FN_PARAM* ')' ('->' TYPE_NAME)? '{' STMT* '}'
+  // FN_DECL -> 'fn' FN_RECEIVER? IDENT '(' FN_PARAM* ')' ('->' TYPE_NAME)? BLOCK
   [OAK_NODE_KIND_FN_DECL] = {
     .rules = {
       OAK_TOKEN_FN | OAK_RULE_TOKEN,
@@ -399,9 +399,7 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,
       OAK_TOKEN_ARROW | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
       OAK_NODE_KIND_TYPE_NAME | OAK_RULE_OPTIONAL,
-      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
-      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_BLOCK,
     },
   },
   // FN_RECEIVER -> IDENT '.'
@@ -461,28 +459,25 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // STMT_IF -> 'if' EXPR '{' STMT* '}' ELSE_BLOCK?
+  // STMT_IF -> 'if' EXPR BLOCK ELSE_BLOCK?
   [OAK_NODE_KIND_STMT_IF] = {
     .rules = {
       OAK_TOKEN_IF | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
-      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
-      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_BLOCK,
       OAK_NODE_KIND_ELSE_BLOCK | OAK_RULE_OPTIONAL,
     },
   },
-  // STMT_WHILE -> 'while' EXPR '{' STMT* '}'
+  // STMT_WHILE -> 'while' EXPR BLOCK
   [OAK_NODE_KIND_STMT_WHILE] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_WHILE | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
-      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
-      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_BLOCK,
     },
   },
-  // STMT_FOR_FROM -> 'for' IDENT 'from' EXPR 'to' EXPR '{' STMT* '}'
+  // STMT_FOR_FROM -> 'for' IDENT 'from' EXPR 'to' EXPR BLOCK
   [OAK_NODE_KIND_STMT_FOR_FROM] = {
     .rules = {
       OAK_TOKEN_FOR | OAK_RULE_TOKEN,
@@ -491,9 +486,7 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_TO | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
-      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
-      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_BLOCK,
     },
   },
   // STMT_BREAK -> 'break' ';'
@@ -560,10 +553,17 @@ static oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // ELSE_BLOCK -> 'else' '{' STMT* '}'
+  // ELSE_BLOCK -> 'else' BLOCK
   [OAK_NODE_KIND_ELSE_BLOCK] = {
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_ELSE | OAK_RULE_TOKEN,
+      OAK_NODE_KIND_BLOCK,
+    },
+  },
+  // BLOCK -> '{' STMT* '}'
+  [OAK_NODE_KIND_BLOCK] = {
+    .rules = {
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
       OAK_NODE_KIND_STMT | OAK_RULE_REPEAT,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,

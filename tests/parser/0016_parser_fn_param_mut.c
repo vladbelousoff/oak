@@ -16,9 +16,10 @@ OAK_TEST_DECL(ParseFnParamMut)
          FN_PARAM [MUT_KEYWORD, IDENT("x"), IDENT("int")]
          FN_PARAM [IDENT("y"), IDENT("int")]
          TYPE_NAME("int")
-         STMT_ASSIGNMENT
-           IDENT("x")
-           INT(1)
+         BLOCK
+           STMT_ASSIGNMENT
+             IDENT("x")
+             INT(1)
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
@@ -50,7 +51,10 @@ OAK_TEST_DECL(ParseFnParamMut)
   OAK_CHECK_NODE_KIND(ret_type, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(ret_type, "int");
 
-  const oak_ast_node_t* stmt = oak_test_ast_child(decl, 4);
+  const oak_ast_node_t* body = oak_test_ast_child(decl, 4);
+  OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);
+  OAK_CHECK_CHILD_COUNT(body, 1);
+  const oak_ast_node_t* stmt = oak_test_ast_child(body, 0);
   OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_ASSIGNMENT);
 
   oak_parser_cleanup(result);

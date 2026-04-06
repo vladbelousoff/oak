@@ -52,6 +52,11 @@ static inline uint16_t vm_read(oak_vm_t* vm, const int n)
   return val;
 }
 
+static inline float coerce_f32(const oak_value_t v)
+{
+  return oak_is_f32(v) ? oak_as_f32(v) : (float)oak_as_i32(v);
+}
+
 static oak_vm_result_t numeric_binary(oak_vm_t* vm,
                                       const uint8_t op,
                                       const oak_value_t a,
@@ -97,8 +102,8 @@ static oak_vm_result_t numeric_binary(oak_vm_t* vm,
 
   if ((oak_is_i32(a) || oak_is_f32(a)) && (oak_is_i32(b) || oak_is_f32(b)))
   {
-    const float fa = oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
-    const float fb = oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
+    const float fa = coerce_f32(a);
+    const float fb = coerce_f32(b);
 
     float result;
     switch (op)
@@ -147,8 +152,8 @@ static oak_vm_result_t numeric_compare(oak_vm_t* vm,
     return OAK_VM_RUNTIME_ERROR;
   }
 
-  const float fa = oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
-  const float fb = oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
+  const float fa = coerce_f32(a);
+  const float fb = coerce_f32(b);
 
   int result;
   switch (op)
@@ -221,29 +226,6 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
         break;
       }
       case OAK_OP_ADD:
-      {
-        const oak_value_t b = vm_pop(vm);
-        const oak_value_t a = vm_pop(vm);
-
-        if (oak_is_string(a) && oak_is_string(b))
-        {
-          oak_obj_string_t* result =
-              oak_string_concat(oak_as_string(a), oak_as_string(b));
-          const oak_value_t value = OAK_VALUE_OBJ(result);
-          vm_push(vm, value);
-          oak_obj_decref(&result->obj);
-          oak_value_decref(a);
-          oak_value_decref(b);
-          break;
-        }
-
-        const oak_vm_result_t r = numeric_binary(vm, OAK_OP_ADD, a, b);
-        oak_value_decref(a);
-        oak_value_decref(b);
-        if (r != OAK_VM_OK)
-          return r;
-        break;
-      }
       case OAK_OP_SUB:
       case OAK_OP_MUL:
       case OAK_OP_DIV:
@@ -251,6 +233,18 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       {
         const oak_value_t b = vm_pop(vm);
         const oak_value_t a = vm_pop(vm);
+
+        if (instruction == OAK_OP_ADD && oak_is_string(a) && oak_is_string(b))
+        {
+          oak_obj_string_t* result =
+              oak_string_concat(oak_as_string(a), oak_as_string(b));
+          vm_push(vm, OAK_VALUE_OBJ(result));
+          oak_obj_decref(&result->obj);
+          oak_value_decref(a);
+          oak_value_decref(b);
+          break;
+        }
+
         const oak_vm_result_t r = numeric_binary(vm, instruction, a, b);
         oak_value_decref(a);
         oak_value_decref(b);
@@ -286,19 +280,12 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
         break;
       }
       case OAK_OP_EQ:
-      {
-        oak_value_t b = vm_pop(vm);
-        oak_value_t a = vm_pop(vm);
-        vm_push(vm, OAK_VALUE_BOOL(oak_value_equal(a, b)));
-        oak_value_decref(a);
-        oak_value_decref(b);
-        break;
-      }
       case OAK_OP_NEQ:
       {
         oak_value_t b = vm_pop(vm);
         oak_value_t a = vm_pop(vm);
-        vm_push(vm, OAK_VALUE_BOOL(!oak_value_equal(a, b)));
+        int eq = oak_value_equal(a, b);
+        vm_push(vm, OAK_VALUE_BOOL(instruction == OAK_OP_EQ ? eq : !eq));
         oak_value_decref(a);
         oak_value_decref(b);
         break;

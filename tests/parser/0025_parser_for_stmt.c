@@ -11,15 +11,16 @@ OAK_TEST_DECL(ParseForStmt)
 
   /*
      Expected shape:
-       STMT_FOR
+       STMT_FOR_FROM
          IDENT("i")
          INT(0)
          INT(10)
-         STMT_ASSIGNMENT
-           IDENT("x")
-           BINARY_ADD
+         BLOCK
+           STMT_ASSIGNMENT
              IDENT("x")
-             INT(1)
+             BINARY_ADD
+               IDENT("x")
+               INT(1)
   */
 
   OAK_CHECK_CHILD_COUNT(root, 4);
@@ -36,7 +37,11 @@ OAK_TEST_DECL(ParseForStmt)
   OAK_CHECK_NODE_KIND(to_expr, OAK_NODE_KIND_INT);
   OAK_CHECK_INT_VAL(to_expr, 10);
 
-  const oak_ast_node_t* body_stmt = oak_test_ast_child(root, 3);
+  const oak_ast_node_t* body = oak_test_ast_child(root, 3);
+  OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);
+  OAK_CHECK_CHILD_COUNT(body, 1);
+
+  const oak_ast_node_t* body_stmt = oak_test_ast_child(body, 0);
   OAK_CHECK_NODE_KIND(body_stmt, OAK_NODE_KIND_STMT_ASSIGNMENT);
 
   const oak_ast_node_t* assign_lhs = oak_test_ast_child(body_stmt, 0);

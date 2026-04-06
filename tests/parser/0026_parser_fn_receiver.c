@@ -16,9 +16,10 @@ OAK_TEST_DECL(ParseFnReceiver)
            IDENT("Vec")
          IDENT("push")
          FN_PARAM [IDENT("val"), IDENT("int")]
-         STMT_ASSIGNMENT
-           IDENT("x")
-           IDENT("val")
+         BLOCK
+           STMT_ASSIGNMENT
+             IDENT("x")
+             IDENT("val")
   */
 
   const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
@@ -44,7 +45,11 @@ OAK_TEST_DECL(ParseFnReceiver)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param, 1), OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(param, 1), "int");
 
-  const oak_ast_node_t* stmt = oak_test_ast_child(decl, 3);
+  const oak_ast_node_t* body = oak_test_ast_child(decl, 3);
+  OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);
+  OAK_CHECK_CHILD_COUNT(body, 1);
+
+  const oak_ast_node_t* stmt = oak_test_ast_child(body, 0);
   OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_ASSIGNMENT);
   OAK_CHECK_CHILD_COUNT(stmt, 2);
 
