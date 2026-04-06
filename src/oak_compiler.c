@@ -13,6 +13,7 @@ typedef struct
   const char* name;
   size_t length;
   int slot;
+  int mutable;
 } oak_local_t;
 
 typedef struct oak_loop_ctx_t
@@ -129,7 +130,8 @@ resolve_local(const oak_compiler_t* c, const char* name, const size_t length)
 static void add_local(oak_compiler_t* c,
                       const char* name,
                       const size_t length,
-                      const int slot)
+                      const int slot,
+                      const int mutable)
 {
   if (c->local_count >= OAK_MAX_LOCALS)
   {
@@ -140,6 +142,19 @@ static void add_local(oak_compiler_t* c,
   local->name = name;
   local->length = length;
   local->slot = slot;
+  local->mutable = mutable;
+}
+
+static int
+is_local_mutable(const oak_compiler_t* c, const char* name, const size_t length)
+{
+  for (int i = c->local_count - 1; i >= 0; --i)
+  {
+    const oak_local_t* local = &c->locals[i];
+    if (local->length == length && memcmp(local->name, name, length) == 0)
+      return local->mutable;
+  }
+  return 0;
 }
 
 static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node);
@@ -310,8 +325,21 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     }
     case OAK_NODE_KIND_STMT_LET_ASSIGNMENT:
     {
-      const oak_ast_node_t* assign = node->child;
-      if (!assign || assign->kind != OAK_NODE_KIND_STMT_ASSIGNMENT)
+      int is_mut = 0;
+      const oak_ast_node_t* assign = NULL;
+
+      oak_list_entry_t* pos;
+      oak_list_for_each(pos, &node->children)
+      {
+        const oak_ast_node_t* ch =
+            oak_container_of(pos, oak_ast_node_t, link);
+        if (ch->kind == OAK_NODE_KIND_MUT_KEYWORD)
+          is_mut = 1;
+        else if (ch->kind == OAK_NODE_KIND_STMT_ASSIGNMENT)
+          assign = ch;
+      }
+
+      if (!assign)
       {
         compiler_error(c, "malformed let assignment");
         return;
@@ -323,7 +351,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       compile_node(c, rhs);
       const char* name = ident->token->buf;
       const size_t size = ident->token->size;
-      add_local(c, name, size, c->stack_depth - 1);
+      add_local(c, name, size, c->stack_depth - 1, is_mut);
 
       break;
     }
@@ -342,6 +370,12 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       if (slot < 0)
       {
         compiler_error(c, "undefined variable in assignment");
+        return;
+      }
+
+      if (!is_local_mutable(c, lhs->token->buf, lhs->token->size))
+      {
+        compiler_error(c, "cannot assign to immutable variable");
         return;
       }
 
@@ -369,6 +403,12 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       if (slot < 0)
       {
         compiler_error(c, "undefined variable in compound assignment");
+        return;
+      }
+
+      if (!is_local_mutable(c, lhs->token->buf, lhs->token->size))
+      {
+        compiler_error(c, "cannot assign to immutable variable");
         return;
       }
 
@@ -501,7 +541,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       compile_node(c, from_expr);
       const int i_slot = c->stack_depth - 1;
-      add_local(c, ident->token->buf, ident->token->size, i_slot);
+      add_local(c, ident->token->buf, ident->token->size, i_slot, 1);
 
       compile_node(c, to_expr);
       const int limit_slot = c->stack_depth - 1;
