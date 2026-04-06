@@ -3,6 +3,7 @@
 #include "oak_log.h"
 #include "oak_refcount.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 typedef enum

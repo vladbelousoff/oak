@@ -1,0 +1,9 @@
+let mut a = 0;
+let mut b = 1;
+
+for i from 0 to 20 {
+  print(v = a);
+  let mut temp = a + b;
+  a = b;
+  b = temp;
+}

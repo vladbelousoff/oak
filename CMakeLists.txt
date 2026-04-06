@@ -94,3 +94,13 @@ foreach (test_src ${OAK_TEST_SOURCES})
 
     add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach ()
+
+# Script tests
+file(GLOB OAK_SCRIPT_TESTS ${OAK_TESTS_DIR}/scripts/*.oak)
+
+foreach (script ${OAK_SCRIPT_TESTS})
+    get_filename_component(script_name ${script} NAME_WE)
+    set(test_name "script_${script_name}")
+
+    add_test(NAME ${test_name} COMMAND oak ${script})
+endforeach ()

@@ -1,0 +1,33 @@
+let mut i = 0;
+while i < 5 {
+  print(v = i);
+  i += 1;
+}
+
+let mut sum = 0;
+let mut n = 1;
+while n <= 10 {
+  sum += n;
+  n += 1;
+}
+print(v = sum);
+
+let mut count = 0;
+while count < 100 {
+  if count == 5 {
+    break;
+  }
+  count += 1;
+}
+print(v = count);
+
+let mut j = 0;
+let mut skipped = 0;
+while j < 10 {
+  j += 1;
+  if j % 2 == 0 {
+    continue;
+  }
+  skipped += 1;
+}
+print(v = skipped);

@@ -1,0 +1,15 @@
+for i from 1 to 31 {
+  if i % 15 == 0 {
+    print(v = 'fizzbuzz');
+  } else {
+    if i % 3 == 0 {
+      print(v = 'fizz');
+    } else {
+      if i % 5 == 0 {
+        print(v = 'buzz');
+      } else {
+        print(v = i);
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+let a = 2 + 3;
+print(v = a);
+
+let b = 10 - 4;
+print(v = b);
+
+let c = 6 * 7;
+print(v = c);
+
+let d = 20 / 4;
+print(v = d);
+
+let e = 17 % 5;
+print(v = e);
+
+let f = 2 + 3 * 4;
+print(v = f);
+
+let g = (2 + 3) * 4;
+print(v = g);
+
+let h = -10 + 3;
+print(v = h);
+
+let i = 1.5 + 2.5;
+print(v = i);
+
+let j = 3.0 * 2.0;
+print(v = j);
+
+let k = 10.0 / 4.0;
+print(v = k);
