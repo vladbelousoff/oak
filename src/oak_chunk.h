@@ -8,6 +8,8 @@ typedef enum
 {
   OAK_OP_HALT,
   OAK_OP_CONSTANT,
+  OAK_OP_TRUE,
+  OAK_OP_FALSE,
   OAK_OP_POP,
   OAK_OP_GET_LOCAL,
   OAK_OP_SET_LOCAL,

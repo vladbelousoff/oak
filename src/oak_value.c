@@ -5,12 +5,12 @@
 
 #include <string.h>
 
-static void oak_obj_incref(oak_obj_t* obj)
+void oak_obj_incref(oak_obj_t* obj)
 {
   oak_refcount_inc(&obj->refcount);
 }
 
-static void oak_obj_decref(oak_obj_t* obj)
+void oak_obj_decref(oak_obj_t* obj)
 {
   if (oak_refcount_dec(&obj->refcount))
     oak_free(obj, OAK_SRC_LOC);
@@ -60,14 +60,14 @@ int oak_is_truthy(const oak_value_t value)
 {
   switch (value.type)
   {
-  case OAK_VAL_BOOL:
-    return oak_as_bool(value);
-  case OAK_VAL_NUMBER:
-    if (oak_is_f32(value))
-      return oak_as_f32(value) != 0.0f;
-    return oak_as_i32(value) != 0;
-  case OAK_VAL_OBJ:
-    return 1;
+    case OAK_VAL_BOOL:
+      return oak_as_bool(value);
+    case OAK_VAL_NUMBER:
+      if (oak_is_f32(value))
+        return oak_as_f32(value) != 0.0f;
+      return oak_as_i32(value) != 0;
+    case OAK_VAL_OBJ:
+      return 1;
   }
 
   return 0;
@@ -80,25 +80,25 @@ int oak_value_equal(const oak_value_t a, const oak_value_t b)
 
   switch (a.type)
   {
-  case OAK_VAL_BOOL:
-    return oak_as_bool(a) == oak_as_bool(b);
-  case OAK_VAL_NUMBER:
-    if (a.as.number.flags != b.as.number.flags)
-      return 0;
-    // it works for floats too
-    return a.as.number.integer == b.as.number.integer;
-  case OAK_VAL_OBJ:
-    if (oak_is_string(a) && oak_is_string(b))
-    {
-      const oak_obj_string_t* str_a = oak_as_string(a);
-      const oak_obj_string_t* str_b = oak_as_string(b);
-      if (str_a->length != str_b->length)
+    case OAK_VAL_BOOL:
+      return oak_as_bool(a) == oak_as_bool(b);
+    case OAK_VAL_NUMBER:
+      if (a.as.number.flags != b.as.number.flags)
         return 0;
-      if (str_a->hash != str_b->hash)
-        return 0;
-      return memcmp(str_a->chars, str_b->chars, str_a->length) == 0;
-    }
-    return oak_as_obj(a) == oak_as_obj(b);
+      // it works for floats too
+      return a.as.number.integer == b.as.number.integer;
+    case OAK_VAL_OBJ:
+      if (oak_is_string(a) && oak_is_string(b))
+      {
+        const oak_obj_string_t* str_a = oak_as_string(a);
+        const oak_obj_string_t* str_b = oak_as_string(b);
+        if (str_a->length != str_b->length)
+          return 0;
+        if (str_a->hash != str_b->hash)
+          return 0;
+        return memcmp(str_a->chars, str_b->chars, str_a->length) == 0;
+      }
+      return oak_as_obj(a) == oak_as_obj(b);
   }
 
   return 0;
@@ -120,20 +120,20 @@ void oak_value_print(const oak_value_t value)
 {
   switch (value.type)
   {
-  case OAK_VAL_BOOL:
-    oak_log(OAK_LOG_INF, "%s", oak_as_bool(value) ? "true" : "false");
-    break;
-  case OAK_VAL_NUMBER:
-    if (oak_is_f32(value))
-      oak_log(OAK_LOG_INF, "%f", oak_as_f32(value));
-    else
-      oak_log(OAK_LOG_INF, "%d", oak_as_i32(value));
-    break;
-  case OAK_VAL_OBJ:
-    if (oak_is_string(value))
-      oak_log(OAK_LOG_INF, "%s", oak_as_cstring(value));
-    else
-      oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));
-    break;
+    case OAK_VAL_BOOL:
+      oak_log(OAK_LOG_INF, "%s", oak_as_bool(value) ? "true" : "false");
+      break;
+    case OAK_VAL_NUMBER:
+      if (oak_is_f32(value))
+        oak_log(OAK_LOG_INF, "%f", oak_as_f32(value));
+      else
+        oak_log(OAK_LOG_INF, "%d", oak_as_i32(value));
+      break;
+    case OAK_VAL_OBJ:
+      if (oak_is_string(value))
+        oak_log(OAK_LOG_INF, "%s", oak_as_cstring(value));
+      else
+        oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));
+      break;
   }
 }

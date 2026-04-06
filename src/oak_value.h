@@ -162,6 +162,9 @@ static inline char* oak_as_cstring(const oak_value_t value)
 int oak_is_truthy(oak_value_t value);
 int oak_value_equal(oak_value_t a, oak_value_t b);
 
+void oak_obj_incref(oak_obj_t* obj);
+void oak_obj_decref(oak_obj_t* obj);
+
 void oak_value_incref(oak_value_t value);
 void oak_value_decref(oak_value_t value);
 

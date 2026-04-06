@@ -338,9 +338,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     }
     case OAK_NODE_KIND_STMT_ASSIGNMENT:
     {
-      oak_ast_node_t* lhs;
-      oak_ast_node_t* rhs;
-      oak_ast_node_unpack(node, &lhs, &rhs);
+      oak_ast_node_t* lhs = node->lhs;
+      oak_ast_node_t* rhs = node->rhs;
 
       if (lhs->kind != OAK_NODE_KIND_IDENT)
       {
@@ -529,10 +528,9 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     {
       const size_t count = list_length(node);
 
-      oak_ast_node_t* ident;
-      oak_ast_node_t* from_expr;
-      oak_ast_node_t* to_expr;
-      oak_ast_node_unpack(node, &ident, &from_expr, &to_expr);
+      oak_ast_node_t* ident = list_child(node, 0);
+      oak_ast_node_t* from_expr = list_child(node, 1);
+      oak_ast_node_t* to_expr = list_child(node, 2);
 
       const int saved_local_count = c->local_count;
 
