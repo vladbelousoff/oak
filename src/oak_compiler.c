@@ -14,6 +14,7 @@ typedef struct
   size_t length;
   int slot;
   int mutable;
+  int depth;
 } oak_local_t;
 
 typedef struct oak_loop_ctx_t
@@ -31,6 +32,7 @@ typedef struct
   oak_chunk_t* chunk;
   oak_local_t locals[OAK_MAX_LOCALS];
   int local_count;
+  int scope_depth;
   int stack_depth;
   int had_error;
   oak_loop_ctx_t* current_loop;
@@ -143,6 +145,24 @@ static void add_local(oak_compiler_t* c,
   local->length = length;
   local->slot = slot;
   local->mutable = mutable;
+  local->depth = c->scope_depth;
+}
+
+static void begin_scope(oak_compiler_t* c)
+{
+  c->scope_depth++;
+}
+
+static void end_scope(oak_compiler_t* c)
+{
+  while (c->local_count > 0 &&
+         c->locals[c->local_count - 1].depth == c->scope_depth)
+  {
+    emit_byte(c, OAK_OP_POP, 0);
+    c->stack_depth--;
+    c->local_count--;
+  }
+  c->scope_depth--;
 }
 
 static int
@@ -161,11 +181,13 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node);
 
 static void compile_block(oak_compiler_t* c, const oak_ast_node_t* block)
 {
+  begin_scope(c);
   oak_list_entry_t* pos;
   oak_list_for_each(pos, &block->children)
   {
     compile_node(c, oak_container_of(pos, oak_ast_node_t, link));
   }
+  end_scope(c);
 }
 
 static size_t list_length(const oak_ast_node_t* node)
@@ -331,8 +353,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       oak_list_entry_t* pos;
       oak_list_for_each(pos, &node->children)
       {
-        const oak_ast_node_t* ch =
-            oak_container_of(pos, oak_ast_node_t, link);
+        const oak_ast_node_t* ch = oak_container_of(pos, oak_ast_node_t, link);
         if (ch->kind == OAK_NODE_KIND_MUT_KEYWORD)
           is_mut = 1;
         else if (ch->kind == OAK_NODE_KIND_STMT_ASSIGNMENT)
@@ -462,15 +483,13 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     case OAK_NODE_KIND_STMT_IF:
     {
       oak_list_entry_t* pos = node->children.next;
-      const oak_ast_node_t* cond =
-          oak_container_of(pos, oak_ast_node_t, link);
+      const oak_ast_node_t* cond = oak_container_of(pos, oak_ast_node_t, link);
       pos = pos->next;
-      const oak_ast_node_t* body =
-          oak_container_of(pos, oak_ast_node_t, link);
+      const oak_ast_node_t* body = oak_container_of(pos, oak_ast_node_t, link);
       pos = pos->next;
-      const oak_ast_node_t* else_node = (pos != &node->children)
-          ? oak_container_of(pos, oak_ast_node_t, link)
-          : NULL;
+      const oak_ast_node_t* else_node =
+          (pos != &node->children) ? oak_container_of(pos, oak_ast_node_t, link)
+                                   : NULL;
 
       compile_node(c, cond);
       const size_t then_jump = emit_jump(c, OAK_OP_JUMP_IF_FALSE, 0);
@@ -508,9 +527,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       const size_t exit_jump = emit_jump(c, OAK_OP_JUMP_IF_FALSE, 0);
       c->stack_depth--;
 
-      const int body_start_depth = c->stack_depth;
       compile_block(c, node->rhs);
-      emit_pops(c, c->stack_depth - body_start_depth, 0);
 
       emit_loop(c, loop.loop_start, 0);
 
@@ -525,19 +542,15 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     case OAK_NODE_KIND_STMT_FOR_FROM:
     {
       oak_list_entry_t* pos = node->children.next;
-      oak_ast_node_t* ident =
-          oak_container_of(pos, oak_ast_node_t, link);
+      oak_ast_node_t* ident = oak_container_of(pos, oak_ast_node_t, link);
       pos = pos->next;
-      oak_ast_node_t* from_expr =
-          oak_container_of(pos, oak_ast_node_t, link);
+      oak_ast_node_t* from_expr = oak_container_of(pos, oak_ast_node_t, link);
       pos = pos->next;
-      oak_ast_node_t* to_expr =
-          oak_container_of(pos, oak_ast_node_t, link);
+      oak_ast_node_t* to_expr = oak_container_of(pos, oak_ast_node_t, link);
       pos = pos->next;
-      const oak_ast_node_t* body =
-          oak_container_of(pos, oak_ast_node_t, link);
+      const oak_ast_node_t* body = oak_container_of(pos, oak_ast_node_t, link);
 
-      const int saved_local_count = c->local_count;
+      begin_scope(c);
 
       compile_node(c, from_expr);
       const int i_slot = c->stack_depth - 1;
@@ -545,6 +558,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       compile_node(c, to_expr);
       const int limit_slot = c->stack_depth - 1;
+      add_local(c, "", 0, limit_slot, 0);
 
       oak_loop_ctx_t loop = {
         .enclosing = c->current_loop,
@@ -566,9 +580,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       const size_t exit_jump = emit_jump(c, OAK_OP_JUMP_IF_FALSE, 0);
       c->stack_depth--;
 
-      const int body_start_depth = c->stack_depth;
       compile_block(c, body);
-      emit_pops(c, c->stack_depth - body_start_depth, 0);
 
       emit_bytes(c, OAK_OP_GET_LOCAL, (uint8_t)i_slot, 0);
       c->stack_depth++;
@@ -587,9 +599,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       for (int i = 0; i < loop.break_count; ++i)
         patch_jump(c, loop.break_jumps[i]);
 
-      emit_pops(c, 2, 0);
+      end_scope(c);
 
-      c->local_count = saved_local_count;
       c->current_loop = loop.enclosing;
       break;
     }
@@ -639,6 +650,7 @@ oak_chunk_t* oak_compile(const oak_ast_node_t* root)
   oak_compiler_t compiler = {
     .chunk = chunk,
     .local_count = 0,
+    .scope_depth = 0,
     .stack_depth = 0,
     .had_error = 0,
     .current_loop = NULL,
