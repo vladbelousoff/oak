@@ -13,7 +13,7 @@ int main(const int argc, const char* argv[])
 
   oak_lexer_result_t* lexer = oak_lexer_tokenize("for n from 2 to 1000 {\n"
                                                  "  let is_prime = 1;\n"
-                                                 "  for i from 2 to n - 1 {\n"
+                                                 "  for i from 2 to n {\n"
                                                  "    if n % i == 0 {\n"
                                                  "      is_prime = 0;\n"
                                                  "    }\n"
