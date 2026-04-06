@@ -44,8 +44,13 @@ static void runtime_error(const oak_vm_t* vm, const char* msg)
   oak_log(OAK_LOG_ERR, "runtime error [line %d]: %s", line, msg);
 }
 
-#define READ_BYTE()  (*vm->ip++)
-#define READ_SHORT() (vm->ip += 2, (uint16_t)((vm->ip[-2] << 8) | vm->ip[-1]))
+static inline uint16_t vm_read(oak_vm_t* vm, const int n)
+{
+  uint16_t val = 0;
+  for (int i = 0; i < n; i++)
+    val = (val << 8) | *vm->ip++;
+  return val;
+}
 
 static oak_vm_result_t numeric_binary(oak_vm_t* vm,
                                       const uint8_t op,
@@ -176,14 +181,14 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
 
   for (;;)
   {
-    const uint8_t instruction = READ_BYTE();
+    const uint8_t instruction = vm_read(vm, 1);
     switch (instruction)
     {
       case OAK_OP_HALT:
         return OAK_VM_OK;
       case OAK_OP_CONSTANT:
       {
-        const uint8_t idx = READ_BYTE();
+        const uint8_t idx = vm_read(vm, 1);
         vm_push(vm, chunk->constants[idx]);
         break;
       }
@@ -201,13 +206,13 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       }
       case OAK_OP_GET_LOCAL:
       {
-        const uint8_t slot = READ_BYTE();
+        const uint8_t slot = vm_read(vm, 1);
         vm_push(vm, vm->stack[slot]);
         break;
       }
       case OAK_OP_SET_LOCAL:
       {
-        const uint8_t slot = READ_BYTE();
+        const uint8_t slot = vm_read(vm, 1);
         const oak_value_t old_val = vm->stack[slot];
         const oak_value_t new_val = vm_peek(vm, 0);
         oak_value_incref(new_val);
@@ -314,13 +319,13 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       }
       case OAK_OP_JUMP:
       {
-        const uint16_t offset = READ_SHORT();
+        const uint16_t offset = vm_read(vm, 2);
         vm->ip += offset;
         break;
       }
       case OAK_OP_JUMP_IF_FALSE:
       {
-        const uint16_t offset = READ_SHORT();
+        const uint16_t offset = vm_read(vm, 2);
         oak_value_t cond = vm_pop(vm);
         if (!oak_is_truthy(cond))
           vm->ip += offset;
@@ -329,7 +334,7 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       }
       case OAK_OP_LOOP:
       {
-        const uint16_t offset = READ_SHORT();
+        const uint16_t offset = vm_read(vm, 2);
         vm->ip -= offset;
         break;
       }
@@ -346,6 +351,3 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
     }
   }
 }
-
-#undef READ_BYTE
-#undef READ_SHORT
