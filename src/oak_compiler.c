@@ -178,6 +178,8 @@ static void add_local(oak_compiler_t* c,
   local->slot = slot;
   local->mutable = mutable;
   local->depth = c->scope_depth;
+
+  oak_chunk_add_debug_local(c->chunk, slot, name, length);
 }
 
 static void begin_scope(oak_compiler_t* c)

@@ -34,6 +34,13 @@ typedef enum
 
 typedef struct
 {
+  int slot;
+  size_t offset;
+  char* name;
+} oak_debug_local_t;
+
+typedef struct
+{
   size_t count;
   size_t capacity;
   uint8_t* bytecode;
@@ -41,10 +48,19 @@ typedef struct
   size_t const_count;
   size_t const_capacity;
   oak_value_t* constants;
+  size_t debug_count;
+  size_t debug_capacity;
+  oak_debug_local_t* debug_locals;
 } oak_chunk_t;
 
 void oak_chunk_init(oak_chunk_t* chunk);
 void oak_chunk_free(oak_chunk_t* chunk);
 
 void oak_chunk_write(oak_chunk_t* chunk, uint8_t byte, int line);
+
 size_t oak_chunk_add_constant(oak_chunk_t* chunk, oak_value_t value);
+void oak_chunk_add_debug_local(oak_chunk_t* chunk,
+                               int slot,
+                               const char* name,
+                               size_t length);
+void oak_chunk_disassemble(const oak_chunk_t* chunk);

@@ -29,6 +29,8 @@ int main(const int argc, const char* argv[])
 
   if (chunk)
   {
+    oak_chunk_disassemble(chunk);
+
     oak_vm_t vm;
     oak_vm_init(&vm);
     oak_vm_run(&vm, chunk);
