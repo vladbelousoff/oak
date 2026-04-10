@@ -3,6 +3,8 @@
 #include "oak_log.h"
 #include "oak_mem.h"
 
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
 #define OAK_MAX_LOCALS 256
@@ -40,9 +42,25 @@ typedef struct
   oak_loop_ctx_t* current_loop;
 } oak_compiler_t;
 
-static void compiler_error(oak_compiler_t* c, const char* msg)
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 3, 4)))
+#endif
+static void
+compiler_error_at(oak_compiler_t* c,
+                  const oak_token_t* token,
+                  const char* fmt,
+                  ...)
 {
-  oak_log(OAK_LOG_ERR, "compile error: %s", msg);
+  static _Thread_local char buf[512];
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
+  if (token)
+    oak_log(OAK_LOG_ERR, "%d:%d: error: %s", token->line, token->column, buf);
+  else
+    oak_log(OAK_LOG_ERR, "error: %s", buf);
   c->had_error = 1;
 }
 
@@ -102,7 +120,7 @@ static uint8_t make_constant(oak_compiler_t* c, const oak_value_t value)
   const size_t idx = oak_chunk_add_constant(c->chunk, value);
   if (idx > 255)
   {
-    compiler_error(c, "too many constants in one chunk");
+    compiler_error_at(c, NULL, "too many constants in one chunk (max 256)");
     return 0;
   }
   return (uint8_t)idx;
@@ -121,7 +139,7 @@ static void patch_jump(oak_compiler_t* c, const size_t offset)
   const size_t jump = c->chunk->count - offset - 2;
   if (jump > 0xffff)
   {
-    compiler_error(c, "jump offset too large");
+    compiler_error_at(c, NULL, "jump offset too large (max 65535 bytes)");
     return;
   }
 
@@ -136,7 +154,7 @@ emit_loop(oak_compiler_t* c, const size_t loop_start, const int line)
   const size_t jump = c->chunk->count - loop_start + 2;
   if (jump > 0xffff)
   {
-    compiler_error(c, "loop body too large");
+    compiler_error_at(c, NULL, "loop body too large (max 65535 bytes)");
     return;
   }
 
@@ -171,7 +189,7 @@ static void add_local(oak_compiler_t* c,
 {
   if (c->local_count >= OAK_MAX_LOCALS)
   {
-    compiler_error(c, "too many local variables");
+    compiler_error_at(c, NULL, "too many local variables (max %d)", OAK_MAX_LOCALS);
     return;
   }
   oak_local_t* local = &c->locals[c->local_count++];
@@ -317,7 +335,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       const int slot = resolve_local(c, name, len);
       if (slot < 0)
       {
-        compiler_error(c, "undefined variable");
+        compiler_error_at(c, node->token, "undefined variable '%.*s'",
+                          (int)len, name);
         return;
       }
       emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)slot, node->token->line);
@@ -341,7 +360,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
           node->kind == OAK_NODE_KIND_BINARY_OR)
       {
         // TODO: short-circuit evaluation; for now, fall through to truthiness
-        compiler_error(c, "and/or not yet implemented");
+        compiler_error_at(c, NULL, "'%s' operator not yet implemented",
+                          node->kind == OAK_NODE_KIND_BINARY_AND ? "&&" : "||");
         return;
       }
 
@@ -389,7 +409,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       if (!assign)
       {
-        compiler_error(c, "malformed let assignment");
+        compiler_error_at(c, NULL, "malformed 'let' statement");
         return;
       }
 
@@ -410,20 +430,24 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       if (lhs->kind != OAK_NODE_KIND_IDENT)
       {
-        compiler_error(c, "assignment target must be a variable");
+        compiler_error_at(c, lhs->token,
+                          "assignment target must be a variable");
         return;
       }
 
       const int slot = resolve_local(c, lhs->token->buf, lhs->token->size);
       if (slot < 0)
       {
-        compiler_error(c, "undefined variable in assignment");
+        compiler_error_at(c, lhs->token, "undefined variable '%.*s'",
+                          (int)lhs->token->size, lhs->token->buf);
         return;
       }
 
       if (!is_local_mutable(c, lhs->token->buf, lhs->token->size))
       {
-        compiler_error(c, "cannot assign to immutable variable");
+        compiler_error_at(c, lhs->token,
+                          "cannot assign to immutable variable '%.*s'",
+                          (int)lhs->token->size, lhs->token->buf);
         return;
       }
 
@@ -442,20 +466,24 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       const oak_ast_node_t* lhs = node->lhs;
       if (lhs->kind != OAK_NODE_KIND_IDENT)
       {
-        compiler_error(c, "compound assignment target must be a variable");
+        compiler_error_at(c, lhs->token,
+                          "compound assignment target must be a variable");
         return;
       }
 
       const int slot = resolve_local(c, lhs->token->buf, lhs->token->size);
       if (slot < 0)
       {
-        compiler_error(c, "undefined variable in compound assignment");
+        compiler_error_at(c, lhs->token, "undefined variable '%.*s'",
+                          (int)lhs->token->size, lhs->token->buf);
         return;
       }
 
       if (!is_local_mutable(c, lhs->token->buf, lhs->token->size))
       {
-        compiler_error(c, "cannot assign to immutable variable");
+        compiler_error_at(c, lhs->token,
+                          "cannot assign to immutable variable '%.*s'",
+                          (int)lhs->token->size, lhs->token->buf);
         return;
       }
 
@@ -476,7 +504,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       if (!callee || callee->kind != OAK_NODE_KIND_IDENT)
       {
-        compiler_error(c, "callee must be an identifier");
+        compiler_error_at(c, callee ? callee->token : NULL,
+                          "callee must be an identifier");
         return;
       }
 
@@ -486,7 +515,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         const size_t argc = list_length(node) - 1;
         if (argc != 1)
         {
-          compiler_error(c, "print expects exactly 1 argument");
+          compiler_error_at(c, callee->token,
+                            "print() expects 1 argument, got %zu", argc);
           return;
         }
         if (arg->kind == OAK_NODE_KIND_FN_CALL_ARG)
@@ -498,7 +528,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         break;
       }
 
-      compiler_error(c, "only built-in print() is supported");
+      compiler_error_at(c, callee->token, "undefined function '%.*s'",
+                        (int)callee->token->size, callee->token->buf);
       break;
     }
     case OAK_NODE_KIND_STMT_IF:
@@ -630,7 +661,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     {
       if (!c->current_loop)
       {
-        compiler_error(c, "break outside of loop");
+        compiler_error_at(c, NULL, "'break' used outside of a loop");
         return;
       }
       oak_loop_ctx_t* loop = c->current_loop;
@@ -640,7 +671,9 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       if (loop->break_count >= OAK_MAX_BREAKS)
       {
-        compiler_error(c, "too many break statements in loop");
+        compiler_error_at(c, NULL,
+                          "too many 'break' statements in loop (max %d)",
+                          OAK_MAX_BREAKS);
         return;
       }
       loop->break_jumps[loop->break_count++] = emit_jump(c, OAK_OP_JUMP, 0);
@@ -651,7 +684,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     {
       if (!c->current_loop)
       {
-        compiler_error(c, "continue outside of loop");
+        compiler_error_at(c, NULL, "'continue' used outside of a loop");
         return;
       }
       oak_loop_ctx_t* loop = c->current_loop;
@@ -661,7 +694,9 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       if (loop->continue_count >= OAK_MAX_BREAKS)
       {
-        compiler_error(c, "too many continue statements in loop");
+        compiler_error_at(c, NULL,
+                          "too many 'continue' statements in loop (max %d)",
+                          OAK_MAX_BREAKS);
         return;
       }
       loop->continue_jumps[loop->continue_count++] =
@@ -670,7 +705,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       break;
     }
     default:
-      compiler_error(c, "unsupported AST node kind");
+      compiler_error_at(c, NULL, "unsupported AST node kind (%d)", node->kind);
       break;
   }
 }
