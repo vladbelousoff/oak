@@ -1,41 +1,41 @@
 let x = 10;
 
 if x == 10 {
-  print(v = 1);
+  print(1);
 }
 
 if x != 10 {
-  print(v = 0);
+  print(0);
 } else {
-  print(v = 2);
+  print(2);
 }
 
 if x > 5 {
-  print(v = 3);
+  print(3);
 }
 
 if x < 5 {
-  print(v = 0);
+  print(0);
 } else {
-  print(v = 4);
+  print(4);
 }
 
 if x >= 10 {
-  print(v = 5);
+  print(5);
 }
 
 if x <= 10 {
-  print(v = 6);
+  print(6);
 }
 
 let mut a = 1;
 if a == 1 {
   if x > 0 {
-    print(v = 7);
+    print(7);
   }
 }
 
 let y = 0;
 if !y {
-  print(v = 8);
+  print(8);
 }

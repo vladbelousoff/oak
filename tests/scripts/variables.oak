@@ -1,27 +1,27 @@
 let x = 42;
-print(v = x);
+print(x);
 
 let mut y = 10;
-print(v = y);
+print(y);
 
 y = 20;
-print(v = y);
+print(y);
 
 y += 5;
-print(v = y);
+print(y);
 
 y -= 3;
-print(v = y);
+print(y);
 
 y *= 2;
-print(v = y);
+print(y);
 
 y /= 4;
-print(v = y);
+print(y);
 
 y %= 7;
-print(v = y);
+print(y);
 
 let mut z = 0;
 z = x + y;
-print(v = z);
+print(z);

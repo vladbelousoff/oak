@@ -1,15 +1,15 @@
 let greeting = 'hello';
-print(v = greeting);
+print(greeting);
 
 let name = 'world';
-print(v = name);
+print(name);
 
 let message = greeting + ' ' + name;
-print(v = message);
+print(message);
 
 let line = '---';
 let border = line + line + line;
-print(v = border);
+print(border);
 
 let escaped = 'line1\nline2';
-print(v = escaped);
+print(escaped);

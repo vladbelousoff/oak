@@ -1,14 +1,14 @@
 for i from 1 to 31 {
   if i % 15 == 0 {
-    print(v = 'fizzbuzz');
+    print('fizzbuzz');
   } else {
     if i % 3 == 0 {
-      print(v = 'fizz');
+      print('fizz');
     } else {
       if i % 5 == 0 {
-        print(v = 'buzz');
+        print('buzz');
       } else {
-        print(v = i);
+        print(i);
       }
     }
   }

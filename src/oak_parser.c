@@ -441,12 +441,10 @@ static oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_UNARY },
   [OAK_NODE_KIND_MEMBER_ACCESS]     = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_INDEX_ACCESS]      = { .op = OAK_GRAMMAR_BINARY },
-  // FN_CALL_ARG -> IDENT '=' EXPR ','?
+  // FN_CALL_ARG -> EXPR ','?
   [OAK_NODE_KIND_FN_CALL_ARG] = {
-    .op = OAK_GRAMMAR_BINARY,
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
-      OAK_NODE_KIND_IDENT,
-      OAK_TOKEN_ASSIGN | OAK_RULE_TOKEN,
       OAK_NODE_KIND_EXPR,
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },

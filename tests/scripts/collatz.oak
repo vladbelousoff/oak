@@ -2,7 +2,7 @@ let mut n = 27;
 let mut steps = 0;
 
 while n != 1 {
-  print(v = n);
+  print(n);
   if n % 2 == 0 {
     n /= 2;
   } else {
@@ -12,5 +12,5 @@ while n != 1 {
   steps += 1;
 }
 
-print(v = n);
-print(v = steps);
+print(n);
+print(steps);

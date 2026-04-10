@@ -6,6 +6,6 @@ for n from 2 to 100 {
     }
   }
   if is_prime == 1 {
-    print(v = n);
+    print(n);
   }
 }

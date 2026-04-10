@@ -488,7 +488,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
           return;
         }
         if (arg->kind == OAK_NODE_KIND_FN_CALL_ARG)
-          compile_node(c, arg->rhs);
+          compile_node(c, arg->child);
         else
           compile_node(c, arg);
 

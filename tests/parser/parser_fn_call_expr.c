@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(ParseFnCallExpr)
 {
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("1 + foo(x = 2) * 3;");
+  oak_lexer_result_t* lexer = oak_lexer_tokenize("1 + foo(2) * 3;");
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
@@ -15,7 +15,7 @@ OAK_TEST_DECL(ParseFnCallExpr)
          BINARY_MUL
            FN_CALL
              IDENT("foo")
-             FN_CALL_ARG [IDENT("x"), INT(2)]
+             FN_CALL_ARG [INT(2)]
            INT(3)
   */
 
@@ -40,11 +40,9 @@ OAK_TEST_DECL(ParseFnCallExpr)
 
   const oak_ast_node_t* arg = oak_test_ast_child(call, 1);
   OAK_CHECK_NODE_KIND(arg, OAK_NODE_KIND_FN_CALL_ARG);
-  OAK_CHECK_CHILD_COUNT(arg, 2);
-  OAK_CHECK_NODE_KIND(oak_test_ast_child(arg, 0), OAK_NODE_KIND_IDENT);
-  OAK_CHECK_TOKEN_STR(oak_test_ast_child(arg, 0), "x");
-  OAK_CHECK_NODE_KIND(oak_test_ast_child(arg, 1), OAK_NODE_KIND_INT);
-  OAK_CHECK_INT_VAL(oak_test_ast_child(arg, 1), 2);
+  OAK_CHECK_CHILD_COUNT(arg, 1);
+  OAK_CHECK_NODE_KIND(oak_test_ast_child(arg, 0), OAK_NODE_KIND_INT);
+  OAK_CHECK_INT_VAL(oak_test_ast_child(arg, 0), 2);
 
   OAK_CHECK_NODE_KIND(mul->rhs, OAK_NODE_KIND_INT);
   OAK_CHECK_INT_VAL(mul->rhs, 3);

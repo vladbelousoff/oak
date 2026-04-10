@@ -1,6 +1,6 @@
 let mut i = 0;
 while i < 5 {
-  print(v = i);
+  print(i);
   i += 1;
 }
 
@@ -10,7 +10,7 @@ while n <= 10 {
   sum += n;
   n += 1;
 }
-print(v = sum);
+print(sum);
 
 let mut count = 0;
 while count < 100 {
@@ -19,7 +19,7 @@ while count < 100 {
   }
   count += 1;
 }
-print(v = count);
+print(count);
 
 let mut j = 0;
 let mut skipped = 0;
@@ -30,4 +30,4 @@ while j < 10 {
   }
   skipped += 1;
 }
-print(v = skipped);
+print(skipped);
