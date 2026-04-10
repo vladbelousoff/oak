@@ -25,6 +25,8 @@ typedef struct oak_loop_ctx_t
   int continue_depth;
   size_t break_jumps[OAK_MAX_BREAKS];
   int break_count;
+  size_t continue_jumps[OAK_MAX_BREAKS];
+  int continue_count;
 } oak_loop_ctx_t;
 
 typedef struct
@@ -536,6 +538,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         .exit_depth = c->stack_depth,
         .continue_depth = c->stack_depth,
         .break_count = 0,
+        .continue_count = 0,
       };
 
       // ReSharper disable once CppDFALocalValueEscapesFunction
@@ -545,6 +548,9 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       const size_t exit_jump = emit_jump(c, OAK_OP_JUMP_IF_FALSE, 0);
 
       compile_block(c, node->rhs);
+
+      for (int i = 0; i < loop.continue_count; ++i)
+        patch_jump(c, loop.continue_jumps[i]);
 
       emit_loop(c, loop.loop_start, 0);
 
@@ -585,6 +591,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         .exit_depth = c->stack_depth - 2,
         .continue_depth = c->stack_depth,
         .break_count = 0,
+        .continue_count = 0,
       };
 
       // ReSharper disable once CppDFALocalValueEscapesFunction
@@ -597,6 +604,9 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       compile_block(c, body);
 
+      for (int i = 0; i < loop.continue_count; ++i)
+        patch_jump(c, loop.continue_jumps[i]);
+
       emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)i_slot, 0);
       const uint8_t one_idx = make_constant(c, OAK_VALUE_I32(1));
       emit_op_arg(c, OAK_OP_CONSTANT, one_idx, 0);
@@ -608,10 +618,10 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       patch_jump(c, exit_jump);
 
+      end_scope(c);
+
       for (int i = 0; i < loop.break_count; ++i)
         patch_jump(c, loop.break_jumps[i]);
-
-      end_scope(c);
 
       c->current_loop = loop.enclosing;
       break;
@@ -625,6 +635,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       }
       oak_loop_ctx_t* loop = c->current_loop;
 
+      const int saved_depth = c->stack_depth;
       emit_pops(c, c->stack_depth - loop->exit_depth, 0);
 
       if (loop->break_count >= OAK_MAX_BREAKS)
@@ -633,6 +644,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         return;
       }
       loop->break_jumps[loop->break_count++] = emit_jump(c, OAK_OP_JUMP, 0);
+      c->stack_depth = saved_depth;
       break;
     }
     case OAK_NODE_KIND_STMT_CONTINUE:
@@ -644,8 +656,17 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       }
       oak_loop_ctx_t* loop = c->current_loop;
 
+      const int saved_depth = c->stack_depth;
       emit_pops(c, c->stack_depth - loop->continue_depth, 0);
-      emit_loop(c, loop->loop_start, 0);
+
+      if (loop->continue_count >= OAK_MAX_BREAKS)
+      {
+        compiler_error(c, "too many continue statements in loop");
+        return;
+      }
+      loop->continue_jumps[loop->continue_count++] =
+          emit_jump(c, OAK_OP_JUMP, 0);
+      c->stack_depth = saved_depth;
       break;
     }
     default:

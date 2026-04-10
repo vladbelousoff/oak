@@ -53,19 +53,32 @@ int main(const int argc, const char* argv[])
 
   oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const oak_ast_node_t* root = oak_parser_root(result);
-  oak_chunk_t* chunk = oak_compile(root);
-
-  oak_vm_result_t vm_result = OAK_VM_OK;
-  if (chunk)
+  if (!root)
   {
-    // oak_chunk_disassemble(chunk);
-
-    oak_vm_t vm;
-    oak_vm_init(&vm);
-    vm_result = oak_vm_run(&vm, chunk);
-    oak_vm_free(&vm);
-    oak_chunk_free(chunk);
+    oak_free(source, OAK_SRC_LOC);
+    oak_parser_cleanup(result);
+    oak_lexer_cleanup(lexer);
+    oak_mem_shutdown();
+    return 1;
   }
+
+  oak_chunk_t* chunk = oak_compile(root);
+  if (!chunk)
+  {
+    oak_free(source, OAK_SRC_LOC);
+    oak_parser_cleanup(result);
+    oak_lexer_cleanup(lexer);
+    oak_mem_shutdown();
+    return 1;
+  }
+
+  oak_chunk_disassemble(chunk);
+
+  oak_vm_t vm;
+  oak_vm_init(&vm);
+  const oak_vm_result_t vm_result = oak_vm_run(&vm, chunk);
+  oak_vm_free(&vm);
+  oak_chunk_free(chunk);
 
   oak_free(source, OAK_SRC_LOC);
   oak_parser_cleanup(result);
@@ -73,5 +86,5 @@ int main(const int argc, const char* argv[])
 
   oak_mem_shutdown();
 
-  return vm_result != OAK_VM_OK;
+  return vm_result != OAK_VM_OK ? 1 : 0;
 }
