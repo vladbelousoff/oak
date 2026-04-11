@@ -43,11 +43,11 @@ int main(const int argc, const char* argv[])
     return 1;
   }
 
+  oak_mem_init();
+
   char* source = read_file(argv[1]);
   if (!source)
     return 1;
-
-  oak_mem_init();
 
   oak_lexer_result_t* lexer = oak_lexer_tokenize(source);
 

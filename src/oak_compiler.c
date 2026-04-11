@@ -70,39 +70,12 @@ emit_byte(const oak_compiler_t* c, const uint8_t byte, const int line)
   oak_chunk_write(c->chunk, byte, line);
 }
 
-static int stack_effect(const uint8_t op)
-{
-  switch (op)
-  {
-    case OAK_OP_CONSTANT:
-    case OAK_OP_TRUE:
-    case OAK_OP_FALSE:
-    case OAK_OP_GET_LOCAL:
-      return 1;
-    case OAK_OP_POP:
-    case OAK_OP_ADD:
-    case OAK_OP_SUB:
-    case OAK_OP_MUL:
-    case OAK_OP_DIV:
-    case OAK_OP_MOD:
-    case OAK_OP_EQ:
-    case OAK_OP_NEQ:
-    case OAK_OP_LT:
-    case OAK_OP_LE:
-    case OAK_OP_GT:
-    case OAK_OP_GE:
-    case OAK_OP_JUMP_IF_FALSE:
-    case OAK_OP_PRINT:
-      return -1;
-    default:
-      return 0;
-  }
-}
-
 static void emit_op(oak_compiler_t* c, const uint8_t op, const int line)
 {
   emit_byte(c, op, line);
-  c->stack_depth += stack_effect(op);
+  const oak_op_info_t* info = oak_op_get_info(op);
+  if (info)
+    c->stack_depth += info->stack_effect;
 }
 
 static void emit_op_arg(oak_compiler_t* c,
@@ -112,7 +85,9 @@ static void emit_op_arg(oak_compiler_t* c,
 {
   emit_byte(c, op, line);
   emit_byte(c, arg, line);
-  c->stack_depth += stack_effect(op);
+  const oak_op_info_t* info = oak_op_get_info(op);
+  if (info)
+    c->stack_depth += info->stack_effect;
 }
 
 static uint8_t make_constant(oak_compiler_t* c, const oak_value_t value)
@@ -306,6 +281,10 @@ static uint8_t node_kind_to_op(const oak_node_kind_t kind)
       return OAK_OP_GT;
     case OAK_NODE_KIND_BINARY_GREATER_EQ:
       return OAK_OP_GE;
+    case OAK_NODE_KIND_UNARY_NEG:
+      return OAK_OP_NEGATE;
+    case OAK_NODE_KIND_UNARY_NOT:
+      return OAK_OP_NOT;
     default:
       return 0;
   }
@@ -398,15 +377,10 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       break;
     }
     case OAK_NODE_KIND_UNARY_NEG:
-    {
-      compile_node(c, node->child);
-      emit_op(c, OAK_OP_NEGATE, 0);
-      break;
-    }
     case OAK_NODE_KIND_UNARY_NOT:
     {
       compile_node(c, node->child);
-      emit_op(c, OAK_OP_NOT, 0);
+      emit_op(c, node_kind_to_op(node->kind), 0);
       break;
     }
     case OAK_NODE_KIND_STMT_EXPR:

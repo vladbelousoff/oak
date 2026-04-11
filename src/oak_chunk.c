@@ -9,6 +9,42 @@
 #define CONST_INITIAL_CAPACITY 16
 #define DEBUG_INITIAL_CAPACITY 8
 
+const oak_op_info_t oak_op_info[] = {
+  [OAK_OP_HALT]          = { "OP_HALT",          OAK_OP_FMT_NONE,       0 },
+  [OAK_OP_CONSTANT]      = { "OP_CONSTANT",      OAK_OP_FMT_CONSTANT,   1 },
+  [OAK_OP_TRUE]           = { "OP_TRUE",           OAK_OP_FMT_NONE,       1 },
+  [OAK_OP_FALSE]          = { "OP_FALSE",          OAK_OP_FMT_NONE,       1 },
+  [OAK_OP_POP]            = { "OP_POP",            OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_GET_LOCAL]      = { "OP_GET_LOCAL",      OAK_OP_FMT_SLOT,       1 },
+  [OAK_OP_SET_LOCAL]      = { "OP_SET_LOCAL",      OAK_OP_FMT_SLOT,       0 },
+  [OAK_OP_ADD]             = { "OP_ADD",             OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_SUB]             = { "OP_SUB",             OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_MUL]             = { "OP_MUL",             OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_DIV]             = { "OP_DIV",             OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_MOD]             = { "OP_MOD",             OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_NEGATE]          = { "OP_NEGATE",          OAK_OP_FMT_NONE,       0 },
+  [OAK_OP_NOT]             = { "OP_NOT",             OAK_OP_FMT_NONE,       0 },
+  [OAK_OP_EQ]              = { "OP_EQ",              OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_NEQ]             = { "OP_NEQ",             OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_LT]              = { "OP_LT",              OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_LE]              = { "OP_LE",              OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_GT]              = { "OP_GT",              OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_GE]              = { "OP_GE",              OAK_OP_FMT_NONE,      -1 },
+  [OAK_OP_JUMP]            = { "OP_JUMP",            OAK_OP_FMT_JUMP_FWD,   0 },
+  [OAK_OP_JUMP_IF_FALSE]   = { "OP_JUMP_IF_FALSE",   OAK_OP_FMT_JUMP_FWD,  -1 },
+  [OAK_OP_LOOP]            = { "OP_LOOP",            OAK_OP_FMT_JUMP_BACK,  0 },
+  [OAK_OP_PRINT]           = { "OP_PRINT",           OAK_OP_FMT_NONE,      -1 },
+};
+
+#define OAK_OP_INFO_COUNT (sizeof(oak_op_info) / sizeof(oak_op_info[0]))
+
+const oak_op_info_t* oak_op_get_info(const uint8_t op)
+{
+  if (op < OAK_OP_INFO_COUNT && oak_op_info[op].name)
+    return &oak_op_info[op];
+  return NULL;
+}
+
 void oak_chunk_init(oak_chunk_t* chunk)
 {
   chunk->count = 0;
@@ -115,59 +151,8 @@ void oak_chunk_free(oak_chunk_t* chunk)
 
 static const char* opcode_name(const uint8_t op)
 {
-  switch (op)
-  {
-    case OAK_OP_HALT:
-      return "OP_HALT";
-    case OAK_OP_CONSTANT:
-      return "OP_CONSTANT";
-    case OAK_OP_TRUE:
-      return "OP_TRUE";
-    case OAK_OP_FALSE:
-      return "OP_FALSE";
-    case OAK_OP_POP:
-      return "OP_POP";
-    case OAK_OP_GET_LOCAL:
-      return "OP_GET_LOCAL";
-    case OAK_OP_SET_LOCAL:
-      return "OP_SET_LOCAL";
-    case OAK_OP_ADD:
-      return "OP_ADD";
-    case OAK_OP_SUB:
-      return "OP_SUB";
-    case OAK_OP_MUL:
-      return "OP_MUL";
-    case OAK_OP_DIV:
-      return "OP_DIV";
-    case OAK_OP_MOD:
-      return "OP_MOD";
-    case OAK_OP_NEGATE:
-      return "OP_NEGATE";
-    case OAK_OP_NOT:
-      return "OP_NOT";
-    case OAK_OP_EQ:
-      return "OP_EQ";
-    case OAK_OP_NEQ:
-      return "OP_NEQ";
-    case OAK_OP_LT:
-      return "OP_LT";
-    case OAK_OP_LE:
-      return "OP_LE";
-    case OAK_OP_GT:
-      return "OP_GT";
-    case OAK_OP_GE:
-      return "OP_GE";
-    case OAK_OP_JUMP:
-      return "OP_JUMP";
-    case OAK_OP_JUMP_IF_FALSE:
-      return "OP_JUMP_IF_FALSE";
-    case OAK_OP_LOOP:
-      return "OP_LOOP";
-    case OAK_OP_PRINT:
-      return "OP_PRINT";
-    default:
-      return "OP_UNKNOWN";
-  }
+  const oak_op_info_t* info = oak_op_get_info(op);
+  return info ? info->name : "OP_UNKNOWN";
 }
 
 static int snprint_value(char* buf, const size_t size, const oak_value_t value)
@@ -212,74 +197,51 @@ static size_t disassemble_instruction(const oak_chunk_t* chunk,
     snprintf(line, sizeof(line), "%4d", chunk->lines[offset]);
 
   const uint8_t op = chunk->bytecode[offset];
+  const char* name = opcode_name(op);
+  const oak_op_info_t* info = oak_op_get_info(op);
+  const oak_op_format_t fmt = info ? info->format : OAK_OP_FMT_NONE;
 
-  switch (op)
+  switch (fmt)
   {
-    case OAK_OP_CONSTANT:
+    case OAK_OP_FMT_CONSTANT:
     {
       const uint8_t idx = chunk->bytecode[offset + 1];
       char val[64];
       snprint_value(val, sizeof(val), chunk->constants[idx]);
-      oak_log(OAK_LOG_INF,
-              "%04zu %s  %-16s %4d ; %s",
-              offset,
-              line,
-              opcode_name(op),
-              idx,
-              val);
+      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d ; %s",
+              offset, line, name, idx, val);
       return offset + 2;
     }
-    case OAK_OP_GET_LOCAL:
-    case OAK_OP_SET_LOCAL:
+    case OAK_OP_FMT_SLOT:
     {
       const uint8_t slot = chunk->bytecode[offset + 1];
-      const char* name = debug_local_name(chunk, slot, offset);
-      if (name)
-        oak_log(OAK_LOG_INF,
-                "%04zu %s  %-16s %4d ; %s",
-                offset,
-                line,
-                opcode_name(op),
-                slot,
-                name);
+      const char* local = debug_local_name(chunk, slot, offset);
+      if (local)
+        oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d ; %s",
+                offset, line, name, slot, local);
       else
-        oak_log(OAK_LOG_INF,
-                "%04zu %s  %-16s %4d",
-                offset,
-                line,
-                opcode_name(op),
-                slot);
+        oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d",
+                offset, line, name, slot);
       return offset + 2;
     }
-    case OAK_OP_JUMP:
-    case OAK_OP_JUMP_IF_FALSE:
+    case OAK_OP_FMT_JUMP_FWD:
     {
       const uint16_t jump = (uint16_t)(chunk->bytecode[offset + 1] << 8) |
                             chunk->bytecode[offset + 2];
-      oak_log(OAK_LOG_INF,
-              "%04zu %s  %-16s %4d -> %04zu",
-              offset,
-              line,
-              opcode_name(op),
-              jump,
-              offset + 3 + jump);
+      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d -> %04zu",
+              offset, line, name, jump, offset + 3 + jump);
       return offset + 3;
     }
-    case OAK_OP_LOOP:
+    case OAK_OP_FMT_JUMP_BACK:
     {
       const uint16_t jump = (uint16_t)(chunk->bytecode[offset + 1] << 8) |
                             chunk->bytecode[offset + 2];
-      oak_log(OAK_LOG_INF,
-              "%04zu %s  %-16s %4d -> %04zu",
-              offset,
-              line,
-              opcode_name(op),
-              jump,
-              offset + 3 - jump);
+      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d -> %04zu",
+              offset, line, name, jump, offset + 3 - jump);
       return offset + 3;
     }
     default:
-      oak_log(OAK_LOG_INF, "%04zu %s  %s", offset, line, opcode_name(op));
+      oak_log(OAK_LOG_INF, "%04zu %s  %s", offset, line, name);
       return offset + 1;
   }
 }

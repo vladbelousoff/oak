@@ -32,6 +32,26 @@ typedef enum
   OAK_OP_PRINT,
 } oak_opcode_t;
 
+typedef enum
+{
+  OAK_OP_FMT_NONE,
+  OAK_OP_FMT_CONSTANT,
+  OAK_OP_FMT_SLOT,
+  OAK_OP_FMT_JUMP_FWD,
+  OAK_OP_FMT_JUMP_BACK,
+} oak_op_format_t;
+
+typedef struct
+{
+  const char* name;
+  oak_op_format_t format;
+  int stack_effect;
+} oak_op_info_t;
+
+extern const oak_op_info_t oak_op_info[];
+
+const oak_op_info_t* oak_op_get_info(uint8_t op);
+
 typedef struct
 {
   int slot;
