@@ -147,6 +147,12 @@ static void patch_jump(oak_compiler_t* c, const size_t offset)
   c->chunk->bytecode[offset + 1] = (uint8_t)(jump >> 0 & 0xff);
 }
 
+static void patch_jumps(oak_compiler_t* c, const size_t* jumps, const int count)
+{
+  for (int i = 0; i < count; ++i)
+    patch_jump(c, jumps[i]);
+}
+
 static void
 emit_loop(oak_compiler_t* c, const size_t loop_start, const int line)
 {
@@ -166,6 +172,27 @@ static void emit_pops(oak_compiler_t* c, int count, const int line)
 {
   while (count-- > 0)
     emit_op(c, OAK_OP_POP, line);
+}
+
+static void emit_loop_jump(oak_compiler_t* c,
+                            size_t* jumps,
+                            int* count,
+                            const int target_depth,
+                            const char* keyword)
+{
+  const int saved_depth = c->stack_depth;
+  emit_pops(c, c->stack_depth - target_depth, 0);
+
+  if (*count >= OAK_MAX_BREAKS)
+  {
+    compiler_error_at(c, NULL,
+                      "too many '%s' statements in loop (max %d)",
+                      keyword, OAK_MAX_BREAKS);
+    c->stack_depth = saved_depth;
+    return;
+  }
+  jumps[(*count)++] = emit_jump(c, OAK_OP_JUMP, 0);
+  c->stack_depth = saved_depth;
 }
 
 static int
@@ -580,15 +607,10 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       compile_block(c, node->rhs);
 
-      for (int i = 0; i < loop.continue_count; ++i)
-        patch_jump(c, loop.continue_jumps[i]);
-
+      patch_jumps(c, loop.continue_jumps, loop.continue_count);
       emit_loop(c, loop.loop_start, 0);
-
       patch_jump(c, exit_jump);
-
-      for (int i = 0; i < loop.break_count; ++i)
-        patch_jump(c, loop.break_jumps[i]);
+      patch_jumps(c, loop.break_jumps, loop.break_count);
 
       c->current_loop = loop.enclosing;
       break;
@@ -635,8 +657,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       compile_block(c, body);
 
-      for (int i = 0; i < loop.continue_count; ++i)
-        patch_jump(c, loop.continue_jumps[i]);
+      patch_jumps(c, loop.continue_jumps, loop.continue_count);
 
       emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)i_slot, 0);
       const uint8_t one_idx = make_constant(c, OAK_VALUE_I32(1));
@@ -651,57 +672,27 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       end_scope(c);
 
-      for (int i = 0; i < loop.break_count; ++i)
-        patch_jump(c, loop.break_jumps[i]);
+      patch_jumps(c, loop.break_jumps, loop.break_count);
 
       c->current_loop = loop.enclosing;
       break;
     }
     case OAK_NODE_KIND_STMT_BREAK:
-    {
-      if (!c->current_loop)
-      {
-        compiler_error_at(c, NULL, "'break' used outside of a loop");
-        return;
-      }
-      oak_loop_ctx_t* loop = c->current_loop;
-
-      const int saved_depth = c->stack_depth;
-      emit_pops(c, c->stack_depth - loop->exit_depth, 0);
-
-      if (loop->break_count >= OAK_MAX_BREAKS)
-      {
-        compiler_error_at(c, NULL,
-                          "too many 'break' statements in loop (max %d)",
-                          OAK_MAX_BREAKS);
-        return;
-      }
-      loop->break_jumps[loop->break_count++] = emit_jump(c, OAK_OP_JUMP, 0);
-      c->stack_depth = saved_depth;
-      break;
-    }
     case OAK_NODE_KIND_STMT_CONTINUE:
     {
+      const int is_break = node->kind == OAK_NODE_KIND_STMT_BREAK;
+      const char* keyword = is_break ? "break" : "continue";
       if (!c->current_loop)
       {
-        compiler_error_at(c, NULL, "'continue' used outside of a loop");
+        compiler_error_at(c, NULL, "'%s' used outside of a loop", keyword);
         return;
       }
       oak_loop_ctx_t* loop = c->current_loop;
-
-      const int saved_depth = c->stack_depth;
-      emit_pops(c, c->stack_depth - loop->continue_depth, 0);
-
-      if (loop->continue_count >= OAK_MAX_BREAKS)
-      {
-        compiler_error_at(c, NULL,
-                          "too many 'continue' statements in loop (max %d)",
-                          OAK_MAX_BREAKS);
-        return;
-      }
-      loop->continue_jumps[loop->continue_count++] =
-          emit_jump(c, OAK_OP_JUMP, 0);
-      c->stack_depth = saved_depth;
+      emit_loop_jump(c,
+                     is_break ? loop->break_jumps : loop->continue_jumps,
+                     is_break ? &loop->break_count : &loop->continue_count,
+                     is_break ? loop->exit_depth : loop->continue_depth,
+                     keyword);
       break;
     }
     default:
