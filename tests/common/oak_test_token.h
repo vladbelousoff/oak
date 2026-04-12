@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_countof.h"
 #include "oak_lexer.h"
 #include "oak_test_run.h"
 #include "oak_token.h"
@@ -21,7 +22,7 @@ struct oak_expected_token_t
   };
 };
 
-static enum oak_result_t
+static enum oak_test_status_t
 oak_test_token(const struct oak_token_t* token,
                const struct oak_expected_token_t* expected,
                const size_t index)
@@ -33,7 +34,7 @@ oak_test_token(const struct oak_token_t* token,
             index,
             oak_token_name(oak_token_kind(token)),
             oak_token_name(expected->kind));
-    return OAK_FAILURE;
+    return OAK_TEST_TOKEN_KIND;
   }
   if (oak_token_line(token) != expected->line)
   {
@@ -43,7 +44,7 @@ oak_test_token(const struct oak_token_t* token,
             oak_token_name(oak_token_kind(token)),
             oak_token_line(token),
             expected->line);
-    return OAK_FAILURE;
+    return OAK_TEST_TOKEN_LINE;
   }
   if (oak_token_column(token) != expected->column)
   {
@@ -53,7 +54,7 @@ oak_test_token(const struct oak_token_t* token,
             oak_token_name(oak_token_kind(token)),
             oak_token_column(token),
             expected->column);
-    return OAK_FAILURE;
+    return OAK_TEST_TOKEN_COLUMN;
   }
   if (oak_token_pos(token) != expected->pos)
   {
@@ -63,7 +64,7 @@ oak_test_token(const struct oak_token_t* token,
             oak_token_name(oak_token_kind(token)),
             oak_token_pos(token),
             expected->pos);
-    return OAK_FAILURE;
+    return OAK_TEST_TOKEN_POS;
   }
 
   if (oak_token_kind(token) == OAK_TOKEN_INT_NUM)
@@ -75,7 +76,7 @@ oak_test_token(const struct oak_token_t* token,
               index,
               oak_token_as_i32(token),
               expected->integer);
-      return OAK_FAILURE;
+      return OAK_TEST_TOKEN_INT;
     }
   }
 
@@ -88,7 +89,7 @@ oak_test_token(const struct oak_token_t* token,
               index,
               (double)oak_token_as_f32(token),
               (double)expected->floating);
-      return OAK_FAILURE;
+      return OAK_TEST_TOKEN_FLOAT;
     }
   }
 
@@ -102,14 +103,14 @@ oak_test_token(const struct oak_token_t* token,
               index,
               oak_token_buf(token),
               expected->string);
-      return OAK_FAILURE;
+      return OAK_TEST_TOKEN_STRING;
     }
   }
 
-  return OAK_SUCCESS;
+  return OAK_TEST_OK;
 }
 
-static enum oak_result_t
+static enum oak_test_status_t
 oak_test_tokens(const struct oak_lexer_result_t* lexer,
                 const struct oak_expected_token_t* expected_tokens,
                 const size_t count)
@@ -125,16 +126,18 @@ oak_test_tokens(const struct oak_lexer_result_t* lexer,
               "extra token at index %zu (expected %zu tokens)",
               token_index,
               count);
-      return OAK_FAILURE;
+      return OAK_TEST_TOKENS_EXTRA;
     }
 
     const struct oak_token_t* token =
         oak_container_of(token_entry, struct oak_token_t, link);
     const struct oak_expected_token_t* expected = &expected_tokens[token_index];
 
-    if (oak_test_token(token, expected, token_index) != OAK_SUCCESS)
-      return OAK_FAILURE;
+    const enum oak_test_status_t step =
+        oak_test_token(token, expected, token_index);
+    if (step != OAK_TEST_OK)
+      return step;
   }
 
-  return OAK_SUCCESS;
+  return OAK_TEST_OK;
 }

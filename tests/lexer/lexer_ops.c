@@ -34,8 +34,9 @@ OAK_TEST_DECL(LexOperators)
     { .kind = OAK_TOKEN_QUESTION_MARK, .line = 1, .column = 58, .pos = 58 },
   };
 
-  const size_t n = OAK_ARRAY_SIZE(expected_tokens);
-  const enum oak_result_t result = oak_test_tokens(lexer, expected_tokens, n);
+  const size_t n = oak_countof(expected_tokens);
+  const enum oak_test_status_t result =
+      oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);
   return result;
 }

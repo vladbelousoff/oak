@@ -41,27 +41,28 @@ static size_t oak_test_ast_child_count(const struct oak_ast_node_t* node)
   return oak_list_length(&node->children);
 }
 
-static enum oak_result_t oak_test_ast_kind(const struct oak_ast_node_t* node,
-                                           const enum oak_node_kind_t expected)
+static enum oak_test_status_t
+oak_test_ast_kind(const struct oak_ast_node_t* node,
+                  const enum oak_node_kind_t expected)
 {
   if (!node)
-    return OAK_FAILURE;
+    return OAK_TEST_AST_KIND;
   if (node->kind != expected)
-    return OAK_FAILURE;
-  return OAK_SUCCESS;
+    return OAK_TEST_AST_KIND;
+  return OAK_TEST_OK;
 }
 
 #define OAK_CHECK_NODE_KIND(node, expected)                                    \
   do                                                                           \
   {                                                                            \
-    if (oak_test_ast_kind((node), (expected)) != OAK_SUCCESS)                  \
+    if (oak_test_ast_kind((node), (expected)) != OAK_TEST_OK)                  \
     {                                                                          \
       oak_log(OAK_LOG_ERR,                                                     \
               "check failed: node kind != %s (%s:%d)",                         \
               #expected,                                                       \
               oak_filename(__FILE__),                                          \
               __LINE__);                                                       \
-      return OAK_FAILURE;                                                      \
+      return OAK_TEST_AST_KIND;                                                \
     }                                                                          \
   } while (0)
 
@@ -77,7 +78,7 @@ static enum oak_result_t oak_test_ast_kind(const struct oak_ast_node_t* node,
               (int)(expected),                                                 \
               oak_filename(__FILE__),                                          \
               __LINE__);                                                       \
-      return OAK_FAILURE;                                                      \
+      return OAK_TEST_AST_CHILD_COUNT;                                         \
     }                                                                          \
   } while (0)
 
@@ -92,7 +93,7 @@ static enum oak_result_t oak_test_ast_kind(const struct oak_ast_node_t* node,
               (expected),                                                      \
               oak_filename(__FILE__),                                          \
               __LINE__);                                                       \
-      return OAK_FAILURE;                                                      \
+      return OAK_TEST_AST_TOKEN_STR;                                           \
     }                                                                          \
   } while (0)
 
@@ -108,6 +109,6 @@ static enum oak_result_t oak_test_ast_kind(const struct oak_ast_node_t* node,
               (int)(expected),                                                 \
               oak_filename(__FILE__),                                          \
               __LINE__);                                                       \
-      return OAK_FAILURE;                                                      \
+      return OAK_TEST_AST_INT_VAL;                                             \
     }                                                                          \
   } while (0)

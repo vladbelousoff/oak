@@ -1,11 +1,11 @@
 #pragma once
 
-#include "oak_common.h"
 #include "oak_log.h"
+#include "oak_test_status.h"
 
 struct oak_test_t
 {
-  enum oak_result_t (*fn)(void);
+  enum oak_test_status_t (*fn)(void);
   const char* name;
 };
 
@@ -19,7 +19,7 @@ struct oak_test_t
  * Example (test_main.c registry):
  *   OAK_TEST_ENTRY(EmptyString),
  */
-#define OAK_TEST_DECL(fn_name) enum oak_result_t fn_name(void)
+#define OAK_TEST_DECL(fn_name) enum oak_test_status_t fn_name(void)
 
 #define OAK_TEST_ENTRY(label)                                                  \
   {                                                                            \
@@ -37,6 +37,6 @@ struct oak_test_t
               #expr,                                                           \
               oak_filename(__FILE__),                                          \
               __LINE__);                                                       \
-      return OAK_FAILURE;                                                      \
+      return OAK_TEST_FAIL;                                                    \
     }                                                                          \
   } while (0)

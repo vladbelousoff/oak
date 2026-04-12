@@ -26,7 +26,7 @@ OAK_TEST_DECL(ParseUnaryNeg)
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);
 
-  return OAK_SUCCESS;
+  return OAK_TEST_OK;
 }
 
 OAK_TEST_MAIN(ParseUnaryNeg)

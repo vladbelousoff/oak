@@ -5,8 +5,6 @@
 #include <string.h>
 #include <time.h>
 
-#include "oak_common.h"
-
 const char* oak_filename(const char* path)
 {
 #if defined(_WIN32)
@@ -94,8 +92,8 @@ void _oak_log_printf(const enum oak_log_level_t lvl,
   if (pos >= sizeof(buf) - 1)
     pos = sizeof(buf) - 2;
 
-  buf[pos] = OAK_EOL;
-  buf[pos + 1] = OAK_EOS;
+  buf[pos] = '\n';
+  buf[pos + 1] = '\0';
 
   fputs(buf, stdout);
 }

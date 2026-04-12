@@ -10,7 +10,7 @@
  */
 static int oak_test_run(const struct oak_test_t* tests, const int count)
 {
-  enum oak_result_t result = OAK_SUCCESS;
+  enum oak_test_status_t result = OAK_TEST_OK;
   oak_mem_init();
 
   for (int i = 0; i < count; ++i)
@@ -18,7 +18,7 @@ static int oak_test_run(const struct oak_test_t* tests, const int count)
     const struct oak_test_t* t = &tests[i];
     oak_log(OAK_LOG_INF, "running %s...", t->name);
     result = t->fn();
-    if (result != OAK_SUCCESS)
+    if (result != OAK_TEST_OK)
     {
       oak_log(OAK_LOG_ERR, "failed: %s", t->name);
       break;
@@ -27,7 +27,7 @@ static int oak_test_run(const struct oak_test_t* tests, const int count)
   }
 
   oak_mem_shutdown();
-  return result == OAK_SUCCESS ? 0 : 1;
+  return result == OAK_TEST_OK ? 0 : (int)result;
 }
 
 /** Convenience macro for the common single-test-per-exe case. */

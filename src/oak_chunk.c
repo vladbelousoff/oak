@@ -1,5 +1,6 @@
 #include "oak_chunk.h"
 
+#include "oak_countof.h"
 #include "oak_mem.h"
 
 #include <stdio.h>
@@ -36,7 +37,7 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_PRINT] = { "OP_PRINT", OAK_OP_FMT_NONE, -1 },
 };
 
-#define OAK_OP_INFO_COUNT (sizeof(oak_op_info) / sizeof(oak_op_info[0]))
+#define OAK_OP_INFO_COUNT oak_countof(oak_op_info)
 
 const struct oak_op_info_t* oak_op_get_info(const uint8_t op)
 {
