@@ -1,5 +1,8 @@
 #include "oak_vm.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+
 void oak_vm_init(struct oak_vm_t* vm)
 {
   vm->chunk = NULL;
@@ -37,11 +40,40 @@ static struct oak_value_t vm_peek(const struct oak_vm_t* vm, const int distance)
   return vm->sp[-1 - distance];
 }
 
-static void runtime_error(const struct oak_vm_t* vm, const char* msg)
+static const char* value_kind_desc(const struct oak_value_t v)
 {
+  if (oak_is_bool(v))
+    return "bool";
+  if (oak_is_i32(v))
+    return "integer";
+  if (oak_is_f32(v))
+    return "float";
+  if (oak_is_string(v))
+    return "string";
+  if (oak_is_obj(v))
+    return "object";
+  return "value";
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 2, 3)))
+#endif
+static void runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
+{
+  static _Thread_local char buf[512];
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
   const size_t offset = (size_t)(vm->ip - vm->chunk->bytecode - 1);
-  const int line = vm->chunk->lines[offset];
-  oak_log(OAK_LOG_ERR, "runtime error [line %d]: %s", line, msg);
+  oak_assert(vm->chunk->locations != NULL);
+  const struct oak_code_loc_t loc = vm->chunk->locations[offset];
+  int col = loc.column;
+  if (col < 1)
+    col = 1;
+
+  oak_log(OAK_LOG_ERR, "%d:%d: error: %s", loc.line, col, buf);
 }
 
 static inline uint16_t vm_read(struct oak_vm_t* vm, const int n)
@@ -79,7 +111,7 @@ static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
       case OAK_OP_DIV:
         if (oak_as_i32(b) == 0)
         {
-          runtime_error(vm, "division by zero");
+          runtime_error(vm, "integer division by zero");
           return OAK_VM_RUNTIME_ERROR;
         }
         result = oak_as_i32(a) / oak_as_i32(b);
@@ -87,13 +119,14 @@ static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
       case OAK_OP_MOD:
         if (oak_as_i32(b) == 0)
         {
-          runtime_error(vm, "modulo by zero");
+          runtime_error(vm, "integer remainder by zero (modulo by zero)");
           return OAK_VM_RUNTIME_ERROR;
         }
         result = oak_as_i32(a) % oak_as_i32(b);
         break;
       default:
-        runtime_error(vm, "unexpected numeric op");
+        runtime_error(
+            vm, "internal error: unhandled integer opcode (0x%02x)", op);
         return OAK_VM_RUNTIME_ERROR;
     }
     vm_push(vm, OAK_VALUE_I32(result));
@@ -120,16 +153,20 @@ static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
       case OAK_OP_DIV:
         if (fb == 0.0f)
         {
-          runtime_error(vm, "division by zero");
+          runtime_error(vm, "floating-point division by zero");
           return OAK_VM_RUNTIME_ERROR;
         }
         result = fa / fb;
         break;
       case OAK_OP_MOD:
-        runtime_error(vm, "modulo not supported on floats");
+        runtime_error(vm,
+                      "the '%%' operator is only defined for integers, not "
+                      "floating-point "
+                      "operands");
         return OAK_VM_RUNTIME_ERROR;
       default:
-        runtime_error(vm, "unexpected numeric op");
+        runtime_error(
+            vm, "internal error: unhandled numeric opcode (0x%02x)", op);
         return OAK_VM_RUNTIME_ERROR;
     }
 
@@ -137,7 +174,12 @@ static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
     return OAK_VM_OK;
   }
 
-  runtime_error(vm, "operands must be numbers");
+  runtime_error(
+      vm,
+      "arithmetic operands must be numbers (left operand is %s, right "
+      "operand is %s)",
+      value_kind_desc(a),
+      value_kind_desc(b));
   return OAK_VM_RUNTIME_ERROR;
 }
 
@@ -148,7 +190,11 @@ static enum oak_vm_result_t numeric_compare(struct oak_vm_t* vm,
 {
   if (!((oak_is_i32(a) || oak_is_f32(a)) && (oak_is_i32(b) || oak_is_f32(b))))
   {
-    runtime_error(vm, "operands must be numbers for comparison");
+    runtime_error(vm,
+                  "comparison operands must be numbers (left operand is %s, "
+                  "right operand is %s)",
+                  value_kind_desc(a),
+                  value_kind_desc(b));
     return OAK_VM_RUNTIME_ERROR;
   }
 
@@ -171,7 +217,8 @@ static enum oak_vm_result_t numeric_compare(struct oak_vm_t* vm,
       result = fa >= fb;
       break;
     default:
-      runtime_error(vm, "unexpected comparison op");
+      runtime_error(
+          vm, "internal error: unhandled comparison opcode (0x%02x)", op);
       return OAK_VM_RUNTIME_ERROR;
   }
 
@@ -266,7 +313,8 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         else
         {
           oak_value_decref(val);
-          runtime_error(vm, "operand must be a number");
+          runtime_error(
+              vm, "unary '-' expects a number, got %s", value_kind_desc(val));
           return OAK_VM_RUNTIME_ERROR;
         }
         oak_value_decref(val);
@@ -333,7 +381,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         break;
       }
       default:
-        runtime_error(vm, "unknown opcode");
+        runtime_error(vm, "internal error: unknown opcode 0x%02x", instruction);
         return OAK_VM_RUNTIME_ERROR;
     }
   }

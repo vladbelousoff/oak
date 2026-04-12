@@ -52,6 +52,15 @@ extern const struct oak_op_info_t oak_op_info[];
 
 const struct oak_op_info_t* oak_op_get_info(uint8_t op);
 
+/* Source coordinates (from lexer tokens at compile time; stored per bytecode
+ * byte). Named oak_code_loc_t to avoid clashing with oak_mem.h's oak_src_loc_t.
+ */
+struct oak_code_loc_t
+{
+  int line;
+  int column;
+};
+
 struct oak_debug_local_t
 {
   int slot;
@@ -64,7 +73,7 @@ struct oak_chunk_t
   size_t count;
   size_t capacity;
   uint8_t* bytecode;
-  int* lines;
+  struct oak_code_loc_t* locations;
   size_t const_count;
   size_t const_capacity;
   struct oak_value_t* constants;
@@ -76,7 +85,9 @@ struct oak_chunk_t
 void oak_chunk_init(struct oak_chunk_t* chunk);
 void oak_chunk_free(struct oak_chunk_t* chunk);
 
-void oak_chunk_write(struct oak_chunk_t* chunk, uint8_t byte, int line);
+void oak_chunk_write(struct oak_chunk_t* chunk,
+                     uint8_t byte,
+                     struct oak_code_loc_t loc);
 
 size_t oak_chunk_add_constant(struct oak_chunk_t* chunk,
                               struct oak_value_t value);

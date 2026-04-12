@@ -51,7 +51,7 @@ void oak_chunk_init(struct oak_chunk_t* chunk)
   chunk->count = 0;
   chunk->capacity = 0;
   chunk->bytecode = NULL;
-  chunk->lines = NULL;
+  chunk->locations = NULL;
   chunk->const_count = 0;
   chunk->const_capacity = 0;
   chunk->constants = NULL;
@@ -69,17 +69,18 @@ static void ensure_code_capacity(struct oak_chunk_t* chunk)
       chunk->capacity == 0 ? CHUNK_INITIAL_CAPACITY : chunk->capacity * 2;
   chunk->bytecode =
       oak_realloc(chunk->bytecode, new_cap * sizeof(uint8_t), OAK_SRC_LOC);
-  chunk->lines = oak_realloc(chunk->lines, new_cap * sizeof(int), OAK_SRC_LOC);
+  chunk->locations = oak_realloc(
+      chunk->locations, new_cap * sizeof(struct oak_code_loc_t), OAK_SRC_LOC);
   chunk->capacity = new_cap;
 }
 
 void oak_chunk_write(struct oak_chunk_t* chunk,
                      const uint8_t byte,
-                     const int line)
+                     const struct oak_code_loc_t loc)
 {
   ensure_code_capacity(chunk);
   chunk->bytecode[chunk->count] = byte;
-  chunk->lines[chunk->count] = line;
+  chunk->locations[chunk->count] = loc;
   chunk->count++;
 }
 
@@ -147,8 +148,8 @@ void oak_chunk_free(struct oak_chunk_t* chunk)
 
   if (chunk->bytecode)
     oak_free(chunk->bytecode, OAK_SRC_LOC);
-  if (chunk->lines)
-    oak_free(chunk->lines, OAK_SRC_LOC);
+  if (chunk->locations)
+    oak_free(chunk->locations, OAK_SRC_LOC);
   if (chunk->constants)
     oak_free(chunk->constants, OAK_SRC_LOC);
 
@@ -199,10 +200,11 @@ static size_t disassemble_instruction(const struct oak_chunk_t* chunk,
                                       const size_t offset)
 {
   char line[16];
-  if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1])
+  if (offset > 0 &&
+      chunk->locations[offset].line == chunk->locations[offset - 1].line)
     snprintf(line, sizeof(line), "   |");
   else
-    snprintf(line, sizeof(line), "%4d", chunk->lines[offset]);
+    snprintf(line, sizeof(line), "%4d", chunk->locations[offset].line);
 
   const uint8_t op = chunk->bytecode[offset];
   const char* name = opcode_name(op);
