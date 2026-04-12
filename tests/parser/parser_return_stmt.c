@@ -2,8 +2,8 @@
 
 OAK_TEST_DECL(ParseReturnStmt)
 {
-  struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("fn add(x : int, y : int) -> int { return x + y; }");
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
+      "fn add(x : number, y : number) -> number { return x + y; }");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
@@ -13,9 +13,9 @@ OAK_TEST_DECL(ParseReturnStmt)
      Expected shape:
        FN_DECL
          IDENT("add")
-         FN_PARAM [IDENT("x"), IDENT("int")]
-         FN_PARAM [IDENT("y"), IDENT("int")]
-         TYPE_NAME("int")
+         FN_PARAM [IDENT("x"), IDENT("number")]
+         FN_PARAM [IDENT("y"), IDENT("number")]
+         TYPE_NAME("number")
          BLOCK
            STMT_RETURN
              BINARY_ADD
@@ -39,7 +39,7 @@ OAK_TEST_DECL(ParseReturnStmt)
 
   const struct oak_ast_node_t* ret_type = oak_test_ast_child(decl, 3);
   OAK_CHECK_NODE_KIND(ret_type, OAK_NODE_KIND_IDENT);
-  OAK_CHECK_TOKEN_STR(ret_type, "int");
+  OAK_CHECK_TOKEN_STR(ret_type, "number");
 
   const struct oak_ast_node_t* body = oak_test_ast_child(decl, 4);
   OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);

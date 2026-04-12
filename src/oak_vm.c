@@ -8,6 +8,8 @@ void oak_vm_init(struct oak_vm_t* vm)
   vm->chunk = NULL;
   vm->ip = NULL;
   vm->sp = vm->stack;
+  vm->stack_base = 0;
+  vm->frame_count = 0;
 }
 
 void oak_vm_free(struct oak_vm_t* vm)
@@ -50,6 +52,8 @@ static const char* value_kind_desc(const struct oak_value_t v)
     return "float";
   if (oak_is_string(v))
     return "string";
+  if (oak_is_fn(v))
+    return "function";
   if (oak_is_obj(v))
     return "object";
   return "value";
@@ -226,6 +230,78 @@ static enum oak_vm_result_t numeric_compare(struct oak_vm_t* vm,
   return OAK_VM_OK;
 }
 
+static enum oak_vm_result_t vm_op_call(struct oak_vm_t* vm)
+{
+  const uint8_t argc = (uint8_t)vm_read(vm, 1);
+  const size_t depth = (size_t)(vm->sp - vm->stack);
+  if (depth < (size_t)argc + 1u)
+  {
+    runtime_error(vm, "stack underflow in call");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  const size_t fn_slot = depth - (size_t)argc - 1u;
+  const struct oak_value_t fn_val = vm->stack[fn_slot];
+  if (!oak_is_fn(fn_val))
+  {
+    runtime_error(vm, "call target is not a function");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  struct oak_obj_fn_t* fn = oak_as_fn(fn_val);
+  if (fn->arity != (int)argc)
+  {
+    runtime_error(vm,
+                  "function arity mismatch (expected %d, got %u)",
+                  fn->arity,
+                  (unsigned)argc);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  if (vm->frame_count >= OAK_FRAMES_MAX)
+  {
+    runtime_error(vm, "call stack overflow (max %d frames)", OAK_FRAMES_MAX);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  struct oak_call_frame_t* frame = &vm->frames[vm->frame_count++];
+  frame->return_ip = vm->ip;
+  frame->caller_stack_base = vm->stack_base;
+  frame->fn_slot = fn_slot;
+  vm->stack_base = fn_slot + 1u;
+  vm->ip = vm->chunk->bytecode + fn->code_offset;
+  return OAK_VM_OK;
+}
+
+static enum oak_vm_result_t vm_op_return(struct oak_vm_t* vm)
+{
+  if (vm->frame_count <= 0)
+  {
+    runtime_error(vm, "'return' outside of a function");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  const size_t depth_before = (size_t)(vm->sp - vm->stack);
+  if (depth_before == 0)
+  {
+    runtime_error(vm, "stack underflow in return");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  struct oak_value_t result = vm_pop(vm);
+  struct oak_call_frame_t* frame = &vm->frames[--vm->frame_count];
+  const size_t fn_slot = frame->fn_slot;
+
+  for (size_t i = fn_slot; i < depth_before - 1u; ++i)
+    oak_value_decref(vm->stack[i]);
+
+  vm->stack[fn_slot] = result;
+  vm->sp = vm->stack + fn_slot + 1u;
+  vm->ip = frame->return_ip;
+  vm->stack_base = frame->caller_stack_base;
+  return OAK_VM_OK;
+}
+
 enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
 {
   vm->chunk = chunk;
@@ -259,16 +335,28 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_GET_LOCAL:
       {
         const uint8_t slot = vm_read(vm, 1);
-        vm_push(vm, vm->stack[slot]);
+        const size_t idx = vm->stack_base + (size_t)slot;
+        if (idx >= OAK_STACK_MAX)
+        {
+          runtime_error(vm, "local slot out of range (slot %u)", slot);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        vm_push(vm, vm->stack[idx]);
         break;
       }
       case OAK_OP_SET_LOCAL:
       {
         const uint8_t slot = vm_read(vm, 1);
-        const struct oak_value_t old_val = vm->stack[slot];
+        const size_t idx = vm->stack_base + (size_t)slot;
+        if (idx >= OAK_STACK_MAX)
+        {
+          runtime_error(vm, "local slot out of range (slot %u)", slot);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t old_val = vm->stack[idx];
         const struct oak_value_t new_val = vm_peek(vm, 0);
         oak_value_incref(new_val);
-        vm->stack[slot] = new_val;
+        vm->stack[idx] = new_val;
         oak_value_decref(old_val);
         break;
       }
@@ -378,6 +466,20 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         struct oak_value_t val = vm_pop(vm);
         oak_value_print(val);
         oak_value_decref(val);
+        break;
+      }
+      case OAK_OP_CALL:
+      {
+        const enum oak_vm_result_t r = vm_op_call(vm);
+        if (r != OAK_VM_OK)
+          return r;
+        break;
+      }
+      case OAK_OP_RETURN:
+      {
+        const enum oak_vm_result_t r = vm_op_return(vm);
+        if (r != OAK_VM_OK)
+          return r;
         break;
       }
       default:

@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseFnReceiver)
 {
   struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("fn Vec.push(val : int) { x = val; }");
+      oak_lexer_tokenize("fn Vec.push(val : number) { x = val; }");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
@@ -15,7 +15,7 @@ OAK_TEST_DECL(ParseFnReceiver)
          FN_RECEIVER
            IDENT("Vec")
          IDENT("push")
-         FN_PARAM [IDENT("val"), IDENT("int")]
+         FN_PARAM [IDENT("val"), IDENT("number")]
          BLOCK
            STMT_ASSIGNMENT
              IDENT("x")
@@ -43,7 +43,7 @@ OAK_TEST_DECL(ParseFnReceiver)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param, 0), OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(param, 0), "val");
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param, 1), OAK_NODE_KIND_IDENT);
-  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param, 1), "int");
+  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param, 1), "number");
 
   const struct oak_ast_node_t* body = oak_test_ast_child(decl, 3);
   OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);

@@ -2,8 +2,8 @@
 
 OAK_TEST_DECL(ParseFnParamMut)
 {
-  struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("fn foo(mut x : int, y : int) -> int { x = 1; }");
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
+      "fn foo(mut x : number, y : number) -> number { x = 1; }");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
@@ -13,9 +13,9 @@ OAK_TEST_DECL(ParseFnParamMut)
      Expected shape:
        FN_DECL
          IDENT("foo")
-         FN_PARAM [MUT_KEYWORD, IDENT("x"), IDENT("int")]
-         FN_PARAM [IDENT("y"), IDENT("int")]
-         TYPE_NAME("int")
+         FN_PARAM [MUT_KEYWORD, IDENT("x"), IDENT("number")]
+         FN_PARAM [IDENT("y"), IDENT("number")]
+         TYPE_NAME("number")
          BLOCK
            STMT_ASSIGNMENT
              IDENT("x")
@@ -37,7 +37,7 @@ OAK_TEST_DECL(ParseFnParamMut)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 1), OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(param0, 1), "x");
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 2), OAK_NODE_KIND_IDENT);
-  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param0, 2), "int");
+  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param0, 2), "number");
 
   const struct oak_ast_node_t* param1 = oak_test_ast_child(decl, 2);
   OAK_CHECK_NODE_KIND(param1, OAK_NODE_KIND_FN_PARAM);
@@ -45,11 +45,11 @@ OAK_TEST_DECL(ParseFnParamMut)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param1, 0), OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(param1, 0), "y");
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param1, 1), OAK_NODE_KIND_IDENT);
-  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param1, 1), "int");
+  OAK_CHECK_TOKEN_STR(oak_test_ast_child(param1, 1), "number");
 
   const struct oak_ast_node_t* ret_type = oak_test_ast_child(decl, 3);
   OAK_CHECK_NODE_KIND(ret_type, OAK_NODE_KIND_IDENT);
-  OAK_CHECK_TOKEN_STR(ret_type, "int");
+  OAK_CHECK_TOKEN_STR(ret_type, "number");
 
   const struct oak_ast_node_t* body = oak_test_ast_child(decl, 4);
   OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);

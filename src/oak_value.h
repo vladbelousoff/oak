@@ -19,6 +19,7 @@ enum oak_obj_type_t
   OAK_OBJ_STRING,
   OAK_OBJ_ARRAY,
   OAK_OBJ_MAP,
+  OAK_OBJ_FN,
 };
 
 struct oak_obj_t
@@ -45,6 +46,13 @@ struct oak_obj_string_t
   size_t length;
   uint32_t hash;
   char chars[];
+};
+
+struct oak_obj_fn_t
+{
+  struct oak_obj_t obj;
+  size_t code_offset;
+  int arity;
 };
 
 struct oak_value_t
@@ -94,6 +102,8 @@ struct oak_obj_string_t* oak_make_string(const char* chars, size_t length);
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
                                            const struct oak_obj_string_t* b);
 
+struct oak_obj_fn_t* oak_make_fn(size_t code_offset, int arity);
+
 static inline int oak_is_bool(const struct oak_value_t value)
 {
   return value.type == OAK_VAL_BOOL;
@@ -112,6 +122,11 @@ static inline int oak_is_obj(const struct oak_value_t value)
 static inline int oak_is_string(const struct oak_value_t value)
 {
   return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_STRING;
+}
+
+static inline int oak_is_fn(const struct oak_value_t value)
+{
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_FN;
 }
 
 static inline int oak_is_i32(const struct oak_value_t value)
@@ -154,6 +169,12 @@ oak_as_string(const struct oak_value_t value)
 {
   oak_assert(oak_is_string(value));
   return (struct oak_obj_string_t*)value.as.obj;
+}
+
+static inline struct oak_obj_fn_t* oak_as_fn(const struct oak_value_t value)
+{
+  oak_assert(oak_is_fn(value));
+  return (struct oak_obj_fn_t*)value.as.obj;
 }
 
 static inline char* oak_as_cstring(const struct oak_value_t value)

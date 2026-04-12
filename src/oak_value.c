@@ -40,6 +40,16 @@ struct oak_obj_string_t* oak_make_string(const char* chars, const size_t length)
   return str;
 }
 
+struct oak_obj_fn_t* oak_make_fn(const size_t code_offset, const int arity)
+{
+  struct oak_obj_fn_t* fn = oak_alloc(sizeof(struct oak_obj_fn_t), OAK_SRC_LOC);
+  fn->obj.type = OAK_OBJ_FN;
+  oak_refcount_init(&fn->obj.refcount, 1);
+  fn->code_offset = code_offset;
+  fn->arity = arity;
+  return fn;
+}
+
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
                                            const struct oak_obj_string_t* b)
 {
@@ -98,6 +108,8 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
           return 0;
         return memcmp(str_a->chars, str_b->chars, str_a->length) == 0;
       }
+      if (oak_is_fn(a) && oak_is_fn(b))
+        return oak_as_obj(a) == oak_as_obj(b);
       return oak_as_obj(a) == oak_as_obj(b);
   }
 
@@ -132,6 +144,8 @@ void oak_value_print(const struct oak_value_t value)
     case OAK_VAL_OBJ:
       if (oak_is_string(value))
         oak_log(OAK_LOG_INF, "%s", oak_as_cstring(value));
+      else if (oak_is_fn(value))
+        oak_log(OAK_LOG_INF, "<fn>");
       else
         oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));
       break;

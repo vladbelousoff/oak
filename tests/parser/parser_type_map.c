@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseTypeMap)
 {
   struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("fn lookup() -> [string:int] { }");
+      oak_lexer_tokenize("fn lookup() -> [string:number] { }");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
@@ -16,7 +16,7 @@ OAK_TEST_DECL(ParseTypeMap)
            IDENT("lookup")
            TYPE_MAP (binary)
              lhs: IDENT("string")
-             rhs: IDENT("int")
+             rhs: IDENT("number")
            BLOCK (empty)
   */
 
@@ -38,7 +38,7 @@ OAK_TEST_DECL(ParseTypeMap)
 
   const struct oak_ast_node_t* val_type = oak_test_ast_child(ret_type, 1);
   OAK_CHECK_NODE_KIND(val_type, OAK_NODE_KIND_IDENT);
-  OAK_CHECK_TOKEN_STR(val_type, "int");
+  OAK_CHECK_TOKEN_STR(val_type, "number");
 
   oak_parser_cleanup(result);
   oak_lexer_cleanup(lexer);

@@ -30,6 +30,8 @@ enum oak_opcode_t
   OAK_OP_JUMP_IF_FALSE,
   OAK_OP_LOOP,
   OAK_OP_PRINT,
+  OAK_OP_CALL,
+  OAK_OP_RETURN,
 };
 
 enum oak_op_format_t
@@ -39,6 +41,7 @@ enum oak_op_format_t
   OAK_OP_FMT_SLOT,
   OAK_OP_FMT_JUMP_FWD,
   OAK_OP_FMT_JUMP_BACK,
+  OAK_OP_FMT_ARGC,
 };
 
 struct oak_op_info_t

@@ -35,6 +35,8 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_JUMP_IF_FALSE] = { "OP_JUMP_IF_FALSE", OAK_OP_FMT_JUMP_FWD, -1 },
   [OAK_OP_LOOP] = { "OP_LOOP", OAK_OP_FMT_JUMP_BACK, 0 },
   [OAK_OP_PRINT] = { "OP_PRINT", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_CALL] = { "OP_CALL", OAK_OP_FMT_ARGC, 0 },
+  [OAK_OP_RETURN] = { "OP_RETURN", OAK_OP_FMT_NONE, 0 },
 };
 
 #define OAK_OP_INFO_COUNT oak_countof(oak_op_info)
@@ -176,6 +178,8 @@ snprint_value(char* buf, const size_t size, const struct oak_value_t value)
     case OAK_VAL_OBJ:
       if (oak_is_string(value))
         return snprintf(buf, size, "\"%s\"", oak_as_cstring(value));
+      if (oak_is_fn(value))
+        return snprintf(buf, size, "<fn>");
       return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
     default:
       buf[0] = 0;
@@ -268,6 +272,12 @@ static size_t disassemble_instruction(const struct oak_chunk_t* chunk,
               jump,
               offset + 3 - jump);
       return offset + 3;
+    }
+    case OAK_OP_FMT_ARGC:
+    {
+      const uint8_t argc = chunk->bytecode[offset + 1];
+      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d", offset, line, name, argc);
+      return offset + 2;
     }
     default:
       oak_log(OAK_LOG_INF, "%04zu %s  %s", offset, line, name);
