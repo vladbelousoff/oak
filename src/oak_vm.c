@@ -269,7 +269,8 @@ static enum oak_vm_result_t vm_op_call(struct oak_vm_t* vm)
     for (uint8_t i = 0; i < argc; ++i)
       oak_value_decref(arg_base[i]);
 
-    oak_value_incref(result);
+    /* Native returns a value whose refcount is the single stack ownership (same
+     * as after vm_push for fresh allocations). Do not incref. */
     vm->stack[fn_slot] = result;
     vm->sp = vm->stack + fn_slot + 1u;
     return OAK_VM_OK;
