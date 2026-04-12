@@ -68,18 +68,16 @@ struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
 
 int oak_is_truthy(const struct oak_value_t value)
 {
-  switch (value.type)
+  if (oak_is_bool(value))
+    return oak_as_bool(value);
+  if (oak_is_number(value))
   {
-    case OAK_VAL_BOOL:
-      return oak_as_bool(value);
-    case OAK_VAL_NUMBER:
-      if (oak_is_f32(value))
-        return oak_as_f32(value) != 0.0f;
-      return oak_as_i32(value) != 0;
-    case OAK_VAL_OBJ:
-      return 1;
+    if (oak_is_f32(value))
+      return oak_as_f32(value) != 0.0f;
+    return oak_as_i32(value) != 0;
   }
-
+  if (oak_is_obj(value))
+    return 1;
   return 0;
 }
 
@@ -130,24 +128,26 @@ void oak_value_decref(const struct oak_value_t value)
 
 void oak_value_print(const struct oak_value_t value)
 {
-  switch (value.type)
+  if (oak_is_bool(value))
   {
-    case OAK_VAL_BOOL:
-      oak_log(OAK_LOG_INF, "%s", oak_as_bool(value) ? "true" : "false");
-      break;
-    case OAK_VAL_NUMBER:
-      if (oak_is_f32(value))
-        oak_log(OAK_LOG_INF, "%f", oak_as_f32(value));
-      else
-        oak_log(OAK_LOG_INF, "%d", oak_as_i32(value));
-      break;
-    case OAK_VAL_OBJ:
-      if (oak_is_string(value))
-        oak_log(OAK_LOG_INF, "%s", oak_as_cstring(value));
-      else if (oak_is_fn(value))
-        oak_log(OAK_LOG_INF, "<fn>");
-      else
-        oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));
-      break;
+    oak_log(OAK_LOG_INF, "%s", oak_as_bool(value) ? "true" : "false");
+    return;
+  }
+  if (oak_is_number(value))
+  {
+    if (oak_is_f32(value))
+      oak_log(OAK_LOG_INF, "%f", oak_as_f32(value));
+    else
+      oak_log(OAK_LOG_INF, "%d", oak_as_i32(value));
+    return;
+  }
+  if (oak_is_obj(value))
+  {
+    if (oak_is_string(value))
+      oak_log(OAK_LOG_INF, "%s", oak_as_cstring(value));
+    else if (oak_is_fn(value))
+      oak_log(OAK_LOG_INF, "<fn>");
+    else
+      oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));
   }
 }

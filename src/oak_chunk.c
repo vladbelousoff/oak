@@ -169,24 +169,24 @@ static const char* opcode_name(const uint8_t op)
 static int
 snprint_value(char* buf, const size_t size, const struct oak_value_t value)
 {
-  switch (value.type)
+  if (oak_is_bool(value))
+    return snprintf(buf, size, "%s", oak_as_bool(value) ? "true" : "false");
+  if (oak_is_number(value))
   {
-    case OAK_VAL_BOOL:
-      return snprintf(buf, size, "%s", oak_as_bool(value) ? "true" : "false");
-    case OAK_VAL_NUMBER:
-      if (oak_is_f32(value))
-        return snprintf(buf, size, "%g", (double)oak_as_f32(value));
-      return snprintf(buf, size, "%d", oak_as_i32(value));
-    case OAK_VAL_OBJ:
-      if (oak_is_string(value))
-        return snprintf(buf, size, "\"%s\"", oak_as_cstring(value));
-      if (oak_is_fn(value))
-        return snprintf(buf, size, "<fn>");
-      return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
-    default:
-      buf[0] = 0;
-      return 0;
+    if (oak_is_f32(value))
+      return snprintf(buf, size, "%g", (double)oak_as_f32(value));
+    return snprintf(buf, size, "%d", oak_as_i32(value));
   }
+  if (oak_is_obj(value))
+  {
+    if (oak_is_string(value))
+      return snprintf(buf, size, "\"%s\"", oak_as_cstring(value));
+    if (oak_is_fn(value))
+      return snprintf(buf, size, "<fn>");
+    return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
+  }
+  buf[0] = 0;
+  return 0;
 }
 
 static const char* debug_local_name(const struct oak_chunk_t* chunk,

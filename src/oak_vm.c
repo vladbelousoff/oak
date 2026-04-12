@@ -46,10 +46,8 @@ static const char* value_kind_desc(const struct oak_value_t v)
 {
   if (oak_is_bool(v))
     return "bool";
-  if (oak_is_i32(v))
-    return "integer";
-  if (oak_is_f32(v))
-    return "float";
+  if (oak_is_number(v))
+    return oak_is_f32(v) ? "float" : "integer";
   if (oak_is_string(v))
     return "string";
   if (oak_is_fn(v))
@@ -137,7 +135,7 @@ static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
     return OAK_VM_OK;
   }
 
-  if ((oak_is_i32(a) || oak_is_f32(a)) && (oak_is_i32(b) || oak_is_f32(b)))
+  if (oak_is_number(a) && oak_is_number(b))
   {
     const float fa = coerce_f32(a);
     const float fb = coerce_f32(b);
@@ -192,7 +190,7 @@ static enum oak_vm_result_t numeric_compare(struct oak_vm_t* vm,
                                             const struct oak_value_t a,
                                             const struct oak_value_t b)
 {
-  if (!((oak_is_i32(a) || oak_is_f32(a)) && (oak_is_i32(b) || oak_is_f32(b))))
+  if (!(oak_is_number(a) && oak_is_number(b)))
   {
     runtime_error(vm,
                   "comparison operands must be numbers (left operand is %s, "
@@ -371,23 +369,23 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           return OAK_VM_RUNTIME_ERROR;
         }
         const struct oak_value_t val = vm->stack[idx];
+        if (!oak_is_number(val))
+        {
+          runtime_error(
+              vm,
+              "local increment/decrement expects a number, got %s",
+              value_kind_desc(val));
+          return OAK_VM_RUNTIME_ERROR;
+        }
         if (oak_is_i32(val))
         {
           const int delta = instruction == OAK_OP_INC_LOCAL ? 1 : -1;
           vm->stack[idx] = OAK_VALUE_I32(oak_as_i32(val) + delta);
           break;
         }
-        if (oak_is_f32(val))
-        {
-          const float delta = instruction == OAK_OP_INC_LOCAL ? 1.0f : -1.0f;
-          vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) + delta);
-          break;
-        }
-        runtime_error(
-            vm,
-            "local increment/decrement expects a number, got %s",
-            value_kind_desc(val));
-        return OAK_VM_RUNTIME_ERROR;
+        const float fdelta = instruction == OAK_OP_INC_LOCAL ? 1.0f : -1.0f;
+        vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) + fdelta);
+        break;
       }
       case OAK_OP_ADD:
       case OAK_OP_SUB:
@@ -419,21 +417,17 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_NEGATE:
       {
         struct oak_value_t val = vm_pop(vm);
-        if (oak_is_i32(val))
-        {
-          vm_push(vm, OAK_VALUE_I32(-oak_as_i32(val)));
-        }
-        else if (oak_is_f32(val))
-        {
-          vm_push(vm, OAK_VALUE_F32(-oak_as_f32(val)));
-        }
-        else
+        if (!oak_is_number(val))
         {
           oak_value_decref(val);
           runtime_error(
               vm, "unary '-' expects a number, got %s", value_kind_desc(val));
           return OAK_VM_RUNTIME_ERROR;
         }
+        if (oak_is_i32(val))
+          vm_push(vm, OAK_VALUE_I32(-oak_as_i32(val)));
+        else
+          vm_push(vm, OAK_VALUE_F32(-oak_as_f32(val)));
         oak_value_decref(val);
         break;
       }
