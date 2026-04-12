@@ -684,6 +684,12 @@ static size_t ast_child_count(const struct oak_ast_node_t* node)
   return oak_list_length(&node->children);
 }
 
+static int ast_is_int_literal(const struct oak_ast_node_t* node, const int value)
+{
+  return node && node->kind == OAK_NODE_KIND_INT &&
+         oak_token_as_i32(node->token) == value;
+}
+
 static uint8_t opcode_for_node_kind(const enum oak_node_kind_t kind)
 {
   switch (kind)
@@ -1047,12 +1053,7 @@ static void compile_stmt_for_from(struct oak_compiler_t* c,
 
     patch_jumps(c, loop.continue_jumps, loop.continue_count);
 
-    emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)loop_var_slot, ident_loc);
-    const uint8_t one_idx = intern_constant(c, OAK_VALUE_I32(1));
-    emit_op_arg(c, OAK_OP_CONSTANT, one_idx, ident_loc);
-    emit_op(c, OAK_OP_ADD, ident_loc);
-    emit_op_arg(c, OAK_OP_SET_LOCAL, (uint8_t)loop_var_slot, ident_loc);
-    emit_pops(c, 1, ident_loc);
+    emit_op_arg(c, OAK_OP_INC_LOCAL, (uint8_t)loop_var_slot, ident_loc);
 
     emit_loop(c, loop.loop_start, ident_loc);
     patch_jump(c, exit_jump);
@@ -1334,6 +1335,21 @@ static void compile_node(struct oak_compiler_t* c,
           c, lhs, "compound assignment target must be a variable");
       if (slot < 0)
         return;
+
+      if (node->kind == OAK_NODE_KIND_STMT_ADD_ASSIGN &&
+          ast_is_int_literal(node->rhs, 1))
+      {
+        emit_op_arg(
+            c, OAK_OP_INC_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));
+        break;
+      }
+      if (node->kind == OAK_NODE_KIND_STMT_SUB_ASSIGN &&
+          ast_is_int_literal(node->rhs, 1))
+      {
+        emit_op_arg(
+            c, OAK_OP_DEC_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));
+        break;
+      }
 
       emit_op_arg(
           c, OAK_OP_GET_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));

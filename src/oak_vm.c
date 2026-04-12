@@ -360,6 +360,35 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         oak_value_decref(old_val);
         break;
       }
+      case OAK_OP_INC_LOCAL:
+      case OAK_OP_DEC_LOCAL:
+      {
+        const uint8_t slot = vm_read(vm, 1);
+        const size_t idx = vm->stack_base + (size_t)slot;
+        if (idx >= OAK_STACK_MAX)
+        {
+          runtime_error(vm, "local slot out of range (slot %u)", slot);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t val = vm->stack[idx];
+        if (oak_is_i32(val))
+        {
+          const int delta = instruction == OAK_OP_INC_LOCAL ? 1 : -1;
+          vm->stack[idx] = OAK_VALUE_I32(oak_as_i32(val) + delta);
+          break;
+        }
+        if (oak_is_f32(val))
+        {
+          const float delta = instruction == OAK_OP_INC_LOCAL ? 1.0f : -1.0f;
+          vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) + delta);
+          break;
+        }
+        runtime_error(
+            vm,
+            "local increment/decrement expects a number, got %s",
+            value_kind_desc(val));
+        return OAK_VM_RUNTIME_ERROR;
+      }
       case OAK_OP_ADD:
       case OAK_OP_SUB:
       case OAK_OP_MUL:

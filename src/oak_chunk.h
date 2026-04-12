@@ -13,6 +13,8 @@ enum oak_opcode_t
   OAK_OP_POP,
   OAK_OP_GET_LOCAL,
   OAK_OP_SET_LOCAL,
+  OAK_OP_INC_LOCAL,
+  OAK_OP_DEC_LOCAL,
   OAK_OP_ADD,
   OAK_OP_SUB,
   OAK_OP_MUL,
