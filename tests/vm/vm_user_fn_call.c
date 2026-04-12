@@ -5,12 +5,14 @@
 #include "oak_test_run.h"
 #include "oak_vm.h"
 
+#include <string.h>
+
 OAK_TEST_DECL(UserFnCall)
 {
   const char* source = "fn add(a : number, b : number) -> number { return a + b; }\n"
                        "print(add(1, 2));";
 
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source);
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
   OAK_CHECK(root != NULL);

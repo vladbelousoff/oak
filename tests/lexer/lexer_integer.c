@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(LexInteger)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("1000");
+  struct oak_lexer_result_t* lexer = OAK_LEX("1000");
 
   static struct oak_expected_token_t expected_tokens[] = {
     {

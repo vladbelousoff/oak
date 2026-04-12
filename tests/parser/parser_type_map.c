@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseTypeMap)
 {
   struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("fn lookup() -> [string:number] { }");
+      OAK_LEX("fn lookup() -> [string:number] { }");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);

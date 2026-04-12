@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(ParseFnParamMut)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
+  struct oak_lexer_result_t* lexer = OAK_LEX(
       "fn foo(mut x : number, y : number) -> number { x = 1; }");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);

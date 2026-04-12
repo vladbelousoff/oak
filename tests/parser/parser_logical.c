@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(ParseLogical)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("a && b || c;");
+  struct oak_lexer_result_t* lexer = OAK_LEX("a && b || c;");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);

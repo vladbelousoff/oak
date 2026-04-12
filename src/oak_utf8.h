@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -101,6 +102,91 @@ static int oak_utf8_next(const char* s, uint32_t* out)
   {
     *out = cp;
   }
+
+  return (int)(p - (const unsigned char*)s);
+}
+
+/*
+ * oak_utf8_next_bounded
+ *
+ * Like oak_utf8_next, but never reads past s + avail. Use for buffers that are
+ * not NUL-terminated. Returns 0 when avail == 0 or when *s is NUL. Returns -1
+ * for invalid UTF-8 or an incomplete sequence at the end of the buffer.
+ */
+static int oak_utf8_next_bounded(const char* s, size_t avail, uint32_t* out)
+{
+  const unsigned char* p = (const unsigned char*)s;
+  uint32_t cp;
+  int extra;
+
+  if (avail == 0)
+    return 0;
+
+  if (*p == 0)
+  {
+    if (out)
+      *out = 0;
+    return 0;
+  }
+
+  if (*p < 0x80)
+  {
+    cp = *p;
+    if (out)
+      *out = cp;
+    return 1;
+  }
+
+  if (*p < 0xC0)
+    return -1;
+  if (avail < 2)
+    return -1;
+
+  if (*p < 0xE0)
+  {
+    cp = *p++ & 0x1F;
+    extra = 1;
+  }
+  else if (*p < 0xF0)
+  {
+    if (avail < 3)
+      return -1;
+    cp = *p++ & 0x0F;
+    extra = 2;
+  }
+  else if (*p < 0xF8)
+  {
+    if (avail < 4)
+      return -1;
+    cp = *p++ & 0x07;
+    extra = 3;
+  }
+  else
+    return -1;
+
+  for (int i = 0; i < extra; i++)
+  {
+    if ((p[i] & 0xC0) != 0x80)
+      return -1;
+  }
+
+  for (int i = 0; i < extra; i++)
+    cp = (cp << 6) | (p[i] & 0x3F);
+
+  p += extra;
+
+  if ((extra == 1 && cp < 0x80) || (extra == 2 && cp < 0x800) ||
+      (extra == 3 && cp < 0x10000))
+    return -1;
+
+  if (cp >= 0xD800 && cp <= 0xDFFF)
+    return -1;
+
+  if (cp > 0x10FFFF)
+    return -1;
+
+  if (out)
+    *out = cp;
 
   return (int)(p - (const unsigned char*)s);
 }

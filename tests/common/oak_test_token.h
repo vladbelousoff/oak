@@ -8,6 +8,8 @@
 #include <math.h>
 #include <string.h>
 
+#define OAK_LEX(S) oak_lexer_tokenize((S), strlen(S))
+
 struct oak_expected_token_t
 {
   enum oak_token_kind_t kind;

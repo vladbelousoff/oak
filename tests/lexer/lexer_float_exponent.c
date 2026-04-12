@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(LexFloatExponent)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("1e2 3.0E1 0.5e3");
+  struct oak_lexer_result_t* lexer = OAK_LEX("1e2 3.0E1 0.5e3");
 
   static struct oak_expected_token_t expected_tokens[] = {
     {

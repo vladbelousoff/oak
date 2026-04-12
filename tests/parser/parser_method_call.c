@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(ParseMethodCall)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("obj.method(1, 2);");
+  struct oak_lexer_result_t* lexer = OAK_LEX("obj.method(1, 2);");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);

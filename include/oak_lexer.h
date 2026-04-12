@@ -2,9 +2,11 @@
 
 #include "oak_list.h"
 
+#include <stddef.h>
+
 struct oak_lexer_result_t;
 
-struct oak_lexer_result_t* oak_lexer_tokenize(const char* input);
+struct oak_lexer_result_t* oak_lexer_tokenize(const char* input, size_t len);
 const struct oak_list_entry_t*
 oak_lexer_tokens(const struct oak_lexer_result_t* result);
 void oak_lexer_cleanup(struct oak_lexer_result_t* result);

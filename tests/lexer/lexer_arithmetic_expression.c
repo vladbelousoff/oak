@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(LexArithmeticExpression)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("1 + 2 * 3");
+  struct oak_lexer_result_t* lexer = OAK_LEX("1 + 2 * 3");
 
   static struct oak_expected_token_t expected_tokens[] = {
     {

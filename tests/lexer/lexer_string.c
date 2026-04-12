@@ -13,7 +13,7 @@ OAK_TEST_DECL(LexString)
   /* Includes escapes + UTF-8 bytes (π) + a long string to hit a dynamic buffer.
    */
   struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' "
+      OAK_LEX("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' "
                          "'" LONG_A "'");
 
   static struct oak_expected_token_t expected_tokens[] = {

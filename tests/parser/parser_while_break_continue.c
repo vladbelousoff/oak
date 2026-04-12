@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseWhileBreakContinue)
 {
   struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("while x < 10 { "
+      OAK_LEX("while x < 10 { "
                          "  if x == 5 { break; } "
                          "  x = x + 1; "
                          "  continue; "

@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(LexKeywords)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
+  struct oak_lexer_result_t* lexer = OAK_LEX(
       "let mut if else while for break continue return true false and or not");
 
   static struct oak_expected_token_t expected_tokens[] = {

@@ -25,6 +25,7 @@ set(OAK_CORE_SOURCES
         ${OAK_SRC_DIR}/oak_chunk.c
         ${OAK_SRC_DIR}/oak_compiler.c
         ${OAK_SRC_DIR}/oak_vm.c
+        ${OAK_SRC_DIR}/oak_file_map.c
 )
 
 # Tests

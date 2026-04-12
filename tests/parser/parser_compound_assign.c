@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseCompoundAssign)
 {
   struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("a += 1; b -= 2; c *= 3; d /= 4; e %= 5;");
+      OAK_LEX("a += 1; b -= 2; c *= 3; d /= 4; e %= 5;");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);

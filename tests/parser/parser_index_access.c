@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseIndexAccess)
 {
   struct oak_lexer_result_t* lexer =
-      oak_lexer_tokenize("arr[0]; obj.items[i]; matrix[0][1];");
+      OAK_LEX("arr[0]; obj.items[i]; matrix[0][1];");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);

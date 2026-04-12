@@ -2,7 +2,7 @@
 
 OAK_TEST_DECL(LexIdent)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("variable");
+  struct oak_lexer_result_t* lexer = OAK_LEX("variable");
 
   static struct oak_expected_token_t expected_tokens[] = {
     {
