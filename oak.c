@@ -46,8 +46,11 @@ int main(const int argc, const char* argv[])
   oak_mem_init();
 
   char* source = read_file(argv[1]);
-  if (!source)
+  if (!source) {
+    fprintf(stderr, "error: could not read file '%s'\n", argv[1]);
+    oak_mem_shutdown();
     return 1;
+  }
 
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source);
 
