@@ -52,6 +52,8 @@ static const char* value_kind_desc(const struct oak_value_t v)
     return "string";
   if (oak_is_fn(v))
     return "function";
+  if (oak_is_native_fn(v))
+    return "native function";
   if (oak_is_obj(v))
     return "object";
   return "value";
@@ -240,6 +242,39 @@ static enum oak_vm_result_t vm_op_call(struct oak_vm_t* vm)
 
   const size_t fn_slot = depth - (size_t)argc - 1u;
   const struct oak_value_t fn_val = vm->stack[fn_slot];
+  struct oak_value_t* arg_base = &vm->stack[fn_slot + 1u];
+
+  if (oak_is_native_fn(fn_val))
+  {
+    struct oak_obj_native_fn_t* native = oak_as_native_fn(fn_val);
+    if (native->arity != (int)argc)
+    {
+      runtime_error(vm,
+                    "function arity mismatch (expected %d, got %u)",
+                    native->arity,
+                    (unsigned)argc);
+      return OAK_VM_RUNTIME_ERROR;
+    }
+
+    struct oak_value_t result;
+    const enum oak_fn_call_result_t err =
+        native->fn(vm, arg_base, (int)argc, &result);
+    if (err != OAK_FN_CALL_OK)
+    {
+      runtime_error(vm, "native function failed");
+      return OAK_VM_RUNTIME_ERROR;
+    }
+
+    oak_value_decref(fn_val);
+    for (uint8_t i = 0; i < argc; ++i)
+      oak_value_decref(arg_base[i]);
+
+    oak_value_incref(result);
+    vm->stack[fn_slot] = result;
+    vm->sp = vm->stack + fn_slot + 1u;
+    return OAK_VM_OK;
+  }
+
   if (!oak_is_fn(fn_val))
   {
     runtime_error(vm, "call target is not a function");
@@ -482,13 +517,6 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       {
         const uint16_t offset = vm_read(vm, 2);
         vm->ip -= offset;
-        break;
-      }
-      case OAK_OP_PRINT:
-      {
-        struct oak_value_t val = vm_pop(vm);
-        oak_value_print(val);
-        oak_value_decref(val);
         break;
       }
       case OAK_OP_CALL:

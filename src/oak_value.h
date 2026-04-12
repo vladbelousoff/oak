@@ -20,6 +20,7 @@ enum oak_obj_type_t
   OAK_OBJ_ARRAY,
   OAK_OBJ_MAP,
   OAK_OBJ_FN,
+  OAK_OBJ_NATIVE_FN,
 };
 
 struct oak_obj_t
@@ -66,6 +67,27 @@ struct oak_value_t
   } as;
 };
 
+enum oak_fn_call_result_t
+{
+  OAK_FN_CALL_OK = 0,
+  OAK_FN_CALL_RUNTIME_ERROR,
+};
+
+/* Native (C) callable: returns OAK_FN_CALL_OK on success. */
+typedef enum oak_fn_call_result_t (*oak_native_fn_t)(void* vm,
+                                                     const struct oak_value_t* args,
+                                                     int argc,
+                                                     struct oak_value_t* out_result);
+
+struct oak_obj_native_fn_t
+{
+  struct oak_obj_t obj;
+  oak_native_fn_t fn;
+  int arity;
+  /* Debug label (e.g. registered name); not owned, may be NULL. */
+  const char* name;
+};
+
 #define OAK_VALUE_BOOL(_b)                                                     \
   ((struct oak_value_t){                                                       \
       .type = OAK_VAL_BOOL,                                                    \
@@ -104,6 +126,14 @@ struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
 
 struct oak_obj_fn_t* oak_make_fn(size_t code_offset, int arity);
 
+struct oak_obj_native_fn_t* oak_make_native_fn(oak_native_fn_t fn,
+                                                 int arity,
+                                                 const char* name);
+
+int oak_native_fn_format(char* buf,
+                         size_t size,
+                         const struct oak_obj_native_fn_t* native);
+
 static inline int oak_is_bool(const struct oak_value_t value)
 {
   return value.type == OAK_VAL_BOOL;
@@ -127,6 +157,11 @@ static inline int oak_is_string(const struct oak_value_t value)
 static inline int oak_is_fn(const struct oak_value_t value)
 {
   return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_FN;
+}
+
+static inline int oak_is_native_fn(const struct oak_value_t value)
+{
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_NATIVE_FN;
 }
 
 static inline int oak_is_i32(const struct oak_value_t value)
@@ -177,6 +212,13 @@ static inline struct oak_obj_fn_t* oak_as_fn(const struct oak_value_t value)
   return (struct oak_obj_fn_t*)value.as.obj;
 }
 
+static inline struct oak_obj_native_fn_t*
+oak_as_native_fn(const struct oak_value_t value)
+{
+  oak_assert(oak_is_native_fn(value));
+  return (struct oak_obj_native_fn_t*)value.as.obj;
+}
+
 static inline char* oak_as_cstring(const struct oak_value_t value)
 {
   return oak_as_string(value)->chars;
@@ -192,3 +234,8 @@ void oak_value_incref(struct oak_value_t value);
 void oak_value_decref(struct oak_value_t value);
 
 void oak_value_print(struct oak_value_t value);
+
+enum oak_fn_call_result_t oak_builtin_print(void* vm,
+                                            const struct oak_value_t* args,
+                                            int argc,
+                                            struct oak_value_t* out_result);

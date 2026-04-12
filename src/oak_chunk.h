@@ -31,7 +31,6 @@ enum oak_opcode_t
   OAK_OP_JUMP,
   OAK_OP_JUMP_IF_FALSE,
   OAK_OP_LOOP,
-  OAK_OP_PRINT,
   OAK_OP_CALL,
   OAK_OP_RETURN,
 };

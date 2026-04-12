@@ -36,7 +36,6 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_JUMP] = { "OP_JUMP", OAK_OP_FMT_JUMP_FWD, 0 },
   [OAK_OP_JUMP_IF_FALSE] = { "OP_JUMP_IF_FALSE", OAK_OP_FMT_JUMP_FWD, -1 },
   [OAK_OP_LOOP] = { "OP_LOOP", OAK_OP_FMT_JUMP_BACK, 0 },
-  [OAK_OP_PRINT] = { "OP_PRINT", OAK_OP_FMT_NONE, -1 },
   [OAK_OP_CALL] = { "OP_CALL", OAK_OP_FMT_ARGC, 0 },
   [OAK_OP_RETURN] = { "OP_RETURN", OAK_OP_FMT_NONE, 0 },
 };
@@ -184,6 +183,8 @@ snprint_value(char* buf, const size_t size, const struct oak_value_t value)
     if (oak_is_fn(value))
       return snprintf(
           buf, size, "<fn @%zu>", oak_as_fn(value)->code_offset);
+    if (oak_is_native_fn(value))
+      return oak_native_fn_format(buf, size, oak_as_native_fn(value));
     return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
   }
   buf[0] = '\0';

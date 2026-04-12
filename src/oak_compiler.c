@@ -64,6 +64,7 @@ struct oak_loop_frame_t
   int continue_count;
 };
 
+/* decl is NULL for native (C) builtins registered at compile time. */
 struct oak_registered_fn_t
 {
   const char* name;
@@ -471,6 +472,29 @@ static int count_fn_params(const struct oak_ast_node_t* decl)
   return n;
 }
 
+static void register_native_builtins(struct oak_compiler_t* c)
+{
+  if (c->fn_registry_count >= OAK_MAX_USER_FNS)
+  {
+    compiler_error_at(c,
+                      NULL,
+                      "too many functions in one program (max %d)",
+                      OAK_MAX_USER_FNS);
+    return;
+  }
+
+  struct oak_obj_native_fn_t* print_fn =
+      oak_make_native_fn(oak_builtin_print, 1, "print");
+  const uint8_t idx = intern_constant(c, OAK_VALUE_OBJ(&print_fn->obj));
+
+  struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
+  slot->name = "print";
+  slot->name_len = 5;
+  slot->const_idx = idx;
+  slot->arity = 1;
+  slot->decl = NULL;
+}
+
 static void register_program_functions(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* program)
 {
@@ -639,6 +663,8 @@ static void compile_function_bodies(struct oak_compiler_t* c)
   for (int i = 0; i < c->fn_registry_count; ++i)
   {
     const struct oak_registered_fn_t* e = &c->fn_registry[i];
+    if (!e->decl)
+      continue;
     struct oak_value_t fn_val = c->chunk->constants[e->const_idx];
     struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
     fn_obj->code_offset = c->chunk->count;
@@ -665,6 +691,9 @@ static void compile_program_items(struct oak_compiler_t* c,
 static void compile_program(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* program)
 {
+  register_native_builtins(c);
+  if (c->has_error)
+    return;
   register_program_functions(c, program);
   if (c->has_error)
     return;
@@ -729,15 +758,6 @@ static uint8_t opcode_for_node_kind(const enum oak_node_kind_t kind)
       oak_assert(0);
       return 0;
   }
-}
-
-#define OAK_BUILTIN_PRINT_NAME "print"
-
-static int token_is_print_builtin(const struct oak_token_t* token)
-{
-  const size_t len = sizeof(OAK_BUILTIN_PRINT_NAME) - 1;
-  return oak_token_size(token) == (int)len &&
-         memcmp(oak_token_buf(token), OAK_BUILTIN_PRINT_NAME, len) == 0;
 }
 
 static int local_type_get(struct oak_compiler_t* c,
@@ -833,13 +853,11 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
           oak_container_of(first, struct oak_ast_node_t, link);
       if (!callee || callee->kind != OAK_NODE_KIND_IDENT)
         return;
-      if (token_is_print_builtin(callee->token))
-        return;
       const char* cn = oak_token_buf(callee->token);
       const size_t clen = (size_t)oak_token_size(callee->token);
       const struct oak_registered_fn_t* fe =
           find_registered_fn_entry(c, cn, clen);
-      if (!fe)
+      if (!fe || !fe->decl)
         return;
       const struct oak_ast_node_t* ret = fn_decl_return_type_node(fe->decl);
       if (ret && ret->kind == OAK_NODE_KIND_IDENT)
@@ -859,6 +877,8 @@ validate_user_fn_call_arg_types(struct oak_compiler_t* c,
                                 const struct oak_ast_node_t* call,
                                 const struct oak_registered_fn_t* fn)
 {
+  if (!fn->decl)
+    return;
   const struct oak_list_entry_t* first = call->children.next;
   struct oak_list_entry_t* pos = first->next;
   size_t i = 0;
@@ -1097,22 +1117,6 @@ static void compile_fn_call(struct oak_compiler_t* c,
 
   const struct oak_code_loc_t call_loc = code_loc_from_token(callee->token);
   const size_t argc = ast_child_count(node) - 1;
-
-  if (token_is_print_builtin(callee->token))
-  {
-    if (argc != 1)
-    {
-      compiler_error_at(
-          c, callee->token, "print() expects 1 argument, got %zu", argc);
-      return;
-    }
-    struct oak_list_entry_t* pos = first->next;
-    const struct oak_ast_node_t* arg =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    compile_fn_call_arg(c, arg);
-    emit_op(c, OAK_OP_PRINT, call_loc);
-    return;
-  }
 
   const struct oak_registered_fn_t* entry = find_registered_fn_entry(
       c, oak_token_buf(callee->token), (size_t)oak_token_size(callee->token));
