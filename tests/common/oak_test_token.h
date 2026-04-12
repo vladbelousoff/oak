@@ -25,80 +25,80 @@ static oak_result_t oak_test_token(const oak_token_t* token,
                                    const oak_expected_token_t* expected,
                                    const size_t index)
 {
-  if (token->kind != expected->kind)
+  if (oak_token_kind(token) != expected->kind)
   {
     oak_log(OAK_LOG_ERR,
             "token[%zu]: kind %s != expected %s",
             index,
-            oak_token_name(token->kind),
+            oak_token_name(oak_token_kind(token)),
             oak_token_name(expected->kind));
     return OAK_FAILURE;
   }
-  if (token->line != expected->line)
+  if (oak_token_line(token) != expected->line)
   {
     oak_log(OAK_LOG_ERR,
             "token[%zu] (%s): line %d != expected %d",
             index,
-            oak_token_name(token->kind),
-            token->line,
+            oak_token_name(oak_token_kind(token)),
+            oak_token_line(token),
             expected->line);
     return OAK_FAILURE;
   }
-  if (token->column != expected->column)
+  if (oak_token_column(token) != expected->column)
   {
     oak_log(OAK_LOG_ERR,
             "token[%zu] (%s): column %d != expected %d",
             index,
-            oak_token_name(token->kind),
-            token->column,
+            oak_token_name(oak_token_kind(token)),
+            oak_token_column(token),
             expected->column);
     return OAK_FAILURE;
   }
-  if (token->pos != expected->pos)
+  if (oak_token_pos(token) != expected->pos)
   {
     oak_log(OAK_LOG_ERR,
             "token[%zu] (%s): pos %d != expected %d",
             index,
-            oak_token_name(token->kind),
-            token->pos,
+            oak_token_name(oak_token_kind(token)),
+            oak_token_pos(token),
             expected->pos);
     return OAK_FAILURE;
   }
 
-  if (token->kind == OAK_TOKEN_INT_NUM)
+  if (oak_token_kind(token) == OAK_TOKEN_INT_NUM)
   {
-    if (expected->integer != *(int*)token->buf)
+    if (expected->integer != oak_token_as_i32(token))
     {
       oak_log(OAK_LOG_ERR,
               "token[%zu]: int value %d != expected %d",
               index,
-              *(int*)token->buf,
+              oak_token_as_i32(token),
               expected->integer);
       return OAK_FAILURE;
     }
   }
 
-  if (token->kind == OAK_TOKEN_FLOAT_NUM)
+  if (oak_token_kind(token) == OAK_TOKEN_FLOAT_NUM)
   {
-    if (fabsf(expected->floating - *(float*)token->buf) > 0.0001f)
+    if (fabsf(expected->floating - oak_token_as_f32(token)) > 0.0001f)
     {
       oak_log(OAK_LOG_ERR,
               "token[%zu]: float value %f != expected %f",
               index,
-              (double)*(float*)token->buf,
+              (double)oak_token_as_f32(token),
               (double)expected->floating);
       return OAK_FAILURE;
     }
   }
 
-  if (token->kind == OAK_TOKEN_STRING || token->kind == OAK_TOKEN_IDENT)
+  if (oak_token_kind(token) == OAK_TOKEN_STRING || oak_token_kind(token) == OAK_TOKEN_IDENT)
   {
-    if (strcmp(token->buf, expected->string) != 0)
+    if (strcmp(oak_token_buf(token), expected->string) != 0)
     {
       oak_log(OAK_LOG_ERR,
               "token[%zu]: string \"%s\" != expected \"%s\"",
               index,
-              token->buf,
+              oak_token_buf(token),
               expected->string);
       return OAK_FAILURE;
     }

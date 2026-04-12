@@ -58,7 +58,7 @@ compiler_error_at(oak_compiler_t* c,
   va_end(ap);
 
   if (token)
-    oak_log(OAK_LOG_ERR, "%d:%d: error: %s", token->line, token->column, buf);
+    oak_log(OAK_LOG_ERR, "%d:%d: error: %s", oak_token_line(token), oak_token_column(token), buf);
   else
     oak_log(OAK_LOG_ERR, "error: %s", buf);
   c->had_error = 1;
@@ -327,17 +327,17 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
     }
     case OAK_NODE_KIND_STRING:
     {
-      const char* chars = node->token->buf;
-      const size_t len = node->token->size;
+      const char* chars = oak_token_buf(node->token);
+      const int len = oak_token_size(node->token);
       oak_obj_string_t* str = oak_make_string(chars, len);
       const uint8_t idx = make_constant(c, OAK_VALUE_OBJ(str));
-      emit_op_arg(c, OAK_OP_CONSTANT, idx, node->token->line);
+      emit_op_arg(c, OAK_OP_CONSTANT, idx, oak_token_line(node->token));
       break;
     }
     case OAK_NODE_KIND_IDENT:
     {
-      const char* name = node->token->buf;
-      const size_t len = node->token->size;
+      const char* name = oak_token_buf(node->token);
+      const int len = oak_token_size(node->token);
       const int slot = resolve_local(c, name, len);
       if (slot < 0)
       {
@@ -345,7 +345,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
                           (int)len, name);
         return;
       }
-      emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)slot, node->token->line);
+      emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)slot, oak_token_line(node->token));
       break;
     }
     case OAK_NODE_KIND_BINARY_ADD:
@@ -418,8 +418,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
       const oak_ast_node_t* rhs = assign->rhs;
 
       compile_node(c, rhs);
-      const char* name = ident->token->buf;
-      const size_t size = ident->token->size;
+      const char* name = oak_token_buf(ident->token);
+      const int size = oak_token_size(ident->token);
       add_local(c, name, size, c->stack_depth - 1, is_mut);
 
       break;
@@ -436,19 +436,19 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         return;
       }
 
-      const int slot = resolve_local(c, lhs->token->buf, lhs->token->size);
+      const int slot = resolve_local(c, oak_token_buf(lhs->token), oak_token_size(lhs->token));
       if (slot < 0)
       {
         compiler_error_at(c, lhs->token, "undefined variable '%.*s'",
-                          (int)lhs->token->size, lhs->token->buf);
+                          oak_token_size(lhs->token), oak_token_buf(lhs->token));
         return;
       }
 
-      if (!is_local_mutable(c, lhs->token->buf, lhs->token->size))
+      if (!is_local_mutable(c, oak_token_buf(lhs->token), oak_token_size(lhs->token)))
       {
         compiler_error_at(c, lhs->token,
                           "cannot assign to immutable variable '%.*s'",
-                          (int)lhs->token->size, lhs->token->buf);
+                          oak_token_size(lhs->token), oak_token_buf(lhs->token));
         return;
       }
 
@@ -472,19 +472,19 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         return;
       }
 
-      const int slot = resolve_local(c, lhs->token->buf, lhs->token->size);
+      const int slot = resolve_local(c, oak_token_buf(lhs->token), oak_token_size(lhs->token));
       if (slot < 0)
       {
         compiler_error_at(c, lhs->token, "undefined variable '%.*s'",
-                          (int)lhs->token->size, lhs->token->buf);
+                          oak_token_size(lhs->token), oak_token_buf(lhs->token));
         return;
       }
 
-      if (!is_local_mutable(c, lhs->token->buf, lhs->token->size))
+      if (!is_local_mutable(c, oak_token_buf(lhs->token), oak_token_size(lhs->token)))
       {
         compiler_error_at(c, lhs->token,
                           "cannot assign to immutable variable '%.*s'",
-                          (int)lhs->token->size, lhs->token->buf);
+                          oak_token_size(lhs->token), oak_token_buf(lhs->token));
         return;
       }
 
@@ -510,8 +510,8 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         return;
       }
 
-      if (callee->token->size == 5 &&
-          memcmp(callee->token->buf, "print", 5) == 0)
+      if (oak_token_size(callee->token) == 5 &&
+          memcmp(oak_token_buf(callee->token), "print", 5) == 0)
       {
         const size_t argc = list_length(node) - 1;
         if (argc != 1)
@@ -525,12 +525,12 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
         else
           compile_node(c, arg);
 
-        emit_op(c, OAK_OP_PRINT, callee->token->line);
+        emit_op(c, OAK_OP_PRINT, oak_token_line(callee->token));
         break;
       }
 
       compiler_error_at(c, callee->token, "undefined function '%.*s'",
-                        (int)callee->token->size, callee->token->buf);
+                        oak_token_size(callee->token), oak_token_buf(callee->token));
       break;
     }
     case OAK_NODE_KIND_STMT_IF:
@@ -606,7 +606,7 @@ static void compile_node(oak_compiler_t* c, const oak_ast_node_t* node)
 
       compile_node(c, from_expr);
       const int i_slot = c->stack_depth - 1;
-      add_local(c, ident->token->buf, ident->token->size, i_slot, 1);
+      add_local(c, oak_token_buf(ident->token), oak_token_size(ident->token), i_slot, 1);
 
       compile_node(c, to_expr);
       const int limit_slot = c->stack_depth - 1;

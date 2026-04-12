@@ -4,6 +4,48 @@
 
 #include <string.h>
 
+oak_token_kind_t oak_token_kind(const oak_token_t* token)
+{
+  return token->kind;
+}
+
+int oak_token_line(const oak_token_t* token)
+{
+  return token->line;
+}
+
+int oak_token_column(const oak_token_t* token)
+{
+  return token->column;
+}
+
+int oak_token_pos(const oak_token_t* token)
+{
+  return token->pos;
+}
+
+int oak_token_size(const oak_token_t* token)
+{
+  return token->size;
+}
+
+const char* oak_token_buf(const oak_token_t* token)
+{
+  return token->buf;
+}
+
+int oak_token_as_i32(const oak_token_t* token)
+{
+  oak_assert(token->kind == OAK_TOKEN_INT_NUM);
+  return *(const int*)token->buf;
+}
+
+float oak_token_as_f32(const oak_token_t* token)
+{
+  oak_assert(token->kind == OAK_TOKEN_FLOAT_NUM);
+  return *(const float*)token->buf;
+}
+
 oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
 {
   static const tea_kw_entry_t keywords[] = {

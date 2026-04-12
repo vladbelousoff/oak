@@ -84,11 +84,11 @@ static oak_result_t oak_test_ast_kind(const oak_ast_node_t* node,
 #define OAK_CHECK_TOKEN_STR(node, expected)                                    \
   do                                                                           \
   {                                                                            \
-    if (strcmp((node)->token->buf, (expected)) != 0)                           \
+    if (strcmp(oak_token_buf((node)->token), (expected)) != 0)                  \
     {                                                                          \
       oak_log(OAK_LOG_ERR,                                                     \
               "check failed: token \"%s\" != \"%s\" (%s:%d)",                  \
-              (node)->token->buf,                                              \
+              oak_token_buf((node)->token),                                    \
               (expected),                                                      \
               oak_filename(__FILE__),                                          \
               __LINE__);                                                       \
@@ -99,7 +99,7 @@ static oak_result_t oak_test_ast_kind(const oak_ast_node_t* node,
 #define OAK_CHECK_INT_VAL(node, expected)                                      \
   do                                                                           \
   {                                                                            \
-    const int _val = *(int*)(node)->token->buf;                                \
+    const int _val = oak_token_as_i32((node)->token);                          \
     if (_val != (expected))                                                    \
     {                                                                          \
       oak_log(OAK_LOG_ERR,                                                     \

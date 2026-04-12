@@ -60,7 +60,7 @@ static void save_token(oak_lexer_result_t* lexer,
   token->line = cur->line;
   token->column = cur->column;
   token->pos = cur->pos;
-  token->size = buffer_size;
+  token->size = (int)buffer_size;
 
   if (buffer && buffer_size > 0)
   {

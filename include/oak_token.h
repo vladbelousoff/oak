@@ -74,26 +74,18 @@ typedef struct _oak_token_t
   int line;
   int column;
   int pos;
-  size_t size;
+  int size;
   char buf[0];
 } oak_token_t;
 
-static int oak_token_line(const oak_token_t* token)
-{
-  return token->line;
-}
-
-static int oak_token_as_i32(const oak_token_t* token)
-{
-  oak_assert(token->kind == OAK_TOKEN_INT_NUM);
-  return *(int*)token->buf;
-}
-
-static float oak_token_as_f32(const oak_token_t* token)
-{
-  oak_assert(token->kind == OAK_TOKEN_FLOAT_NUM);
-  return *(float*)token->buf;
-}
+oak_token_kind_t oak_token_kind(const oak_token_t* token);
+int oak_token_line(const oak_token_t* token);
+int oak_token_column(const oak_token_t* token);
+int oak_token_pos(const oak_token_t* token);
+int oak_token_size(const oak_token_t* token);
+const char* oak_token_buf(const oak_token_t* token);
+int oak_token_as_i32(const oak_token_t* token);
+float oak_token_as_f32(const oak_token_t* token);
 
 oak_token_kind_t oak_ident_kind(const char* ident, size_t length);
 const char* oak_token_name(oak_token_kind_t token_kind);

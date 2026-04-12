@@ -604,7 +604,7 @@ static int try_skip_token(oak_parser_t* p, const oak_token_kind_t token_kind)
   if (p->curr == p->head)
     return 0;
   const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
-  if (token->kind != token_kind)
+  if (oak_token_kind(token) != token_kind)
     return 0;
   p->curr = p->curr->next;
   return 1;
@@ -637,7 +637,7 @@ static oak_ast_node_t* parse_token(oak_parser_t* p, const oak_node_kind_t kind)
   oak_assert(p->curr->next);
   const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
-  if (token->kind != entry->token_kind)
+  if (oak_token_kind(token) != entry->token_kind)
     return NULL;
   oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
@@ -818,7 +818,7 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
   {
     const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
     const oak_pratt_rule_t* r =
-        find_pratt_rule(entry->pratt.prefix, token->kind);
+        find_pratt_rule(entry->pratt.prefix, oak_token_kind(token));
     if (r)
     {
       p->curr = p->curr->next;
@@ -852,7 +852,7 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
     const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
 
     const oak_pratt_rule_t* rule =
-        find_pratt_rule(entry->pratt.infix, token->kind);
+        find_pratt_rule(entry->pratt.infix, oak_token_kind(token));
     if (!rule || rule->l_bp < min_bp)
       break;
 
@@ -874,7 +874,7 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
         {
           const oak_token_t* peek =
               oak_container_of(p->curr, oak_token_t, link);
-          if (peek->kind == rule->close_token)
+          if (oak_token_kind(peek) == rule->close_token)
             break;
           oak_ast_node_t* arg = parse_rule(p, rule->arg_rule);
           if (!arg)
@@ -963,10 +963,11 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
     const oak_token_t* token = oak_container_of(parser.curr, oak_token_t, link);
     oak_log(OAK_LOG_ERR,
             "parse error at %d:%d: unexpected token '%s'",
-            token->line,
-            token->column,
-            token->kind != OAK_TOKEN_IDENT ? oak_token_name(token->kind)
-                                           : token->buf);
+            oak_token_line(token),
+            oak_token_column(token),
+            oak_token_kind(token) != OAK_TOKEN_IDENT
+                ? oak_token_name(oak_token_kind(token))
+                : oak_token_buf(token));
     oak_parser_cleanup(result);
     return NULL;
   }
