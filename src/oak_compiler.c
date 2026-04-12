@@ -1,5 +1,6 @@
 #include "oak_compiler.h"
 
+#include "oak_countof.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_value.h"
@@ -72,6 +73,13 @@ struct oak_registered_fn_t
   uint8_t const_idx;
   int arity;
   const struct oak_ast_node_t* decl;
+};
+
+struct oak_native_binding_t
+{
+  const char* name;
+  oak_native_fn_t impl;
+  int arity;
 };
 
 struct oak_compiler_t
@@ -472,7 +480,8 @@ static int count_fn_params(const struct oak_ast_node_t* decl)
   return n;
 }
 
-static void register_native_builtins(struct oak_compiler_t* c)
+static void register_native_fn(struct oak_compiler_t* c,
+                               const struct oak_native_binding_t* binding)
 {
   if (c->fn_registry_count >= OAK_MAX_USER_FNS)
   {
@@ -483,16 +492,41 @@ static void register_native_builtins(struct oak_compiler_t* c)
     return;
   }
 
-  struct oak_obj_native_fn_t* print_fn =
-      oak_make_native_fn(oak_builtin_print, 1, "print");
-  const uint8_t idx = intern_constant(c, OAK_VALUE_OBJ(&print_fn->obj));
+  struct oak_obj_native_fn_t* native =
+      oak_make_native_fn(binding->impl, binding->arity, binding->name);
+  const uint8_t idx = intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
   struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
-  slot->name = "print";
-  slot->name_len = 5;
+  slot->name = binding->name;
+  slot->name_len = strlen(binding->name);
   slot->const_idx = idx;
-  slot->arity = 1;
+  slot->arity = binding->arity;
   slot->decl = NULL;
+}
+
+static const struct oak_native_binding_t native_builtins[] = {
+    {"print", oak_builtin_print, 1},
+};
+
+static void register_native_builtins(struct oak_compiler_t* c)
+{
+#ifdef OAK_DEBUG_LOGGING
+  for (size_t i = 0; i < oak_countof(native_builtins); ++i)
+  {
+    for (size_t j = i + 1; j < oak_countof(native_builtins); ++j)
+    {
+      oak_assert(strcmp(native_builtins[i].name, native_builtins[j].name) !=
+                 0);
+    }
+  }
+#endif
+
+  for (size_t i = 0; i < oak_countof(native_builtins); ++i)
+  {
+    register_native_fn(c, &native_builtins[i]);
+    if (c->has_error)
+      return;
+  }
 }
 
 static void register_program_functions(struct oak_compiler_t* c,
