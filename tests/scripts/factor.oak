@@ -1,0 +1,9 @@
+let n = 262144;
+let mut d = n - 1;
+while d >= 2 {
+  if n % d == 0 {
+    print(d);
+    break;
+  }
+  d -= 1;
+}

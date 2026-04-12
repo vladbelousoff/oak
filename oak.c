@@ -1,3 +1,4 @@
+#include "oak_cli.h"
 #include "oak_compiler.h"
 #include "oak_file_map.h"
 #include "oak_lexer.h"
@@ -9,16 +10,25 @@
 
 int main(const int argc, const char* argv[])
 {
-  if (argc < 2)
+  struct oak_cli_args_t cli;
+  if (oak_cli_parse(argc, argv, &cli) != 0)
   {
-    fprintf(stderr, "usage: oak <script>\n");
+    if (cli.error)
+      fprintf(stderr, "oak: %s\n", cli.error);
+    oak_cli_usage(stderr);
     return 1;
+  }
+
+  if (cli.help)
+  {
+    oak_cli_usage(stdout);
+    return 0;
   }
 
   oak_mem_init();
 
   struct oak_file_map_t source_map;
-  if (oak_file_map(argv[1], &source_map) != 0)
+  if (oak_file_map(cli.script_path, &source_map) != 0)
   {
     oak_mem_shutdown();
     return 1;
@@ -47,7 +57,16 @@ int main(const int argc, const char* argv[])
     return 1;
   }
 
-  oak_chunk_disassemble(chunk);
+  if (cli.disassemble)
+  {
+    oak_chunk_disassemble(chunk);
+    oak_chunk_free(chunk);
+    oak_file_unmap(&source_map);
+    oak_parser_cleanup(result);
+    oak_lexer_cleanup(lexer);
+    oak_mem_shutdown();
+    return 0;
+  }
 
   struct oak_vm_t vm;
   oak_vm_init(&vm);

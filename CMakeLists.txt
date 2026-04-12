@@ -33,6 +33,7 @@ file(GLOB_RECURSE OAK_TEST_SOURCES ${OAK_TESTS_DIR}/*/*.c)
 
 set(OAK_APP_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/oak.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/oak_cli.c
 )
 
 # Shared debug-only compile definitions
@@ -62,6 +63,7 @@ target_include_directories(oak
         ${OAK_INCLUDE_DIR}
         PRIVATE
         ${OAK_SRC_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_compile_definitions(oak
