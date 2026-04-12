@@ -180,12 +180,13 @@ snprint_value(char* buf, const size_t size, const struct oak_value_t value)
   if (oak_is_obj(value))
   {
     if (oak_is_string(value))
-      return snprintf(buf, size, "\"%s\"", oak_as_cstring(value));
+      return snprintf(buf, size, "'%s'", oak_as_cstring(value));
     if (oak_is_fn(value))
-      return snprintf(buf, size, "<fn>");
+      return snprintf(
+          buf, size, "<fn @%zu>", oak_as_fn(value)->code_offset);
     return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
   }
-  buf[0] = 0;
+  buf[0] = '\0';
   return 0;
 }
 

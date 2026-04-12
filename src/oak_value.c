@@ -146,7 +146,7 @@ void oak_value_print(const struct oak_value_t value)
     if (oak_is_string(value))
       oak_log(OAK_LOG_INF, "%s", oak_as_cstring(value));
     else if (oak_is_fn(value))
-      oak_log(OAK_LOG_INF, "<fn>");
+      oak_log(OAK_LOG_INF, "<fn @%zu>", oak_as_fn(value)->code_offset);
     else
       oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));
   }
