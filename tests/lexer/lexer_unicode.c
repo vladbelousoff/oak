@@ -9,10 +9,10 @@ OAK_TEST_DECL(LexUnicode)
    * =      → ASSIGN col=8  pos=8
    * '世界' → STRING col=10 pos=10 (3-byte CJK chars in string)
    */
-  oak_lexer_result_t* lexer = oak_lexer_tokenize(
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
       "caf\xC3\xA9 \xE5\x90\x8D = '\xE4\xB8\x96\xE7\x95\x8C'");
 
-  static oak_expected_token_t expected_tokens[] = {
+  static struct oak_expected_token_t expected_tokens[] = {
     {
         .kind = OAK_TOKEN_IDENT,
         .line = 1,
@@ -43,7 +43,7 @@ OAK_TEST_DECL(LexUnicode)
   };
 
   const size_t n = OAK_ARRAY_SIZE(expected_tokens);
-  const oak_result_t result = oak_test_tokens(lexer, expected_tokens, n);
+  const enum oak_result_t result = oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);
   return result;
 }

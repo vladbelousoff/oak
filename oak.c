@@ -49,10 +49,10 @@ int main(const int argc, const char* argv[])
   if (!source)
     return 1;
 
-  oak_lexer_result_t* lexer = oak_lexer_tokenize(source);
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source);
 
-  oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
-  const oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  const struct oak_ast_node_t* root = oak_parser_root(result);
   if (!root)
   {
     oak_free(source, OAK_SRC_LOC);
@@ -62,7 +62,7 @@ int main(const int argc, const char* argv[])
     return 1;
   }
 
-  oak_chunk_t* chunk = oak_compile(root);
+  struct oak_chunk_t* chunk = oak_compile(root);
   if (!chunk)
   {
     oak_free(source, OAK_SRC_LOC);
@@ -74,9 +74,9 @@ int main(const int argc, const char* argv[])
 
   oak_chunk_disassemble(chunk);
 
-  oak_vm_t vm;
+  struct oak_vm_t vm;
   oak_vm_init(&vm);
-  const oak_vm_result_t vm_result = oak_vm_run(&vm, chunk);
+  const enum oak_vm_result_t vm_result = oak_vm_run(&vm, chunk);
   oak_vm_free(&vm);
   oak_chunk_free(chunk);
 

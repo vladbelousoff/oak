@@ -2,9 +2,9 @@
 
 OAK_TEST_DECL(LexIdent)
 {
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("variable");
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("variable");
 
-  static oak_expected_token_t expected_tokens[] = {
+  static struct oak_expected_token_t expected_tokens[] = {
     {
         .kind = OAK_TOKEN_IDENT,
         .line = 1,
@@ -14,7 +14,7 @@ OAK_TEST_DECL(LexIdent)
     },
   };
 
-  const oak_result_t result = oak_test_tokens(lexer, expected_tokens, 1);
+  const enum oak_result_t result = oak_test_tokens(lexer, expected_tokens, 1);
   oak_lexer_cleanup(lexer);
 
   return result;

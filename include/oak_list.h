@@ -22,23 +22,20 @@ struct oak_list_entry_t
   struct oak_list_entry_t* next;
 };
 
-typedef struct oak_list_entry_t oak_list_entry_t;
-typedef oak_list_entry_t oak_list_head_t;
-
-static inline void oak_list_init(oak_list_entry_t* head)
+static inline void oak_list_init(struct oak_list_entry_t* head)
 {
   head->prev = head;
   head->next = head;
 }
 
-static inline int oak_list_empty(const oak_list_entry_t* head)
+static inline int oak_list_empty(const struct oak_list_entry_t* head)
 {
   return head->next == head;
 }
 
-static void _oak_list_insert(oak_list_entry_t* _new,
-                             oak_list_entry_t* prev,
-                             oak_list_entry_t* next)
+static void _oak_list_insert(struct oak_list_entry_t* _new,
+                             struct oak_list_entry_t* prev,
+                             struct oak_list_entry_t* next)
 {
   next->prev = _new;
   _new->next = next;
@@ -46,43 +43,49 @@ static void _oak_list_insert(oak_list_entry_t* _new,
   prev->next = _new;
 }
 
-static inline void oak_list_add_head(oak_list_entry_t* head, oak_list_entry_t* entry)
+static inline void oak_list_add_head(struct oak_list_entry_t* head,
+                                     struct oak_list_entry_t* entry)
 {
   _oak_list_insert(entry, head, head->next);
 }
 
-static inline void oak_list_add_tail(oak_list_entry_t* head, oak_list_entry_t* entry)
+static inline void oak_list_add_tail(struct oak_list_entry_t* head,
+                                     struct oak_list_entry_t* entry)
 {
   _oak_list_insert(entry, head->prev, head);
 }
 
-static void _oak_list_remove(oak_list_entry_t* prev, oak_list_entry_t* next)
+static void _oak_list_remove(struct oak_list_entry_t* prev,
+                             struct oak_list_entry_t* next)
 {
   next->prev = prev;
   prev->next = next;
 }
 
-static inline void oak_list_remove(const oak_list_entry_t* entry)
+static inline void oak_list_remove(const struct oak_list_entry_t* entry)
 {
   _oak_list_remove(entry->prev, entry->next);
 }
 
-static inline oak_list_entry_t* oak_list_first(const oak_list_entry_t* head)
+static inline struct oak_list_entry_t*
+oak_list_first(const struct oak_list_entry_t* head)
 {
   if (oak_list_empty(head))
     return NULL;
   return head->next;
 }
 
-static inline oak_list_entry_t* oak_list_next(const oak_list_entry_t* current,
-                                              const oak_list_entry_t* head)
+static inline struct oak_list_entry_t*
+oak_list_next(const struct oak_list_entry_t* current,
+              const struct oak_list_entry_t* head)
 {
   if (current == NULL || current->next == head)
     return NULL;
   return current->next;
 }
 
-static inline void oak_list_move(const oak_list_entry_t* from, oak_list_entry_t* to)
+static inline void oak_list_move(const struct oak_list_entry_t* from,
+                                 struct oak_list_entry_t* to)
 {
   if (!oak_list_empty(from))
   {
@@ -96,10 +99,10 @@ static inline void oak_list_move(const oak_list_entry_t* from, oak_list_entry_t*
   }
 }
 
-static inline size_t oak_list_length(const oak_list_entry_t* head)
+static inline size_t oak_list_length(const struct oak_list_entry_t* head)
 {
   size_t length = 0;
-  oak_list_entry_t* current;
+  struct oak_list_entry_t* current;
   oak_list_for_each_indexed(length, current, head)
   {
   }

@@ -5,12 +5,12 @@
 
 #include <string.h>
 
-void oak_obj_incref(oak_obj_t* obj)
+void oak_obj_incref(struct oak_obj_t* obj)
 {
   oak_refcount_inc(&obj->refcount);
 }
 
-void oak_obj_decref(oak_obj_t* obj)
+void oak_obj_decref(struct oak_obj_t* obj)
 {
   if (oak_refcount_dec(&obj->refcount))
     oak_free(obj, OAK_SRC_LOC);
@@ -27,10 +27,10 @@ static uint32_t hash_string(const char* chars, const size_t length)
   return hash;
 }
 
-oak_obj_string_t* oak_make_string(const char* chars, const size_t length)
+struct oak_obj_string_t* oak_make_string(const char* chars, const size_t length)
 {
-  oak_obj_string_t* str =
-      oak_alloc(sizeof(oak_obj_string_t) + length + 1, OAK_SRC_LOC);
+  struct oak_obj_string_t* str =
+      oak_alloc(sizeof(struct oak_obj_string_t) + length + 1, OAK_SRC_LOC);
   str->obj.type = OAK_OBJ_STRING;
   oak_refcount_init(&str->obj.refcount, 1);
   str->length = length;
@@ -40,12 +40,12 @@ oak_obj_string_t* oak_make_string(const char* chars, const size_t length)
   return str;
 }
 
-oak_obj_string_t* oak_string_concat(const oak_obj_string_t* a,
-                                    const oak_obj_string_t* b)
+struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
+                                           const struct oak_obj_string_t* b)
 {
   const size_t length = a->length + b->length;
-  oak_obj_string_t* str =
-      oak_alloc(sizeof(oak_obj_string_t) + length + 1, OAK_SRC_LOC);
+  struct oak_obj_string_t* str =
+      oak_alloc(sizeof(struct oak_obj_string_t) + length + 1, OAK_SRC_LOC);
   str->obj.type = OAK_OBJ_STRING;
   oak_refcount_init(&str->obj.refcount, 1);
   str->length = length;
@@ -56,7 +56,7 @@ oak_obj_string_t* oak_string_concat(const oak_obj_string_t* a,
   return str;
 }
 
-int oak_is_truthy(const oak_value_t value)
+int oak_is_truthy(const struct oak_value_t value)
 {
   switch (value.type)
   {
@@ -73,7 +73,7 @@ int oak_is_truthy(const oak_value_t value)
   return 0;
 }
 
-int oak_value_equal(const oak_value_t a, const oak_value_t b)
+int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
 {
   if (a.type != b.type)
     return 0;
@@ -90,8 +90,8 @@ int oak_value_equal(const oak_value_t a, const oak_value_t b)
     case OAK_VAL_OBJ:
       if (oak_is_string(a) && oak_is_string(b))
       {
-        const oak_obj_string_t* str_a = oak_as_string(a);
-        const oak_obj_string_t* str_b = oak_as_string(b);
+        const struct oak_obj_string_t* str_a = oak_as_string(a);
+        const struct oak_obj_string_t* str_b = oak_as_string(b);
         if (str_a->length != str_b->length)
           return 0;
         if (str_a->hash != str_b->hash)
@@ -104,19 +104,19 @@ int oak_value_equal(const oak_value_t a, const oak_value_t b)
   return 0;
 }
 
-void oak_value_incref(const oak_value_t value)
+void oak_value_incref(const struct oak_value_t value)
 {
   if (oak_is_obj(value))
     oak_obj_incref(oak_as_obj(value));
 }
 
-void oak_value_decref(const oak_value_t value)
+void oak_value_decref(const struct oak_value_t value)
 {
   if (oak_is_obj(value))
     oak_obj_decref(oak_as_obj(value));
 }
 
-void oak_value_print(const oak_value_t value)
+void oak_value_print(const struct oak_value_t value)
 {
   switch (value.type)
   {

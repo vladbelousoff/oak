@@ -3,11 +3,11 @@
 #include "oak_common.h"
 #include "oak_log.h"
 
-typedef struct
+struct oak_test_t
 {
-  oak_result_t (*fn)(void);
+  enum oak_result_t (*fn)(void);
   const char* name;
-} oak_test_t;
+};
 
 /**
  * Declare a test for use in the registry.
@@ -19,7 +19,7 @@ typedef struct
  * Example (test_main.c registry):
  *   OAK_TEST_ENTRY(EmptyString),
  */
-#define OAK_TEST_DECL(fn_name) oak_result_t fn_name(void)
+#define OAK_TEST_DECL(fn_name) enum oak_result_t fn_name(void)
 
 #define OAK_TEST_ENTRY(label)                                                  \
   {                                                                            \

@@ -5,22 +5,22 @@
 
 #define OAK_STACK_MAX 256
 
-typedef enum
+enum oak_vm_result_t
 {
   OAK_VM_OK,
   OAK_VM_COMPILE_ERROR,
   OAK_VM_RUNTIME_ERROR,
-} oak_vm_result_t;
+};
 
-typedef struct
+struct oak_vm_t
 {
-  oak_chunk_t* chunk;
+  struct oak_chunk_t* chunk;
   uint8_t* ip;
-  oak_value_t stack[OAK_STACK_MAX];
-  oak_value_t* sp;
-} oak_vm_t;
+  struct oak_value_t stack[OAK_STACK_MAX];
+  struct oak_value_t* sp;
+};
 
-void oak_vm_init(oak_vm_t* vm);
-void oak_vm_free(oak_vm_t* vm);
+void oak_vm_init(struct oak_vm_t* vm);
+void oak_vm_free(struct oak_vm_t* vm);
 
-oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk);
+enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk);

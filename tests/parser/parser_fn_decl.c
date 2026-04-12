@@ -2,11 +2,11 @@
 
 OAK_TEST_DECL(ParseFnDecl)
 {
-  oak_lexer_result_t* lexer =
+  struct oak_lexer_result_t* lexer =
       oak_lexer_tokenize("fn add(x : int, y : int) { x = 1; }");
 
-  oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
-  const oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  const struct oak_ast_node_t* root = oak_parser_root(result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /*
@@ -21,15 +21,15 @@ OAK_TEST_DECL(ParseFnDecl)
              INT(1)
   */
 
-  const oak_ast_node_t* decl = oak_test_ast_child(root, 0);
+  const struct oak_ast_node_t* decl = oak_test_ast_child(root, 0);
   OAK_CHECK_NODE_KIND(decl, OAK_NODE_KIND_FN_DECL);
   OAK_CHECK_CHILD_COUNT(decl, 4);
 
-  const oak_ast_node_t* name = oak_test_ast_child(decl, 0);
+  const struct oak_ast_node_t* name = oak_test_ast_child(decl, 0);
   OAK_CHECK_NODE_KIND(name, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(name, "add");
 
-  const oak_ast_node_t* param0 = oak_test_ast_child(decl, 1);
+  const struct oak_ast_node_t* param0 = oak_test_ast_child(decl, 1);
   OAK_CHECK_NODE_KIND(param0, OAK_NODE_KIND_FN_PARAM);
   OAK_CHECK_CHILD_COUNT(param0, 2);
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 0), OAK_NODE_KIND_IDENT);
@@ -37,7 +37,7 @@ OAK_TEST_DECL(ParseFnDecl)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 1), OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(param0, 1), "int");
 
-  const oak_ast_node_t* param1 = oak_test_ast_child(decl, 2);
+  const struct oak_ast_node_t* param1 = oak_test_ast_child(decl, 2);
   OAK_CHECK_NODE_KIND(param1, OAK_NODE_KIND_FN_PARAM);
   OAK_CHECK_CHILD_COUNT(param1, 2);
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param1, 0), OAK_NODE_KIND_IDENT);
@@ -45,19 +45,19 @@ OAK_TEST_DECL(ParseFnDecl)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param1, 1), OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(param1, 1), "int");
 
-  const oak_ast_node_t* body = oak_test_ast_child(decl, 3);
+  const struct oak_ast_node_t* body = oak_test_ast_child(decl, 3);
   OAK_CHECK_NODE_KIND(body, OAK_NODE_KIND_BLOCK);
   OAK_CHECK_CHILD_COUNT(body, 1);
 
-  const oak_ast_node_t* stmt = oak_test_ast_child(body, 0);
+  const struct oak_ast_node_t* stmt = oak_test_ast_child(body, 0);
   OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_ASSIGNMENT);
   OAK_CHECK_CHILD_COUNT(stmt, 2);
 
-  const oak_ast_node_t* stmt_ident = oak_test_ast_child(stmt, 0);
+  const struct oak_ast_node_t* stmt_ident = oak_test_ast_child(stmt, 0);
   OAK_CHECK_NODE_KIND(stmt_ident, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(stmt_ident, "x");
 
-  const oak_ast_node_t* stmt_val = oak_test_ast_child(stmt, 1);
+  const struct oak_ast_node_t* stmt_val = oak_test_ast_child(stmt, 1);
   OAK_CHECK_NODE_KIND(stmt_val, OAK_NODE_KIND_INT);
   OAK_CHECK_INT_VAL(stmt_val, 1);
 

@@ -2,11 +2,11 @@
 
 OAK_TEST_DECL(ParseCompoundAssign)
 {
-  oak_lexer_result_t* lexer =
+  struct oak_lexer_result_t* lexer =
       oak_lexer_tokenize("a += 1; b -= 2; c *= 3; d /= 4; e %= 5;");
 
-  oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
-  const oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  const struct oak_ast_node_t* root = oak_parser_root(result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
   OAK_CHECK_CHILD_COUNT(root, 5);
 
@@ -22,7 +22,7 @@ OAK_TEST_DECL(ParseCompoundAssign)
 
   const struct
   {
-    oak_node_kind_t kind;
+    enum oak_node_kind_t kind;
     const char* name;
     int value;
   } cases[] = {
@@ -35,15 +35,15 @@ OAK_TEST_DECL(ParseCompoundAssign)
 
   for (int i = 0; i < 5; ++i)
   {
-    const oak_ast_node_t* stmt = oak_test_ast_child(root, i);
+    const struct oak_ast_node_t* stmt = oak_test_ast_child(root, i);
     OAK_CHECK_NODE_KIND(stmt, cases[i].kind);
     OAK_CHECK_CHILD_COUNT(stmt, 2);
 
-    const oak_ast_node_t* ident = oak_test_ast_child(stmt, 0);
+    const struct oak_ast_node_t* ident = oak_test_ast_child(stmt, 0);
     OAK_CHECK_NODE_KIND(ident, OAK_NODE_KIND_IDENT);
     OAK_CHECK_TOKEN_STR(ident, cases[i].name);
 
-    const oak_ast_node_t* val = oak_test_ast_child(stmt, 1);
+    const struct oak_ast_node_t* val = oak_test_ast_child(stmt, 1);
     OAK_CHECK_NODE_KIND(val, OAK_NODE_KIND_INT);
     OAK_CHECK_INT_VAL(val, cases[i].value);
   }

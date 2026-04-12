@@ -2,9 +2,9 @@
 
 OAK_TEST_DECL(LexFloatExponent)
 {
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("1e2 3.0E1 0.5e3");
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("1e2 3.0E1 0.5e3");
 
-  static oak_expected_token_t expected_tokens[] = {
+  static struct oak_expected_token_t expected_tokens[] = {
     {
         .kind = OAK_TOKEN_FLOAT_NUM,
         .line = 1,
@@ -29,7 +29,7 @@ OAK_TEST_DECL(LexFloatExponent)
   };
 
   const size_t n = OAK_ARRAY_SIZE(expected_tokens);
-  const oak_result_t result = oak_test_tokens(lexer, expected_tokens, n);
+  const enum oak_result_t result = oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);
   return result;
 }

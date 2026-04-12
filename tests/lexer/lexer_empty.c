@@ -3,7 +3,7 @@
 
 OAK_TEST_DECL(LexEmptyString)
 {
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("");
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("");
   OAK_CHECK(oak_list_empty(oak_lexer_tokens(lexer)));
   oak_lexer_cleanup(lexer);
   return OAK_SUCCESS;

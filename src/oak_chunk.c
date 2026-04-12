@@ -9,43 +9,43 @@
 #define CONST_INITIAL_CAPACITY 16
 #define DEBUG_INITIAL_CAPACITY 8
 
-const oak_op_info_t oak_op_info[] = {
-  [OAK_OP_HALT]          = { "OP_HALT",          OAK_OP_FMT_NONE,       0 },
-  [OAK_OP_CONSTANT]      = { "OP_CONSTANT",      OAK_OP_FMT_CONSTANT,   1 },
-  [OAK_OP_TRUE]           = { "OP_TRUE",           OAK_OP_FMT_NONE,       1 },
-  [OAK_OP_FALSE]          = { "OP_FALSE",          OAK_OP_FMT_NONE,       1 },
-  [OAK_OP_POP]            = { "OP_POP",            OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_GET_LOCAL]      = { "OP_GET_LOCAL",      OAK_OP_FMT_SLOT,       1 },
-  [OAK_OP_SET_LOCAL]      = { "OP_SET_LOCAL",      OAK_OP_FMT_SLOT,       0 },
-  [OAK_OP_ADD]             = { "OP_ADD",             OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_SUB]             = { "OP_SUB",             OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_MUL]             = { "OP_MUL",             OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_DIV]             = { "OP_DIV",             OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_MOD]             = { "OP_MOD",             OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_NEGATE]          = { "OP_NEGATE",          OAK_OP_FMT_NONE,       0 },
-  [OAK_OP_NOT]             = { "OP_NOT",             OAK_OP_FMT_NONE,       0 },
-  [OAK_OP_EQ]              = { "OP_EQ",              OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_NEQ]             = { "OP_NEQ",             OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_LT]              = { "OP_LT",              OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_LE]              = { "OP_LE",              OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_GT]              = { "OP_GT",              OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_GE]              = { "OP_GE",              OAK_OP_FMT_NONE,      -1 },
-  [OAK_OP_JUMP]            = { "OP_JUMP",            OAK_OP_FMT_JUMP_FWD,   0 },
-  [OAK_OP_JUMP_IF_FALSE]   = { "OP_JUMP_IF_FALSE",   OAK_OP_FMT_JUMP_FWD,  -1 },
-  [OAK_OP_LOOP]            = { "OP_LOOP",            OAK_OP_FMT_JUMP_BACK,  0 },
-  [OAK_OP_PRINT]           = { "OP_PRINT",           OAK_OP_FMT_NONE,      -1 },
+const struct oak_op_info_t oak_op_info[] = {
+  [OAK_OP_HALT] = { "OP_HALT", OAK_OP_FMT_NONE, 0 },
+  [OAK_OP_CONSTANT] = { "OP_CONSTANT", OAK_OP_FMT_CONSTANT, 1 },
+  [OAK_OP_TRUE] = { "OP_TRUE", OAK_OP_FMT_NONE, 1 },
+  [OAK_OP_FALSE] = { "OP_FALSE", OAK_OP_FMT_NONE, 1 },
+  [OAK_OP_POP] = { "OP_POP", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_GET_LOCAL] = { "OP_GET_LOCAL", OAK_OP_FMT_SLOT, 1 },
+  [OAK_OP_SET_LOCAL] = { "OP_SET_LOCAL", OAK_OP_FMT_SLOT, 0 },
+  [OAK_OP_ADD] = { "OP_ADD", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_SUB] = { "OP_SUB", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_MUL] = { "OP_MUL", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_DIV] = { "OP_DIV", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_MOD] = { "OP_MOD", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_NEGATE] = { "OP_NEGATE", OAK_OP_FMT_NONE, 0 },
+  [OAK_OP_NOT] = { "OP_NOT", OAK_OP_FMT_NONE, 0 },
+  [OAK_OP_EQ] = { "OP_EQ", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_NEQ] = { "OP_NEQ", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_LT] = { "OP_LT", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_LE] = { "OP_LE", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_GT] = { "OP_GT", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_GE] = { "OP_GE", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_JUMP] = { "OP_JUMP", OAK_OP_FMT_JUMP_FWD, 0 },
+  [OAK_OP_JUMP_IF_FALSE] = { "OP_JUMP_IF_FALSE", OAK_OP_FMT_JUMP_FWD, -1 },
+  [OAK_OP_LOOP] = { "OP_LOOP", OAK_OP_FMT_JUMP_BACK, 0 },
+  [OAK_OP_PRINT] = { "OP_PRINT", OAK_OP_FMT_NONE, -1 },
 };
 
 #define OAK_OP_INFO_COUNT (sizeof(oak_op_info) / sizeof(oak_op_info[0]))
 
-const oak_op_info_t* oak_op_get_info(const uint8_t op)
+const struct oak_op_info_t* oak_op_get_info(const uint8_t op)
 {
   if (op < OAK_OP_INFO_COUNT && oak_op_info[op].name)
     return &oak_op_info[op];
   return NULL;
 }
 
-void oak_chunk_init(oak_chunk_t* chunk)
+void oak_chunk_init(struct oak_chunk_t* chunk)
 {
   chunk->count = 0;
   chunk->capacity = 0;
@@ -59,7 +59,7 @@ void oak_chunk_init(oak_chunk_t* chunk)
   chunk->debug_locals = NULL;
 }
 
-static void ensure_code_capacity(oak_chunk_t* chunk)
+static void ensure_code_capacity(struct oak_chunk_t* chunk)
 {
   if (chunk->count < chunk->capacity)
     return;
@@ -72,7 +72,9 @@ static void ensure_code_capacity(oak_chunk_t* chunk)
   chunk->capacity = new_cap;
 }
 
-void oak_chunk_write(oak_chunk_t* chunk, const uint8_t byte, const int line)
+void oak_chunk_write(struct oak_chunk_t* chunk,
+                     const uint8_t byte,
+                     const int line)
 {
   ensure_code_capacity(chunk);
   chunk->bytecode[chunk->count] = byte;
@@ -80,7 +82,8 @@ void oak_chunk_write(oak_chunk_t* chunk, const uint8_t byte, const int line)
   chunk->count++;
 }
 
-size_t oak_chunk_add_constant(oak_chunk_t* chunk, const oak_value_t value)
+size_t oak_chunk_add_constant(struct oak_chunk_t* chunk,
+                              const struct oak_value_t value)
 {
   if (chunk->const_count >= chunk->const_capacity)
   {
@@ -88,7 +91,7 @@ size_t oak_chunk_add_constant(oak_chunk_t* chunk, const oak_value_t value)
                                ? CONST_INITIAL_CAPACITY
                                : chunk->const_capacity * 2;
     chunk->constants = oak_realloc(
-        chunk->constants, new_cap * sizeof(oak_value_t), OAK_SRC_LOC);
+        chunk->constants, new_cap * sizeof(struct oak_value_t), OAK_SRC_LOC);
     chunk->const_capacity = new_cap;
   }
 
@@ -96,7 +99,7 @@ size_t oak_chunk_add_constant(oak_chunk_t* chunk, const oak_value_t value)
   return chunk->const_count++;
 }
 
-void oak_chunk_add_debug_local(oak_chunk_t* chunk,
+void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
                                const int slot,
                                const char* name,
                                const size_t length)
@@ -109,8 +112,10 @@ void oak_chunk_add_debug_local(oak_chunk_t* chunk,
     const size_t new_cap = chunk->debug_capacity == 0
                                ? DEBUG_INITIAL_CAPACITY
                                : chunk->debug_capacity * 2;
-    chunk->debug_locals = oak_realloc(
-        chunk->debug_locals, new_cap * sizeof(oak_debug_local_t), OAK_SRC_LOC);
+    chunk->debug_locals =
+        oak_realloc(chunk->debug_locals,
+                    new_cap * sizeof(struct oak_debug_local_t),
+                    OAK_SRC_LOC);
     chunk->debug_capacity = new_cap;
   }
 
@@ -118,13 +123,13 @@ void oak_chunk_add_debug_local(oak_chunk_t* chunk,
   memcpy(buf, name, length);
   buf[length] = 0;
 
-  oak_debug_local_t* d = &chunk->debug_locals[chunk->debug_count++];
+  struct oak_debug_local_t* d = &chunk->debug_locals[chunk->debug_count++];
   d->slot = slot;
   d->offset = chunk->count;
   d->name = buf;
 }
 
-void oak_chunk_free(oak_chunk_t* chunk)
+void oak_chunk_free(struct oak_chunk_t* chunk)
 {
   if (chunk->constants && chunk->const_count > 0)
   {
@@ -151,11 +156,12 @@ void oak_chunk_free(oak_chunk_t* chunk)
 
 static const char* opcode_name(const uint8_t op)
 {
-  const oak_op_info_t* info = oak_op_get_info(op);
+  const struct oak_op_info_t* info = oak_op_get_info(op);
   return info ? info->name : "OP_UNKNOWN";
 }
 
-static int snprint_value(char* buf, const size_t size, const oak_value_t value)
+static int
+snprint_value(char* buf, const size_t size, const struct oak_value_t value)
 {
   switch (value.type)
   {
@@ -175,19 +181,20 @@ static int snprint_value(char* buf, const size_t size, const oak_value_t value)
   }
 }
 
-static const char*
-debug_local_name(const oak_chunk_t* chunk, const int slot, const size_t offset)
+static const char* debug_local_name(const struct oak_chunk_t* chunk,
+                                    const int slot,
+                                    const size_t offset)
 {
   for (size_t i = chunk->debug_count; i > 0; --i)
   {
-    const oak_debug_local_t* d = &chunk->debug_locals[i - 1];
+    const struct oak_debug_local_t* d = &chunk->debug_locals[i - 1];
     if (d->slot == slot && d->offset <= offset)
       return d->name;
   }
   return NULL;
 }
 
-static size_t disassemble_instruction(const oak_chunk_t* chunk,
+static size_t disassemble_instruction(const struct oak_chunk_t* chunk,
                                       const size_t offset)
 {
   char line[16];
@@ -198,8 +205,8 @@ static size_t disassemble_instruction(const oak_chunk_t* chunk,
 
   const uint8_t op = chunk->bytecode[offset];
   const char* name = opcode_name(op);
-  const oak_op_info_t* info = oak_op_get_info(op);
-  const oak_op_format_t fmt = info ? info->format : OAK_OP_FMT_NONE;
+  const struct oak_op_info_t* info = oak_op_get_info(op);
+  const enum oak_op_format_t fmt = info ? info->format : OAK_OP_FMT_NONE;
 
   switch (fmt)
   {
@@ -208,8 +215,13 @@ static size_t disassemble_instruction(const oak_chunk_t* chunk,
       const uint8_t idx = chunk->bytecode[offset + 1];
       char val[64];
       snprint_value(val, sizeof(val), chunk->constants[idx]);
-      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d ; %s",
-              offset, line, name, idx, val);
+      oak_log(OAK_LOG_INF,
+              "%04zu %s  %-16s %4d ; %s",
+              offset,
+              line,
+              name,
+              idx,
+              val);
       return offset + 2;
     }
     case OAK_OP_FMT_SLOT:
@@ -217,27 +229,41 @@ static size_t disassemble_instruction(const oak_chunk_t* chunk,
       const uint8_t slot = chunk->bytecode[offset + 1];
       const char* local = debug_local_name(chunk, slot, offset);
       if (local)
-        oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d ; %s",
-                offset, line, name, slot, local);
+        oak_log(OAK_LOG_INF,
+                "%04zu %s  %-16s %4d ; %s",
+                offset,
+                line,
+                name,
+                slot,
+                local);
       else
-        oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d",
-                offset, line, name, slot);
+        oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d", offset, line, name, slot);
       return offset + 2;
     }
     case OAK_OP_FMT_JUMP_FWD:
     {
       const uint16_t jump = (uint16_t)(chunk->bytecode[offset + 1] << 8) |
                             chunk->bytecode[offset + 2];
-      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d -> %04zu",
-              offset, line, name, jump, offset + 3 + jump);
+      oak_log(OAK_LOG_INF,
+              "%04zu %s  %-16s %4d -> %04zu",
+              offset,
+              line,
+              name,
+              jump,
+              offset + 3 + jump);
       return offset + 3;
     }
     case OAK_OP_FMT_JUMP_BACK:
     {
       const uint16_t jump = (uint16_t)(chunk->bytecode[offset + 1] << 8) |
                             chunk->bytecode[offset + 2];
-      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d -> %04zu",
-              offset, line, name, jump, offset + 3 - jump);
+      oak_log(OAK_LOG_INF,
+              "%04zu %s  %-16s %4d -> %04zu",
+              offset,
+              line,
+              name,
+              jump,
+              offset + 3 - jump);
       return offset + 3;
     }
     default:
@@ -246,7 +272,7 @@ static size_t disassemble_instruction(const oak_chunk_t* chunk,
   }
 }
 
-void oak_chunk_disassemble(const oak_chunk_t* chunk)
+void oak_chunk_disassemble(const struct oak_chunk_t* chunk)
 {
   oak_log(OAK_LOG_INF,
           "---- chunk [%zu bytes, %zu constants] ----",

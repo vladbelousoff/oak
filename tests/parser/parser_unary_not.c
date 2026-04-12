@@ -2,10 +2,10 @@
 
 OAK_TEST_DECL(ParseUnaryNot)
 {
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("!flag;");
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("!flag;");
 
-  oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
-  const oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  const struct oak_ast_node_t* root = oak_parser_root(result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /*
@@ -15,10 +15,10 @@ OAK_TEST_DECL(ParseUnaryNot)
            IDENT("flag")
   */
 
-  const oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
+  const struct oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
   OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_EXPR);
 
-  const oak_ast_node_t* not_node = oak_test_ast_child(stmt, 0);
+  const struct oak_ast_node_t* not_node = oak_test_ast_child(stmt, 0);
   OAK_CHECK_NODE_KIND(not_node, OAK_NODE_KIND_UNARY_NOT);
   OAK_CHECK_NODE_KIND(not_node->child, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(not_node->child, "flag");

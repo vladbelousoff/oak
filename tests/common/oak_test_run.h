@@ -8,14 +8,14 @@
  * Run an array of tests and return an exit code.
  * Call this from each test executable's main().
  */
-static int oak_test_run(const oak_test_t* tests, const int count)
+static int oak_test_run(const struct oak_test_t* tests, const int count)
 {
-  oak_result_t result = OAK_SUCCESS;
+  enum oak_result_t result = OAK_SUCCESS;
   oak_mem_init();
 
   for (int i = 0; i < count; ++i)
   {
-    const oak_test_t* t = &tests[i];
+    const struct oak_test_t* t = &tests[i];
     oak_log(OAK_LOG_INF, "running %s...", t->name);
     result = t->fn();
     if (result != OAK_SUCCESS)
@@ -36,7 +36,7 @@ static int oak_test_run(const oak_test_t* tests, const int count)
   {                                                                            \
     (void)argc;                                                                \
     (void)argv;                                                                \
-    static oak_test_t t[] = {                                                  \
+    static struct oak_test_t t[] = {                                           \
       OAK_TEST_ENTRY(label),                                                   \
     };                                                                         \
     return oak_test_run(t, 1);                                                 \

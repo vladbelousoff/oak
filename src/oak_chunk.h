@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-typedef enum
+enum oak_opcode_t
 {
   OAK_OP_HALT,
   OAK_OP_CONSTANT,
@@ -30,36 +30,36 @@ typedef enum
   OAK_OP_JUMP_IF_FALSE,
   OAK_OP_LOOP,
   OAK_OP_PRINT,
-} oak_opcode_t;
+};
 
-typedef enum
+enum oak_op_format_t
 {
   OAK_OP_FMT_NONE,
   OAK_OP_FMT_CONSTANT,
   OAK_OP_FMT_SLOT,
   OAK_OP_FMT_JUMP_FWD,
   OAK_OP_FMT_JUMP_BACK,
-} oak_op_format_t;
+};
 
-typedef struct
+struct oak_op_info_t
 {
   const char* name;
-  oak_op_format_t format;
+  enum oak_op_format_t format;
   int stack_effect;
-} oak_op_info_t;
+};
 
-extern const oak_op_info_t oak_op_info[];
+extern const struct oak_op_info_t oak_op_info[];
 
-const oak_op_info_t* oak_op_get_info(uint8_t op);
+const struct oak_op_info_t* oak_op_get_info(uint8_t op);
 
-typedef struct
+struct oak_debug_local_t
 {
   int slot;
   size_t offset;
   char* name;
-} oak_debug_local_t;
+};
 
-typedef struct
+struct oak_chunk_t
 {
   size_t count;
   size_t capacity;
@@ -67,20 +67,21 @@ typedef struct
   int* lines;
   size_t const_count;
   size_t const_capacity;
-  oak_value_t* constants;
+  struct oak_value_t* constants;
   size_t debug_count;
   size_t debug_capacity;
-  oak_debug_local_t* debug_locals;
-} oak_chunk_t;
+  struct oak_debug_local_t* debug_locals;
+};
 
-void oak_chunk_init(oak_chunk_t* chunk);
-void oak_chunk_free(oak_chunk_t* chunk);
+void oak_chunk_init(struct oak_chunk_t* chunk);
+void oak_chunk_free(struct oak_chunk_t* chunk);
 
-void oak_chunk_write(oak_chunk_t* chunk, uint8_t byte, int line);
+void oak_chunk_write(struct oak_chunk_t* chunk, uint8_t byte, int line);
 
-size_t oak_chunk_add_constant(oak_chunk_t* chunk, oak_value_t value);
-void oak_chunk_add_debug_local(oak_chunk_t* chunk,
+size_t oak_chunk_add_constant(struct oak_chunk_t* chunk,
+                              struct oak_value_t value);
+void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
                                int slot,
                                const char* name,
                                size_t length);
-void oak_chunk_disassemble(const oak_chunk_t* chunk);
+void oak_chunk_disassemble(const struct oak_chunk_t* chunk);

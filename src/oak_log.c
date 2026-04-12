@@ -35,24 +35,24 @@ static const char* oak_time_stamp(void)
   return buf;
 }
 
-static char* oak_log_lvl_to_str(const oak_log_level_t lvl)
+static char* oak_log_lvl_to_str(const enum oak_log_level_t lvl)
 {
   switch (lvl)
   {
-  case OAK_LOG_ERR:
-    return "ERR";
-  case OAK_LOG_WRN:
-    return "WRN";
-  case OAK_LOG_DBG:
-    return "DBG";
-  default:
-    break;
+    case OAK_LOG_ERR:
+      return "ERR";
+    case OAK_LOG_WRN:
+      return "WRN";
+    case OAK_LOG_DBG:
+      return "DBG";
+    default:
+      break;
   }
 
   return "INF";
 }
 
-void _oak_log_printf(const oak_log_level_t lvl,
+void _oak_log_printf(const enum oak_log_level_t lvl,
 #ifdef OAK_DEBUG_LOGGING
                      const char* file,
                      const unsigned line,

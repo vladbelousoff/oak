@@ -10,10 +10,10 @@ static size_t align_up(const size_t n)
   return n + mask & ~mask;
 }
 
-static oak_arena_block_t* arena_new_block(const size_t capacity)
+static struct oak_arena_block_t* arena_new_block(const size_t capacity)
 {
-  oak_arena_block_t* block =
-      oak_alloc(sizeof(oak_arena_block_t) + capacity, OAK_SRC_LOC);
+  struct oak_arena_block_t* block =
+      oak_alloc(sizeof(struct oak_arena_block_t) + capacity, OAK_SRC_LOC);
   if (!block)
     return NULL;
   block->next = NULL;
@@ -22,13 +22,13 @@ static oak_arena_block_t* arena_new_block(const size_t capacity)
   return block;
 }
 
-void oak_arena_init(oak_arena_t* arena, const size_t block_size)
+void oak_arena_init(struct oak_arena_t* arena, const size_t block_size)
 {
   arena->block_size = block_size ? block_size : OAK_ARENA_DEFAULT_BLOCK_SIZE;
   arena->current = NULL;
 }
 
-void* oak_arena_alloc(oak_arena_t* arena, size_t size)
+void* oak_arena_alloc(struct oak_arena_t* arena, size_t size)
 {
   size = align_up(size);
 
@@ -37,7 +37,7 @@ void* oak_arena_alloc(oak_arena_t* arena, size_t size)
     size_t cap = arena->block_size;
     if (size > cap)
       cap = size;
-    oak_arena_block_t* block = arena_new_block(cap);
+    struct oak_arena_block_t* block = arena_new_block(cap);
     if (!block)
       return NULL;
     block->next = arena->current;
@@ -50,12 +50,12 @@ void* oak_arena_alloc(oak_arena_t* arena, size_t size)
   return ptr;
 }
 
-void oak_arena_destroy(oak_arena_t* arena)
+void oak_arena_destroy(struct oak_arena_t* arena)
 {
-  oak_arena_block_t* block = arena->current;
+  struct oak_arena_block_t* block = arena->current;
   while (block)
   {
-    oak_arena_block_t* next = block->next;
+    struct oak_arena_block_t* next = block->next;
     oak_free(block, OAK_SRC_LOC);
     block = next;
   }

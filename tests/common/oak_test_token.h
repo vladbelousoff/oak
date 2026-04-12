@@ -7,9 +7,9 @@
 #include <math.h>
 #include <string.h>
 
-typedef struct
+struct oak_expected_token_t
 {
-  oak_token_kind_t kind;
+  enum oak_token_kind_t kind;
   int line;
   int column;
   int pos;
@@ -19,11 +19,12 @@ typedef struct
     float floating;
     int integer;
   };
-} oak_expected_token_t;
+};
 
-static oak_result_t oak_test_token(const oak_token_t* token,
-                                   const oak_expected_token_t* expected,
-                                   const size_t index)
+static enum oak_result_t
+oak_test_token(const struct oak_token_t* token,
+               const struct oak_expected_token_t* expected,
+               const size_t index)
 {
   if (oak_token_kind(token) != expected->kind)
   {
@@ -91,7 +92,8 @@ static oak_result_t oak_test_token(const oak_token_t* token,
     }
   }
 
-  if (oak_token_kind(token) == OAK_TOKEN_STRING || oak_token_kind(token) == OAK_TOKEN_IDENT)
+  if (oak_token_kind(token) == OAK_TOKEN_STRING ||
+      oak_token_kind(token) == OAK_TOKEN_IDENT)
   {
     if (strcmp(oak_token_buf(token), expected->string) != 0)
     {
@@ -107,12 +109,13 @@ static oak_result_t oak_test_token(const oak_token_t* token,
   return OAK_SUCCESS;
 }
 
-static oak_result_t oak_test_tokens(const oak_lexer_result_t* lexer,
-                                    const oak_expected_token_t* expected_tokens,
-                                    const size_t count)
+static enum oak_result_t
+oak_test_tokens(const struct oak_lexer_result_t* lexer,
+                const struct oak_expected_token_t* expected_tokens,
+                const size_t count)
 {
   size_t token_index;
-  oak_list_entry_t* token_entry;
+  struct oak_list_entry_t* token_entry;
 
   oak_list_for_each_indexed(token_index, token_entry, oak_lexer_tokens(lexer))
   {
@@ -125,8 +128,9 @@ static oak_result_t oak_test_tokens(const oak_lexer_result_t* lexer,
       return OAK_FAILURE;
     }
 
-    const oak_token_t* token = oak_container_of(token_entry, oak_token_t, link);
-    const oak_expected_token_t* expected = &expected_tokens[token_index];
+    const struct oak_token_t* token =
+        oak_container_of(token_entry, struct oak_token_t, link);
+    const struct oak_expected_token_t* expected = &expected_tokens[token_index];
 
     if (oak_test_token(token, expected, token_index) != OAK_SUCCESS)
       return OAK_FAILURE;

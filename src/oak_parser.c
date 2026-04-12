@@ -8,28 +8,26 @@
 #include <stdarg.h>
 
 // ReSharper disable once CppClassNeverUsed
-struct _oak_parser_result_t
+struct oak_parser_result_t
 {
-  oak_ast_node_t* root;
-  oak_arena_t arena;
+  struct oak_ast_node_t* root;
+  struct oak_arena_t arena;
 };
 
-typedef struct
+struct oak_parser_t
 {
-  const oak_list_head_t* head;
-  oak_list_head_t* curr;
-  oak_arena_t* arena;
-} oak_parser_t;
+  const struct oak_list_entry_t* head;
+  struct oak_list_entry_t* curr;
+  struct oak_arena_t* arena;
+};
 
-typedef unsigned short oak_rule_item_t;
-
-#define OAK_RULE_TOKEN    ((oak_rule_item_t)(1 << 15))
-#define OAK_RULE_REPEAT   ((oak_rule_item_t)(1 << 14))
-#define OAK_RULE_OPTIONAL ((oak_rule_item_t)(1 << 13))
+#define OAK_RULE_TOKEN    ((unsigned short)(1 << 15))
+#define OAK_RULE_REPEAT   ((unsigned short)(1 << 14))
+#define OAK_RULE_OPTIONAL ((unsigned short)(1 << 13))
 #define OAK_RULE_KIND_MASK                                                     \
-  ((oak_rule_item_t) ~(OAK_RULE_TOKEN | OAK_RULE_REPEAT | OAK_RULE_OPTIONAL))
+  ((unsigned short)~(OAK_RULE_TOKEN | OAK_RULE_REPEAT | OAK_RULE_OPTIONAL))
 
-typedef enum
+enum oak_grammar_op_t
 {
   OAK_GRAMMAR_SEQUENCE, // Match all children in order (default)
   OAK_GRAMMAR_TOKEN,    // Match one specific token (terminal)
@@ -37,45 +35,45 @@ typedef enum
   OAK_GRAMMAR_PRATT,    // Pratt parser for operator precedence
   OAK_GRAMMAR_BINARY,   // Produce binary node (lhs/rhs)
   OAK_GRAMMAR_UNARY,    // Produce unary node (single child)
-} oak_grammar_op_t;
+};
 
-typedef enum
+enum oak_pratt_op_t
 {
   OAK_PRATT_END,
   OAK_PRATT_OP,
   OAK_PRATT_GROUP,
   OAK_PRATT_CALL,
   OAK_PRATT_INDEX,
-} oak_pratt_op_t;
+};
 
-typedef struct
+struct oak_pratt_rule_t
 {
-  oak_pratt_op_t kind;
-  oak_token_kind_t trigger_token;
+  enum oak_pratt_op_t kind;
+  enum oak_token_kind_t trigger_token;
   int l_bp;
   int r_bp;
-  oak_node_kind_t node_kind;
-  oak_token_kind_t close_token;
-  oak_node_kind_t arg_rule;
-} oak_pratt_rule_t;
+  enum oak_node_kind_t node_kind;
+  enum oak_token_kind_t close_token;
+  enum oak_node_kind_t arg_rule;
+};
 
-typedef struct
+struct oak_grammar_entry_t
 {
-  oak_grammar_op_t op;
+  enum oak_grammar_op_t op;
   union
   {
-    oak_rule_item_t rules[16];
-    oak_token_kind_t token_kind;
+    unsigned short rules[16];
+    enum oak_token_kind_t token_kind;
     struct
     {
-      oak_node_kind_t primary_rule;
-      const oak_pratt_rule_t* prefix;
-      const oak_pratt_rule_t* infix;
+      enum oak_node_kind_t primary_rule;
+      const struct oak_pratt_rule_t* prefix;
+      const struct oak_pratt_rule_t* infix;
     } pratt;
   };
-} oak_grammar_entry_t;
+};
 
-static const oak_pratt_rule_t expr_prefix[] = {
+static const struct oak_pratt_rule_t expr_prefix[] = {
   {
       .kind = OAK_PRATT_OP,
       .trigger_token = OAK_TOKEN_MINUS,
@@ -96,7 +94,7 @@ static const oak_pratt_rule_t expr_prefix[] = {
   { 0 },
 };
 
-static const oak_pratt_rule_t expr_infix[] = {
+static const struct oak_pratt_rule_t expr_infix[] = {
   {
       .kind = OAK_PRATT_OP,
       .trigger_token = OAK_TOKEN_OR,
@@ -213,7 +211,7 @@ static const oak_pratt_rule_t expr_infix[] = {
   { 0 },
 };
 
-static oak_grammar_entry_t oak_grammar[] = {
+static struct oak_grammar_entry_t oak_grammar[] = {
   // PROGRAM -> PROGRAM_ITEM*
   [OAK_NODE_KIND_PROGRAM] = {
     .rules = {
@@ -569,16 +567,16 @@ static oak_grammar_entry_t oak_grammar[] = {
   },
 };
 
-int oak_node_grammar_op_unary(const oak_node_kind_t kind)
+int oak_node_grammar_op_unary(const enum oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_UNARY;
 }
 
-int oak_node_grammar_op_binary(const oak_node_kind_t kind)
+int oak_node_grammar_op_binary(const enum oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_BINARY;
 }
-void oak_ast_node_unpack(const oak_ast_node_t* node, ...)
+void oak_ast_node_unpack(const struct oak_ast_node_t* node, ...)
 {
   oak_assert(node);
   oak_assert(oak_grammar[node->kind].op != OAK_GRAMMAR_BINARY);
@@ -587,30 +585,34 @@ void oak_ast_node_unpack(const oak_ast_node_t* node, ...)
   va_list args;
   va_start(args, node);
 
-  oak_list_entry_t* entry;
+  struct oak_list_entry_t* entry;
   oak_list_for_each(entry, &node->children)
   {
-    oak_ast_node_t* child = oak_container_of(entry, oak_ast_node_t, link);
-    *va_arg(args, oak_ast_node_t**) = child;
+    struct oak_ast_node_t* child =
+        oak_container_of(entry, struct oak_ast_node_t, link);
+    *va_arg(args, struct oak_ast_node_t**) = child;
   }
 
   va_end(args);
 }
 
-static oak_ast_node_t* parse_rule(oak_parser_t* p, oak_node_kind_t kind);
+static struct oak_ast_node_t* parse_rule(struct oak_parser_t* p,
+                                         enum oak_node_kind_t kind);
 
-static int try_skip_token(oak_parser_t* p, const oak_token_kind_t token_kind)
+static int try_skip_token(struct oak_parser_t* p,
+                          const enum oak_token_kind_t token_kind)
 {
   if (p->curr == p->head)
     return 0;
-  const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
+  const struct oak_token_t* token =
+      oak_container_of(p->curr, struct oak_token_t, link);
   if (oak_token_kind(token) != token_kind)
     return 0;
   p->curr = p->curr->next;
   return 1;
 }
 
-static size_t grammar_rule_count(const oak_grammar_entry_t* entry)
+static size_t grammar_rule_count(const struct oak_grammar_entry_t* entry)
 {
   size_t n = 0;
   while (n < OAK_ARRAY_SIZE(entry->rules) && entry->rules[n] != 0)
@@ -618,11 +620,11 @@ static size_t grammar_rule_count(const oak_grammar_entry_t* entry)
   return n;
 }
 
-static const oak_pratt_rule_t*
-find_pratt_rule(const oak_pratt_rule_t* rules,
-                const oak_token_kind_t token_kind)
+static const struct oak_pratt_rule_t*
+find_pratt_rule(const struct oak_pratt_rule_t* rules,
+                const enum oak_token_kind_t token_kind)
 {
-  for (const oak_pratt_rule_t* r = rules; r->kind != OAK_PRATT_END; r++)
+  for (const struct oak_pratt_rule_t* r = rules; r->kind != OAK_PRATT_END; r++)
   {
     if (token_kind == r->trigger_token)
       return r;
@@ -630,16 +632,19 @@ find_pratt_rule(const oak_pratt_rule_t* rules,
   return NULL;
 }
 
-static oak_ast_node_t* parse_token(oak_parser_t* p, const oak_node_kind_t kind)
+static struct oak_ast_node_t* parse_token(struct oak_parser_t* p,
+                                          const enum oak_node_kind_t kind)
 {
   oak_assert(p);
   oak_assert(p->curr);
   oak_assert(p->curr->next);
-  const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
-  const oak_grammar_entry_t* entry = &oak_grammar[kind];
+  const struct oak_token_t* token =
+      oak_container_of(p->curr, struct oak_token_t, link);
+  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
   if (oak_token_kind(token) != entry->token_kind)
     return NULL;
-  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+  struct oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
     return NULL;
   node->kind = kind;
@@ -648,24 +653,25 @@ static oak_ast_node_t* parse_token(oak_parser_t* p, const oak_node_kind_t kind)
   return node;
 }
 
-static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
+static struct oak_ast_node_t* parse_rules(struct oak_parser_t* p,
+                                          const enum oak_node_kind_t kind)
 {
-  oak_list_entry_t* saved = p->curr;
-  const oak_grammar_entry_t* entry = &oak_grammar[kind];
-  oak_list_head_t collected;
+  struct oak_list_entry_t* saved = p->curr;
+  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
+  struct oak_list_entry_t collected;
   oak_list_init(&collected);
 
   const size_t count = grammar_rule_count(entry);
   for (size_t i = 0; i < count; ++i)
   {
-    const oak_rule_item_t rule = entry->rules[i];
+    const unsigned short rule = entry->rules[i];
     const int is_repeat = rule & OAK_RULE_REPEAT;
     const int is_optional = rule & OAK_RULE_OPTIONAL;
 
     if (rule & OAK_RULE_TOKEN)
     {
-      const oak_token_kind_t tok =
-          (oak_token_kind_t)(rule & OAK_RULE_KIND_MASK);
+      const enum oak_token_kind_t tok =
+          (enum oak_token_kind_t)(rule & OAK_RULE_KIND_MASK);
       if (is_repeat)
       {
         while (try_skip_token(p, tok))
@@ -686,13 +692,13 @@ static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
       continue;
     }
 
-    const oak_node_kind_t child_kind =
-        (oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
+    const enum oak_node_kind_t child_kind =
+        (enum oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
     if (is_repeat)
     {
       for (;;)
       {
-        oak_ast_node_t* child = parse_rule(p, child_kind);
+        struct oak_ast_node_t* child = parse_rule(p, child_kind);
         if (!child)
           break;
         oak_list_add_tail(&collected, &child->link);
@@ -700,7 +706,7 @@ static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
       continue;
     }
 
-    oak_ast_node_t* child = parse_rule(p, child_kind);
+    struct oak_ast_node_t* child = parse_rule(p, child_kind);
     if (is_optional)
     {
       if (child)
@@ -728,7 +734,8 @@ static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
     return NULL;
   }
 
-  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+  struct oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
   {
     p->curr = saved;
@@ -738,15 +745,15 @@ static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
 
   if (is_binary)
   {
-    oak_list_entry_t* lhs = oak_list_first(&collected);
-    oak_list_entry_t* rhs = oak_list_next(lhs, &collected);
-    node->lhs = oak_container_of(lhs, oak_ast_node_t, link);
-    node->rhs = oak_container_of(rhs, oak_ast_node_t, link);
+    struct oak_list_entry_t* lhs = oak_list_first(&collected);
+    struct oak_list_entry_t* rhs = oak_list_next(lhs, &collected);
+    node->lhs = oak_container_of(lhs, struct oak_ast_node_t, link);
+    node->rhs = oak_container_of(rhs, struct oak_ast_node_t, link);
   }
   else if (is_unary)
   {
-    oak_list_entry_t* first = oak_list_first(&collected);
-    node->child = oak_container_of(first, oak_ast_node_t, link);
+    struct oak_list_entry_t* first = oak_list_first(&collected);
+    node->child = oak_container_of(first, struct oak_ast_node_t, link);
   }
   else
   {
@@ -756,15 +763,17 @@ static oak_ast_node_t* parse_rules(oak_parser_t* p, const oak_node_kind_t kind)
   return node;
 }
 
-static oak_ast_node_t* parse_choice(oak_parser_t* p, const oak_node_kind_t kind)
+static struct oak_ast_node_t* parse_choice(struct oak_parser_t* p,
+                                           const enum oak_node_kind_t kind)
 {
-  oak_list_entry_t* saved = p->curr;
-  const oak_grammar_entry_t* entry = &oak_grammar[kind];
+  struct oak_list_entry_t* saved = p->curr;
+  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
 
   const size_t choice_count = grammar_rule_count(entry);
   for (size_t i = 0; i < choice_count; ++i)
   {
-    oak_ast_node_t* child = parse_rule(p, (oak_node_kind_t)entry->rules[i]);
+    struct oak_ast_node_t* child =
+        parse_rule(p, (enum oak_node_kind_t)entry->rules[i]);
     if (child)
       return child;
   }
@@ -773,17 +782,19 @@ static oak_ast_node_t* parse_choice(oak_parser_t* p, const oak_node_kind_t kind)
   return NULL;
 }
 
-static oak_ast_node_t*
-parse_pratt(oak_parser_t* p, oak_node_kind_t kind, int min_bp);
+static struct oak_ast_node_t*
+parse_pratt(struct oak_parser_t* p, enum oak_node_kind_t kind, int min_bp);
 
-static oak_ast_node_t* parse_pratt_unary(oak_parser_t* p,
-                                         const oak_node_kind_t kind,
-                                         const oak_pratt_rule_t* rule)
+static struct oak_ast_node_t*
+parse_pratt_unary(struct oak_parser_t* p,
+                  const enum oak_node_kind_t kind,
+                  const struct oak_pratt_rule_t* rule)
 {
-  oak_ast_node_t* operand = parse_pratt(p, kind, rule->r_bp);
+  struct oak_ast_node_t* operand = parse_pratt(p, kind, rule->r_bp);
   if (!operand)
     return NULL;
-  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+  struct oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
     return NULL;
   node->kind = rule->node_kind;
@@ -791,15 +802,17 @@ static oak_ast_node_t* parse_pratt_unary(oak_parser_t* p,
   return node;
 }
 
-static oak_ast_node_t* parse_pratt_binary(oak_parser_t* p,
-                                          const oak_node_kind_t kind,
-                                          const oak_pratt_rule_t* rule,
-                                          oak_ast_node_t* lhs)
+static struct oak_ast_node_t*
+parse_pratt_binary(struct oak_parser_t* p,
+                   const enum oak_node_kind_t kind,
+                   const struct oak_pratt_rule_t* rule,
+                   struct oak_ast_node_t* lhs)
 {
-  oak_ast_node_t* rhs = parse_pratt(p, kind, rule->r_bp);
+  struct oak_ast_node_t* rhs = parse_pratt(p, kind, rule->r_bp);
   if (!rhs)
     return NULL;
-  oak_ast_node_t* node = oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+  struct oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
     return NULL;
   node->kind = rule->node_kind;
@@ -808,16 +821,18 @@ static oak_ast_node_t* parse_pratt_binary(oak_parser_t* p,
   return node;
 }
 
-static oak_ast_node_t*
-parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
+static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
+                                          const enum oak_node_kind_t kind,
+                                          const int min_bp)
 {
-  const oak_grammar_entry_t* entry = &oak_grammar[kind];
-  oak_ast_node_t* lhs = NULL;
+  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
+  struct oak_ast_node_t* lhs = NULL;
 
   if (p->curr != p->head && entry->pratt.prefix)
   {
-    const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
-    const oak_pratt_rule_t* r =
+    const struct oak_token_t* token =
+        oak_container_of(p->curr, struct oak_token_t, link);
+    const struct oak_pratt_rule_t* r =
         find_pratt_rule(entry->pratt.prefix, oak_token_kind(token));
     if (r)
     {
@@ -849,9 +864,10 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
   {
     if (p->curr == p->head)
       break;
-    const oak_token_t* token = oak_container_of(p->curr, oak_token_t, link);
+    const struct oak_token_t* token =
+        oak_container_of(p->curr, struct oak_token_t, link);
 
-    const oak_pratt_rule_t* rule =
+    const struct oak_pratt_rule_t* rule =
         find_pratt_rule(entry->pratt.infix, oak_token_kind(token));
     if (!rule || rule->l_bp < min_bp)
       break;
@@ -862,8 +878,8 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
     {
       case OAK_PRATT_CALL:
       {
-        oak_ast_node_t* call =
-            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+        struct oak_ast_node_t* call =
+            oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
         if (!call)
           return NULL;
         call->kind = rule->node_kind;
@@ -872,11 +888,11 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
 
         while (p->curr != p->head)
         {
-          const oak_token_t* peek =
-              oak_container_of(p->curr, oak_token_t, link);
+          const struct oak_token_t* peek =
+              oak_container_of(p->curr, struct oak_token_t, link);
           if (oak_token_kind(peek) == rule->close_token)
             break;
-          oak_ast_node_t* arg = parse_rule(p, rule->arg_rule);
+          struct oak_ast_node_t* arg = parse_rule(p, rule->arg_rule);
           if (!arg)
             return NULL;
           oak_list_add_tail(&call->children, &arg->link);
@@ -890,13 +906,13 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
       }
       case OAK_PRATT_INDEX:
       {
-        oak_ast_node_t* index_expr = parse_pratt(p, kind, 0);
+        struct oak_ast_node_t* index_expr = parse_pratt(p, kind, 0);
         if (!index_expr)
           return NULL;
         if (!try_skip_token(p, rule->close_token))
           return NULL;
-        oak_ast_node_t* node =
-            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
+        struct oak_ast_node_t* node =
+            oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
         if (!node)
           return NULL;
         node->kind = rule->node_kind;
@@ -916,7 +932,8 @@ parse_pratt(oak_parser_t* p, const oak_node_kind_t kind, const int min_bp)
   return lhs;
 }
 
-static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
+static struct oak_ast_node_t* parse_rule(struct oak_parser_t* p,
+                                         const enum oak_node_kind_t kind)
 {
   if (kind == OAK_NODE_KIND_NONE)
     return NULL;
@@ -939,18 +956,18 @@ static oak_ast_node_t* parse_rule(oak_parser_t* p, const oak_node_kind_t kind)
   return NULL;
 }
 
-oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
-                               const oak_node_kind_t kind)
+struct oak_parser_result_t* oak_parse(const struct oak_lexer_result_t* lexer,
+                                      const enum oak_node_kind_t kind)
 {
-  oak_parser_result_t* result =
-      oak_alloc(sizeof(oak_parser_result_t), OAK_SRC_LOC);
+  struct oak_parser_result_t* result =
+      oak_alloc(sizeof(struct oak_parser_result_t), OAK_SRC_LOC);
   if (!result)
     return NULL;
 
   oak_arena_init(&result->arena, 0);
 
-  const oak_list_head_t* tokens = oak_lexer_tokens(lexer);
-  oak_parser_t parser = {
+  const struct oak_list_entry_t* tokens = oak_lexer_tokens(lexer);
+  struct oak_parser_t parser = {
     .head = tokens,
     .curr = tokens->next,
     .arena = &result->arena,
@@ -960,7 +977,8 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
 
   if (parser.curr != parser.head)
   {
-    const oak_token_t* token = oak_container_of(parser.curr, oak_token_t, link);
+    const struct oak_token_t* token =
+        oak_container_of(parser.curr, struct oak_token_t, link);
     oak_log(OAK_LOG_ERR,
             "parse error at %d:%d: unexpected token '%s'",
             oak_token_line(token),
@@ -975,12 +993,12 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
   return result;
 }
 
-oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result)
+struct oak_ast_node_t* oak_parser_root(const struct oak_parser_result_t* result)
 {
   return result ? result->root : NULL;
 }
 
-void oak_parser_cleanup(oak_parser_result_t* result)
+void oak_parser_cleanup(struct oak_parser_result_t* result)
 {
   if (!result)
     return;

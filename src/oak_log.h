@@ -25,15 +25,15 @@
 
 const char* oak_filename(const char* path);
 
-typedef enum
+enum oak_log_level_t
 {
   OAK_LOG_INF,
   OAK_LOG_DBG,
   OAK_LOG_WRN,
   OAK_LOG_ERR,
-} oak_log_level_t;
+};
 
-void _oak_log_printf(oak_log_level_t lvl,
+void _oak_log_printf(enum oak_log_level_t lvl,
 #ifdef OAK_DEBUG_LOGGING
                      const char* file,
                      unsigned line,

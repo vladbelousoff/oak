@@ -3,7 +3,7 @@
 #include "oak_lexer.h"
 #include "oak_token.h"
 
-typedef enum
+enum oak_node_kind_t
 {
   OAK_NODE_KIND_NONE,
   OAK_NODE_KIND_PROGRAM,
@@ -62,35 +62,36 @@ typedef enum
   OAK_NODE_KIND_EXPR_EMPTY_MAP,
   OAK_NODE_KIND_INDEX_ACCESS,
   OAK_NODE_KIND_BLOCK,
-} oak_node_kind_t;
+};
 
-typedef struct _oak_ast_node_t
+struct oak_ast_node_t
 {
-  oak_list_entry_t link;
-  oak_node_kind_t kind;
+  struct oak_list_entry_t link;
+  enum oak_node_kind_t kind;
 
   union
   {
-    const oak_token_t* token;
-    oak_list_head_t children;
-    struct _oak_ast_node_t* child;
+    const struct oak_token_t* token;
+    struct oak_list_entry_t children;
+    struct oak_ast_node_t* child;
 
     struct
     {
-      struct _oak_ast_node_t* lhs;
-      struct _oak_ast_node_t* rhs;
+      struct oak_ast_node_t* lhs;
+      struct oak_ast_node_t* rhs;
     };
   };
-} oak_ast_node_t;
+};
 
-typedef struct _oak_parser_result_t oak_parser_result_t;
+struct oak_parser_result_t;
 
-oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
-                               oak_node_kind_t kind);
-oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result);
-void oak_parser_cleanup(oak_parser_result_t* result);
+struct oak_parser_result_t* oak_parse(const struct oak_lexer_result_t* lexer,
+                                      enum oak_node_kind_t kind);
+struct oak_ast_node_t*
+oak_parser_root(const struct oak_parser_result_t* result);
+void oak_parser_cleanup(struct oak_parser_result_t* result);
 
-int oak_node_grammar_op_unary(oak_node_kind_t kind);
-int oak_node_grammar_op_binary(oak_node_kind_t kind);
+int oak_node_grammar_op_unary(enum oak_node_kind_t kind);
+int oak_node_grammar_op_binary(enum oak_node_kind_t kind);
 
-void oak_ast_node_unpack(const oak_ast_node_t* node, ...);
+void oak_ast_node_unpack(const struct oak_ast_node_t* node, ...);

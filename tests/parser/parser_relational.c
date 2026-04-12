@@ -2,10 +2,10 @@
 
 OAK_TEST_DECL(ParseRelational)
 {
-  oak_lexer_result_t* lexer = oak_lexer_tokenize("a < b;");
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize("a < b;");
 
-  oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
-  const oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  const struct oak_ast_node_t* root = oak_parser_root(result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
 
   /*
@@ -16,10 +16,10 @@ OAK_TEST_DECL(ParseRelational)
            IDENT("b")
   */
 
-  const oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
+  const struct oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
   OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_EXPR);
 
-  const oak_ast_node_t* less = oak_test_ast_child(stmt, 0);
+  const struct oak_ast_node_t* less = oak_test_ast_child(stmt, 0);
   OAK_CHECK_NODE_KIND(less, OAK_NODE_KIND_BINARY_LESS);
   OAK_CHECK_NODE_KIND(less->lhs, OAK_NODE_KIND_IDENT);
   OAK_CHECK_TOKEN_STR(less->lhs, "a");

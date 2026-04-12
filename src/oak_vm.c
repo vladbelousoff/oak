@@ -1,13 +1,13 @@
 #include "oak_vm.h"
 
-void oak_vm_init(oak_vm_t* vm)
+void oak_vm_init(struct oak_vm_t* vm)
 {
   vm->chunk = NULL;
   vm->ip = NULL;
   vm->sp = vm->stack;
 }
 
-void oak_vm_free(oak_vm_t* vm)
+void oak_vm_free(struct oak_vm_t* vm)
 {
   while (vm->sp > vm->stack)
   {
@@ -19,32 +19,32 @@ void oak_vm_free(oak_vm_t* vm)
   vm->ip = NULL;
 }
 
-static void vm_push(oak_vm_t* vm, const oak_value_t value)
+static void vm_push(struct oak_vm_t* vm, const struct oak_value_t value)
 {
   oak_assert(vm->sp < vm->stack + OAK_STACK_MAX);
   oak_value_incref(value);
   *vm->sp++ = value;
 }
 
-static oak_value_t vm_pop(oak_vm_t* vm)
+static struct oak_value_t vm_pop(struct oak_vm_t* vm)
 {
   oak_assert(vm->sp > vm->stack);
   return *--vm->sp;
 }
 
-static oak_value_t vm_peek(const oak_vm_t* vm, const int distance)
+static struct oak_value_t vm_peek(const struct oak_vm_t* vm, const int distance)
 {
   return vm->sp[-1 - distance];
 }
 
-static void runtime_error(const oak_vm_t* vm, const char* msg)
+static void runtime_error(const struct oak_vm_t* vm, const char* msg)
 {
   const size_t offset = (size_t)(vm->ip - vm->chunk->bytecode - 1);
   const int line = vm->chunk->lines[offset];
   oak_log(OAK_LOG_ERR, "runtime error [line %d]: %s", line, msg);
 }
 
-static inline uint16_t vm_read(oak_vm_t* vm, const int n)
+static inline uint16_t vm_read(struct oak_vm_t* vm, const int n)
 {
   uint16_t val = 0;
   for (int i = 0; i < n; i++)
@@ -52,15 +52,15 @@ static inline uint16_t vm_read(oak_vm_t* vm, const int n)
   return val;
 }
 
-static inline float coerce_f32(const oak_value_t v)
+static inline float coerce_f32(const struct oak_value_t v)
 {
   return oak_is_f32(v) ? oak_as_f32(v) : (float)oak_as_i32(v);
 }
 
-static oak_vm_result_t numeric_binary(oak_vm_t* vm,
-                                      const uint8_t op,
-                                      const oak_value_t a,
-                                      const oak_value_t b)
+static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
+                                           const uint8_t op,
+                                           const struct oak_value_t a,
+                                           const struct oak_value_t b)
 {
   if (oak_is_i32(a) && oak_is_i32(b))
   {
@@ -141,10 +141,10 @@ static oak_vm_result_t numeric_binary(oak_vm_t* vm,
   return OAK_VM_RUNTIME_ERROR;
 }
 
-static oak_vm_result_t numeric_compare(oak_vm_t* vm,
-                                       const uint8_t op,
-                                       const oak_value_t a,
-                                       const oak_value_t b)
+static enum oak_vm_result_t numeric_compare(struct oak_vm_t* vm,
+                                            const uint8_t op,
+                                            const struct oak_value_t a,
+                                            const struct oak_value_t b)
 {
   if (!((oak_is_i32(a) || oak_is_f32(a)) && (oak_is_i32(b) || oak_is_f32(b))))
   {
@@ -179,7 +179,7 @@ static oak_vm_result_t numeric_compare(oak_vm_t* vm,
   return OAK_VM_OK;
 }
 
-oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
+enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
 {
   vm->chunk = chunk;
   vm->ip = chunk->bytecode;
@@ -205,7 +205,7 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
         break;
       case OAK_OP_POP:
       {
-        const oak_value_t val = vm_pop(vm);
+        const struct oak_value_t val = vm_pop(vm);
         oak_value_decref(val);
         break;
       }
@@ -218,8 +218,8 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       case OAK_OP_SET_LOCAL:
       {
         const uint8_t slot = vm_read(vm, 1);
-        const oak_value_t old_val = vm->stack[slot];
-        const oak_value_t new_val = vm_peek(vm, 0);
+        const struct oak_value_t old_val = vm->stack[slot];
+        const struct oak_value_t new_val = vm_peek(vm, 0);
         oak_value_incref(new_val);
         vm->stack[slot] = new_val;
         oak_value_decref(old_val);
@@ -231,12 +231,12 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       case OAK_OP_DIV:
       case OAK_OP_MOD:
       {
-        const oak_value_t b = vm_pop(vm);
-        const oak_value_t a = vm_pop(vm);
+        const struct oak_value_t b = vm_pop(vm);
+        const struct oak_value_t a = vm_pop(vm);
 
         if (instruction == OAK_OP_ADD && oak_is_string(a) && oak_is_string(b))
         {
-          oak_obj_string_t* result =
+          struct oak_obj_string_t* result =
               oak_string_concat(oak_as_string(a), oak_as_string(b));
           vm_push(vm, OAK_VALUE_OBJ(result));
           oak_obj_decref(&result->obj);
@@ -245,7 +245,7 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
           break;
         }
 
-        const oak_vm_result_t r = numeric_binary(vm, instruction, a, b);
+        const enum oak_vm_result_t r = numeric_binary(vm, instruction, a, b);
         oak_value_decref(a);
         oak_value_decref(b);
         if (r != OAK_VM_OK)
@@ -254,7 +254,7 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       }
       case OAK_OP_NEGATE:
       {
-        oak_value_t val = vm_pop(vm);
+        struct oak_value_t val = vm_pop(vm);
         if (oak_is_i32(val))
         {
           vm_push(vm, OAK_VALUE_I32(-oak_as_i32(val)));
@@ -274,7 +274,7 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       }
       case OAK_OP_NOT:
       {
-        oak_value_t val = vm_pop(vm);
+        struct oak_value_t val = vm_pop(vm);
         vm_push(vm, OAK_VALUE_BOOL(!oak_is_truthy(val)));
         oak_value_decref(val);
         break;
@@ -282,8 +282,8 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       case OAK_OP_EQ:
       case OAK_OP_NEQ:
       {
-        oak_value_t b = vm_pop(vm);
-        oak_value_t a = vm_pop(vm);
+        struct oak_value_t b = vm_pop(vm);
+        struct oak_value_t a = vm_pop(vm);
         int eq = oak_value_equal(a, b);
         vm_push(vm, OAK_VALUE_BOOL(instruction == OAK_OP_EQ ? eq : !eq));
         oak_value_decref(a);
@@ -295,9 +295,9 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       case OAK_OP_GT:
       case OAK_OP_GE:
       {
-        oak_value_t b = vm_pop(vm);
-        oak_value_t a = vm_pop(vm);
-        oak_vm_result_t r = numeric_compare(vm, instruction, a, b);
+        struct oak_value_t b = vm_pop(vm);
+        struct oak_value_t a = vm_pop(vm);
+        enum oak_vm_result_t r = numeric_compare(vm, instruction, a, b);
         oak_value_decref(a);
         oak_value_decref(b);
         if (r != OAK_VM_OK)
@@ -313,7 +313,7 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       case OAK_OP_JUMP_IF_FALSE:
       {
         const uint16_t offset = vm_read(vm, 2);
-        oak_value_t cond = vm_pop(vm);
+        struct oak_value_t cond = vm_pop(vm);
         if (!oak_is_truthy(cond))
           vm->ip += offset;
         oak_value_decref(cond);
@@ -327,7 +327,7 @@ oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
       }
       case OAK_OP_PRINT:
       {
-        oak_value_t val = vm_pop(vm);
+        struct oak_value_t val = vm_pop(vm);
         oak_value_print(val);
         oak_value_decref(val);
         break;
