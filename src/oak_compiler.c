@@ -1,6 +1,6 @@
 #include "oak_compiler.h"
 
-#include "oak_countof.h"
+#include "oak_count_of.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_value.h"
@@ -505,23 +505,22 @@ static void register_native_fn(struct oak_compiler_t* c,
 }
 
 static const struct oak_native_binding_t native_builtins[] = {
-    {"print", oak_builtin_print, 1},
+  { "print", oak_builtin_print, 1 },
 };
 
 static void register_native_builtins(struct oak_compiler_t* c)
 {
 #ifdef OAK_DEBUG_LOGGING
-  for (size_t i = 0; i < oak_countof(native_builtins); ++i)
+  for (size_t i = 0; i < oak_count_of(native_builtins); ++i)
   {
-    for (size_t j = i + 1; j < oak_countof(native_builtins); ++j)
+    for (size_t j = i + 1; j < oak_count_of(native_builtins); ++j)
     {
-      oak_assert(strcmp(native_builtins[i].name, native_builtins[j].name) !=
-                 0);
+      oak_assert(strcmp(native_builtins[i].name, native_builtins[j].name) != 0);
     }
   }
 #endif
 
-  for (size_t i = 0; i < oak_countof(native_builtins); ++i)
+  for (size_t i = 0; i < oak_count_of(native_builtins); ++i)
   {
     register_native_fn(c, &native_builtins[i]);
     if (c->has_error)
@@ -747,7 +746,8 @@ static size_t ast_child_count(const struct oak_ast_node_t* node)
   return oak_list_length(&node->children);
 }
 
-static int ast_is_int_literal(const struct oak_ast_node_t* node, const int value)
+static int ast_is_int_literal(const struct oak_ast_node_t* node,
+                              const int value)
 {
   return node && node->kind == OAK_NODE_KIND_INT &&
          oak_token_as_i32(node->token) == value;
@@ -1377,15 +1377,19 @@ static void compile_node(struct oak_compiler_t* c,
       if (node->kind == OAK_NODE_KIND_STMT_ADD_ASSIGN &&
           ast_is_int_literal(node->rhs, 1))
       {
-        emit_op_arg(
-            c, OAK_OP_INC_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));
+        emit_op_arg(c,
+                    OAK_OP_INC_LOCAL,
+                    (uint8_t)slot,
+                    code_loc_from_token(lhs->token));
         break;
       }
       if (node->kind == OAK_NODE_KIND_STMT_SUB_ASSIGN &&
           ast_is_int_literal(node->rhs, 1))
       {
-        emit_op_arg(
-            c, OAK_OP_DEC_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));
+        emit_op_arg(c,
+                    OAK_OP_DEC_LOCAL,
+                    (uint8_t)slot,
+                    code_loc_from_token(lhs->token));
         break;
       }
 

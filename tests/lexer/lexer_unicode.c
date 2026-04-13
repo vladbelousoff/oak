@@ -9,8 +9,8 @@ OAK_TEST_DECL(LexUnicode)
    * =      → ASSIGN col=8  pos=8
    * '世界' → STRING col=10 pos=10 (3-byte CJK chars in string)
    */
-  struct oak_lexer_result_t* lexer = OAK_LEX(
-      "caf\xC3\xA9 \xE5\x90\x8D = '\xE4\xB8\x96\xE7\x95\x8C'");
+  struct oak_lexer_result_t* lexer =
+      OAK_LEX("caf\xC3\xA9 \xE5\x90\x8D = '\xE4\xB8\x96\xE7\x95\x8C'");
 
   static struct oak_expected_token_t expected_tokens[] = {
     {
@@ -42,7 +42,7 @@ OAK_TEST_DECL(LexUnicode)
     },
   };
 
-  const size_t n = oak_countof(expected_tokens);
+  const size_t n = oak_count_of(expected_tokens);
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);

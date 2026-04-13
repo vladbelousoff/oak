@@ -51,9 +51,8 @@ struct oak_obj_fn_t* oak_make_fn(const size_t code_offset, const int arity)
   return fn;
 }
 
-struct oak_obj_native_fn_t* oak_make_native_fn(const oak_native_fn_t fn,
-                                               const int arity,
-                                               const char* name)
+struct oak_obj_native_fn_t*
+oak_make_native_fn(const oak_native_fn_t fn, const int arity, const char* name)
 {
   struct oak_obj_native_fn_t* native =
       oak_alloc(sizeof(struct oak_obj_native_fn_t), OAK_SRC_LOC);

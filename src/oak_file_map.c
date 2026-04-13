@@ -22,14 +22,13 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
 #endif
 
 #if defined(_WIN32)
-  const HANDLE file_handle =
-      CreateFileA(path,
-                  GENERIC_READ,
-                  FILE_SHARE_READ,
-                  NULL,
-                  OPEN_EXISTING,
-                  FILE_ATTRIBUTE_NORMAL,
-                  NULL);
+  const HANDLE file_handle = CreateFileA(path,
+                                         GENERIC_READ,
+                                         FILE_SHARE_READ,
+                                         NULL,
+                                         OPEN_EXISTING,
+                                         FILE_ATTRIBUTE_NORMAL,
+                                         NULL);
   if (file_handle == INVALID_HANDLE_VALUE)
   {
     fprintf(stderr, "error: could not open file '%s'\n", path);
@@ -52,8 +51,8 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
     return 0;
   }
 
-  const HANDLE mapping = CreateFileMappingA(
-      file_handle, NULL, PAGE_READONLY, 0, 0, NULL);
+  const HANDLE mapping =
+      CreateFileMappingA(file_handle, NULL, PAGE_READONLY, 0, 0, NULL);
   CloseHandle(file_handle);
   if (!mapping)
   {
@@ -99,8 +98,7 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
     return 0;
   }
 
-  void* mapped =
-      mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  void* mapped = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
   close(fd);
 
   if (mapped == MAP_FAILED)

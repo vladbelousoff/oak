@@ -407,10 +407,9 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const struct oak_value_t val = vm->stack[idx];
         if (!oak_is_number(val))
         {
-          runtime_error(
-              vm,
-              "local increment/decrement expects a number, got %s",
-              value_kind_desc(val));
+          runtime_error(vm,
+                        "local increment/decrement expects a number, got %s",
+                        value_kind_desc(val));
           return OAK_VM_RUNTIME_ERROR;
         }
         if (oak_is_i32(val))

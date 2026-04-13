@@ -2,12 +2,11 @@
 
 OAK_TEST_DECL(ParseWhileBreakContinue)
 {
-  struct oak_lexer_result_t* lexer =
-      OAK_LEX("while x < 10 { "
-                         "  if x == 5 { break; } "
-                         "  x = x + 1; "
-                         "  continue; "
-                         "}");
+  struct oak_lexer_result_t* lexer = OAK_LEX("while x < 10 { "
+                                             "  if x == 5 { break; } "
+                                             "  x = x + 1; "
+                                             "  continue; "
+                                             "}");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_STMT);
   const struct oak_ast_node_t* root = oak_parser_root(result);

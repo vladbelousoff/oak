@@ -2,8 +2,8 @@
 
 OAK_TEST_DECL(LexOperators)
 {
-  struct oak_lexer_result_t* lexer = OAK_LEX(
-      "== != -> && || >= <= : , ; = ! - + * / ( ) { } [ ] > < . ?");
+  struct oak_lexer_result_t* lexer =
+      OAK_LEX("== != -> && || >= <= : , ; = ! - + * / ( ) { } [ ] > < . ?");
 
   static struct oak_expected_token_t expected_tokens[] = {
     { .kind = OAK_TOKEN_EQUAL, .line = 1, .column = 1, .pos = 1 },
@@ -34,7 +34,7 @@ OAK_TEST_DECL(LexOperators)
     { .kind = OAK_TOKEN_QUESTION_MARK, .line = 1, .column = 58, .pos = 58 },
   };
 
-  const size_t n = oak_countof(expected_tokens);
+  const size_t n = oak_count_of(expected_tokens);
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);

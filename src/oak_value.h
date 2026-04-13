@@ -74,10 +74,11 @@ enum oak_fn_call_result_t
 };
 
 /* Native (C) callable: returns OAK_FN_CALL_OK on success. */
-typedef enum oak_fn_call_result_t (*oak_native_fn_t)(void* vm,
-                                                     const struct oak_value_t* args,
-                                                     int argc,
-                                                     struct oak_value_t* out_result);
+typedef enum oak_fn_call_result_t (*oak_native_fn_t)(
+    void* vm,
+    const struct oak_value_t* args,
+    int argc,
+    struct oak_value_t* out_result);
 
 struct oak_obj_native_fn_t
 {
@@ -126,9 +127,8 @@ struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
 
 struct oak_obj_fn_t* oak_make_fn(size_t code_offset, int arity);
 
-struct oak_obj_native_fn_t* oak_make_native_fn(oak_native_fn_t fn,
-                                                 int arity,
-                                                 const char* name);
+struct oak_obj_native_fn_t*
+oak_make_native_fn(oak_native_fn_t fn, int arity, const char* name);
 
 int oak_native_fn_format(char* buf,
                          size_t size,

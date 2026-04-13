@@ -28,7 +28,7 @@ OAK_TEST_DECL(LexWhitespaceAndNewlines)
     },
   };
 
-  const size_t n = oak_countof(expected_tokens);
+  const size_t n = oak_count_of(expected_tokens);
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);

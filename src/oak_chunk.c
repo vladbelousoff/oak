@@ -1,6 +1,6 @@
 #include "oak_chunk.h"
 
-#include "oak_countof.h"
+#include "oak_count_of.h"
 #include "oak_mem.h"
 
 #include <stdio.h>
@@ -40,7 +40,7 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_RETURN] = { "OP_RETURN", OAK_OP_FMT_NONE, 0 },
 };
 
-#define OAK_OP_INFO_COUNT oak_countof(oak_op_info)
+#define OAK_OP_INFO_COUNT oak_count_of(oak_op_info)
 
 const struct oak_op_info_t* oak_op_get_info(const uint8_t op)
 {
@@ -181,8 +181,7 @@ snprint_value(char* buf, const size_t size, const struct oak_value_t value)
     if (oak_is_string(value))
       return snprintf(buf, size, "'%s'", oak_as_cstring(value));
     if (oak_is_fn(value))
-      return snprintf(
-          buf, size, "<fn @%zu>", oak_as_fn(value)->code_offset);
+      return snprintf(buf, size, "<fn @%zu>", oak_as_fn(value)->code_offset);
     if (oak_is_native_fn(value))
       return oak_native_fn_format(buf, size, oak_as_native_fn(value));
     return snprintf(buf, size, "%p", (void*)oak_as_obj(value));

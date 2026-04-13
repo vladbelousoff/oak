@@ -1,7 +1,7 @@
 #include "oak_parser.h"
 
 #include "oak_arena.h"
-#include "oak_countof.h"
+#include "oak_count_of.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 
@@ -615,7 +615,7 @@ static int try_skip_token(struct oak_parser_t* p,
 static size_t grammar_rule_count(const struct oak_grammar_entry_t* entry)
 {
   size_t n = 0;
-  while (n < oak_countof(entry->rules) && entry->rules[n] != 0)
+  while (n < oak_count_of(entry->rules) && entry->rules[n] != 0)
     ++n;
   return n;
 }

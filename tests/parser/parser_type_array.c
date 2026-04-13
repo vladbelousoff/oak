@@ -2,8 +2,7 @@
 
 OAK_TEST_DECL(ParseTypeArray)
 {
-  struct oak_lexer_result_t* lexer =
-      OAK_LEX("fn items() -> number[] { }");
+  struct oak_lexer_result_t* lexer = OAK_LEX("fn items() -> number[] { }");
 
   struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);

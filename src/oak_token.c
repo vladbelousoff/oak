@@ -1,6 +1,6 @@
 #include "oak_token.h"
 
-#include "oak_countof.h"
+#include "oak_count_of.h"
 
 #include <string.h>
 
@@ -71,7 +71,7 @@ enum oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
     { "while", OAK_TOKEN_WHILE },
   };
 
-  for (int i = 0; i < (int)oak_countof(keywords); ++i)
+  for (int i = 0; i < (int)oak_count_of(keywords); ++i)
   {
     const char* kw = keywords[i].kw;
     if (strncmp(ident, kw, length + 1) == 0)

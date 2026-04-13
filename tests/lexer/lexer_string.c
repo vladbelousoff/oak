@@ -14,7 +14,7 @@ OAK_TEST_DECL(LexString)
    */
   struct oak_lexer_result_t* lexer =
       OAK_LEX("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' "
-                         "'" LONG_A "'");
+              "'" LONG_A "'");
 
   static struct oak_expected_token_t expected_tokens[] = {
     {
@@ -47,7 +47,7 @@ OAK_TEST_DECL(LexString)
     },
   };
 
-  const size_t n = oak_countof(expected_tokens);
+  const size_t n = oak_count_of(expected_tokens);
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, n);
   oak_lexer_cleanup(lexer);
