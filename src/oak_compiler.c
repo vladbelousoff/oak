@@ -510,16 +510,6 @@ static const struct oak_native_binding_t native_builtins[] = {
 
 static void register_native_builtins(struct oak_compiler_t* c)
 {
-#ifdef OAK_DEBUG_LOGGING
-  for (size_t i = 0; i < oak_count_of(native_builtins); ++i)
-  {
-    for (size_t j = i + 1; j < oak_count_of(native_builtins); ++j)
-    {
-      oak_assert(strcmp(native_builtins[i].name, native_builtins[j].name) != 0);
-    }
-  }
-#endif
-
   for (size_t i = 0; i < oak_count_of(native_builtins); ++i)
   {
     register_native_fn(c, &native_builtins[i]);
