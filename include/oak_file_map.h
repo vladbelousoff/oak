@@ -1,15 +1,15 @@
 #pragma once
 
-#include <stddef.h>
+#include "oak_types.h"
 
 struct oak_file_map_t
 {
   char* data;
-  size_t size;
+  usize size;
 #if defined(_WIN32)
   void* mapping_handle;
 #else
-  size_t map_length;
+  usize map_length;
 #endif
 };
 

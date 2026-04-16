@@ -17,18 +17,18 @@ void oak_obj_decref(struct oak_obj_t* obj)
     oak_free(obj, OAK_SRC_LOC);
 }
 
-static uint32_t hash_string(const char* chars, const size_t length)
+static u32 hash_string(const char* chars, const usize length)
 {
-  uint32_t hash = 2166136261u;
-  for (size_t i = 0; i < length; ++i)
+  u32 hash = 2166136261u;
+  for (usize i = 0; i < length; ++i)
   {
-    hash ^= (uint8_t)chars[i];
+    hash ^= (u8)chars[i];
     hash *= 16777619u;
   }
   return hash;
 }
 
-struct oak_obj_string_t* oak_make_string(const char* chars, const size_t length)
+struct oak_obj_string_t* oak_make_string(const char* chars, const usize length)
 {
   struct oak_obj_string_t* str =
       oak_alloc(sizeof(struct oak_obj_string_t) + length + 1, OAK_SRC_LOC);
@@ -41,7 +41,7 @@ struct oak_obj_string_t* oak_make_string(const char* chars, const size_t length)
   return str;
 }
 
-struct oak_obj_fn_t* oak_make_fn(const size_t code_offset, const int arity)
+struct oak_obj_fn_t* oak_make_fn(const usize code_offset, const int arity)
 {
   struct oak_obj_fn_t* fn = oak_alloc(sizeof(struct oak_obj_fn_t), OAK_SRC_LOC);
   fn->obj.type = OAK_OBJ_FN;
@@ -65,7 +65,7 @@ oak_make_native_fn(const oak_native_fn_t fn, const int arity, const char* name)
 }
 
 int oak_native_fn_format(char* buf,
-                         const size_t size,
+                         const usize size,
                          const struct oak_obj_native_fn_t* native)
 {
   const void* fn_ptr = (const void*)(uintptr_t)native->fn;
@@ -82,7 +82,7 @@ int oak_native_fn_format(char* buf,
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
                                            const struct oak_obj_string_t* b)
 {
-  const size_t length = a->length + b->length;
+  const usize length = a->length + b->length;
   struct oak_obj_string_t* str =
       oak_alloc(sizeof(struct oak_obj_string_t) + length + 1, OAK_SRC_LOC);
   str->obj.type = OAK_OBJ_STRING;

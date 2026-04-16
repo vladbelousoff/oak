@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stddef.h>
+#include "oak_types.h"
 
 #define oak_container_of(address, type, field)                                 \
   ((type*)((char*)(address) - (char*)(&((type*)0)->field)))
@@ -71,7 +71,7 @@ static inline struct oak_list_entry_t*
 oak_list_first(const struct oak_list_entry_t* head)
 {
   if (oak_list_empty(head))
-    return NULL;
+    return null;
   return head->next;
 }
 
@@ -79,8 +79,8 @@ static inline struct oak_list_entry_t*
 oak_list_next(const struct oak_list_entry_t* current,
               const struct oak_list_entry_t* head)
 {
-  if (current == NULL || current->next == head)
-    return NULL;
+  if (current == null || current->next == head)
+    return null;
   return current->next;
 }
 
@@ -99,9 +99,9 @@ static inline void oak_list_move(const struct oak_list_entry_t* from,
   }
 }
 
-static inline size_t oak_list_length(const struct oak_list_entry_t* head)
+static inline usize oak_list_length(const struct oak_list_entry_t* head)
 {
-  size_t length = 0;
+  usize length = 0;
   struct oak_list_entry_t* current;
   oak_list_for_each_indexed(length, current, head)
   {

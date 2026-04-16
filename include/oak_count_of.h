@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stddef.h>
-
 /*
  * oak_count_of(arr)
  *

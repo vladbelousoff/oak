@@ -16,7 +16,7 @@ static int memory_tracking_enabled = 0;
 #define OAK_MEM_SMB 0x77
 #define OAK_MEM_SIG 0xdeadbeef
 
-void* oak_alloc(const size_t size, const struct oak_src_loc_t src_loc)
+void* oak_alloc(const usize size, const struct oak_src_loc_t src_loc)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);
@@ -24,9 +24,9 @@ void* oak_alloc(const size_t size, const struct oak_src_loc_t src_loc)
   // info about allocated memory, so...
   // ReSharper disable once CppDFAMemoryLeak
   char* data = malloc(sizeof(struct oak_mem_header_t) + size);
-  if (data == NULL)
+  if (data == null)
   {
-    return NULL;
+    return null;
   }
 
   struct oak_mem_header_t* header = (struct oak_mem_header_t*)data;
@@ -44,12 +44,12 @@ void* oak_alloc(const size_t size, const struct oak_src_loc_t src_loc)
 }
 
 void* oak_realloc(void* ptr,
-                  const size_t size,
+                  const usize size,
                   const struct oak_src_loc_t src_loc)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);
-  if (ptr == NULL)
+  if (ptr == null)
   {
     return oak_alloc(size, src_loc);
   }
@@ -59,12 +59,12 @@ void* oak_realloc(void* ptr,
 
   oak_list_remove(&old_header->link);
 
-  const size_t old_size = old_header->size;
+  const usize old_size = old_header->size;
   // ReSharper disable once CppDFAMemoryLeak
   char* data = realloc(old_header, sizeof(struct oak_mem_header_t) + size);
-  if (data == NULL)
+  if (data == null)
   {
-    return NULL;
+    return null;
   }
 
   if (size > old_size)

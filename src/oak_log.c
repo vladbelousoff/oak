@@ -1,5 +1,7 @@
 #include "oak_log.h"
 
+#include "oak_types.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -20,7 +22,7 @@ const char* oak_filename(const char* path)
 static const char* oak_time_stamp(void)
 {
   static _Thread_local char buf[16];
-  time_t now = time(NULL);
+  time_t now = time(null);
   struct tm tmv;
 
 #if defined(_WIN32)
@@ -77,7 +79,7 @@ void _oak_log_printf(const enum oak_log_level_t lvl,
     return;
 #endif
 
-  size_t pos = (size_t)off;
+  usize pos = (usize)off;
   if (pos >= sizeof(buf))
     pos = sizeof(buf) - 1;
 
@@ -87,7 +89,7 @@ void _oak_log_printf(const enum oak_log_level_t lvl,
   va_end(ap);
 
   if (msg > 0)
-    pos += (size_t)msg;
+    pos += (usize)msg;
 
   if (pos >= sizeof(buf) - 1)
     pos = sizeof(buf) - 2;

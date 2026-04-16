@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include "oak_types.h"
 
 /*
  * oak_utf8_next
@@ -19,17 +18,17 @@
  *
  * Example
  *   const char *p = "héllo";
- *   uint32_t cp;
+ *   u32 cp;
  *   int n;
  *
  *   while ((n = oak_utf8_next(p, &cp)) > 0) {
  *       p += n;
  *   }
  */
-static int oak_utf8_next(const char* s, uint32_t* out)
+static int oak_utf8_next(const char* s, u32* out)
 {
   const unsigned char* p = (const unsigned char*)s;
-  uint32_t cp;
+  u32 cp;
   int extra;
 
   if (*p == 0)
@@ -113,10 +112,10 @@ static int oak_utf8_next(const char* s, uint32_t* out)
  * not NUL-terminated. Returns 0 when avail == 0 or when *s is NUL. Returns -1
  * for invalid UTF-8 or an incomplete sequence at the end of the buffer.
  */
-static int oak_utf8_next_bounded(const char* s, size_t avail, uint32_t* out)
+static int oak_utf8_next_bounded(const char* s, usize avail, u32* out)
 {
   const unsigned char* p = (const unsigned char*)s;
-  uint32_t cp;
+  u32 cp;
   int extra;
 
   if (avail == 0)
@@ -198,7 +197,7 @@ static int oak_utf8_next_bounded(const char* s, size_t avail, uint32_t* out)
  * Covers ASCII a-z/A-Z plus codepoints >= U+00C0, excluding
  * the multiplication sign (U+00D7) and division sign (U+00F7).
  */
-static int oak_utf8_is_alpha(const uint32_t cp)
+static int oak_utf8_is_alpha(const u32 cp)
 {
   if ((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z'))
     return 1;
@@ -218,7 +217,7 @@ static int oak_utf8_is_alpha(const uint32_t cp)
  *   number of bytes written (1..4)
  *   0 if cp is invalid
  */
-static int oak_utf8_encode(const uint32_t cp, char* out)
+static int oak_utf8_encode(const u32 cp, char* out)
 {
   if (cp <= 0x7F)
   {

@@ -27,50 +27,50 @@ static struct oak_code_loc_t code_loc_from_token(const struct oak_token_t* t)
 struct oak_local_t
 {
   const char* name;
-  size_t length;
+  usize length;
   int slot;
   int is_mutable;
   int depth;
   const char* type_name;
-  size_t type_len;
+  usize type_len;
 };
 
 /* Inferred or declared static type name (e.g. parameter / expression type). */
 struct oak_static_type_t
 {
   const char* name;
-  size_t len;
+  usize len;
 };
 
 static void oak_static_type_clear(struct oak_static_type_t* t)
 {
-  t->name = NULL;
+  t->name = null;
   t->len = 0;
 }
 
 static int oak_static_type_is_known(const struct oak_static_type_t* t)
 {
-  return t->name != NULL && t->len > 0;
+  return t->name != null && t->len > 0;
 }
 
 struct oak_loop_frame_t
 {
   struct oak_loop_frame_t* enclosing;
-  size_t loop_start;
+  usize loop_start;
   int exit_depth;
   int continue_depth;
-  size_t break_jumps[OAK_MAX_LOOP_BRANCHES];
+  usize break_jumps[OAK_MAX_LOOP_BRANCHES];
   int break_count;
-  size_t continue_jumps[OAK_MAX_LOOP_BRANCHES];
+  usize continue_jumps[OAK_MAX_LOOP_BRANCHES];
   int continue_count;
 };
 
-/* decl is NULL for native (C) builtins registered at compile time. */
+/* decl is null for native (C) builtins registered at compile time. */
 struct oak_registered_fn_t
 {
   const char* name;
-  size_t name_len;
-  uint8_t const_idx;
+  usize name_len;
+  u8 const_idx;
   int arity;
   const struct oak_ast_node_t* decl;
 };
@@ -122,14 +122,14 @@ static void compiler_error_at(struct oak_compiler_t* c,
 }
 
 static void emit_byte(const struct oak_compiler_t* c,
-                      const uint8_t byte,
+                      const u8 byte,
                       const struct oak_code_loc_t loc)
 {
   oak_chunk_write(c->chunk, byte, loc);
 }
 
 static void emit_op(struct oak_compiler_t* c,
-                    const uint8_t op,
+                    const u8 op,
                     const struct oak_code_loc_t loc)
 {
   emit_byte(c, op, loc);
@@ -139,8 +139,8 @@ static void emit_op(struct oak_compiler_t* c,
 }
 
 static void emit_op_arg(struct oak_compiler_t* c,
-                        const uint8_t op,
-                        const uint8_t arg,
+                        const u8 op,
+                        const u8 arg,
                         const struct oak_code_loc_t loc)
 {
   emit_byte(c, op, loc);
@@ -150,21 +150,21 @@ static void emit_op_arg(struct oak_compiler_t* c,
     c->stack_depth += info->stack_effect;
 }
 
-static uint8_t intern_constant(struct oak_compiler_t* c,
+static u8 intern_constant(struct oak_compiler_t* c,
                                const struct oak_value_t value)
 {
   if (c->chunk->const_count >= 256)
   {
-    compiler_error_at(c, NULL, "too many constants in one chunk (max 256)");
+    compiler_error_at(c, null, "too many constants in one chunk (max 256)");
     return 0;
   }
-  const size_t idx = oak_chunk_add_constant(c->chunk, value);
+  const usize idx = oak_chunk_add_constant(c->chunk, value);
   oak_assert(idx <= 255);
-  return (uint8_t)idx;
+  return (u8)idx;
 }
 
-static size_t emit_jump(struct oak_compiler_t* c,
-                        const uint8_t op,
+static usize emit_jump(struct oak_compiler_t* c,
+                        const u8 op,
                         const struct oak_code_loc_t loc)
 {
   emit_op(c, op, loc);
@@ -175,40 +175,40 @@ static size_t emit_jump(struct oak_compiler_t* c,
 
 /* On range error, leaves placeholder operands; do not execute bytecode if
  * has_error. */
-static void patch_jump(struct oak_compiler_t* c, const size_t offset)
+static void patch_jump(struct oak_compiler_t* c, const usize offset)
 {
-  const size_t jump = c->chunk->count - offset - 2;
+  const usize jump = c->chunk->count - offset - 2;
   if (jump > 0xffff)
   {
-    compiler_error_at(c, NULL, "jump offset too large (max 65535 bytes)");
+    compiler_error_at(c, null, "jump offset too large (max 65535 bytes)");
     return;
   }
 
-  c->chunk->bytecode[offset + 0] = (uint8_t)(jump >> 8 & 0xff);
-  c->chunk->bytecode[offset + 1] = (uint8_t)(jump >> 0 & 0xff);
+  c->chunk->bytecode[offset + 0] = (u8)(jump >> 8 & 0xff);
+  c->chunk->bytecode[offset + 1] = (u8)(jump >> 0 & 0xff);
 }
 
 static void
-patch_jumps(struct oak_compiler_t* c, const size_t* jumps, const int count)
+patch_jumps(struct oak_compiler_t* c, const usize* jumps, const int count)
 {
   for (int i = 0; i < count; ++i)
     patch_jump(c, jumps[i]);
 }
 
 static void emit_loop(struct oak_compiler_t* c,
-                      const size_t loop_start,
+                      const usize loop_start,
                       const struct oak_code_loc_t loc)
 {
   emit_op(c, OAK_OP_LOOP, loc);
-  const size_t jump = c->chunk->count - loop_start + 2;
+  const usize jump = c->chunk->count - loop_start + 2;
   if (jump > 0xffff)
   {
-    compiler_error_at(c, NULL, "loop body too large (max 65535 bytes)");
+    compiler_error_at(c, null, "loop body too large (max 65535 bytes)");
     return;
   }
 
-  emit_byte(c, (uint8_t)(jump >> 8 & 0xff), loc);
-  emit_byte(c, (uint8_t)(jump >> 0 & 0xff), loc);
+  emit_byte(c, (u8)(jump >> 8 & 0xff), loc);
+  emit_byte(c, (u8)(jump >> 0 & 0xff), loc);
 }
 
 static void
@@ -219,7 +219,7 @@ emit_pops(struct oak_compiler_t* c, int count, const struct oak_code_loc_t loc)
 }
 
 static void emit_loop_control_jump(struct oak_compiler_t* c,
-                                   size_t* jumps,
+                                   usize* jumps,
                                    int* count,
                                    const int target_depth,
                                    const char* keyword)
@@ -230,7 +230,7 @@ static void emit_loop_control_jump(struct oak_compiler_t* c,
   if (*count >= OAK_MAX_LOOP_BRANCHES)
   {
     compiler_error_at(c,
-                      NULL,
+                      null,
                       "too many '%s' statements in loop (max %d)",
                       keyword,
                       OAK_MAX_LOOP_BRANCHES);
@@ -243,7 +243,7 @@ static void emit_loop_control_jump(struct oak_compiler_t* c,
 
 static int find_local(const struct oak_compiler_t* c,
                       const char* name,
-                      const size_t length,
+                      const usize length,
                       int* out_is_mutable)
 {
   for (int i = c->local_count - 1; i >= 0; --i)
@@ -262,16 +262,16 @@ static int find_local(const struct oak_compiler_t* c,
 
 static void add_local(struct oak_compiler_t* c,
                       const char* name,
-                      const size_t length,
+                      const usize length,
                       const int slot,
                       const int is_mutable,
                       const char* type_name,
-                      const size_t type_len)
+                      const usize type_len)
 {
   if (c->local_count >= OAK_MAX_LOCALS)
   {
     compiler_error_at(
-        c, NULL, "too many local variables (max %d)", OAK_MAX_LOCALS);
+        c, null, "too many local variables (max %d)", OAK_MAX_LOCALS);
     return;
   }
   struct oak_local_t* local = &c->locals[c->local_count++];
@@ -314,7 +314,7 @@ static int compile_assign_target(struct oak_compiler_t* c,
   const char* name = oak_token_buf(lhs->token);
   const int name_len = oak_token_size(lhs->token);
   int is_mutable = 0;
-  const int slot = find_local(c, name, (size_t)name_len, &is_mutable);
+  const int slot = find_local(c, name, (usize)name_len, &is_mutable);
   if (slot < 0)
   {
     compiler_error_at(
@@ -379,7 +379,7 @@ fn_decl_block(const struct oak_ast_node_t* decl)
     if (ch->kind == OAK_NODE_KIND_BLOCK)
       return ch;
   }
-  return NULL;
+  return null;
 }
 
 static int fn_param_is_mutable(const struct oak_ast_node_t* param)
@@ -406,7 +406,7 @@ fn_param_ident(const struct oak_ast_node_t* param)
     if (ch->kind == OAK_NODE_KIND_IDENT)
       return ch;
   }
-  return NULL;
+  return null;
 }
 
 static const struct oak_ast_node_t*
@@ -425,7 +425,7 @@ fn_param_type_ident(const struct oak_ast_node_t* param)
       ++ident_index;
     }
   }
-  return NULL;
+  return null;
 }
 
 static const struct oak_ast_node_t*
@@ -444,7 +444,7 @@ fn_decl_param_at(const struct oak_ast_node_t* decl, const int index)
       ++i;
     }
   }
-  return NULL;
+  return null;
 }
 
 static const struct oak_ast_node_t*
@@ -452,17 +452,17 @@ fn_decl_return_type_node(const struct oak_ast_node_t* decl)
 {
   const struct oak_ast_node_t* block = fn_decl_block(decl);
   if (!block)
-    return NULL;
+    return null;
   struct oak_list_entry_t* prev = block->link.prev;
   if (prev == &decl->children)
-    return NULL;
+    return null;
   const struct oak_ast_node_t* before =
       oak_container_of(prev, struct oak_ast_node_t, link);
   if (before->kind == OAK_NODE_KIND_FN_PARAM)
-    return NULL;
+    return null;
   const struct oak_ast_node_t* name = fn_decl_name_node(decl);
   if (before == name)
-    return NULL;
+    return null;
   return before;
 }
 
@@ -486,7 +486,7 @@ static void register_native_fn(struct oak_compiler_t* c,
   if (c->fn_registry_count >= OAK_MAX_USER_FNS)
   {
     compiler_error_at(c,
-                      NULL,
+                      null,
                       "too many functions in one program (max %d)",
                       OAK_MAX_USER_FNS);
     return;
@@ -494,14 +494,14 @@ static void register_native_fn(struct oak_compiler_t* c,
 
   struct oak_obj_native_fn_t* native =
       oak_make_native_fn(binding->impl, binding->arity, binding->name);
-  const uint8_t idx = intern_constant(c, OAK_VALUE_OBJ(&native->obj));
+  const u8 idx = intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
   struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
   slot->name = binding->name;
   slot->name_len = strlen(binding->name);
   slot->const_idx = idx;
   slot->arity = binding->arity;
-  slot->decl = NULL;
+  slot->decl = null;
 }
 
 static const struct oak_native_binding_t native_builtins[] = {
@@ -510,7 +510,7 @@ static const struct oak_native_binding_t native_builtins[] = {
 
 static void register_native_builtins(struct oak_compiler_t* c)
 {
-  for (size_t i = 0; i < oak_count_of(native_builtins); ++i)
+  for (usize i = 0; i < oak_count_of(native_builtins); ++i)
   {
     register_native_fn(c, &native_builtins[i]);
     if (c->has_error)
@@ -544,8 +544,8 @@ static void register_program_functions(struct oak_compiler_t* c,
     for (int i = 0; i < c->fn_registry_count; ++i)
     {
       const struct oak_registered_fn_t* e = &c->fn_registry[i];
-      if (e->name_len == (size_t)name_len &&
-          memcmp(e->name, name, (size_t)name_len) == 0)
+      if (e->name_len == (usize)name_len &&
+          memcmp(e->name, name, (usize)name_len) == 0)
       {
         compiler_error_at(
             c, name_node->token, "duplicate function '%.*s'", name_len, name);
@@ -556,18 +556,18 @@ static void register_program_functions(struct oak_compiler_t* c,
     if (c->fn_registry_count >= OAK_MAX_USER_FNS)
     {
       compiler_error_at(c,
-                        NULL,
+                        null,
                         "too many functions in one program (max %d)",
                         OAK_MAX_USER_FNS);
       return;
     }
 
     struct oak_obj_fn_t* fn_obj = oak_make_fn(0, arity);
-    const uint8_t idx = intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
+    const u8 idx = intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
     struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
     slot->name = name;
-    slot->name_len = (size_t)name_len;
+    slot->name_len = (usize)name_len;
     slot->const_idx = idx;
     slot->arity = arity;
     slot->decl = item;
@@ -575,7 +575,7 @@ static void register_program_functions(struct oak_compiler_t* c,
 }
 
 static const struct oak_registered_fn_t* find_registered_fn_entry(
-    struct oak_compiler_t* c, const char* name, const size_t len)
+    struct oak_compiler_t* c, const char* name, const usize len)
 {
   for (int i = 0; i < c->fn_registry_count; ++i)
   {
@@ -583,13 +583,13 @@ static const struct oak_registered_fn_t* find_registered_fn_entry(
     if (e->name_len == len && memcmp(e->name, name, len) == 0)
       return e;
   }
-  return NULL;
+  return null;
 }
 
 static int find_registered_fn(struct oak_compiler_t* c,
                               const char* name,
-                              const size_t len,
-                              uint8_t* out_idx,
+                              const usize len,
+                              u8* out_idx,
                               int* out_arity)
 {
   const struct oak_registered_fn_t* e = find_registered_fn_entry(c, name, len);
@@ -605,17 +605,17 @@ static void compile_stmt_return(struct oak_compiler_t* c,
 {
   if (c->function_depth == 0)
   {
-    compiler_error_at(c, NULL, "'return' outside of a function");
+    compiler_error_at(c, null, "'return' outside of a function");
     return;
   }
 
-  struct oak_ast_node_t* expr = NULL;
+  struct oak_ast_node_t* expr = null;
   oak_ast_node_unpack(node, &expr);
   if (expr)
     compile_node(c, expr);
   else
   {
-    const uint8_t z = intern_constant(c, OAK_VALUE_I32(0));
+    const u8 z = intern_constant(c, OAK_VALUE_I32(0));
     emit_op_arg(c, OAK_OP_CONSTANT, z, OAK_LOC_SYNTHETIC);
   }
   emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
@@ -635,7 +635,7 @@ static void compile_function_body(struct oak_compiler_t* c,
   c->local_count = 0;
   c->scope_depth = 0;
   c->stack_depth = 0;
-  c->current_loop = NULL;
+  c->current_loop = null;
 
   struct oak_list_entry_t* pos;
   int slot = 0;
@@ -653,16 +653,16 @@ static void compile_function_body(struct oak_compiler_t* c,
       return;
     }
     const struct oak_ast_node_t* type_id = fn_param_type_ident(ch);
-    const char* type_name = NULL;
-    size_t type_len = 0;
+    const char* type_name = null;
+    usize type_len = 0;
     if (type_id && type_id->kind == OAK_NODE_KIND_IDENT)
     {
       type_name = oak_token_buf(type_id->token);
-      type_len = (size_t)oak_token_size(type_id->token);
+      type_len = (usize)oak_token_size(type_id->token);
     }
     add_local(c,
               oak_token_buf(id->token),
-              (size_t)oak_token_size(id->token),
+              (usize)oak_token_size(id->token),
               slot++,
               fn_param_is_mutable(ch),
               type_name,
@@ -674,7 +674,7 @@ static void compile_function_body(struct oak_compiler_t* c,
 
   compile_block(c, body);
 
-  const uint8_t z = intern_constant(c, OAK_VALUE_I32(0));
+  const u8 z = intern_constant(c, OAK_VALUE_I32(0));
   emit_op_arg(c, OAK_OP_CONSTANT, z, OAK_LOC_SYNTHETIC);
   emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 
@@ -727,12 +727,12 @@ static void compile_program(struct oak_compiler_t* c,
   compile_function_bodies(c);
 }
 
-static size_t ast_child_count(const struct oak_ast_node_t* node)
+static usize ast_child_count(const struct oak_ast_node_t* node)
 {
   if (oak_node_grammar_op_unary(node->kind))
     return node->child ? 1u : 0u;
   if (oak_node_grammar_op_binary(node->kind))
-    return (size_t)(node->lhs ? 1 : 0) + (size_t)(node->rhs ? 1 : 0);
+    return (usize)(node->lhs ? 1 : 0) + (usize)(node->rhs ? 1 : 0);
   return oak_list_length(&node->children);
 }
 
@@ -743,7 +743,7 @@ static int ast_is_int_literal(const struct oak_ast_node_t* node,
          oak_token_as_i32(node->token) == value;
 }
 
-static uint8_t opcode_for_node_kind(const enum oak_node_kind_t kind)
+static u8 opcode_for_node_kind(const enum oak_node_kind_t kind)
 {
   switch (kind)
   {
@@ -786,7 +786,7 @@ static uint8_t opcode_for_node_kind(const enum oak_node_kind_t kind)
 
 static int local_type_get(struct oak_compiler_t* c,
                           const char* name,
-                          const size_t len,
+                          const usize len,
                           struct oak_static_type_t* out)
 {
   for (int i = c->local_count - 1; i >= 0; --i)
@@ -803,9 +803,9 @@ static int local_type_get(struct oak_compiler_t* c,
 }
 
 static int type_names_equal(const char* a,
-                            const size_t alen,
+                            const usize alen,
                             const char* b,
-                            const size_t blen)
+                            const usize blen)
 {
   return alen == blen && memcmp(a, b, alen) == 0;
 }
@@ -832,7 +832,7 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
     case OAK_NODE_KIND_IDENT:
     {
       const char* name = oak_token_buf(expr->token);
-      const size_t len = (size_t)oak_token_size(expr->token);
+      const usize len = (usize)oak_token_size(expr->token);
       struct oak_static_type_t local_ty;
       oak_static_type_clear(&local_ty);
       if (local_type_get(c, name, len, &local_ty) &&
@@ -878,7 +878,7 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
       if (!callee || callee->kind != OAK_NODE_KIND_IDENT)
         return;
       const char* cn = oak_token_buf(callee->token);
-      const size_t clen = (size_t)oak_token_size(callee->token);
+      const usize clen = (usize)oak_token_size(callee->token);
       const struct oak_registered_fn_t* fe =
           find_registered_fn_entry(c, cn, clen);
       if (!fe || !fe->decl)
@@ -887,7 +887,7 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
       if (ret && ret->kind == OAK_NODE_KIND_IDENT)
       {
         out->name = oak_token_buf(ret->token);
-        out->len = (size_t)oak_token_size(ret->token);
+        out->len = (usize)oak_token_size(ret->token);
       }
       return;
     }
@@ -905,7 +905,7 @@ validate_user_fn_call_arg_types(struct oak_compiler_t* c,
     return;
   const struct oak_list_entry_t* first = call->children.next;
   struct oak_list_entry_t* pos = first->next;
-  size_t i = 0;
+  usize i = 0;
   for (; pos != &call->children; pos = pos->next, ++i)
   {
     const struct oak_ast_node_t* arg_wrap =
@@ -917,7 +917,7 @@ validate_user_fn_call_arg_types(struct oak_compiler_t* c,
     const struct oak_ast_node_t* param = fn_decl_param_at(fn->decl, (int)i);
     if (!param)
     {
-      compiler_error_at(c, NULL, "internal error: missing parameter %zu", i);
+      compiler_error_at(c, null, "internal error: missing parameter %zu", i);
       return;
     }
     const struct oak_ast_node_t* want_type = fn_param_type_ident(param);
@@ -928,7 +928,7 @@ validate_user_fn_call_arg_types(struct oak_compiler_t* c,
       return;
     }
     const char* want = oak_token_buf(want_type->token);
-    const size_t want_len = (size_t)oak_token_size(want_type->token);
+    const usize want_len = (usize)oak_token_size(want_type->token);
 
     struct oak_static_type_t got;
     infer_expr_static_type(c, arg_expr, &got);
@@ -969,17 +969,17 @@ static void compile_stmt_if(struct oak_compiler_t* c,
   const struct oak_ast_node_t* else_node =
       (pos != &node->children)
           ? oak_container_of(pos, struct oak_ast_node_t, link)
-          : NULL;
+          : null;
 
   compile_node(c, cond);
-  const size_t then_jump =
+  const usize then_jump =
       emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
 
   compile_block(c, body);
 
   if (else_node)
   {
-    const size_t else_jump = emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
+    const usize else_jump = emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
     patch_jump(c, then_jump);
     compile_block(c, else_node->child);
     patch_jump(c, else_jump);
@@ -995,7 +995,7 @@ static void compile_stmt_while(struct oak_compiler_t* c,
 {
   if (!node->lhs || !node->rhs)
   {
-    compiler_error_at(c, NULL, "malformed 'while' statement");
+    compiler_error_at(c, null, "malformed 'while' statement");
     return;
   }
 
@@ -1012,7 +1012,7 @@ static void compile_stmt_while(struct oak_compiler_t* c,
   c->current_loop = &loop;
 
   compile_node(c, node->lhs);
-  const size_t exit_jump =
+  const usize exit_jump =
       emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
 
   compile_block(c, node->rhs);
@@ -1088,16 +1088,16 @@ static void compile_stmt_for_from(struct oak_compiler_t* c,
 
   {
     const struct oak_code_loc_t ident_loc = code_loc_from_token(ident->token);
-    emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)loop_var_slot, ident_loc);
-    emit_op_arg(c, OAK_OP_GET_LOCAL, (uint8_t)limit_slot, ident_loc);
+    emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)loop_var_slot, ident_loc);
+    emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)limit_slot, ident_loc);
     emit_op(c, OAK_OP_LT, ident_loc);
-    const size_t exit_jump = emit_jump(c, OAK_OP_JUMP_IF_FALSE, ident_loc);
+    const usize exit_jump = emit_jump(c, OAK_OP_JUMP_IF_FALSE, ident_loc);
 
     compile_block(c, body);
 
     patch_jumps(c, loop.continue_jumps, loop.continue_count);
 
-    emit_op_arg(c, OAK_OP_INC_LOCAL, (uint8_t)loop_var_slot, ident_loc);
+    emit_op_arg(c, OAK_OP_INC_LOCAL, (u8)loop_var_slot, ident_loc);
 
     emit_loop(c, loop.loop_start, ident_loc);
     patch_jump(c, exit_jump);
@@ -1125,7 +1125,7 @@ static void compile_fn_call(struct oak_compiler_t* c,
   const struct oak_list_entry_t* first = node->children.next;
   if (first == &node->children)
   {
-    compiler_error_at(c, NULL, "malformed call (no callee)");
+    compiler_error_at(c, null, "malformed call (no callee)");
     return;
   }
 
@@ -1135,15 +1135,15 @@ static void compile_fn_call(struct oak_compiler_t* c,
   if (!callee || callee->kind != OAK_NODE_KIND_IDENT)
   {
     compiler_error_at(
-        c, callee ? callee->token : NULL, "callee must be an identifier");
+        c, callee ? callee->token : null, "callee must be an identifier");
     return;
   }
 
   const struct oak_code_loc_t call_loc = code_loc_from_token(callee->token);
-  const size_t argc = ast_child_count(node) - 1;
+  const usize argc = ast_child_count(node) - 1;
 
   const struct oak_registered_fn_t* entry = find_registered_fn_entry(
-      c, oak_token_buf(callee->token), (size_t)oak_token_size(callee->token));
+      c, oak_token_buf(callee->token), (usize)oak_token_size(callee->token));
   if (!entry)
   {
     compiler_error_at(c,
@@ -1180,7 +1180,7 @@ static void compile_fn_call(struct oak_compiler_t* c,
     compile_fn_call_arg(c, arg);
   }
 
-  emit_op_arg(c, OAK_OP_CALL, (uint8_t)argc, call_loc);
+  emit_op_arg(c, OAK_OP_CALL, (u8)argc, call_loc);
   c->stack_depth -= argc;
 }
 
@@ -1194,7 +1194,7 @@ static void compile_node(struct oak_compiler_t* c,
   {
     case OAK_NODE_KIND_PROGRAM:
       compiler_error_at(
-          c, NULL, "internal error: nested program in compilation");
+          c, null, "internal error: nested program in compilation");
       break;
     case OAK_NODE_KIND_FN_DECL:
       break;
@@ -1204,14 +1204,14 @@ static void compile_node(struct oak_compiler_t* c,
     case OAK_NODE_KIND_INT:
     {
       const int value = oak_token_as_i32(node->token);
-      const uint8_t idx = intern_constant(c, OAK_VALUE_I32(value));
+      const u8 idx = intern_constant(c, OAK_VALUE_I32(value));
       emit_op_arg(c, OAK_OP_CONSTANT, idx, code_loc_from_token(node->token));
       break;
     }
     case OAK_NODE_KIND_FLOAT:
     {
       const float value = oak_token_as_f32(node->token);
-      const uint8_t idx = intern_constant(c, OAK_VALUE_F32(value));
+      const u8 idx = intern_constant(c, OAK_VALUE_F32(value));
       emit_op_arg(c, OAK_OP_CONSTANT, idx, code_loc_from_token(node->token));
       break;
     }
@@ -1219,13 +1219,13 @@ static void compile_node(struct oak_compiler_t* c,
     {
       if (c->chunk->const_count >= 256)
       {
-        compiler_error_at(c, NULL, "too many constants in one chunk (max 256)");
+        compiler_error_at(c, null, "too many constants in one chunk (max 256)");
         return;
       }
       const char* chars = oak_token_buf(node->token);
       const int len = oak_token_size(node->token);
-      struct oak_obj_string_t* str = oak_make_string(chars, (size_t)len);
-      const uint8_t idx = intern_constant(c, OAK_VALUE_OBJ(str));
+      struct oak_obj_string_t* str = oak_make_string(chars, (usize)len);
+      const u8 idx = intern_constant(c, OAK_VALUE_OBJ(str));
       emit_op_arg(c, OAK_OP_CONSTANT, idx, code_loc_from_token(node->token));
       break;
     }
@@ -1233,7 +1233,7 @@ static void compile_node(struct oak_compiler_t* c,
     {
       const char* name = oak_token_buf(node->token);
       const int len = oak_token_size(node->token);
-      const int slot = find_local(c, name, (size_t)len, NULL);
+      const int slot = find_local(c, name, (usize)len, null);
       if (slot < 0)
       {
         compiler_error_at(
@@ -1241,7 +1241,7 @@ static void compile_node(struct oak_compiler_t* c,
         return;
       }
       emit_op_arg(
-          c, OAK_OP_GET_LOCAL, (uint8_t)slot, code_loc_from_token(node->token));
+          c, OAK_OP_GET_LOCAL, (u8)slot, code_loc_from_token(node->token));
       break;
     }
     case OAK_NODE_KIND_BINARY_ADD:
@@ -1263,7 +1263,7 @@ static void compile_node(struct oak_compiler_t* c,
       {
         // TODO: short-circuit evaluation; for now, fall through to truthiness
         compiler_error_at(c,
-                          NULL,
+                          null,
                           "'%s' operator not yet implemented",
                           node->kind == OAK_NODE_KIND_BINARY_AND ? "&&" : "||");
         return;
@@ -1298,7 +1298,7 @@ static void compile_node(struct oak_compiler_t* c,
     case OAK_NODE_KIND_STMT_LET_ASSIGNMENT:
     {
       int is_mutable = 0;
-      const struct oak_ast_node_t* assign = NULL;
+      const struct oak_ast_node_t* assign = null;
 
       struct oak_list_entry_t* pos;
       oak_list_for_each(pos, &node->children)
@@ -1313,7 +1313,7 @@ static void compile_node(struct oak_compiler_t* c,
 
       if (!assign)
       {
-        compiler_error_at(c, NULL, "malformed 'let' statement");
+        compiler_error_at(c, null, "malformed 'let' statement");
         return;
       }
 
@@ -1328,7 +1328,7 @@ static void compile_node(struct oak_compiler_t* c,
       const int size = oak_token_size(ident->token);
       add_local(c,
                 name,
-                (size_t)size,
+                (usize)size,
                 c->stack_depth - 1,
                 is_mutable,
                 rhs_ty.name,
@@ -1348,7 +1348,7 @@ static void compile_node(struct oak_compiler_t* c,
 
       compile_node(c, rhs);
       emit_op_arg(
-          c, OAK_OP_SET_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));
+          c, OAK_OP_SET_LOCAL, (u8)slot, code_loc_from_token(lhs->token));
       emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }
@@ -1369,7 +1369,7 @@ static void compile_node(struct oak_compiler_t* c,
       {
         emit_op_arg(c,
                     OAK_OP_INC_LOCAL,
-                    (uint8_t)slot,
+                    (u8)slot,
                     code_loc_from_token(lhs->token));
         break;
       }
@@ -1378,18 +1378,18 @@ static void compile_node(struct oak_compiler_t* c,
       {
         emit_op_arg(c,
                     OAK_OP_DEC_LOCAL,
-                    (uint8_t)slot,
+                    (u8)slot,
                     code_loc_from_token(lhs->token));
         break;
       }
 
       emit_op_arg(
-          c, OAK_OP_GET_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));
+          c, OAK_OP_GET_LOCAL, (u8)slot, code_loc_from_token(lhs->token));
       compile_node(c, node->rhs);
       emit_op(
           c, opcode_for_node_kind(node->kind), code_loc_from_token(lhs->token));
       emit_op_arg(
-          c, OAK_OP_SET_LOCAL, (uint8_t)slot, code_loc_from_token(lhs->token));
+          c, OAK_OP_SET_LOCAL, (u8)slot, code_loc_from_token(lhs->token));
       emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }
@@ -1412,7 +1412,7 @@ static void compile_node(struct oak_compiler_t* c,
       const char* keyword = is_break ? "break" : "continue";
       if (!c->current_loop)
       {
-        compiler_error_at(c, NULL, "'%s' used outside of a loop", keyword);
+        compiler_error_at(c, null, "'%s' used outside of a loop", keyword);
         return;
       }
       struct oak_loop_frame_t* loop = c->current_loop;
@@ -1425,7 +1425,7 @@ static void compile_node(struct oak_compiler_t* c,
       break;
     }
     default:
-      compiler_error_at(c, NULL, "unsupported AST node kind (%d)", node->kind);
+      compiler_error_at(c, null, "unsupported AST node kind (%d)", node->kind);
       break;
   }
 }
@@ -1442,16 +1442,16 @@ struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)
     .scope_depth = 0,
     .stack_depth = 0,
     .has_error = 0,
-    .current_loop = NULL,
+    .current_loop = null,
     .function_depth = 0,
     .fn_registry_count = 0,
   };
 
   if (!root || root->kind != OAK_NODE_KIND_PROGRAM)
   {
-    compiler_error_at(&compiler, NULL, "expected a program root");
+    compiler_error_at(&compiler, null, "expected a program root");
     oak_chunk_free(chunk);
-    return NULL;
+    return null;
   }
 
   compile_program(&compiler, root);
@@ -1459,7 +1459,7 @@ struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)
   if (compiler.has_error)
   {
     oak_chunk_free(chunk);
-    return NULL;
+    return null;
   }
 
   return chunk;

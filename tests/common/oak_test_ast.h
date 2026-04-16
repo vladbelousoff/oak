@@ -9,10 +9,10 @@
 #define OAK_LEX(S) oak_lexer_tokenize((S), strlen(S))
 
 static struct oak_ast_node_t*
-oak_test_ast_child(const struct oak_ast_node_t* node, const size_t index)
+oak_test_ast_child(const struct oak_ast_node_t* node, const usize index)
 {
   if (oak_node_grammar_op_unary(node->kind))
-    return index == 0 ? node->child : NULL;
+    return index == 0 ? node->child : null;
 
   if (oak_node_grammar_op_binary(node->kind))
   {
@@ -20,20 +20,20 @@ oak_test_ast_child(const struct oak_ast_node_t* node, const size_t index)
       return node->lhs;
     if (index == 1)
       return node->rhs;
-    return NULL;
+    return null;
   }
 
-  size_t i;
+  usize i;
   struct oak_list_entry_t* pos;
   oak_list_for_each_indexed(i, pos, &node->children)
   {
     if (i == index)
       return oak_container_of(pos, struct oak_ast_node_t, link);
   }
-  return NULL;
+  return null;
 }
 
-static size_t oak_test_ast_child_count(const struct oak_ast_node_t* node)
+static usize oak_test_ast_child_count(const struct oak_ast_node_t* node)
 {
   if (oak_node_grammar_op_unary(node->kind))
     return node->child ? 1 : 0;
@@ -72,8 +72,8 @@ oak_test_ast_kind(const struct oak_ast_node_t* node,
 #define OAK_CHECK_CHILD_COUNT(node, expected)                                  \
   do                                                                           \
   {                                                                            \
-    const size_t _count = oak_test_ast_child_count(node);                      \
-    if (_count != (size_t)(expected))                                          \
+    const usize _count = oak_test_ast_child_count(node);                      \
+    if (_count != (usize)(expected))                                          \
     {                                                                          \
       oak_log(OAK_LOG_ERR,                                                     \
               "check failed: child count %zu != %d (%s:%d)",                   \

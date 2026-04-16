@@ -27,7 +27,7 @@ struct oak_expected_token_t
 static enum oak_test_status_t
 oak_test_token(const struct oak_token_t* token,
                const struct oak_expected_token_t* expected,
-               const size_t index)
+               const usize index)
 {
   if (oak_token_kind(token) != expected->kind)
   {
@@ -115,9 +115,9 @@ oak_test_token(const struct oak_token_t* token,
 static enum oak_test_status_t
 oak_test_tokens(const struct oak_lexer_result_t* lexer,
                 const struct oak_expected_token_t* expected_tokens,
-                const size_t count)
+                const usize count)
 {
-  size_t token_index;
+  usize token_index;
   struct oak_list_entry_t* token_entry;
 
   oak_list_for_each_indexed(token_index, token_entry, oak_lexer_tokens(lexer))

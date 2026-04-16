@@ -87,5 +87,5 @@ const char* oak_token_buf(const struct oak_token_t* token);
 int oak_token_as_i32(const struct oak_token_t* token);
 float oak_token_as_f32(const struct oak_token_t* token);
 
-enum oak_token_kind_t oak_ident_kind(const char* ident, size_t length);
+enum oak_token_kind_t oak_ident_kind(const char* ident, usize length);
 const char* oak_token_name(enum oak_token_kind_t token_kind);

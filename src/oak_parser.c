@@ -612,9 +612,9 @@ static int try_skip_token(struct oak_parser_t* p,
   return 1;
 }
 
-static size_t grammar_rule_count(const struct oak_grammar_entry_t* entry)
+static usize grammar_rule_count(const struct oak_grammar_entry_t* entry)
 {
-  size_t n = 0;
+  usize n = 0;
   while (n < oak_count_of(entry->rules) && entry->rules[n] != 0)
     ++n;
   return n;
@@ -629,7 +629,7 @@ find_pratt_rule(const struct oak_pratt_rule_t* rules,
     if (token_kind == r->trigger_token)
       return r;
   }
-  return NULL;
+  return null;
 }
 
 static struct oak_ast_node_t* parse_token(struct oak_parser_t* p,
@@ -642,11 +642,11 @@ static struct oak_ast_node_t* parse_token(struct oak_parser_t* p,
       oak_container_of(p->curr, struct oak_token_t, link);
   const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
   if (oak_token_kind(token) != entry->token_kind)
-    return NULL;
+    return null;
   struct oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
-    return NULL;
+    return null;
   node->kind = kind;
   node->token = token;
   p->curr = p->curr->next;
@@ -661,8 +661,8 @@ static struct oak_ast_node_t* parse_rules(struct oak_parser_t* p,
   struct oak_list_entry_t collected;
   oak_list_init(&collected);
 
-  const size_t count = grammar_rule_count(entry);
-  for (size_t i = 0; i < count; ++i)
+  const usize count = grammar_rule_count(entry);
+  for (usize i = 0; i < count; ++i)
   {
     const unsigned short rule = entry->rules[i];
     const int is_repeat = rule & OAK_RULE_REPEAT;
@@ -687,7 +687,7 @@ static struct oak_ast_node_t* parse_rules(struct oak_parser_t* p,
       if (!try_skip_token(p, tok))
       {
         p->curr = saved;
-        return NULL;
+        return null;
       }
       continue;
     }
@@ -716,7 +716,7 @@ static struct oak_ast_node_t* parse_rules(struct oak_parser_t* p,
     if (!child)
     {
       p->curr = saved;
-      return NULL;
+      return null;
     }
     oak_list_add_tail(&collected, &child->link);
   }
@@ -726,12 +726,12 @@ static struct oak_ast_node_t* parse_rules(struct oak_parser_t* p,
   if (is_binary && oak_list_length(&collected) < 2)
   {
     p->curr = saved;
-    return NULL;
+    return null;
   }
   if (is_unary && oak_list_empty(&collected))
   {
     p->curr = saved;
-    return NULL;
+    return null;
   }
 
   struct oak_ast_node_t* node =
@@ -739,7 +739,7 @@ static struct oak_ast_node_t* parse_rules(struct oak_parser_t* p,
   if (!node)
   {
     p->curr = saved;
-    return NULL;
+    return null;
   }
   node->kind = kind;
 
@@ -769,8 +769,8 @@ static struct oak_ast_node_t* parse_choice(struct oak_parser_t* p,
   struct oak_list_entry_t* saved = p->curr;
   const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
 
-  const size_t choice_count = grammar_rule_count(entry);
-  for (size_t i = 0; i < choice_count; ++i)
+  const usize choice_count = grammar_rule_count(entry);
+  for (usize i = 0; i < choice_count; ++i)
   {
     struct oak_ast_node_t* child =
         parse_rule(p, (enum oak_node_kind_t)entry->rules[i]);
@@ -779,7 +779,7 @@ static struct oak_ast_node_t* parse_choice(struct oak_parser_t* p,
   }
 
   p->curr = saved;
-  return NULL;
+  return null;
 }
 
 static struct oak_ast_node_t*
@@ -792,11 +792,11 @@ parse_pratt_unary(struct oak_parser_t* p,
 {
   struct oak_ast_node_t* operand = parse_pratt(p, kind, rule->r_bp);
   if (!operand)
-    return NULL;
+    return null;
   struct oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
-    return NULL;
+    return null;
   node->kind = rule->node_kind;
   node->child = operand;
   return node;
@@ -810,11 +810,11 @@ parse_pratt_binary(struct oak_parser_t* p,
 {
   struct oak_ast_node_t* rhs = parse_pratt(p, kind, rule->r_bp);
   if (!rhs)
-    return NULL;
+    return null;
   struct oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
-    return NULL;
+    return null;
   node->kind = rule->node_kind;
   node->lhs = lhs;
   node->rhs = rhs;
@@ -826,7 +826,7 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
                                           const int min_bp)
 {
   const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
-  struct oak_ast_node_t* lhs = NULL;
+  struct oak_ast_node_t* lhs = null;
 
   if (p->curr != p->head && entry->pratt.prefix)
   {
@@ -842,12 +842,12 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
         case OAK_PRATT_GROUP:
           lhs = parse_pratt(p, kind, 0);
           if (!lhs || !try_skip_token(p, r->close_token))
-            return NULL;
+            return null;
           break;
         default:
           lhs = parse_pratt_unary(p, kind, r);
           if (!lhs)
-            return NULL;
+            return null;
           break;
       }
     }
@@ -857,7 +857,7 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
   {
     lhs = parse_rule(p, entry->pratt.primary_rule);
     if (!lhs)
-      return NULL;
+      return null;
   }
 
   for (;;)
@@ -881,7 +881,7 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
         struct oak_ast_node_t* call =
             oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
         if (!call)
-          return NULL;
+          return null;
         call->kind = rule->node_kind;
         oak_list_init(&call->children);
         oak_list_add_tail(&call->children, &lhs->link);
@@ -894,12 +894,12 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
             break;
           struct oak_ast_node_t* arg = parse_rule(p, rule->arg_rule);
           if (!arg)
-            return NULL;
+            return null;
           oak_list_add_tail(&call->children, &arg->link);
         }
 
         if (!try_skip_token(p, rule->close_token))
-          return NULL;
+          return null;
 
         lhs = call;
         break;
@@ -908,13 +908,13 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
       {
         struct oak_ast_node_t* index_expr = parse_pratt(p, kind, 0);
         if (!index_expr)
-          return NULL;
+          return null;
         if (!try_skip_token(p, rule->close_token))
-          return NULL;
+          return null;
         struct oak_ast_node_t* node =
             oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
         if (!node)
-          return NULL;
+          return null;
         node->kind = rule->node_kind;
         node->lhs = lhs;
         node->rhs = index_expr;
@@ -924,7 +924,7 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
       default:
         lhs = parse_pratt_binary(p, kind, rule, lhs);
         if (!lhs)
-          return NULL;
+          return null;
         break;
     }
   }
@@ -936,9 +936,9 @@ static struct oak_ast_node_t* parse_rule(struct oak_parser_t* p,
                                          const enum oak_node_kind_t kind)
 {
   if (kind == OAK_NODE_KIND_NONE)
-    return NULL;
+    return null;
   if (p->curr == p->head)
-    return NULL;
+    return null;
 
   switch (oak_grammar[kind].op)
   {
@@ -953,7 +953,7 @@ static struct oak_ast_node_t* parse_rule(struct oak_parser_t* p,
     case OAK_GRAMMAR_SEQUENCE:
       return parse_rules(p, kind);
   }
-  return NULL;
+  return null;
 }
 
 struct oak_parser_result_t* oak_parse(const struct oak_lexer_result_t* lexer,
@@ -962,7 +962,7 @@ struct oak_parser_result_t* oak_parse(const struct oak_lexer_result_t* lexer,
   struct oak_parser_result_t* result =
       oak_alloc(sizeof(struct oak_parser_result_t), OAK_SRC_LOC);
   if (!result)
-    return NULL;
+    return null;
 
   oak_arena_init(&result->arena, 0);
 
@@ -987,7 +987,7 @@ struct oak_parser_result_t* oak_parse(const struct oak_lexer_result_t* lexer,
                 ? oak_token_name(oak_token_kind(token))
                 : oak_token_buf(token));
     oak_parser_cleanup(result);
-    return NULL;
+    return null;
   }
 
   return result;
@@ -995,7 +995,7 @@ struct oak_parser_result_t* oak_parse(const struct oak_lexer_result_t* lexer,
 
 struct oak_ast_node_t* oak_parser_root(const struct oak_parser_result_t* result)
 {
-  return result ? result->root : NULL;
+  return result ? result->root : null;
 }
 
 void oak_parser_cleanup(struct oak_parser_result_t* result)

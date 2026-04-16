@@ -8,7 +8,6 @@
 #include "oak_token.h"
 #include "oak_utf8.h"
 
-#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -30,7 +29,7 @@ struct oak_lexer_ctx_t
 {
   struct oak_lexer_result_t* lexer;
   struct oak_lexer_cur_t* cur;
-  size_t input_len;
+  usize input_len;
 };
 
 static void
@@ -51,9 +50,9 @@ static void save_token(struct oak_lexer_result_t* lexer,
                        const struct oak_lexer_cur_t* cur,
                        const enum oak_token_kind_t token_kind,
                        const char* buffer,
-                       const size_t buffer_size)
+                       const usize buffer_size)
 {
-  size_t token_size = sizeof(struct oak_token_t);
+  usize token_size = sizeof(struct oak_token_t);
   if (buffer_size > 0)
   {
     token_size += buffer_size + 1;
@@ -119,11 +118,11 @@ static enum oak_lex_status_t try_scan_ws(const struct oak_lexer_ctx_t* ctx,
   struct oak_lexer_cur_t* cur = ctx->cur;
   for (;;)
   {
-    if ((size_t)cur->buf_pos >= ctx->input_len)
+    if ((usize)cur->buf_pos >= ctx->input_len)
       break;
 
-    const size_t rem = ctx->input_len - (size_t)cur->buf_pos;
-    uint32_t cp = 0;
+    const usize rem = ctx->input_len - (usize)cur->buf_pos;
+    u32 cp = 0;
     const int n = oak_utf8_next_bounded(&input[cur->buf_pos], rem, &cp);
 
     if (n < 0)
@@ -200,13 +199,13 @@ static enum oak_lex_status_t try_scan_op(const struct oak_lexer_ctx_t* ctx,
                                          const char* input)
 {
   struct oak_lexer_cur_t* cur = ctx->cur;
-  if ((size_t)cur->buf_pos >= ctx->input_len)
+  if ((usize)cur->buf_pos >= ctx->input_len)
     return OAK_LEX_NO_MATCH;
 
   const char* p = &input[cur->buf_pos];
   const char c1 = p[0];
-  const char c2 = (size_t)cur->buf_pos + 1 < ctx->input_len ? p[1] : '\0';
-  size_t i;
+  const char c2 = (usize)cur->buf_pos + 1 < ctx->input_len ? p[1] : '\0';
+  usize i;
 
   /* Save start positions */
   const struct oak_lexer_cur_t sav_cur = *cur;
@@ -259,16 +258,16 @@ static enum oak_lex_status_t try_scan_string(const struct oak_lexer_ctx_t* ctx,
   /* Thread-local static buffer first */
   static _Thread_local char tls_buffer[64];
   char* buffer = tls_buffer;
-  size_t buffer_capacity = sizeof(tls_buffer);
-  size_t buffer_length = 0;
+  usize buffer_capacity = sizeof(tls_buffer);
+  usize buffer_length = 0;
   int dynamic_alloc = 0;
 
   const char* const end = input + ctx->input_len;
   const char* p = start + 1;
   while (p < end)
   {
-    uint32_t cp;
-    int n = oak_utf8_next_bounded(p, (size_t)(end - p), &cp);
+    u32 cp;
+    int n = oak_utf8_next_bounded(p, (usize)(end - p), &cp);
     if (n < 0)
     {
       if (dynamic_alloc)
@@ -307,7 +306,7 @@ static enum oak_lex_status_t try_scan_string(const struct oak_lexer_ctx_t* ctx,
         case '\'':
         case '"':
         default:
-          cp = (uint8_t)*p;
+          cp = (u8)*p;
           break;
       }
       n = 1;
@@ -412,7 +411,7 @@ static enum oak_lex_status_t try_scan_number(const struct oak_lexer_ctx_t* ctx,
     }
   }
 
-  const size_t len = (size_t)(p - start);
+  const usize len = (usize)(p - start);
   if (len == 0)
     return OAK_LEX_NO_MATCH;
 
@@ -462,8 +461,8 @@ static enum oak_lex_status_t try_scan_ident(const struct oak_lexer_ctx_t* ctx,
   if (start >= end)
     return OAK_LEX_NO_MATCH;
 
-  uint32_t cp = 0;
-  int n = oak_utf8_next_bounded(start, (size_t)(end - start), &cp);
+  u32 cp = 0;
+  int n = oak_utf8_next_bounded(start, (usize)(end - start), &cp);
   if (n <= 0)
     return OAK_LEX_NO_MATCH;
 
@@ -476,14 +475,14 @@ static enum oak_lex_status_t try_scan_ident(const struct oak_lexer_ctx_t* ctx,
   /* Thread-local static buffer first */
   static _Thread_local char tls_buffer[64];
   char* buffer = tls_buffer;
-  size_t buffer_capacity = sizeof(tls_buffer);
-  size_t buffer_length = 0;
+  usize buffer_capacity = sizeof(tls_buffer);
+  usize buffer_length = 0;
   memset(buffer, 0, buffer_capacity);
   int dynamic_alloc = 0;
 
   while (p < end)
   {
-    n = oak_utf8_next_bounded(p, (size_t)(end - p), &cp);
+    n = oak_utf8_next_bounded(p, (usize)(end - p), &cp);
     if (n <= 0)
       break;
 
@@ -551,7 +550,7 @@ static struct
                                     const char* input);
 } scanners[] = {
   try_scan_ws,     try_scan_op,    try_scan_string,
-  try_scan_number, try_scan_ident, { NULL },
+  try_scan_number, try_scan_ident, { null },
 };
 
 static enum oak_lex_status_t try_scan(const struct oak_lexer_ctx_t* ctx,
@@ -570,15 +569,15 @@ static enum oak_lex_status_t try_scan(const struct oak_lexer_ctx_t* ctx,
 }
 
 struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
-                                              const size_t len)
+                                              const usize len)
 {
   if (len > 0 && !input)
-    return NULL;
+    return null;
 
   struct oak_lexer_result_t* result =
       oak_alloc(sizeof(struct oak_lexer_result_t), OAK_SRC_LOC);
   if (!result)
-    return NULL;
+    return null;
 
   struct oak_lexer_cur_t cur = {
     .buf_pos = 0, .pos = 1, .line = 1, .column = 1
@@ -589,7 +588,7 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
   oak_list_init(&result->tokens);
   oak_arena_init(&result->arena, 0);
 
-  while ((size_t)cur.buf_pos < len)
+  while ((usize)cur.buf_pos < len)
   {
     if (input[cur.buf_pos] == '\0')
       break;
@@ -600,8 +599,8 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
 
     if (step == OAK_LEX_NO_MATCH)
     {
-      uint32_t cp = 0;
-      const size_t rem = len - (size_t)cur.buf_pos;
+      u32 cp = 0;
+      const usize rem = len - (usize)cur.buf_pos;
       const int n = oak_utf8_next_bounded(&input[cur.buf_pos], rem, &cp);
       oak_log_cond(n < 0, OAK_LOG_ERR, "invalid utf8 character: 0x%.8X", cp);
     }
@@ -618,7 +617,7 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
 const struct oak_list_entry_t*
 oak_lexer_tokens(const struct oak_lexer_result_t* result)
 {
-  return result ? &result->tokens : NULL;
+  return result ? &result->tokens : null;
 }
 
 void oak_lexer_cleanup(struct oak_lexer_result_t* result)

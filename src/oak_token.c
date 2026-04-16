@@ -46,7 +46,7 @@ float oak_token_as_f32(const struct oak_token_t* token)
   return *(const float*)token->buf;
 }
 
-enum oak_token_kind_t oak_ident_kind(const char* ident, const size_t length)
+enum oak_token_kind_t oak_ident_kind(const char* ident, const usize length)
 {
   static const struct tea_kw_entry_t keywords[] = {
     { "and", OAK_TOKEN_AND },
@@ -194,6 +194,6 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
     case OAK_TOKEN_FN:
       return "FN";
     default:
-      return NULL;
+      return null;
   }
 }

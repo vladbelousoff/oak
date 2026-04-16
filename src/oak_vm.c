@@ -5,8 +5,8 @@
 
 void oak_vm_init(struct oak_vm_t* vm)
 {
-  vm->chunk = NULL;
-  vm->ip = NULL;
+  vm->chunk = null;
+  vm->ip = null;
   vm->sp = vm->stack;
   vm->stack_base = 0;
   vm->frame_count = 0;
@@ -20,8 +20,8 @@ void oak_vm_free(struct oak_vm_t* vm)
     oak_value_decref(*vm->sp);
   }
 
-  vm->chunk = NULL;
-  vm->ip = NULL;
+  vm->chunk = null;
+  vm->ip = null;
 }
 
 static void vm_push(struct oak_vm_t* vm, const struct oak_value_t value)
@@ -70,8 +70,8 @@ static void runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
-  const size_t offset = (size_t)(vm->ip - vm->chunk->bytecode - 1);
-  oak_assert(vm->chunk->locations != NULL);
+  const usize offset = (usize)(vm->ip - vm->chunk->bytecode - 1);
+  oak_assert(vm->chunk->locations != null);
   const struct oak_code_loc_t loc = vm->chunk->locations[offset];
   int col = loc.column;
   if (col < 1)
@@ -80,9 +80,9 @@ static void runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
   oak_log(OAK_LOG_ERR, "%d:%d: error: %s", loc.line, col, buf);
 }
 
-static inline uint16_t vm_read(struct oak_vm_t* vm, const int n)
+static inline u16 vm_read(struct oak_vm_t* vm, const int n)
 {
-  uint16_t val = 0;
+  u16 val = 0;
   for (int i = 0; i < n; i++)
     val = (val << 8) | *vm->ip++;
   return val;
@@ -94,7 +94,7 @@ static inline float coerce_f32(const struct oak_value_t v)
 }
 
 static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
-                                           const uint8_t op,
+                                           const u8 op,
                                            const struct oak_value_t a,
                                            const struct oak_value_t b)
 {
@@ -188,7 +188,7 @@ static enum oak_vm_result_t numeric_binary(struct oak_vm_t* vm,
 }
 
 static enum oak_vm_result_t numeric_compare(struct oak_vm_t* vm,
-                                            const uint8_t op,
+                                            const u8 op,
                                             const struct oak_value_t a,
                                             const struct oak_value_t b)
 {
@@ -232,15 +232,15 @@ static enum oak_vm_result_t numeric_compare(struct oak_vm_t* vm,
 
 static enum oak_vm_result_t vm_op_call(struct oak_vm_t* vm)
 {
-  const uint8_t argc = (uint8_t)vm_read(vm, 1);
-  const size_t depth = (size_t)(vm->sp - vm->stack);
-  if (depth < (size_t)argc + 1u)
+  const u8 argc = (u8)vm_read(vm, 1);
+  const usize depth = (usize)(vm->sp - vm->stack);
+  if (depth < (usize)argc + 1u)
   {
     runtime_error(vm, "stack underflow in call");
     return OAK_VM_RUNTIME_ERROR;
   }
 
-  const size_t fn_slot = depth - (size_t)argc - 1u;
+  const usize fn_slot = depth - (usize)argc - 1u;
   const struct oak_value_t fn_val = vm->stack[fn_slot];
   struct oak_value_t* arg_base = &vm->stack[fn_slot + 1u];
 
@@ -266,7 +266,7 @@ static enum oak_vm_result_t vm_op_call(struct oak_vm_t* vm)
     }
 
     oak_value_decref(fn_val);
-    for (uint8_t i = 0; i < argc; ++i)
+    for (u8 i = 0; i < argc; ++i)
       oak_value_decref(arg_base[i]);
 
     /* Native returns a value whose refcount is the single stack ownership (same
@@ -315,7 +315,7 @@ static enum oak_vm_result_t vm_op_return(struct oak_vm_t* vm)
     return OAK_VM_RUNTIME_ERROR;
   }
 
-  const size_t depth_before = (size_t)(vm->sp - vm->stack);
+  const usize depth_before = (usize)(vm->sp - vm->stack);
   if (depth_before == 0)
   {
     runtime_error(vm, "stack underflow in return");
@@ -324,9 +324,9 @@ static enum oak_vm_result_t vm_op_return(struct oak_vm_t* vm)
 
   struct oak_value_t result = vm_pop(vm);
   struct oak_call_frame_t* frame = &vm->frames[--vm->frame_count];
-  const size_t fn_slot = frame->fn_slot;
+  const usize fn_slot = frame->fn_slot;
 
-  for (size_t i = fn_slot; i < depth_before - 1u; ++i)
+  for (usize i = fn_slot; i < depth_before - 1u; ++i)
     oak_value_decref(vm->stack[i]);
 
   vm->stack[fn_slot] = result;
@@ -343,14 +343,14 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
 
   for (;;)
   {
-    const uint8_t instruction = vm_read(vm, 1);
+    const u8 instruction = vm_read(vm, 1);
     switch (instruction)
     {
       case OAK_OP_HALT:
         return OAK_VM_OK;
       case OAK_OP_CONSTANT:
       {
-        const uint8_t idx = vm_read(vm, 1);
+        const u8 idx = vm_read(vm, 1);
         vm_push(vm, chunk->constants[idx]);
         break;
       }
@@ -368,8 +368,8 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_GET_LOCAL:
       {
-        const uint8_t slot = vm_read(vm, 1);
-        const size_t idx = vm->stack_base + (size_t)slot;
+        const u8 slot = vm_read(vm, 1);
+        const usize idx = vm->stack_base + (usize)slot;
         if (idx >= OAK_STACK_MAX)
         {
           runtime_error(vm, "local slot out of range (slot %u)", slot);
@@ -380,8 +380,8 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_SET_LOCAL:
       {
-        const uint8_t slot = vm_read(vm, 1);
-        const size_t idx = vm->stack_base + (size_t)slot;
+        const u8 slot = vm_read(vm, 1);
+        const usize idx = vm->stack_base + (usize)slot;
         if (idx >= OAK_STACK_MAX)
         {
           runtime_error(vm, "local slot out of range (slot %u)", slot);
@@ -397,8 +397,8 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_INC_LOCAL:
       case OAK_OP_DEC_LOCAL:
       {
-        const uint8_t slot = vm_read(vm, 1);
-        const size_t idx = vm->stack_base + (size_t)slot;
+        const u8 slot = vm_read(vm, 1);
+        const usize idx = vm->stack_base + (usize)slot;
         if (idx >= OAK_STACK_MAX)
         {
           runtime_error(vm, "local slot out of range (slot %u)", slot);
@@ -500,13 +500,13 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_JUMP:
       {
-        const uint16_t offset = vm_read(vm, 2);
+        const u16 offset = vm_read(vm, 2);
         vm->ip += offset;
         break;
       }
       case OAK_OP_JUMP_IF_FALSE:
       {
-        const uint16_t offset = vm_read(vm, 2);
+        const u16 offset = vm_read(vm, 2);
         struct oak_value_t cond = vm_pop(vm);
         if (!oak_is_truthy(cond))
           vm->ip += offset;
@@ -515,7 +515,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_LOOP:
       {
-        const uint16_t offset = vm_read(vm, 2);
+        const u16 offset = vm_read(vm, 2);
         vm->ip -= offset;
         break;
       }

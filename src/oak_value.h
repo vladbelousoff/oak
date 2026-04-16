@@ -3,8 +3,7 @@
 #include "oak_log.h"
 #include "oak_refcount.h"
 
-#include <stddef.h>
-#include <stdint.h>
+#include "oak_types.h"
 
 enum oak_value_type_t
 {
@@ -44,15 +43,15 @@ struct oak_number_t
 struct oak_obj_string_t
 {
   struct oak_obj_t obj;
-  size_t length;
-  uint32_t hash;
+  usize length;
+  u32 hash;
   char chars[];
 };
 
 struct oak_obj_fn_t
 {
   struct oak_obj_t obj;
-  size_t code_offset;
+  usize code_offset;
   int arity;
 };
 
@@ -85,7 +84,7 @@ struct oak_obj_native_fn_t
   struct oak_obj_t obj;
   oak_native_fn_t fn;
   int arity;
-  /* Debug label (e.g. registered name); not owned, may be NULL. */
+  /* Debug label (e.g. registered name); not owned, may be null. */
   const char* name;
 };
 
@@ -120,18 +119,18 @@ struct oak_obj_native_fn_t
       .as.obj = (struct oak_obj_t*)(_obj),                                     \
   })
 
-struct oak_obj_string_t* oak_make_string(const char* chars, size_t length);
+struct oak_obj_string_t* oak_make_string(const char* chars, usize length);
 
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
                                            const struct oak_obj_string_t* b);
 
-struct oak_obj_fn_t* oak_make_fn(size_t code_offset, int arity);
+struct oak_obj_fn_t* oak_make_fn(usize code_offset, int arity);
 
 struct oak_obj_native_fn_t*
 oak_make_native_fn(oak_native_fn_t fn, int arity, const char* name);
 
 int oak_native_fn_format(char* buf,
-                         size_t size,
+                         usize size,
                          const struct oak_obj_native_fn_t* native);
 
 static inline int oak_is_bool(const struct oak_value_t value)

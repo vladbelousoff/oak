@@ -13,10 +13,10 @@
 
 int oak_file_map(const char* path, struct oak_file_map_t* out)
 {
-  out->data = NULL;
+  out->data = null;
   out->size = 0;
 #if defined(_WIN32)
-  out->mapping_handle = NULL;
+  out->mapping_handle = null;
 #else
   out->map_length = 0;
 #endif
@@ -25,10 +25,10 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
   const HANDLE file_handle = CreateFileA(path,
                                          GENERIC_READ,
                                          FILE_SHARE_READ,
-                                         NULL,
+                                         null,
                                          OPEN_EXISTING,
                                          FILE_ATTRIBUTE_NORMAL,
-                                         NULL);
+                                         null);
   if (file_handle == INVALID_HANDLE_VALUE)
   {
     fprintf(stderr, "error: could not open file '%s'\n", path);
@@ -43,7 +43,7 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
     return -1;
   }
 
-  const size_t file_size = (size_t)file_size_li.QuadPart;
+  const usize file_size = (usize)file_size_li.QuadPart;
 
   if (file_size == 0)
   {
@@ -52,7 +52,7 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
   }
 
   const HANDLE mapping =
-      CreateFileMappingA(file_handle, NULL, PAGE_READONLY, 0, 0, NULL);
+      CreateFileMappingA(file_handle, null, PAGE_READONLY, 0, 0, null);
   CloseHandle(file_handle);
   if (!mapping)
   {
@@ -90,7 +90,7 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
     return -1;
   }
 
-  const size_t file_size = (size_t)st.st_size;
+  const usize file_size = (usize)st.st_size;
 
   if (file_size == 0)
   {
@@ -98,7 +98,7 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
     return 0;
   }
 
-  void* mapped = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  void* mapped = mmap(null, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
   close(fd);
 
   if (mapped == MAP_FAILED)
@@ -122,12 +122,12 @@ void oak_file_unmap(struct oak_file_map_t* map)
 #if defined(_WIN32)
   UnmapViewOfFile(map->data);
   CloseHandle(map->mapping_handle);
-  map->mapping_handle = NULL;
+  map->mapping_handle = null;
 #else
   munmap(map->data, map->map_length);
   map->map_length = 0;
 #endif
 
-  map->data = NULL;
+  map->data = null;
   map->size = 0;
 }
