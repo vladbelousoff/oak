@@ -4,13 +4,23 @@
 
 #include "oak_mem.h"
 
-static usize align_up(const usize n)
+struct oak_arena_block_t
 {
-  const usize mask = sizeof(usize) * 2 - 1;
-  return n + mask & ~mask;
+  struct oak_arena_block_t* next;
+  usize capacity;
+  usize used;
+  char data[];
+};
+
+/* Round n up to the next multiple of (2 * sizeof(usize)). */
+static usize align_up(usize n)
+{
+  const usize align = sizeof(usize) * 2;
+  const usize mask = align - 1;
+  return (n + mask) & ~mask;
 }
 
-static struct oak_arena_block_t* arena_new_block(const usize capacity)
+static struct oak_arena_block_t* arena_new_block(usize capacity)
 {
   struct oak_arena_block_t* block =
       oak_alloc(sizeof(struct oak_arena_block_t) + capacity, OAK_SRC_LOC);
@@ -22,7 +32,7 @@ static struct oak_arena_block_t* arena_new_block(const usize capacity)
   return block;
 }
 
-void oak_arena_init(struct oak_arena_t* arena, const usize block_size)
+void oak_arena_init(struct oak_arena_t* arena, usize block_size)
 {
   arena->block_size = block_size ? block_size : OAK_ARENA_DEFAULT_BLOCK_SIZE;
   arena->current = null;
@@ -30,23 +40,27 @@ void oak_arena_init(struct oak_arena_t* arena, const usize block_size)
 
 void* oak_arena_alloc(struct oak_arena_t* arena, usize size)
 {
-  size = align_up(size);
+  const usize aligned = align_up(size);
+  struct oak_arena_block_t* cur = arena->current;
+  const int need_block =
+      !cur || cur->used + aligned > cur->capacity;
 
-  if (!arena->current || arena->current->used + size > arena->current->capacity)
+  if (need_block)
   {
     usize cap = arena->block_size;
-    if (size > cap)
-      cap = size;
+    if (aligned > cap)
+      cap = aligned;
     struct oak_arena_block_t* block = arena_new_block(cap);
     if (!block)
       return null;
     block->next = arena->current;
     arena->current = block;
+    cur = block;
   }
 
-  void* ptr = arena->current->data + arena->current->used;
-  arena->current->used += size;
-  memset(ptr, 0, size);
+  void* ptr = cur->data + cur->used;
+  cur->used += aligned;
+  memset(ptr, 0, aligned);
   return ptr;
 }
 
