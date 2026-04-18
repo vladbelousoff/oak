@@ -50,6 +50,7 @@ enum oak_token_kind_t oak_ident_kind(const char* ident, const usize length)
 {
   static const struct tea_kw_entry_t keywords[] = {
     { "and", OAK_TOKEN_AND },
+    { "as", OAK_TOKEN_AS },
     { "break", OAK_TOKEN_BREAK },
     { "continue", OAK_TOKEN_CONTINUE },
     { "else", OAK_TOKEN_ELSE },
@@ -193,6 +194,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "ENUM";
     case OAK_TOKEN_FN:
       return "FN";
+    case OAK_TOKEN_AS:
+      return "AS";
     default:
       return null;
   }

@@ -23,6 +23,7 @@ set(OAK_CORE_SOURCES
         ${OAK_SRC_DIR}/oak_parser.c
         ${OAK_SRC_DIR}/oak_value.c
         ${OAK_SRC_DIR}/oak_chunk.c
+        ${OAK_SRC_DIR}/oak_type.c
         ${OAK_SRC_DIR}/oak_compiler.c
         ${OAK_SRC_DIR}/oak_vm.c
         ${OAK_SRC_DIR}/oak_file_map.c

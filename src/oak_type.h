@@ -1,0 +1,76 @@
+#pragma once
+
+#include "oak_types.h"
+
+/* Stable, monotonically increasing integer identifier for a type. Built-in
+ * ids are reserved (see below) so they never need to be looked up at runtime;
+ * user-defined names are interned lazily into the per-compilation registry.
+ *
+ * Id 0 is reserved for "unknown" so that a default-initialized
+ * oak_static_type_t represents an unknown type. */
+typedef int oak_type_id_t;
+
+#define OAK_TYPE_UNKNOWN ((oak_type_id_t)0)
+#define OAK_TYPE_NUMBER  ((oak_type_id_t)1)
+#define OAK_TYPE_STRING  ((oak_type_id_t)2)
+#define OAK_TYPE_BOOL    ((oak_type_id_t)3)
+#define OAK_TYPE_FIRST_USER ((oak_type_id_t)4)
+
+#define OAK_MAX_TYPES 64
+
+/* A typed slot. is_array indicates that the value is an array whose element
+ * type is `id`. Two typed slots are equal iff both `id` and `is_array` match. */
+struct oak_type_t
+{
+  oak_type_id_t id;
+  int is_array;
+};
+
+struct oak_type_entry_t
+{
+  const char* name;
+  usize len;
+};
+
+struct oak_type_registry_t
+{
+  struct oak_type_entry_t entries[OAK_MAX_TYPES];
+  int count;
+};
+
+/* Initializes the registry and pre-populates the built-in type ids. */
+void oak_type_registry_init(struct oak_type_registry_t* reg);
+
+/* Returns the id of an existing entry, or OAK_TYPE_UNKNOWN if not found. */
+oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
+                                       const char* name,
+                                       usize len);
+
+/* Returns the id of an existing entry, or registers a new one. Returns
+ * OAK_TYPE_UNKNOWN if the registry is full. */
+oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
+                                       const char* name,
+                                       usize len);
+
+/* Returns a printable name for `id` (always non-null; "<unknown>" if the id
+ * is invalid). The returned string lives as long as the registry. */
+const char* oak_type_registry_name(const struct oak_type_registry_t* reg,
+                                   oak_type_id_t id);
+
+/* Convenience helpers for oak_type_t. */
+static inline void oak_type_clear(struct oak_type_t* t)
+{
+  t->id = OAK_TYPE_UNKNOWN;
+  t->is_array = 0;
+}
+
+static inline int oak_type_is_known(const struct oak_type_t* t)
+{
+  return t->id != OAK_TYPE_UNKNOWN;
+}
+
+static inline int oak_type_equal(const struct oak_type_t* a,
+                                 const struct oak_type_t* b)
+{
+  return a->id == b->id && a->is_array == b->is_array;
+}

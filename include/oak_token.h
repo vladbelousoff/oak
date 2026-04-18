@@ -59,6 +59,7 @@ enum oak_token_kind_t
   OAK_TOKEN_STRUCT,
   OAK_TOKEN_ENUM,
   OAK_TOKEN_FN,
+  OAK_TOKEN_AS,
 };
 
 struct tea_kw_entry_t

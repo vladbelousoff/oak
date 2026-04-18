@@ -31,6 +31,9 @@ enum oak_opcode_t
   OAK_OP_LOOP,
   OAK_OP_CALL,
   OAK_OP_RETURN,
+  OAK_OP_NEW_ARRAY,
+  OAK_OP_GET_INDEX,
+  OAK_OP_SET_INDEX,
 };
 
 enum oak_op_format_t

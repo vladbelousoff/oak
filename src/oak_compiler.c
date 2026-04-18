@@ -3,6 +3,7 @@
 #include "oak_count_of.h"
 #include "oak_log.h"
 #include "oak_mem.h"
+#include "oak_type.h"
 #include "oak_value.h"
 
 #include <stdarg.h>
@@ -31,27 +32,8 @@ struct oak_local_t
   int slot;
   int is_mutable;
   int depth;
-  const char* type_name;
-  usize type_len;
+  struct oak_type_t type;
 };
-
-/* Inferred or declared static type name (e.g. parameter / expression type). */
-struct oak_static_type_t
-{
-  const char* name;
-  usize len;
-};
-
-static void oak_static_type_clear(struct oak_static_type_t* t)
-{
-  t->name = null;
-  t->len = 0;
-}
-
-static int oak_static_type_is_known(const struct oak_static_type_t* t)
-{
-  return t->name != null && t->len > 0;
-}
 
 struct oak_loop_frame_t
 {
@@ -82,6 +64,20 @@ struct oak_native_binding_t
   int arity;
 };
 
+/* Static description of a method bound to a receiver type (e.g. arrays).
+ * Methods are not exposed as global functions; they're only reachable
+ * through `receiver.name(...)` syntax. */
+struct oak_method_binding_t
+{
+  const char* name;
+  usize name_len;
+  u8 const_idx;
+  /* Includes the implicit receiver. So `arr.push(x)` -> arity 2. */
+  int total_arity;
+};
+
+#define OAK_MAX_ARRAY_METHODS 8
+
 struct oak_compiler_t
 {
   struct oak_chunk_t* chunk;
@@ -94,7 +90,19 @@ struct oak_compiler_t
   int function_depth;
   struct oak_registered_fn_t fn_registry[OAK_MAX_USER_FNS];
   int fn_registry_count;
+  struct oak_type_registry_t type_registry;
+  struct oak_method_binding_t array_methods[OAK_MAX_ARRAY_METHODS];
+  int array_method_count;
 };
+
+/* Convenience: intern a type id from a token spelling. */
+static oak_type_id_t intern_type_token(struct oak_compiler_t* c,
+                                       const struct oak_token_t* token)
+{
+  return oak_type_registry_intern(&c->type_registry,
+                                  oak_token_buf(token),
+                                  (usize)oak_token_size(token));
+}
 
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((format(printf, 3, 4)))
@@ -265,8 +273,7 @@ static void add_local(struct oak_compiler_t* c,
                       const usize length,
                       const int slot,
                       const int is_mutable,
-                      const char* type_name,
-                      const usize type_len)
+                      const struct oak_type_t type)
 {
   if (c->local_count >= OAK_MAX_LOCALS)
   {
@@ -280,8 +287,7 @@ static void add_local(struct oak_compiler_t* c,
   local->slot = slot;
   local->is_mutable = is_mutable;
   local->depth = c->scope_depth;
-  local->type_name = type_name;
-  local->type_len = type_len;
+  local->type = type;
 
   oak_chunk_add_debug_local(c->chunk, slot, name, length);
 }
@@ -518,6 +524,52 @@ static void register_native_builtins(struct oak_compiler_t* c)
   }
 }
 
+static const struct oak_native_binding_t array_method_bindings[] = {
+  /* push(receiver, value) -> new length. */
+  { "push", oak_builtin_push, 2 },
+  /* len(receiver) -> length. */
+  { "len", oak_builtin_len, 1 },
+};
+
+static void register_array_methods(struct oak_compiler_t* c)
+{
+  for (usize i = 0; i < oak_count_of(array_method_bindings); ++i)
+  {
+    if (c->array_method_count >= OAK_MAX_ARRAY_METHODS)
+    {
+      compiler_error_at(
+          c, null, "too many array methods (max %d)", OAK_MAX_ARRAY_METHODS);
+      return;
+    }
+
+    const struct oak_native_binding_t* b = &array_method_bindings[i];
+    struct oak_obj_native_fn_t* native =
+        oak_make_native_fn(b->impl, b->arity, b->name);
+    const u8 idx = intern_constant(c, OAK_VALUE_OBJ(&native->obj));
+    if (c->has_error)
+      return;
+
+    struct oak_method_binding_t* slot =
+        &c->array_methods[c->array_method_count++];
+    slot->name = b->name;
+    slot->name_len = strlen(b->name);
+    slot->const_idx = idx;
+    slot->total_arity = b->arity;
+  }
+}
+
+static const struct oak_method_binding_t*
+find_array_method(struct oak_compiler_t* c, const char* name, const usize len)
+{
+  for (int i = 0; i < c->array_method_count; ++i)
+  {
+    const struct oak_method_binding_t* m = &c->array_methods[i];
+    if (m->name_len == len && memcmp(m->name, name, len) == 0)
+      return m;
+  }
+  return null;
+}
+
 static void register_program_functions(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* program)
 {
@@ -653,20 +705,16 @@ static void compile_function_body(struct oak_compiler_t* c,
       return;
     }
     const struct oak_ast_node_t* type_id = fn_param_type_ident(ch);
-    const char* type_name = null;
-    usize type_len = 0;
+    struct oak_type_t param_type;
+    oak_type_clear(&param_type);
     if (type_id && type_id->kind == OAK_NODE_KIND_IDENT)
-    {
-      type_name = oak_token_buf(type_id->token);
-      type_len = (usize)oak_token_size(type_id->token);
-    }
+      param_type.id = intern_type_token(c, type_id->token);
     add_local(c,
               oak_token_buf(id->token),
               (usize)oak_token_size(id->token),
               slot++,
               fn_param_is_mutable(ch),
-              type_name,
-              type_len);
+              param_type);
   }
 
   const int arity = count_fn_params(decl);
@@ -715,6 +763,9 @@ static void compile_program(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* program)
 {
   register_native_builtins(c);
+  if (c->has_error)
+    return;
+  register_array_methods(c);
   if (c->has_error)
     return;
   register_program_functions(c, program);
@@ -787,34 +838,25 @@ static u8 opcode_for_node_kind(const enum oak_node_kind_t kind)
 static int local_type_get(struct oak_compiler_t* c,
                           const char* name,
                           const usize len,
-                          struct oak_static_type_t* out)
+                          struct oak_type_t* out)
 {
   for (int i = c->local_count - 1; i >= 0; --i)
   {
     const struct oak_local_t* L = &c->locals[i];
     if (L->length == len && memcmp(L->name, name, len) == 0)
     {
-      out->name = L->type_name;
-      out->len = L->type_len;
+      *out = L->type;
       return 1;
     }
   }
   return 0;
 }
 
-static int type_names_equal(const char* a,
-                            const usize alen,
-                            const char* b,
-                            const usize blen)
-{
-  return alen == blen && memcmp(a, b, alen) == 0;
-}
-
 static void infer_expr_static_type(struct oak_compiler_t* c,
                                    const struct oak_ast_node_t* expr,
-                                   struct oak_static_type_t* out)
+                                   struct oak_type_t* out)
 {
-  oak_static_type_clear(out);
+  oak_type_clear(out);
   if (!expr)
     return;
 
@@ -822,52 +864,36 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
   {
     case OAK_NODE_KIND_INT:
     case OAK_NODE_KIND_FLOAT:
-      out->name = "number";
-      out->len = 6;
-      return;
-    case OAK_NODE_KIND_STRING:
-      out->name = "string";
-      out->len = 6;
-      return;
-    case OAK_NODE_KIND_IDENT:
-    {
-      const char* name = oak_token_buf(expr->token);
-      const usize len = (usize)oak_token_size(expr->token);
-      struct oak_static_type_t local_ty;
-      oak_static_type_clear(&local_ty);
-      if (local_type_get(c, name, len, &local_ty) &&
-          oak_static_type_is_known(&local_ty))
-      {
-        out->name = local_ty.name;
-        out->len = local_ty.len;
-      }
-      return;
-    }
     case OAK_NODE_KIND_UNARY_NEG:
-      out->name = "number";
-      out->len = 6;
-      return;
-    case OAK_NODE_KIND_UNARY_NOT:
-      out->name = "bool";
-      out->len = 4;
-      return;
     case OAK_NODE_KIND_BINARY_ADD:
     case OAK_NODE_KIND_BINARY_SUB:
     case OAK_NODE_KIND_BINARY_MUL:
     case OAK_NODE_KIND_BINARY_DIV:
     case OAK_NODE_KIND_BINARY_MOD:
-      out->name = "number";
-      out->len = 6;
+      out->id = OAK_TYPE_NUMBER;
       return;
+    case OAK_NODE_KIND_STRING:
+      out->id = OAK_TYPE_STRING;
+      return;
+    case OAK_NODE_KIND_UNARY_NOT:
     case OAK_NODE_KIND_BINARY_EQ:
     case OAK_NODE_KIND_BINARY_NEQ:
     case OAK_NODE_KIND_BINARY_LESS:
     case OAK_NODE_KIND_BINARY_LESS_EQ:
     case OAK_NODE_KIND_BINARY_GREATER:
     case OAK_NODE_KIND_BINARY_GREATER_EQ:
-      out->name = "bool";
-      out->len = 4;
+      out->id = OAK_TYPE_BOOL;
       return;
+    case OAK_NODE_KIND_IDENT:
+    {
+      const char* name = oak_token_buf(expr->token);
+      const usize len = (usize)oak_token_size(expr->token);
+      struct oak_type_t local_ty;
+      oak_type_clear(&local_ty);
+      if (local_type_get(c, name, len, &local_ty))
+        *out = local_ty;
+      return;
+    }
     case OAK_NODE_KIND_FN_CALL:
     {
       const struct oak_list_entry_t* first = expr->children.next;
@@ -875,7 +901,28 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         return;
       const struct oak_ast_node_t* callee =
           oak_container_of(first, struct oak_ast_node_t, link);
-      if (!callee || callee->kind != OAK_NODE_KIND_IDENT)
+      if (!callee)
+        return;
+      if (callee->kind == OAK_NODE_KIND_MEMBER_ACCESS)
+      {
+        /* Methods on arrays (`push`, `len`) currently all yield numbers. */
+        const struct oak_ast_node_t* recv = callee->lhs;
+        const struct oak_ast_node_t* method = callee->rhs;
+        if (!recv || !method || method->kind != OAK_NODE_KIND_IDENT)
+          return;
+        struct oak_type_t recv_ty;
+        infer_expr_static_type(c, recv, &recv_ty);
+        if (!recv_ty.is_array)
+          return;
+        const struct oak_method_binding_t* m =
+            find_array_method(c,
+                              oak_token_buf(method->token),
+                              (usize)oak_token_size(method->token));
+        if (m)
+          out->id = OAK_TYPE_NUMBER;
+        return;
+      }
+      if (callee->kind != OAK_NODE_KIND_IDENT)
         return;
       const char* cn = oak_token_buf(callee->token);
       const usize clen = (usize)oak_token_size(callee->token);
@@ -885,15 +932,47 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         return;
       const struct oak_ast_node_t* ret = fn_decl_return_type_node(fe->decl);
       if (ret && ret->kind == OAK_NODE_KIND_IDENT)
+        out->id = intern_type_token(c, ret->token);
+      return;
+    }
+    case OAK_NODE_KIND_EXPR_CAST:
+    {
+      const struct oak_ast_node_t* type_node = expr->rhs;
+      if (!type_node)
+        return;
+      if (type_node->kind == OAK_NODE_KIND_TYPE_ARRAY)
       {
-        out->name = oak_token_buf(ret->token);
-        out->len = (usize)oak_token_size(ret->token);
+        const struct oak_ast_node_t* elem = type_node->child;
+        if (!elem || elem->kind != OAK_NODE_KIND_IDENT)
+          return;
+        out->id = intern_type_token(c, elem->token);
+        out->is_array = 1;
+        return;
+      }
+      if (type_node->kind == OAK_NODE_KIND_IDENT)
+        out->id = intern_type_token(c, type_node->token);
+      return;
+    }
+    case OAK_NODE_KIND_INDEX_ACCESS:
+    {
+      struct oak_type_t arr_ty;
+      infer_expr_static_type(c, expr->lhs, &arr_ty);
+      if (arr_ty.is_array && oak_type_is_known(&arr_ty))
+      {
+        out->id = arr_ty.id;
+        out->is_array = 0;
       }
       return;
     }
     default:
       return;
   }
+}
+
+static const char* type_kind_name(struct oak_compiler_t* c,
+                                  const struct oak_type_t t)
+{
+  return oak_type_registry_name(&c->type_registry, t.id);
 }
 
 static void
@@ -920,23 +999,25 @@ validate_user_fn_call_arg_types(struct oak_compiler_t* c,
       compiler_error_at(c, null, "internal error: missing parameter %zu", i);
       return;
     }
-    const struct oak_ast_node_t* want_type = fn_param_type_ident(param);
-    if (!want_type || want_type->kind != OAK_NODE_KIND_IDENT)
+    const struct oak_ast_node_t* want_type_node = fn_param_type_ident(param);
+    if (!want_type_node || want_type_node->kind != OAK_NODE_KIND_IDENT)
     {
       compiler_error_at(
           c, param->token, "malformed function parameter (expected type name)");
       return;
     }
-    const char* want = oak_token_buf(want_type->token);
-    const usize want_len = (usize)oak_token_size(want_type->token);
+    const struct oak_type_t want = {
+      .id = intern_type_token(c, want_type_node->token),
+      .is_array = 0,
+    };
 
-    struct oak_static_type_t got;
+    struct oak_type_t got;
     infer_expr_static_type(c, arg_expr, &got);
 
-    if (!oak_static_type_is_known(&got))
+    if (!oak_type_is_known(&got))
       continue;
 
-    if (!type_names_equal(want, want_len, got.name, got.len))
+    if (!oak_type_equal(&want, &got))
     {
       const struct oak_token_t* err_tok = arg_expr->token;
       if (!err_tok && arg_wrap->kind == OAK_NODE_KIND_FN_CALL_ARG &&
@@ -944,12 +1025,11 @@ validate_user_fn_call_arg_types(struct oak_compiler_t* c,
         err_tok = arg_wrap->child->token;
       compiler_error_at(c,
                         err_tok,
-                        "argument %zu: expected type '%.*s', found '%.*s'",
+                        "argument %zu: expected type '%s', found '%s%s'",
                         i + 1,
-                        (int)want_len,
-                        want,
-                        (int)got.len,
-                        got.name);
+                        type_kind_name(c, want),
+                        type_kind_name(c, got),
+                        got.is_array ? "[]" : "");
     }
   }
 }
@@ -1045,12 +1125,12 @@ static void compile_stmt_for_from(struct oak_compiler_t* c,
 
   begin_scope(c);
 
-  struct oak_static_type_t from_ty;
+  struct oak_type_t from_ty;
   infer_expr_static_type(c, from_expr, &from_ty);
-  if (!oak_static_type_is_known(&from_ty))
+  if (!oak_type_is_known(&from_ty))
   {
-    from_ty.name = "number";
-    from_ty.len = 6;
+    from_ty.id = OAK_TYPE_NUMBER;
+    from_ty.is_array = 0;
   }
 
   compile_node(c, from_expr);
@@ -1060,20 +1140,19 @@ static void compile_stmt_for_from(struct oak_compiler_t* c,
             oak_token_size(ident->token),
             loop_var_slot,
             1,
-            from_ty.name,
-            from_ty.len);
+            from_ty);
 
-  struct oak_static_type_t to_ty;
+  struct oak_type_t to_ty;
   infer_expr_static_type(c, to_expr, &to_ty);
-  if (!oak_static_type_is_known(&to_ty))
+  if (!oak_type_is_known(&to_ty))
   {
-    to_ty.name = "number";
-    to_ty.len = 6;
+    to_ty.id = OAK_TYPE_NUMBER;
+    to_ty.is_array = 0;
   }
 
   compile_node(c, to_expr);
   const int limit_slot = c->stack_depth - 1;
-  add_local(c, "", 0, limit_slot, 0, to_ty.name, to_ty.len);
+  add_local(c, "", 0, limit_slot, 0, to_ty);
 
   struct oak_loop_frame_t loop = {
     .enclosing = c->current_loop,
@@ -1119,6 +1198,138 @@ static void compile_fn_call_arg(struct oak_compiler_t* c,
     compile_node(c, arg);
 }
 
+static const struct oak_ast_node_t*
+fn_call_arg_expr_at(const struct oak_ast_node_t* call, const usize index)
+{
+  const struct oak_list_entry_t* first = call->children.next;
+  if (first == &call->children)
+    return null;
+  const struct oak_list_entry_t* pos = first->next;
+  usize i = 0;
+  for (; pos != &call->children; pos = pos->next, ++i)
+  {
+    if (i != index)
+      continue;
+    const struct oak_ast_node_t* arg =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (arg->kind == OAK_NODE_KIND_FN_CALL_ARG)
+      return arg->child;
+    return arg;
+  }
+  return null;
+}
+
+static void validate_array_push_args(struct oak_compiler_t* c,
+                                     const struct oak_ast_node_t* call,
+                                     const struct oak_type_t recv_ty,
+                                     const struct oak_token_t* err_tok)
+{
+  const struct oak_ast_node_t* val_expr = fn_call_arg_expr_at(call, 0);
+  if (!val_expr)
+    return;
+
+  struct oak_type_t val_ty;
+  infer_expr_static_type(c, val_expr, &val_ty);
+  if (!oak_type_is_known(&val_ty))
+    return;
+
+  const struct oak_type_t element_ty = { .id = recv_ty.id, .is_array = 0 };
+  if (!oak_type_equal(&element_ty, &val_ty))
+  {
+    compiler_error_at(c,
+                      val_expr->token ? val_expr->token : err_tok,
+                      "cannot push value of type '%s%s' to array of '%s'",
+                      type_kind_name(c, val_ty),
+                      val_ty.is_array ? "[]" : "",
+                      type_kind_name(c, element_ty));
+  }
+}
+
+/* Compile `receiver.method(args...)`. Method calls are dispatched purely
+ * statically based on the receiver's compile-time type. The method's
+ * native function is pushed as a constant, the receiver is compiled as
+ * an implicit first argument, and finally OP_CALL with the full arity
+ * is emitted. */
+static void compile_method_call(struct oak_compiler_t* c,
+                                const struct oak_ast_node_t* node,
+                                const struct oak_ast_node_t* callee)
+{
+  const struct oak_ast_node_t* receiver = callee->lhs;
+  const struct oak_ast_node_t* method = callee->rhs;
+  if (!receiver || !method || method->kind != OAK_NODE_KIND_IDENT)
+  {
+    compiler_error_at(
+        c, callee->token, "method call requires 'receiver.name(...)' form");
+    return;
+  }
+
+  const struct oak_code_loc_t call_loc = code_loc_from_token(method->token);
+  const usize user_argc = ast_child_count(node) - 1;
+  const char* mname = oak_token_buf(method->token);
+  const int mname_len = oak_token_size(method->token);
+
+  struct oak_type_t recv_ty;
+  infer_expr_static_type(c, receiver, &recv_ty);
+
+  if (!recv_ty.is_array || !oak_type_is_known(&recv_ty))
+  {
+    compiler_error_at(c,
+                      receiver->token ? receiver->token : method->token,
+                      "method '.%.*s' requires a typed array receiver",
+                      mname_len,
+                      mname);
+    return;
+  }
+
+  const struct oak_method_binding_t* m =
+      find_array_method(c, mname, (usize)mname_len);
+  if (!m)
+  {
+    compiler_error_at(c,
+                      method->token,
+                      "no method '%.*s' on array of '%s'",
+                      mname_len,
+                      mname,
+                      type_kind_name(c, recv_ty));
+    return;
+  }
+
+  const int expected_user_argc = m->total_arity - 1;
+  if ((int)user_argc != expected_user_argc)
+  {
+    compiler_error_at(c,
+                      method->token,
+                      "method '%.*s' expects %d arguments, got %zu",
+                      mname_len,
+                      mname,
+                      expected_user_argc,
+                      user_argc);
+    return;
+  }
+
+  if (m->name_len == 4 && memcmp(m->name, "push", 4) == 0)
+  {
+    validate_array_push_args(c, node, recv_ty, method->token);
+    if (c->has_error)
+      return;
+  }
+
+  emit_op_arg(c, OAK_OP_CONSTANT, m->const_idx, call_loc);
+  compile_node(c, receiver);
+
+  const struct oak_list_entry_t* first = node->children.next;
+  for (struct oak_list_entry_t* pos = first->next; pos != &node->children;
+       pos = pos->next)
+  {
+    const struct oak_ast_node_t* arg =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    compile_fn_call_arg(c, arg);
+  }
+
+  emit_op_arg(c, OAK_OP_CALL, (u8)m->total_arity, call_loc);
+  c->stack_depth -= m->total_arity;
+}
+
 static void compile_fn_call(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* node)
 {
@@ -1131,6 +1342,12 @@ static void compile_fn_call(struct oak_compiler_t* c,
 
   const struct oak_ast_node_t* callee =
       oak_container_of(first, struct oak_ast_node_t, link);
+
+  if (callee && callee->kind == OAK_NODE_KIND_MEMBER_ACCESS)
+  {
+    compile_method_call(c, node, callee);
+    return;
+  }
 
   if (!callee || callee->kind != OAK_NODE_KIND_IDENT)
   {
@@ -1320,19 +1537,14 @@ static void compile_node(struct oak_compiler_t* c,
       const struct oak_ast_node_t* ident = assign->lhs;
       const struct oak_ast_node_t* rhs = assign->rhs;
 
-      struct oak_static_type_t rhs_ty;
+      struct oak_type_t rhs_ty;
       infer_expr_static_type(c, rhs, &rhs_ty);
 
       compile_node(c, rhs);
       const char* name = oak_token_buf(ident->token);
       const int size = oak_token_size(ident->token);
-      add_local(c,
-                name,
-                (usize)size,
-                c->stack_depth - 1,
-                is_mutable,
-                rhs_ty.name,
-                rhs_ty.len);
+      add_local(
+          c, name, (usize)size, c->stack_depth - 1, is_mutable, rhs_ty);
 
       break;
     }
@@ -1340,6 +1552,48 @@ static void compile_node(struct oak_compiler_t* c,
     {
       const struct oak_ast_node_t* lhs = node->lhs;
       const struct oak_ast_node_t* rhs = node->rhs;
+
+      if (lhs->kind == OAK_NODE_KIND_INDEX_ACCESS)
+      {
+        struct oak_type_t arr_ty;
+        infer_expr_static_type(c, lhs->lhs, &arr_ty);
+        if (!arr_ty.is_array || !oak_type_is_known(&arr_ty))
+        {
+          compiler_error_at(c,
+                            lhs->lhs->token,
+                            "indexed assignment requires a typed array");
+          return;
+        }
+
+        struct oak_type_t val_ty;
+        infer_expr_static_type(c, rhs, &val_ty);
+        if (oak_type_is_known(&val_ty))
+        {
+          const struct oak_type_t element_ty = {
+            .id = arr_ty.id,
+            .is_array = 0,
+          };
+          if (!oak_type_equal(&element_ty, &val_ty))
+          {
+            compiler_error_at(
+                c,
+                rhs->token,
+                "cannot assign value of type '%s%s' to element of '%s' "
+                "array",
+                type_kind_name(c, val_ty),
+                val_ty.is_array ? "[]" : "",
+                type_kind_name(c, element_ty));
+            return;
+          }
+        }
+
+        compile_node(c, lhs->lhs);
+        compile_node(c, lhs->rhs);
+        compile_node(c, rhs);
+        emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
+        emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
+        break;
+      }
 
       const int slot =
           compile_assign_target(c, lhs, "assignment target must be a variable");
@@ -1396,6 +1650,57 @@ static void compile_node(struct oak_compiler_t* c,
     case OAK_NODE_KIND_FN_CALL:
       compile_fn_call(c, node);
       break;
+    case OAK_NODE_KIND_EXPR_EMPTY_ARRAY:
+      compiler_error_at(
+          c,
+          null,
+          "untyped array literal; arrays must be typed (e.g. '[] as "
+          "number[]')");
+      break;
+    case OAK_NODE_KIND_EXPR_CAST:
+    {
+      const struct oak_ast_node_t* value = node->lhs;
+      const struct oak_ast_node_t* type_node = node->rhs;
+      if (!value || !type_node)
+      {
+        compiler_error_at(c, null, "malformed 'as' expression");
+        return;
+      }
+
+      if (type_node->kind == OAK_NODE_KIND_TYPE_ARRAY)
+      {
+        const struct oak_ast_node_t* elem = type_node->child;
+        if (!elem || elem->kind != OAK_NODE_KIND_IDENT)
+        {
+          compiler_error_at(
+              c, null, "array cast requires an element type (e.g. 'number[]')");
+          return;
+        }
+        if (value->kind != OAK_NODE_KIND_EXPR_EMPTY_ARRAY)
+        {
+          compiler_error_at(c,
+                            null,
+                            "only empty array literals can be cast to an "
+                            "array type (e.g. '[] as number[]')");
+          return;
+        }
+        emit_op(c, OAK_OP_NEW_ARRAY, OAK_LOC_SYNTHETIC);
+        break;
+      }
+
+      compiler_error_at(c,
+                        null,
+                        "'as' is currently only supported for typing array "
+                        "literals (e.g. '[] as number[]')");
+      break;
+    }
+    case OAK_NODE_KIND_INDEX_ACCESS:
+    {
+      compile_node(c, node->lhs);
+      compile_node(c, node->rhs);
+      emit_op(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
+      break;
+    }
     case OAK_NODE_KIND_STMT_IF:
       compile_stmt_if(c, node);
       break;
@@ -1445,7 +1750,9 @@ struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)
     .current_loop = null,
     .function_depth = 0,
     .fn_registry_count = 0,
+    .array_method_count = 0,
   };
+  oak_type_registry_init(&compiler.type_registry);
 
   if (!root || root->kind != OAK_NODE_KIND_PROGRAM)
   {

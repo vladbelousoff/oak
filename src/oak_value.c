@@ -13,8 +13,19 @@ void oak_obj_incref(struct oak_obj_t* obj)
 
 void oak_obj_decref(struct oak_obj_t* obj)
 {
-  if (oak_refcount_dec(&obj->refcount))
-    oak_free(obj, OAK_SRC_LOC);
+  if (!oak_refcount_dec(&obj->refcount))
+    return;
+
+  if (obj->type == OAK_OBJ_ARRAY)
+  {
+    struct oak_obj_array_t* arr = (struct oak_obj_array_t*)obj;
+    for (usize i = 0; i < arr->length; ++i)
+      oak_value_decref(arr->items[i]);
+    if (arr->items)
+      oak_free(arr->items, OAK_SRC_LOC);
+  }
+
+  oak_free(obj, OAK_SRC_LOC);
 }
 
 static u32 hash_string(const char* chars, const usize length)
@@ -77,6 +88,31 @@ int oak_native_fn_format(char* buf,
                     native->arity,
                     fn_ptr);
   return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity, fn_ptr);
+}
+
+struct oak_obj_array_t* oak_make_array(void)
+{
+  struct oak_obj_array_t* arr =
+      oak_alloc(sizeof(struct oak_obj_array_t), OAK_SRC_LOC);
+  arr->obj.type = OAK_OBJ_ARRAY;
+  oak_refcount_init(&arr->obj.refcount, 1);
+  arr->length = 0;
+  arr->capacity = 0;
+  arr->items = null;
+  return arr;
+}
+
+void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
+{
+  if (arr->length >= arr->capacity)
+  {
+    const usize new_cap = arr->capacity == 0 ? 8u : arr->capacity * 2u;
+    arr->items = oak_realloc(
+        arr->items, new_cap * sizeof(struct oak_value_t), OAK_SRC_LOC);
+    arr->capacity = new_cap;
+  }
+  oak_value_incref(value);
+  arr->items[arr->length++] = value;
 }
 
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
@@ -170,6 +206,40 @@ enum oak_fn_call_result_t oak_builtin_print(void* vm,
   return OAK_FN_CALL_OK;
 }
 
+enum oak_fn_call_result_t oak_builtin_len(void* vm,
+                                          const struct oak_value_t* args,
+                                          const int argc,
+                                          struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (oak_is_array(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  if (oak_is_string(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_string(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  return OAK_FN_CALL_RUNTIME_ERROR;
+}
+
+enum oak_fn_call_result_t oak_builtin_push(void* vm,
+                                           const struct oak_value_t* args,
+                                           const int argc,
+                                           struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 2 || !oak_is_array(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  oak_array_push(oak_as_array(args[0]), args[1]);
+  *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
+  return OAK_FN_CALL_OK;
+}
+
 void oak_value_print(const struct oak_value_t value)
 {
   if (oak_is_bool(value))
@@ -196,6 +266,11 @@ void oak_value_print(const struct oak_value_t value)
       char buf[160];
       oak_native_fn_format(buf, sizeof(buf), oak_as_native_fn(value));
       oak_log(OAK_LOG_INF, "%s", buf);
+    }
+    else if (oak_is_array(value))
+    {
+      const struct oak_obj_array_t* arr = oak_as_array(value);
+      oak_log(OAK_LOG_INF, "<array len=%zu>", arr->length);
     }
     else
       oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));

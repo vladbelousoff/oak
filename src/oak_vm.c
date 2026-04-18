@@ -54,6 +54,8 @@ static const char* value_kind_desc(const struct oak_value_t v)
     return "function";
   if (oak_is_native_fn(v))
     return "native function";
+  if (oak_is_array(v))
+    return "array";
   if (oak_is_obj(v))
     return "object";
   return "value";
@@ -531,6 +533,98 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const enum oak_vm_result_t r = vm_op_return(vm);
         if (r != OAK_VM_OK)
           return r;
+        break;
+      }
+      case OAK_OP_NEW_ARRAY:
+      {
+        struct oak_obj_array_t* arr = oak_make_array();
+        vm_push(vm, OAK_VALUE_OBJ(&arr->obj));
+        /* vm_push increfs; release the make-time reference so only the stack
+         * owns it. */
+        oak_obj_decref(&arr->obj);
+        break;
+      }
+      case OAK_OP_GET_INDEX:
+      {
+        const struct oak_value_t idx_v = vm_pop(vm);
+        const struct oak_value_t arr_v = vm_pop(vm);
+        if (!oak_is_array(arr_v))
+        {
+          runtime_error(
+              vm, "indexing requires an array, got %s", value_kind_desc(arr_v));
+          oak_value_decref(idx_v);
+          oak_value_decref(arr_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (!oak_is_i32(idx_v))
+        {
+          runtime_error(vm,
+                        "array index must be an integer, got %s",
+                        value_kind_desc(idx_v));
+          oak_value_decref(idx_v);
+          oak_value_decref(arr_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_obj_array_t* arr = oak_as_array(arr_v);
+        const int i = oak_as_i32(idx_v);
+        if (i < 0 || (usize)i >= arr->length)
+        {
+          runtime_error(vm,
+                        "array index %d out of bounds (length %zu)",
+                        i,
+                        arr->length);
+          oak_value_decref(idx_v);
+          oak_value_decref(arr_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        vm_push(vm, arr->items[i]);
+        oak_value_decref(idx_v);
+        oak_value_decref(arr_v);
+        break;
+      }
+      case OAK_OP_SET_INDEX:
+      {
+        /* stack: [..., array, index, value]; result leaves [..., value]. */
+        if (vm->sp - vm->stack < 3)
+        {
+          runtime_error(vm, "stack underflow in indexed assignment");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t value = vm->sp[-1];
+        const struct oak_value_t idx_v = vm->sp[-2];
+        const struct oak_value_t arr_v = vm->sp[-3];
+        if (!oak_is_array(arr_v))
+        {
+          runtime_error(vm,
+                        "indexed assignment requires an array, got %s",
+                        value_kind_desc(arr_v));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (!oak_is_i32(idx_v))
+        {
+          runtime_error(vm,
+                        "array index must be an integer, got %s",
+                        value_kind_desc(idx_v));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_obj_array_t* arr = oak_as_array(arr_v);
+        const int i = oak_as_i32(idx_v);
+        if (i < 0 || (usize)i >= arr->length)
+        {
+          runtime_error(vm,
+                        "array index %d out of bounds (length %zu)",
+                        i,
+                        arr->length);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_value_decref(arr->items[i]);
+        oak_value_incref(value);
+        arr->items[i] = value;
+        /* Drop array and index slots, keep value as the expression result. */
+        oak_value_decref(arr_v);
+        oak_value_decref(idx_v);
+        vm->sp[-3] = value;
+        vm->sp -= 2;
         break;
       }
       default:

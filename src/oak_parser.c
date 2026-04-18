@@ -44,6 +44,7 @@ enum oak_pratt_op_t
   OAK_PRATT_GROUP,
   OAK_PRATT_CALL,
   OAK_PRATT_INDEX,
+  OAK_PRATT_CAST,
 };
 
 struct oak_pratt_rule_t
@@ -207,6 +208,12 @@ static const struct oak_pratt_rule_t expr_infix[] = {
       .l_bp = 17,
       .r_bp = 18,
       .node_kind = OAK_NODE_KIND_MEMBER_ACCESS,
+  },
+  {
+      .kind = OAK_PRATT_CAST,
+      .trigger_token = OAK_TOKEN_AS,
+      .l_bp = 14,
+      .node_kind = OAK_NODE_KIND_EXPR_CAST,
   },
   { 0 },
 };
@@ -439,6 +446,7 @@ static struct oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_KIND_UNARY_NOT]         = { .op = OAK_GRAMMAR_UNARY },
   [OAK_NODE_KIND_MEMBER_ACCESS]     = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_KIND_INDEX_ACCESS]      = { .op = OAK_GRAMMAR_BINARY },
+  [OAK_NODE_KIND_EXPR_CAST]         = { .op = OAK_GRAMMAR_BINARY },
   // FN_CALL_ARG -> EXPR ','?
   [OAK_NODE_KIND_FN_CALL_ARG] = {
     .op = OAK_GRAMMAR_UNARY,
@@ -918,6 +926,22 @@ static struct oak_ast_node_t* parse_pratt(struct oak_parser_t* p,
         node->kind = rule->node_kind;
         node->lhs = lhs;
         node->rhs = index_expr;
+        lhs = node;
+        break;
+      }
+      case OAK_PRATT_CAST:
+      {
+        struct oak_ast_node_t* type_node =
+            parse_rule(p, OAK_NODE_KIND_TYPE_NAME);
+        if (!type_node)
+          return null;
+        struct oak_ast_node_t* node =
+            oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+        if (!node)
+          return null;
+        node->kind = rule->node_kind;
+        node->lhs = lhs;
+        node->rhs = type_node;
         lhs = node;
         break;
       }
