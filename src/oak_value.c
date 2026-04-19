@@ -86,14 +86,18 @@ struct oak_obj_fn_t* oak_fn_new(const usize code_offset, const int arity)
 }
 
 struct oak_obj_native_fn_t*
-oak_native_fn_new(const oak_native_fn_t fn, const int arity, const char* name)
+oak_native_fn_new(const oak_native_fn_t fn,
+                  const int arity_min,
+                  const int arity_max,
+                  const char* name)
 {
   struct oak_obj_native_fn_t* native =
       oak_alloc(sizeof(struct oak_obj_native_fn_t), OAK_SRC_LOC);
   native->obj.type = OAK_OBJ_NATIVE_FN;
   oak_refcount_init(&native->obj.refcount, 1);
   native->fn = fn;
-  native->arity = arity;
+  native->arity_min = arity_min;
+  native->arity_max = arity_max;
   native->name = name;
   return native;
 }
@@ -104,13 +108,32 @@ int oak_native_fn_format(char* buf,
 {
   const void* fn_ptr = (const void*)(uintptr_t)native->fn;
   if (native->name && native->name[0] != '\0')
+  {
+    if (native->arity_min == native->arity_max)
+    {
+      return snprintf(buf,
+                      size,
+                      "<native %s arity=%d fn=%p>",
+                      native->name,
+                      native->arity_max,
+                      fn_ptr);
+    }
     return snprintf(buf,
                     size,
-                    "<native %s arity=%d fn=%p>",
+                    "<native %s arity=%d..%d fn=%p>",
                     native->name,
-                    native->arity,
+                    native->arity_min,
+                    native->arity_max,
                     fn_ptr);
-  return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity, fn_ptr);
+  }
+  if (native->arity_min == native->arity_max)
+    return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity_max, fn_ptr);
+  return snprintf(buf,
+                  size,
+                  "<native arity=%d..%d fn=%p>",
+                  native->arity_min,
+                  native->arity_max,
+                  fn_ptr);
 }
 
 struct oak_obj_array_t* oak_array_new(void)
@@ -405,6 +428,57 @@ enum oak_fn_call_result_t oak_builtin_delete(void* vm,
     return OAK_FN_CALL_RUNTIME_ERROR;
   const int removed = oak_map_delete(oak_as_map(args[0]), args[1]);
   *out_result = OAK_VALUE_BOOL(removed);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_builtin_input(void* vm,
+                                            const struct oak_value_t* args,
+                                            const int argc,
+                                            struct oak_value_t* out_result)
+{
+  (void)vm;
+  oak_assert(argc >= 0 && argc <= 1);
+  if (argc == 1)
+  {
+    if (!oak_is_string(args[0]))
+      return OAK_FN_CALL_RUNTIME_ERROR;
+    fputs(oak_as_cstring(args[0]), stdout);
+    fflush(stdout);
+  }
+
+  usize cap = 128u;
+  char* buf = oak_alloc(cap, OAK_SRC_LOC);
+  usize len = 0u;
+  int c;
+  while ((c = getc(stdin)) != EOF)
+  {
+    if (c == '\n')
+      break;
+    if (len + 1u >= cap)
+    {
+      cap *= 2u;
+      buf = oak_realloc(buf, cap, OAK_SRC_LOC);
+    }
+    buf[len++] = (char)c;
+  }
+
+  if (c == EOF)
+  {
+    if (ferror(stdin))
+    {
+      oak_free(buf, OAK_SRC_LOC);
+      return OAK_FN_CALL_RUNTIME_ERROR;
+    }
+    if (len == 0u && feof(stdin))
+    {
+      oak_free(buf, OAK_SRC_LOC);
+      return OAK_FN_CALL_RUNTIME_ERROR;
+    }
+  }
+
+  struct oak_obj_string_t* s = oak_string_new(buf, len);
+  oak_free(buf, OAK_SRC_LOC);
+  *out_result = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
 

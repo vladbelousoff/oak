@@ -53,7 +53,8 @@ struct oak_registered_fn_t
   const char* name;
   usize name_len;
   u8 const_idx;
-  int arity;
+  int arity_min;
+  int arity_max;
   const struct oak_ast_node_t* decl;
 };
 
@@ -61,7 +62,8 @@ struct oak_native_binding_t
 {
   const char* name;
   oak_native_fn_t impl;
-  int arity;
+  int arity_min;
+  int arity_max;
 };
 
 struct oak_compiler_t;
@@ -576,10 +578,12 @@ static int count_fn_params(const struct oak_ast_node_t* decl)
  * its index. The chunk takes ownership of the single allocation reference. */
 static u8 intern_native_constant(struct oak_compiler_t* c,
                                  const oak_native_fn_t impl,
-                                 const int arity,
+                                 const int arity_min,
+                                 const int arity_max,
                                  const char* name)
 {
-  struct oak_obj_native_fn_t* native = oak_native_fn_new(impl, arity, name);
+  struct oak_obj_native_fn_t* native =
+      oak_native_fn_new(impl, arity_min, arity_max, name);
   return intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
@@ -595,19 +599,24 @@ static void register_native_fn(struct oak_compiler_t* c,
     return;
   }
 
-  const u8 idx = intern_native_constant(
-      c, binding->impl, binding->arity, binding->name);
+  const u8 idx = intern_native_constant(c,
+                                        binding->impl,
+                                        binding->arity_min,
+                                        binding->arity_max,
+                                        binding->name);
 
   struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
   slot->name = binding->name;
   slot->name_len = strlen(binding->name);
   slot->const_idx = idx;
-  slot->arity = binding->arity;
+  slot->arity_min = binding->arity_min;
+  slot->arity_max = binding->arity_max;
   slot->decl = null;
 }
 
 static const struct oak_native_binding_t native_builtins[] = {
-  { "print", oak_builtin_print, 1 },
+  { "print", oak_builtin_print, 1, 1 },
+  { "input", oak_builtin_input, 0, 1 },
 };
 
 static void register_native_builtins(struct oak_compiler_t* c)
@@ -668,8 +677,8 @@ static void register_array_methods(struct oak_compiler_t* c)
     }
 
     const struct oak_array_method_def_t* def = &array_method_table[i];
-    const u8 idx =
-        intern_native_constant(c, def->impl, def->total_arity, def->name);
+    const u8 idx = intern_native_constant(
+        c, def->impl, def->total_arity, def->total_arity, def->name);
     if (c->has_error)
       return;
 
@@ -708,8 +717,8 @@ static void register_map_methods(struct oak_compiler_t* c)
     }
 
     const struct oak_array_method_def_t* def = &map_method_table[i];
-    const u8 idx =
-        intern_native_constant(c, def->impl, def->total_arity, def->name);
+    const u8 idx = intern_native_constant(
+        c, def->impl, def->total_arity, def->total_arity, def->name);
     if (c->has_error)
       return;
 
@@ -1058,7 +1067,8 @@ static void register_program_functions(struct oak_compiler_t* c,
     slot->name = name;
     slot->name_len = (usize)name_len;
     slot->const_idx = idx;
-    slot->arity = explicit_arity;
+    slot->arity_min = explicit_arity;
+    slot->arity_max = explicit_arity;
     slot->decl = item;
   }
 }
@@ -1085,7 +1095,7 @@ static int find_registered_fn(struct oak_compiler_t* c,
   if (!e)
     return 0;
   *out_idx = e->const_idx;
-  *out_arity = e->arity;
+  *out_arity = e->arity_max;
   return 1;
 }
 
@@ -1442,6 +1452,12 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
       const usize clen = (usize)oak_token_length(callee->token);
       const struct oak_registered_fn_t* fe =
           find_registered_fn_entry(c, cn, clen);
+      if (fe && !fe->decl && fe->name_len == 5u &&
+          memcmp(fe->name, "input", 5u) == 0)
+      {
+        out->id = OAK_TYPE_STRING;
+        return;
+      }
       if (!fe || !fe->decl)
         return;
       const struct oak_ast_node_t* ret = fn_decl_return_type_node(fe->decl);
@@ -2335,15 +2351,29 @@ static void compile_fn_call(struct oak_compiler_t* c,
     return;
   }
 
-  if ((int)argc != entry->arity)
+  if ((int)argc < entry->arity_min || (int)argc > entry->arity_max)
   {
-    compiler_error_at(c,
-                      callee->token,
-                      "function '%.*s' expects %d arguments, got %zu",
-                      oak_token_length(callee->token),
-                      oak_token_text(callee->token),
-                      entry->arity,
-                      argc);
+    if (entry->arity_min == entry->arity_max)
+    {
+      compiler_error_at(c,
+                        callee->token,
+                        "function '%.*s' expects %d arguments, got %zu",
+                        oak_token_length(callee->token),
+                        oak_token_text(callee->token),
+                        entry->arity_min,
+                        argc);
+    }
+    else
+    {
+      compiler_error_at(c,
+                        callee->token,
+                        "function '%.*s' expects %d to %d arguments, got %zu",
+                        oak_token_length(callee->token),
+                        oak_token_text(callee->token),
+                        entry->arity_min,
+                        entry->arity_max,
+                        argc);
+    }
     return;
   }
 

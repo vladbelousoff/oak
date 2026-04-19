@@ -117,7 +117,8 @@ struct oak_obj_native_fn_t
 {
   struct oak_obj_t obj;
   oak_native_fn_t fn;
-  int arity;
+  int arity_min;
+  int arity_max;
   /* Debug label (e.g. registered name); not owned, may be null. */
   const char* name;
 };
@@ -161,7 +162,7 @@ struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
 struct oak_obj_fn_t* oak_fn_new(usize code_offset, int arity);
 
 struct oak_obj_native_fn_t*
-oak_native_fn_new(oak_native_fn_t fn, int arity, const char* name);
+oak_native_fn_new(oak_native_fn_t fn, int arity_min, int arity_max, const char* name);
 
 struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
@@ -349,3 +350,8 @@ enum oak_fn_call_result_t oak_builtin_delete(void* vm,
                                              const struct oak_value_t* args,
                                              int argc,
                                              struct oak_value_t* out_result);
+
+enum oak_fn_call_result_t oak_builtin_input(void* vm,
+                                            const struct oak_value_t* args,
+                                            int argc,
+                                            struct oak_value_t* out_result);
