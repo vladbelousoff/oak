@@ -64,6 +64,20 @@ struct oak_native_binding_t
   int arity;
 };
 
+struct oak_compiler_t;
+struct oak_ast_node_t;
+struct oak_token_t;
+struct oak_type_t;
+
+/* Optional compile-time argument validator for a method binding. Receives the
+ * full call AST node (children are: callee, then user args), the inferred
+ * receiver type, and a fallback token to attribute errors to when an arg has
+ * no token of its own. */
+typedef void (*oak_method_validate_args_fn)(struct oak_compiler_t* c,
+                                            const struct oak_ast_node_t* call,
+                                            struct oak_type_t recv_ty,
+                                            const struct oak_token_t* err_tok);
+
 /* Static description of a method bound to a receiver type (e.g. arrays).
  * Methods are not exposed as global functions; they're only reachable
  * through `receiver.name(...)` syntax. */
@@ -74,6 +88,8 @@ struct oak_method_binding_t
   u8 const_idx;
   /* Includes the implicit receiver. So `arr.push(x)` -> arity 2. */
   int total_arity;
+  /* Optional. Called after arity is verified, before bytecode is emitted. */
+  oak_method_validate_args_fn validate_args;
 };
 
 #define OAK_MAX_ARRAY_METHODS 8
@@ -486,6 +502,17 @@ static int count_fn_params(const struct oak_ast_node_t* decl)
   return n;
 }
 
+/* Interns a freshly-allocated native function as a chunk constant and returns
+ * its index. The chunk takes ownership of the single allocation reference. */
+static u8 intern_native_constant(struct oak_compiler_t* c,
+                                 const oak_native_fn_t impl,
+                                 const int arity,
+                                 const char* name)
+{
+  struct oak_obj_native_fn_t* native = oak_make_native_fn(impl, arity, name);
+  return intern_constant(c, OAK_VALUE_OBJ(&native->obj));
+}
+
 static void register_native_fn(struct oak_compiler_t* c,
                                const struct oak_native_binding_t* binding)
 {
@@ -498,9 +525,8 @@ static void register_native_fn(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_obj_native_fn_t* native =
-      oak_make_native_fn(binding->impl, binding->arity, binding->name);
-  const u8 idx = intern_constant(c, OAK_VALUE_OBJ(&native->obj));
+  const u8 idx = intern_native_constant(
+      c, binding->impl, binding->arity, binding->name);
 
   struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
   slot->name = binding->name;
@@ -524,16 +550,30 @@ static void register_native_builtins(struct oak_compiler_t* c)
   }
 }
 
-static const struct oak_native_binding_t array_method_bindings[] = {
+static void validate_array_push_args(struct oak_compiler_t* c,
+                                     const struct oak_ast_node_t* call,
+                                     struct oak_type_t recv_ty,
+                                     const struct oak_token_t* err_tok);
+
+struct oak_array_method_def_t
+{
+  const char* name;
+  oak_native_fn_t impl;
+  /* Total arity, including the implicit receiver. */
+  int total_arity;
+  oak_method_validate_args_fn validate_args;
+};
+
+static const struct oak_array_method_def_t array_method_table[] = {
   /* push(receiver, value) -> new length. */
-  { "push", oak_builtin_push, 2 },
+  { "push", oak_builtin_push, 2, validate_array_push_args },
   /* len(receiver) -> length. */
-  { "len", oak_builtin_len, 1 },
+  { "len", oak_builtin_len, 1, null },
 };
 
 static void register_array_methods(struct oak_compiler_t* c)
 {
-  for (usize i = 0; i < oak_count_of(array_method_bindings); ++i)
+  for (usize i = 0; i < oak_count_of(array_method_table); ++i)
   {
     if (c->array_method_count >= OAK_MAX_ARRAY_METHODS)
     {
@@ -542,19 +582,19 @@ static void register_array_methods(struct oak_compiler_t* c)
       return;
     }
 
-    const struct oak_native_binding_t* b = &array_method_bindings[i];
-    struct oak_obj_native_fn_t* native =
-        oak_make_native_fn(b->impl, b->arity, b->name);
-    const u8 idx = intern_constant(c, OAK_VALUE_OBJ(&native->obj));
+    const struct oak_array_method_def_t* def = &array_method_table[i];
+    const u8 idx =
+        intern_native_constant(c, def->impl, def->total_arity, def->name);
     if (c->has_error)
       return;
 
     struct oak_method_binding_t* slot =
         &c->array_methods[c->array_method_count++];
-    slot->name = b->name;
-    slot->name_len = strlen(b->name);
+    slot->name = def->name;
+    slot->name_len = strlen(def->name);
     slot->const_idx = idx;
-    slot->total_arity = b->arity;
+    slot->total_arity = def->total_arity;
+    slot->validate_args = def->validate_args;
   }
 }
 
@@ -1221,7 +1261,7 @@ fn_call_arg_expr_at(const struct oak_ast_node_t* call, const usize index)
 
 static void validate_array_push_args(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* call,
-                                     const struct oak_type_t recv_ty,
+                                     struct oak_type_t recv_ty,
                                      const struct oak_token_t* err_tok)
 {
   const struct oak_ast_node_t* val_expr = fn_call_arg_expr_at(call, 0);
@@ -1307,9 +1347,9 @@ static void compile_method_call(struct oak_compiler_t* c,
     return;
   }
 
-  if (m->name_len == 4 && memcmp(m->name, "push", 4) == 0)
+  if (m->validate_args)
   {
-    validate_array_push_args(c, node, recv_ty, method->token);
+    m->validate_args(c, node, recv_ty, method->token);
     if (c->has_error)
       return;
   }
@@ -1434,11 +1474,6 @@ static void compile_node(struct oak_compiler_t* c,
     }
     case OAK_NODE_KIND_STRING:
     {
-      if (c->chunk->const_count >= 256)
-      {
-        compiler_error_at(c, null, "too many constants in one chunk (max 256)");
-        return;
-      }
       const char* chars = oak_token_buf(node->token);
       const int len = oak_token_size(node->token);
       struct oak_obj_string_t* str = oak_make_string(chars, (usize)len);

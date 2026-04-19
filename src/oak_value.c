@@ -156,10 +156,11 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
     case OAK_VAL_BOOL:
       return oak_as_bool(a) == oak_as_bool(b);
     case OAK_VAL_NUMBER:
-      if (a.as.number.flags != b.as.number.flags)
+      if (oak_is_f32(a) != oak_is_f32(b))
         return 0;
-      // it works for floats too
-      return a.as.number.integer == b.as.number.integer;
+      if (oak_is_f32(a))
+        return oak_as_f32(a) == oak_as_f32(b);
+      return oak_as_i32(a) == oak_as_i32(b);
     case OAK_VAL_OBJ:
       if (oak_is_string(a) && oak_is_string(b))
       {

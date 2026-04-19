@@ -31,6 +31,16 @@ static void vm_push(struct oak_vm_t* vm, const struct oak_value_t value)
   *vm->sp++ = value;
 }
 
+/* Push a value whose reference count already accounts for the new stack
+ * ownership (i.e. take ownership without an extra incref). Use for values
+ * just produced by oak_make_* / native fn return / similar fresh allocations
+ * whose only outstanding reference is being transferred to the stack. */
+static void vm_push_owned(struct oak_vm_t* vm, const struct oak_value_t value)
+{
+  oak_assert(vm->sp < vm->stack + OAK_STACK_MAX);
+  *vm->sp++ = value;
+}
+
 static struct oak_value_t vm_pop(struct oak_vm_t* vm)
 {
   oak_assert(vm->sp > vm->stack);
@@ -437,8 +447,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         {
           struct oak_obj_string_t* result =
               oak_string_concat(oak_as_string(a), oak_as_string(b));
-          vm_push(vm, OAK_VALUE_OBJ(result));
-          oak_obj_decref(&result->obj);
+          vm_push_owned(vm, OAK_VALUE_OBJ(result));
           oak_value_decref(a);
           oak_value_decref(b);
           break;
@@ -538,10 +547,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_NEW_ARRAY:
       {
         struct oak_obj_array_t* arr = oak_make_array();
-        vm_push(vm, OAK_VALUE_OBJ(&arr->obj));
-        /* vm_push increfs; release the make-time reference so only the stack
-         * owns it. */
-        oak_obj_decref(&arr->obj);
+        vm_push_owned(vm, OAK_VALUE_OBJ(&arr->obj));
         break;
       }
       case OAK_OP_GET_INDEX:
