@@ -300,6 +300,11 @@ static struct oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_IDENT,
   },
+  // SELF -> 'self' (used as a primary expression and inside FN_PARAM_SELF).
+  [OAK_NODE_SELF] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_SELF,
+  },
   // STMT -> STMT_IF | STMT_WHILE | STMT_FOR_FROM | STMT_BREAK | STMT_CONTINUE
   //       | STMT_RETURN | STMT_LET_ASSIGNMENT | STMT_ASSIGNMENT | STMT_EXPR
   [OAK_NODE_STMT] = {
@@ -338,7 +343,8 @@ static struct oak_grammar_entry_t oak_grammar[] = {
     },
   },
   // EXPR_PRIMARY -> INT | FLOAT | STRING | '[]' | '[:]'
-  //               | EXPR_MAP_LITERAL | EXPR_ARRAY_LITERAL | IDENT
+  //               | EXPR_MAP_LITERAL | EXPR_ARRAY_LITERAL
+  //               | EXPR_STRUCT_LITERAL | IDENT
   [OAK_NODE_EXPR_PRIMARY] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
@@ -349,7 +355,29 @@ static struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_EXPR_EMPTY_MAP,
       OAK_NODE_EXPR_MAP_LITERAL,
       OAK_NODE_EXPR_ARRAY_LITERAL,
+      OAK_NODE_EXPR_STRUCT_LITERAL,
+      OAK_NODE_SELF,
       OAK_NODE_IDENT,
+    },
+  },
+  // EXPR_STRUCT_LITERAL -> 'new' IDENT '{' STRUCT_LITERAL_FIELD* '}'
+  [OAK_NODE_EXPR_STRUCT_LITERAL] = {
+    .rules = {
+      OAK_TOKEN_NEW | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_STRUCT_LITERAL_FIELD | OAK_RULE_REPEAT,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // STRUCT_LITERAL_FIELD -> IDENT ':' EXPR ','?
+  [OAK_NODE_STRUCT_LITERAL_FIELD] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_IDENT,
+      OAK_TOKEN_COLON | OAK_RULE_TOKEN,
+      OAK_NODE_EXPR,
+      OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },
   // EXPR_EMPTY_ARRAY -> '[' ']'
@@ -433,13 +461,15 @@ static struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT_ASSIGNMENT,
     },
   },
-  // FN_DECL -> 'fn' FN_RECEIVER? IDENT '(' FN_PARAM* ')' ('->' TYPE_NAME)? BLOCK
+  // FN_DECL -> 'fn' FN_RECEIVER? IDENT '(' FN_PARAM_SELF? FN_PARAM* ')'
+  //            ('->' TYPE_NAME)? BLOCK
   [OAK_NODE_FN_DECL] = {
     .rules = {
       OAK_TOKEN_FN | OAK_RULE_TOKEN,
       OAK_NODE_FN_RECEIVER | OAK_RULE_OPTIONAL,
       OAK_NODE_IDENT,
       OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
+      OAK_NODE_FN_PARAM_SELF | OAK_RULE_OPTIONAL,
       OAK_NODE_FN_PARAM | OAK_RULE_REPEAT,
       OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,
       OAK_TOKEN_ARROW | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
@@ -462,6 +492,14 @@ static struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
       OAK_TOKEN_COLON | OAK_RULE_TOKEN,
       OAK_NODE_IDENT,
+      OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
+    },
+  },
+  // FN_PARAM_SELF -> MUT_KEYWORD? 'self' ','?
+  [OAK_NODE_FN_PARAM_SELF] = {
+    .rules = {
+      OAK_NODE_MUT_KEYWORD | OAK_RULE_OPTIONAL,
+      OAK_NODE_SELF,
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },

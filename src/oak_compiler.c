@@ -94,8 +94,44 @@ struct oak_method_binding_t
   oak_method_validate_args_fn validate_args;
 };
 
-#define OAK_MAX_ARRAY_METHODS 8
-#define OAK_MAX_MAP_METHODS   8
+#define OAK_MAX_ARRAY_METHODS  8
+#define OAK_MAX_MAP_METHODS    8
+#define OAK_MAX_STRUCTS        32
+#define OAK_MAX_STRUCT_FIELDS  32
+#define OAK_MAX_STRUCT_METHODS 16
+
+struct oak_struct_field_t
+{
+  /* Borrowed pointer into the lexer arena (lives for the compilation). */
+  const char* name;
+  usize name_len;
+  struct oak_type_t type;
+};
+
+/* User-defined method bound to a struct type. The method's compiled body is
+ * stored in the chunk's constants table at `const_idx`; it is invoked like a
+ * regular function with the receiver passed as the first argument (slot 0
+ * inside the body, accessible as `self`). */
+struct oak_struct_method_t
+{
+  const char* name;
+  usize name_len;
+  u8 const_idx;
+  /* Total arity including the implicit `self` receiver. */
+  int arity;
+  const struct oak_ast_node_t* decl;
+};
+
+struct oak_registered_struct_t
+{
+  const char* name;
+  usize name_len;
+  oak_type_id_t type_id;
+  int field_count;
+  struct oak_struct_field_t fields[OAK_MAX_STRUCT_FIELDS];
+  int method_count;
+  struct oak_struct_method_t methods[OAK_MAX_STRUCT_METHODS];
+};
 
 struct oak_compiler_t
 {
@@ -114,6 +150,8 @@ struct oak_compiler_t
   int array_method_count;
   struct oak_method_binding_t map_methods[OAK_MAX_MAP_METHODS];
   int map_method_count;
+  struct oak_registered_struct_t structs[OAK_MAX_STRUCTS];
+  int struct_count;
 };
 
 /* Convenience: intern a type id from a token spelling. */
@@ -396,6 +434,33 @@ fn_decl_name_node(const struct oak_ast_node_t* decl)
 }
 
 static const struct oak_ast_node_t*
+fn_decl_self_param(const struct oak_ast_node_t* decl)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &decl->children)
+  {
+    const struct oak_ast_node_t* ch =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (ch->kind == OAK_NODE_FN_PARAM_SELF)
+      return ch;
+  }
+  return null;
+}
+
+static int fn_param_self_is_mutable(const struct oak_ast_node_t* self_param)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &self_param->children)
+  {
+    const struct oak_ast_node_t* ch =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (ch->kind == OAK_NODE_MUT_KEYWORD)
+      return 1;
+  }
+  return 0;
+}
+
+static const struct oak_ast_node_t*
 fn_decl_block(const struct oak_ast_node_t* decl)
 {
   struct oak_list_entry_t* pos;
@@ -670,6 +735,182 @@ find_map_method(struct oak_compiler_t* c, const char* name, const usize len)
   return null;
 }
 
+static const struct oak_registered_struct_t*
+find_struct_by_name(const struct oak_compiler_t* c,
+                    const char* name,
+                    const usize len)
+{
+  for (int i = 0; i < c->struct_count; ++i)
+  {
+    const struct oak_registered_struct_t* s = &c->structs[i];
+    if (s->name_len == len && memcmp(s->name, name, len) == 0)
+      return s;
+  }
+  return null;
+}
+
+static const struct oak_registered_struct_t*
+find_struct_by_type_id(const struct oak_compiler_t* c,
+                       const oak_type_id_t type_id)
+{
+  if (type_id == OAK_TYPE_UNKNOWN)
+    return null;
+  for (int i = 0; i < c->struct_count; ++i)
+  {
+    if (c->structs[i].type_id == type_id)
+      return &c->structs[i];
+  }
+  return null;
+}
+
+static int find_struct_field(const struct oak_registered_struct_t* s,
+                             const char* name,
+                             const usize len)
+{
+  for (int i = 0; i < s->field_count; ++i)
+  {
+    const struct oak_struct_field_t* f = &s->fields[i];
+    if (f->name_len == len && memcmp(f->name, name, len) == 0)
+      return i;
+  }
+  return -1;
+}
+
+/* Walk all top-level struct declarations and register each in the compiler's
+ * struct registry. The struct's type id is interned into the type registry so
+ * later passes (function param types, struct literals) can resolve them. */
+static void register_program_structs(struct oak_compiler_t* c,
+                                     const struct oak_ast_node_t* program)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &program->children)
+  {
+    const struct oak_ast_node_t* item =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (item->kind != OAK_NODE_STRUCT_DECL)
+      continue;
+
+    const struct oak_list_entry_t* first = item->children.next;
+    if (first == &item->children)
+    {
+      compiler_error_at(c, item->token, "malformed struct declaration");
+      return;
+    }
+
+    /* The grammar produces TYPE_NAME first; for a plain user struct it nests
+     * an IDENT child. We only support simple ident names for struct types. */
+    const struct oak_ast_node_t* type_name_node =
+        oak_container_of(first, struct oak_ast_node_t, link);
+    const struct oak_ast_node_t* name_ident = type_name_node;
+    if (type_name_node->kind == OAK_NODE_TYPE_NAME)
+    {
+      const struct oak_list_entry_t* tn_first = type_name_node->children.next;
+      if (tn_first == &type_name_node->children)
+      {
+        compiler_error_at(
+            c, item->token, "struct type name must be an identifier");
+        return;
+      }
+      name_ident = oak_container_of(tn_first, struct oak_ast_node_t, link);
+    }
+    if (name_ident->kind != OAK_NODE_IDENT)
+    {
+      compiler_error_at(
+          c, item->token, "struct type name must be an identifier");
+      return;
+    }
+
+    const char* name = oak_token_text(name_ident->token);
+    const int name_len = oak_token_length(name_ident->token);
+
+    if (find_struct_by_name(c, name, (usize)name_len))
+    {
+      compiler_error_at(
+          c, name_ident->token, "duplicate struct '%.*s'", name_len, name);
+      return;
+    }
+
+    if (c->struct_count >= OAK_MAX_STRUCTS)
+    {
+      compiler_error_at(
+          c, item->token, "too many structs (max %d)", OAK_MAX_STRUCTS);
+      return;
+    }
+
+    struct oak_registered_struct_t* slot = &c->structs[c->struct_count++];
+    slot->name = name;
+    slot->name_len = (usize)name_len;
+    slot->type_id =
+        oak_type_registry_intern(&c->type_registry, name, (usize)name_len);
+    if (slot->type_id == OAK_TYPE_UNKNOWN)
+    {
+      compiler_error_at(
+          c, name_ident->token, "type registry full while declaring struct");
+      return;
+    }
+    slot->field_count = 0;
+
+    /* Collect field declarations in source order. Each entry is a binary node
+     * STRUCT_FIELD_DECL(IDENT, IDENT) where lhs is the field name and rhs
+     * names the field's type. */
+    for (struct oak_list_entry_t* fpos = first->next; fpos != &item->children;
+         fpos = fpos->next)
+    {
+      const struct oak_ast_node_t* fdecl =
+          oak_container_of(fpos, struct oak_ast_node_t, link);
+      if (fdecl->kind != OAK_NODE_STRUCT_FIELD_DECL || !fdecl->lhs ||
+          !fdecl->rhs)
+      {
+        compiler_error_at(c, item->token, "malformed struct field");
+        return;
+      }
+      if (slot->field_count >= OAK_MAX_STRUCT_FIELDS)
+      {
+        compiler_error_at(c,
+                          fdecl->lhs->token,
+                          "too many fields in struct '%.*s' (max %d)",
+                          name_len,
+                          name,
+                          OAK_MAX_STRUCT_FIELDS);
+        return;
+      }
+
+      const struct oak_ast_node_t* fname = fdecl->lhs;
+      const struct oak_ast_node_t* ftype = fdecl->rhs;
+      if (fname->kind != OAK_NODE_IDENT || ftype->kind != OAK_NODE_IDENT)
+      {
+        compiler_error_at(
+            c, fdecl->lhs->token, "struct field must be 'name : type'");
+        return;
+      }
+
+      const char* fn_name = oak_token_text(fname->token);
+      const usize fn_len = (usize)oak_token_length(fname->token);
+      for (int i = 0; i < slot->field_count; ++i)
+      {
+        if (slot->fields[i].name_len == fn_len &&
+            memcmp(slot->fields[i].name, fn_name, fn_len) == 0)
+        {
+          compiler_error_at(c,
+                            fname->token,
+                            "duplicate field '%.*s' in struct '%.*s'",
+                            (int)fn_len,
+                            fn_name,
+                            name_len,
+                            name);
+          return;
+        }
+      }
+
+      struct oak_struct_field_t* f = &slot->fields[slot->field_count++];
+      f->name = fn_name;
+      f->name_len = fn_len;
+      oak_type_clear(&f->type);
+      f->type.id = intern_type_token(c, ftype->token);
+    }
+  }
+}
+
 static void register_program_functions(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* program)
 {
@@ -681,17 +922,113 @@ static void register_program_functions(struct oak_compiler_t* c,
     if (item->kind != OAK_NODE_FN_DECL)
       continue;
 
-    if (fn_decl_has_receiver(item))
-    {
-      compiler_error_at(
-          c, item->token, "methods with a receiver are not implemented yet");
-      return;
-    }
-
     const struct oak_ast_node_t* name_node = fn_decl_name_node(item);
     const char* name = oak_token_text(name_node->token);
     const int name_len = oak_token_length(name_node->token);
-    const int arity = count_fn_params(item);
+    const int explicit_arity = count_fn_params(item);
+
+    const struct oak_ast_node_t* self_param = fn_decl_self_param(item);
+
+    if (fn_decl_has_receiver(item))
+    {
+      const struct oak_ast_node_t* recv_node =
+          oak_container_of(item->children.next, struct oak_ast_node_t, link);
+      const struct oak_ast_node_t* recv_ident = recv_node->child;
+      if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
+      {
+        compiler_error_at(
+            c, recv_node->token, "method receiver must be a type name");
+        return;
+      }
+
+      if (!self_param)
+      {
+        compiler_error_at(
+            c,
+            name_node->token,
+            "method '%.*s' must declare 'self' or 'mut self' as its first"
+            " parameter",
+            name_len,
+            name);
+        return;
+      }
+
+      const char* sname = oak_token_text(recv_ident->token);
+      const int sname_len = oak_token_length(recv_ident->token);
+      struct oak_registered_struct_t* sd = null;
+      for (int i = 0; i < c->struct_count; ++i)
+      {
+        struct oak_registered_struct_t* cand = &c->structs[i];
+        if (cand->name_len == (usize)sname_len &&
+            memcmp(cand->name, sname, (usize)sname_len) == 0)
+        {
+          sd = cand;
+          break;
+        }
+      }
+      if (!sd)
+      {
+        compiler_error_at(c,
+                          recv_ident->token,
+                          "no such struct '%.*s' for method receiver",
+                          sname_len,
+                          sname);
+        return;
+      }
+
+      for (int i = 0; i < sd->method_count; ++i)
+      {
+        const struct oak_struct_method_t* e = &sd->methods[i];
+        if (e->name_len == (usize)name_len &&
+            memcmp(e->name, name, (usize)name_len) == 0)
+        {
+          compiler_error_at(c,
+                            name_node->token,
+                            "duplicate method '%.*s' on struct '%.*s'",
+                            name_len,
+                            name,
+                            (int)sd->name_len,
+                            sd->name);
+          return;
+        }
+      }
+
+      if (sd->method_count >= OAK_MAX_STRUCT_METHODS)
+      {
+        compiler_error_at(c,
+                          name_node->token,
+                          "too many methods on struct '%.*s' (max %d)",
+                          (int)sd->name_len,
+                          sd->name,
+                          OAK_MAX_STRUCT_METHODS);
+        return;
+      }
+
+      const int total_arity = explicit_arity + 1;
+      struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
+      const u8 idx = intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
+
+      struct oak_struct_method_t* slot = &sd->methods[sd->method_count++];
+      slot->name = name;
+      slot->name_len = (usize)name_len;
+      slot->const_idx = idx;
+      slot->arity = total_arity;
+      slot->decl = item;
+      continue;
+    }
+
+    if (self_param)
+    {
+      const struct oak_ast_node_t* first_child = oak_container_of(
+          self_param->children.next, struct oak_ast_node_t, link);
+      compiler_error_at(c,
+                        first_child->token,
+                        "'self' parameter is only valid on methods (use"
+                        " 'fn TypeName.%.*s(self, ...)' instead)",
+                        name_len,
+                        name);
+      return;
+    }
 
     for (int i = 0; i < c->fn_registry_count; ++i)
     {
@@ -714,14 +1051,14 @@ static void register_program_functions(struct oak_compiler_t* c,
       return;
     }
 
-    struct oak_obj_fn_t* fn_obj = oak_fn_new(0, arity);
+    struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity);
     const u8 idx = intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
     struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
     slot->name = name;
     slot->name_len = (usize)name_len;
     slot->const_idx = idx;
-    slot->arity = arity;
+    slot->arity = explicit_arity;
     slot->decl = item;
   }
 }
@@ -773,8 +1110,12 @@ static void compile_stmt_return(struct oak_compiler_t* c,
   emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 }
 
+/* If `recv_struct` is non-null, the function is treated as a method: an
+ * implicit `self` local is installed at slot 0 with the receiver's static
+ * type, and explicit parameters start at slot 1. */
 static void compile_function_body(struct oak_compiler_t* c,
-                                  const struct oak_ast_node_t* decl)
+                                  const struct oak_ast_node_t* decl,
+                                  const struct oak_registered_struct_t* recv)
 {
   const struct oak_ast_node_t* body = fn_decl_block(decl);
   if (!body || body->kind != OAK_NODE_BLOCK)
@@ -789,8 +1130,20 @@ static void compile_function_body(struct oak_compiler_t* c,
   c->stack_depth = 0;
   c->current_loop = null;
 
-  struct oak_list_entry_t* pos;
   int slot = 0;
+  if (recv)
+  {
+    const struct oak_ast_node_t* sp = fn_decl_self_param(decl);
+    /* The presence of FN_PARAM_SELF was already checked when the method
+     * was registered; treat its absence here as an internal error. */
+    oak_assert(sp != null);
+    struct oak_type_t self_ty;
+    oak_type_clear(&self_ty);
+    self_ty.id = recv->type_id;
+    add_local(c, "self", 4u, slot++, fn_param_self_is_mutable(sp), self_ty);
+  }
+
+  struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &decl->children)
   {
     const struct oak_ast_node_t* ch =
@@ -817,8 +1170,7 @@ static void compile_function_body(struct oak_compiler_t* c,
               param_type);
   }
 
-  const int arity = count_fn_params(decl);
-  c->stack_depth = arity;
+  c->stack_depth = slot;
 
   compile_block(c, body);
 
@@ -839,9 +1191,26 @@ static void compile_function_bodies(struct oak_compiler_t* c)
     struct oak_value_t fn_val = c->chunk->constants[e->const_idx];
     struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
     fn_obj->code_offset = c->chunk->count;
-    compile_function_body(c, e->decl);
+    compile_function_body(c, e->decl, null);
     if (c->has_error)
       return;
+  }
+
+  for (int s = 0; s < c->struct_count; ++s)
+  {
+    const struct oak_registered_struct_t* sd = &c->structs[s];
+    for (int m = 0; m < sd->method_count; ++m)
+    {
+      const struct oak_struct_method_t* me = &sd->methods[m];
+      if (!me->decl)
+        continue;
+      struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
+      struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
+      fn_obj->code_offset = c->chunk->count;
+      compile_function_body(c, me->decl, sd);
+      if (c->has_error)
+        return;
+    }
   }
 }
 
@@ -854,6 +1223,9 @@ static void compile_program_items(struct oak_compiler_t* c,
     const struct oak_ast_node_t* item =
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (item->kind == OAK_NODE_FN_DECL)
+      continue;
+    /* Struct declarations are processed in a pre-pass; they don't emit code. */
+    if (item->kind == OAK_NODE_STRUCT_DECL)
       continue;
     compile_node(c, item);
   }
@@ -869,6 +1241,11 @@ static void compile_program(struct oak_compiler_t* c,
   if (c->has_error)
     return;
   register_map_methods(c);
+  if (c->has_error)
+    return;
+  /* Structs must be registered before functions so that function parameter
+   * types can refer to user-defined structs. */
+  register_program_structs(c, program);
   if (c->has_error)
     return;
   register_program_functions(c, program);
@@ -997,6 +1374,14 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         *out = local_ty;
       return;
     }
+    case OAK_NODE_SELF:
+    {
+      struct oak_type_t local_ty;
+      oak_type_clear(&local_ty);
+      if (local_type_get(c, "self", 4u, &local_ty))
+        *out = local_ty;
+      return;
+    }
     case OAK_NODE_FN_CALL:
     {
       const struct oak_list_entry_t* first = expr->children.next;
@@ -1016,6 +1401,32 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         infer_expr_static_type(c, recv, &recv_ty);
         const char* mn = oak_token_text(method->token);
         const usize mn_len = (usize)oak_token_length(method->token);
+        if (oak_type_is_known(&recv_ty) && !recv_ty.is_array &&
+            !recv_ty.is_map)
+        {
+          const struct oak_registered_struct_t* sd =
+              find_struct_by_type_id(c, recv_ty.id);
+          if (sd)
+          {
+            for (int i = 0; i < sd->method_count; ++i)
+            {
+              const struct oak_struct_method_t* sm = &sd->methods[i];
+              if (sm->name_len == mn_len &&
+                  memcmp(sm->name, mn, mn_len) == 0)
+              {
+                if (sm->decl)
+                {
+                  const struct oak_ast_node_t* ret =
+                      fn_decl_return_type_node(sm->decl);
+                  if (ret && ret->kind == OAK_NODE_IDENT)
+                    out->id = intern_type_token(c, ret->token);
+                }
+                return;
+              }
+            }
+          }
+          return;
+        }
         const struct oak_method_binding_t* m = null;
         if (recv_ty.is_array)
           m = find_array_method(c, mn, mn_len);
@@ -1120,6 +1531,46 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         out->id = coll_ty.id;
         return;
       }
+      return;
+    }
+    case OAK_NODE_EXPR_STRUCT_LITERAL:
+    {
+      const struct oak_list_entry_t* first = expr->children.next;
+      if (first == &expr->children)
+        return;
+      const struct oak_ast_node_t* name_node =
+          oak_container_of(first, struct oak_ast_node_t, link);
+      if (!name_node || name_node->kind != OAK_NODE_IDENT)
+        return;
+      const struct oak_registered_struct_t* sd =
+          find_struct_by_name(c,
+                              oak_token_text(name_node->token),
+                              (usize)oak_token_length(name_node->token));
+      if (!sd)
+        return;
+      out->id = sd->type_id;
+      return;
+    }
+    case OAK_NODE_MEMBER_ACCESS:
+    {
+      const struct oak_ast_node_t* recv = expr->lhs;
+      const struct oak_ast_node_t* fname = expr->rhs;
+      if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
+        return;
+      struct oak_type_t recv_ty;
+      infer_expr_static_type(c, recv, &recv_ty);
+      if (!oak_type_is_known(&recv_ty))
+        return;
+      const struct oak_registered_struct_t* sd =
+          find_struct_by_type_id(c, recv_ty.id);
+      if (!sd)
+        return;
+      const int idx = find_struct_field(sd,
+                                        oak_token_text(fname->token),
+                                        (usize)oak_token_length(fname->token));
+      if (idx < 0)
+        return;
+      *out = sd->fields[idx].type;
       return;
     }
     default:
@@ -1632,6 +2083,64 @@ static void validate_map_key_arg(struct oak_compiler_t* c,
   }
 }
 
+/* Type-check explicit arguments of a struct method call against the method's
+ * declared parameters. The receiver itself is not validated here (it has
+ * already been checked to be the right struct type by the caller). */
+static void
+validate_struct_method_call_arg_types(struct oak_compiler_t* c,
+                                      const struct oak_ast_node_t* call,
+                                      const struct oak_struct_method_t* m)
+{
+  if (!m->decl)
+    return;
+  const struct oak_list_entry_t* first = call->children.next;
+  struct oak_list_entry_t* pos = first->next;
+  int i = 0;
+  for (; pos != &call->children; pos = pos->next, ++i)
+  {
+    const struct oak_ast_node_t* arg_wrap =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    const struct oak_ast_node_t* arg_expr = arg_wrap;
+    if (arg_wrap->kind == OAK_NODE_FN_CALL_ARG)
+      arg_expr = arg_wrap->child;
+
+    const struct oak_ast_node_t* param = fn_decl_param_at(m->decl, i);
+    if (!param)
+    {
+      compiler_error_at(c, null, "internal error: missing parameter %d", i);
+      return;
+    }
+    const struct oak_ast_node_t* want_type_node = fn_param_type_ident(param);
+    if (!want_type_node || want_type_node->kind != OAK_NODE_IDENT)
+    {
+      compiler_error_at(
+          c, param->token, "malformed function parameter (expected type name)");
+      return;
+    }
+    const struct oak_type_t want = {
+      .id = intern_type_token(c, want_type_node->token),
+    };
+
+    struct oak_type_t got;
+    infer_expr_static_type(c, arg_expr, &got);
+    if (!oak_type_is_known(&got))
+      continue;
+    if (!oak_type_equal(&want, &got))
+    {
+      const struct oak_token_t* err_tok = arg_expr->token;
+      if (!err_tok && arg_wrap->kind == OAK_NODE_FN_CALL_ARG &&
+          arg_wrap->child && arg_wrap->child->token)
+        err_tok = arg_wrap->child->token;
+      compiler_error_at(c,
+                        err_tok,
+                        "argument %d: expected type '%s', found '%s'",
+                        i + 1,
+                        type_full_name(c, want),
+                        type_full_name(c, got));
+    }
+  }
+}
+
 /* Compile `receiver.method(args...)`. Method calls are dispatched purely
  * statically based on the receiver's compile-time type. The method's
  * native function is pushed as a constant, the receiver is compiled as
@@ -1658,11 +2167,77 @@ static void compile_method_call(struct oak_compiler_t* c,
   struct oak_type_t recv_ty;
   infer_expr_static_type(c, receiver, &recv_ty);
 
+  /* Struct method calls dispatch to a regular user function whose first
+   * parameter is the receiver (`self`). */
+  if (oak_type_is_known(&recv_ty) && !recv_ty.is_array && !recv_ty.is_map)
+  {
+    const struct oak_registered_struct_t* sd =
+        find_struct_by_type_id(c, recv_ty.id);
+    if (sd)
+    {
+      const struct oak_struct_method_t* sm = null;
+      for (int i = 0; i < sd->method_count; ++i)
+      {
+        const struct oak_struct_method_t* cand = &sd->methods[i];
+        if (cand->name_len == (usize)mname_len &&
+            memcmp(cand->name, mname, (usize)mname_len) == 0)
+        {
+          sm = cand;
+          break;
+        }
+      }
+      if (!sm)
+      {
+        compiler_error_at(c,
+                          method->token,
+                          "no method '%.*s' on struct '%.*s'",
+                          mname_len,
+                          mname,
+                          (int)sd->name_len,
+                          sd->name);
+        return;
+      }
+      const int expected_user = sm->arity - 1;
+      if ((int)user_argc != expected_user)
+      {
+        compiler_error_at(c,
+                          method->token,
+                          "method '%.*s' expects %d arguments, got %zu",
+                          mname_len,
+                          mname,
+                          expected_user,
+                          user_argc);
+        return;
+      }
+
+      validate_struct_method_call_arg_types(c, node, sm);
+      if (c->has_error)
+        return;
+
+      emit_op_arg(c, OAK_OP_CONSTANT, sm->const_idx, call_loc);
+      compile_node(c, receiver);
+
+      const struct oak_list_entry_t* first = node->children.next;
+      for (struct oak_list_entry_t* pos = first->next; pos != &node->children;
+           pos = pos->next)
+      {
+        const struct oak_ast_node_t* arg =
+            oak_container_of(pos, struct oak_ast_node_t, link);
+        compile_fn_call_arg(c, arg);
+      }
+
+      emit_op_arg(c, OAK_OP_CALL, (u8)sm->arity, call_loc);
+      c->stack_depth -= sm->arity;
+      return;
+    }
+  }
+
   if ((!recv_ty.is_array && !recv_ty.is_map) || !oak_type_is_known(&recv_ty))
   {
     compiler_error_at(c,
                       receiver->token ? receiver->token : method->token,
-                      "method '.%.*s' requires a typed array or map receiver",
+                      "method '.%.*s' requires a typed array, map, or struct"
+                      " receiver",
                       mname_len,
                       mname);
     return;
@@ -1845,6 +2420,19 @@ static void compile_node(struct oak_compiler_t* c,
           c, OAK_OP_GET_LOCAL, (u8)slot, code_loc_from_token(node->token));
       break;
     }
+    case OAK_NODE_SELF:
+    {
+      const int slot = find_local(c, "self", 4u, null);
+      if (slot < 0)
+      {
+        compiler_error_at(
+            c, node->token, "'self' is only valid inside a method body");
+        return;
+      }
+      emit_op_arg(
+          c, OAK_OP_GET_LOCAL, (u8)slot, code_loc_from_token(node->token));
+      break;
+    }
     case OAK_NODE_BINARY_ADD:
     case OAK_NODE_BINARY_SUB:
     case OAK_NODE_BINARY_MUL:
@@ -1992,6 +2580,72 @@ static void compile_node(struct oak_compiler_t* c,
         compile_node(c, lhs->rhs);
         compile_node(c, rhs);
         emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
+        emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
+        break;
+      }
+
+      if (lhs->kind == OAK_NODE_MEMBER_ACCESS)
+      {
+        const struct oak_ast_node_t* recv = lhs->lhs;
+        const struct oak_ast_node_t* fname = lhs->rhs;
+        if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
+        {
+          compiler_error_at(
+              c, lhs->token, "field assignment requires 'expr.field = expr'");
+          return;
+        }
+        struct oak_type_t recv_ty;
+        infer_expr_static_type(c, recv, &recv_ty);
+        const struct oak_registered_struct_t* sd =
+            oak_type_is_known(&recv_ty)
+                ? find_struct_by_type_id(c, recv_ty.id)
+                : null;
+        if (!sd)
+        {
+          compiler_error_at(c,
+                            fname->token,
+                            "field assignment '.%.*s ='"
+                            " requires a struct receiver",
+                            oak_token_length(fname->token),
+                            oak_token_text(fname->token));
+          return;
+        }
+        const int idx =
+            find_struct_field(sd,
+                              oak_token_text(fname->token),
+                              (usize)oak_token_length(fname->token));
+        if (idx < 0)
+        {
+          compiler_error_at(c,
+                            fname->token,
+                            "no such field '%.*s' on struct '%.*s'",
+                            oak_token_length(fname->token),
+                            oak_token_text(fname->token),
+                            (int)sd->name_len,
+                            sd->name);
+          return;
+        }
+
+        struct oak_type_t val_ty;
+        infer_expr_static_type(c, rhs, &val_ty);
+        if (oak_type_is_known(&val_ty) &&
+            !oak_type_equal(&sd->fields[idx].type, &val_ty))
+        {
+          compiler_error_at(c,
+                            rhs->token ? rhs->token : fname->token,
+                            "cannot assign value of type '%s' to field "
+                            "'%.*s' of type '%s'",
+                            type_full_name(c, val_ty),
+                            (int)sd->fields[idx].name_len,
+                            sd->fields[idx].name,
+                            type_full_name(c, sd->fields[idx].type));
+          return;
+        }
+
+        compile_node(c, recv);
+        compile_node(c, rhs);
+        emit_op_arg(
+            c, OAK_OP_SET_FIELD, (u8)idx, code_loc_from_token(fname->token));
         emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
         break;
       }
@@ -2300,6 +2954,192 @@ static void compile_node(struct oak_compiler_t* c,
       compile_node(c, node->lhs);
       compile_node(c, node->rhs);
       emit_op(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
+      break;
+    }
+    case OAK_NODE_MEMBER_ACCESS:
+    {
+      const struct oak_ast_node_t* recv = node->lhs;
+      const struct oak_ast_node_t* fname = node->rhs;
+      if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
+      {
+        compiler_error_at(c,
+                          node->token,
+                          "field access requires the form 'expr.field'");
+        return;
+      }
+      struct oak_type_t recv_ty;
+      infer_expr_static_type(c, recv, &recv_ty);
+      const struct oak_registered_struct_t* sd =
+          oak_type_is_known(&recv_ty)
+              ? find_struct_by_type_id(c, recv_ty.id)
+              : null;
+      if (!sd)
+      {
+        compiler_error_at(c,
+                          fname->token,
+                          "field access '.%.*s' requires a struct receiver",
+                          oak_token_length(fname->token),
+                          oak_token_text(fname->token));
+        return;
+      }
+      const int idx =
+          find_struct_field(sd,
+                            oak_token_text(fname->token),
+                            (usize)oak_token_length(fname->token));
+      if (idx < 0)
+      {
+        compiler_error_at(c,
+                          fname->token,
+                          "no such field '%.*s' on struct '%.*s'",
+                          oak_token_length(fname->token),
+                          oak_token_text(fname->token),
+                          (int)sd->name_len,
+                          sd->name);
+        return;
+      }
+      compile_node(c, recv);
+      emit_op_arg(
+          c, OAK_OP_GET_FIELD, (u8)idx, code_loc_from_token(fname->token));
+      break;
+    }
+    case OAK_NODE_EXPR_STRUCT_LITERAL:
+    {
+      const struct oak_list_entry_t* first = node->children.next;
+      if (first == &node->children)
+      {
+        compiler_error_at(
+            c, node->token, "struct literal missing type name");
+        return;
+      }
+      const struct oak_ast_node_t* name_node =
+          oak_container_of(first, struct oak_ast_node_t, link);
+      if (!name_node || name_node->kind != OAK_NODE_IDENT)
+      {
+        compiler_error_at(
+            c, node->token, "struct literal: type must be an identifier");
+        return;
+      }
+      const char* sname = oak_token_text(name_node->token);
+      const int sname_len = oak_token_length(name_node->token);
+      const struct oak_registered_struct_t* sd =
+          find_struct_by_name(c, sname, (usize)sname_len);
+      if (!sd)
+      {
+        compiler_error_at(c,
+                          name_node->token,
+                          "unknown struct type '%.*s'",
+                          sname_len,
+                          sname);
+        return;
+      }
+
+      /* Collect the supplied initializers indexed by the field's declared
+       * position so we can emit them in declaration order regardless of the
+       * order they appear in the source. */
+      const struct oak_ast_node_t* exprs[OAK_MAX_STRUCT_FIELDS] = { 0 };
+      for (struct oak_list_entry_t* pos = first->next;
+           pos != &node->children;
+           pos = pos->next)
+      {
+        const struct oak_ast_node_t* entry =
+            oak_container_of(pos, struct oak_ast_node_t, link);
+        if (entry->kind != OAK_NODE_STRUCT_LITERAL_FIELD || !entry->lhs ||
+            !entry->rhs)
+        {
+          compiler_error_at(
+              c, entry->token, "malformed struct field initializer");
+          return;
+        }
+        const struct oak_ast_node_t* fname = entry->lhs;
+        const struct oak_ast_node_t* fexpr = entry->rhs;
+        if (fname->kind != OAK_NODE_IDENT)
+        {
+          compiler_error_at(c,
+                            fname->token,
+                            "struct field name must be an identifier");
+          return;
+        }
+
+        const int idx =
+            find_struct_field(sd,
+                              oak_token_text(fname->token),
+                              (usize)oak_token_length(fname->token));
+        if (idx < 0)
+        {
+          compiler_error_at(c,
+                            fname->token,
+                            "no such field '%.*s' on struct '%.*s'",
+                            oak_token_length(fname->token),
+                            oak_token_text(fname->token),
+                            (int)sd->name_len,
+                            sd->name);
+          return;
+        }
+        if (exprs[idx])
+        {
+          compiler_error_at(c,
+                            fname->token,
+                            "duplicate field '%.*s' in struct literal",
+                            oak_token_length(fname->token),
+                            oak_token_text(fname->token));
+          return;
+        }
+
+        struct oak_type_t got;
+        infer_expr_static_type(c, fexpr, &got);
+        if (oak_type_is_known(&got) &&
+            !oak_type_equal(&sd->fields[idx].type, &got))
+        {
+          compiler_error_at(c,
+                            fexpr->token ? fexpr->token : fname->token,
+                            "field '%.*s': expected type '%s', got '%s'",
+                            (int)sd->fields[idx].name_len,
+                            sd->fields[idx].name,
+                            type_full_name(c, sd->fields[idx].type),
+                            type_full_name(c, got));
+          return;
+        }
+
+        exprs[idx] = fexpr;
+      }
+
+      for (int i = 0; i < sd->field_count; ++i)
+      {
+        if (!exprs[i])
+        {
+          compiler_error_at(c,
+                            name_node->token,
+                            "missing field '%.*s' in '%.*s' literal",
+                            (int)sd->fields[i].name_len,
+                            sd->fields[i].name,
+                            (int)sd->name_len,
+                            sd->name);
+          return;
+        }
+      }
+
+      /* Emit the type-name string as a constant at the bottom so the runtime
+       * can stamp it onto the new struct (cheap diagnostics). */
+      struct oak_obj_string_t* type_name_obj =
+          oak_string_new(sd->name, sd->name_len);
+      const u8 name_idx = intern_constant(c, OAK_VALUE_OBJ(type_name_obj));
+      emit_op_arg(c,
+                  OAK_OP_CONSTANT,
+                  name_idx,
+                  code_loc_from_token(name_node->token));
+
+      for (int i = 0; i < sd->field_count; ++i)
+      {
+        compile_node(c, exprs[i]);
+        if (c->has_error)
+          return;
+      }
+
+      emit_op_arg(c,
+                  OAK_OP_NEW_STRUCT_FROM_STACK,
+                  (u8)sd->field_count,
+                  OAK_LOC_SYNTHETIC);
+      c->stack_depth -= sd->field_count;
       break;
     }
     case OAK_NODE_STMT_IF:

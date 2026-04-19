@@ -41,6 +41,12 @@ void oak_obj_decref(struct oak_obj_t* obj)
     if (map->entries)
       oak_free(map->entries, OAK_SRC_LOC);
   }
+  else if (obj->type == OAK_OBJ_STRUCT)
+  {
+    struct oak_obj_struct_t* s = (struct oak_obj_struct_t*)obj;
+    for (int i = 0; i < s->field_count; ++i)
+      oak_value_decref(s->fields[i]);
+  }
 
   oak_free(obj, OAK_SRC_LOC);
 }
@@ -130,6 +136,22 @@ void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
   }
   oak_value_incref(value);
   arr->items[arr->length++] = value;
+}
+
+struct oak_obj_struct_t* oak_struct_new(const int field_count,
+                                        const char* type_name)
+{
+  oak_assert(field_count >= 0);
+  const usize size = sizeof(struct oak_obj_struct_t) +
+                     (usize)field_count * sizeof(struct oak_value_t);
+  struct oak_obj_struct_t* s = oak_alloc(size, OAK_SRC_LOC);
+  s->obj.type = OAK_OBJ_STRUCT;
+  oak_refcount_init(&s->obj.refcount, 1);
+  s->type_name = type_name;
+  s->field_count = field_count;
+  for (int i = 0; i < field_count; ++i)
+    s->fields[i] = OAK_VALUE_I32(0);
+  return s;
 }
 
 struct oak_obj_map_t* oak_map_new(void)
@@ -422,6 +444,14 @@ void oak_value_print(const struct oak_value_t value)
     {
       const struct oak_obj_map_t* map = oak_as_map(value);
       oak_log(OAK_LOG_INFO, "<map len=%zu>", map->length);
+    }
+    else if (oak_is_struct(value))
+    {
+      const struct oak_obj_struct_t* s = oak_as_struct(value);
+      oak_log(OAK_LOG_INFO,
+              "<%s fields=%d>",
+              s->type_name ? s->type_name : "struct",
+              s->field_count);
     }
     else
       oak_log(OAK_LOG_INFO, "%p", oak_as_obj(value));

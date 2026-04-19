@@ -39,6 +39,9 @@ enum oak_opcode_t
   OAK_OP_SET_INDEX,
   OAK_OP_MAP_KEY_AT,
   OAK_OP_MAP_VALUE_AT,
+  OAK_OP_NEW_STRUCT_FROM_STACK,
+  OAK_OP_GET_FIELD,
+  OAK_OP_SET_FIELD,
 };
 
 enum oak_op_format_t

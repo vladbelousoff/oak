@@ -50,6 +50,15 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_SET_INDEX] = { "OP_SET_INDEX", OAK_OP_FMT_NONE, -2 },
   [OAK_OP_MAP_KEY_AT] = { "OP_MAP_KEY_AT", OAK_OP_FMT_NONE, -1 },
   [OAK_OP_MAP_VALUE_AT] = { "OP_MAP_VALUE_AT", OAK_OP_FMT_NONE, -1 },
+  /* Pops <count> field values plus one type-name string from the stack and
+   * pushes a fresh struct. Stack effect counts only the name (consumed) and
+   * the produced struct; <count> is variable and adjusted at compile time. */
+  [OAK_OP_NEW_STRUCT_FROM_STACK] = { "OP_NEW_STRUCT_FROM_STACK",
+                                     OAK_OP_FMT_ARGC,
+                                     0 },
+  [OAK_OP_GET_FIELD] = { "OP_GET_FIELD", OAK_OP_FMT_SLOT, 0 },
+  /* Stack: [..., struct, value] -> [..., value]; sets struct.fields[idx]. */
+  [OAK_OP_SET_FIELD] = { "OP_SET_FIELD", OAK_OP_FMT_SLOT, -1 },
 };
 
 #define OAK_OP_INFO_COUNT oak_count_of(oak_op_info)
@@ -202,6 +211,15 @@ snprint_value(char* buf, const usize size, const struct oak_value_t value)
     if (oak_is_map(value))
       return snprintf(
           buf, size, "<map len=%zu>", oak_as_map(value)->length);
+    if (oak_is_struct(value))
+    {
+      const struct oak_obj_struct_t* s = oak_as_struct(value);
+      return snprintf(buf,
+                      size,
+                      "<%s fields=%d>",
+                      s->type_name ? s->type_name : "struct",
+                      s->field_count);
+    }
     return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
   }
   buf[0] = '\0';

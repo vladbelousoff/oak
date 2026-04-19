@@ -1,0 +1,75 @@
+type Point struct {
+  x : number;
+  y : number;
+}
+
+type Person struct {
+  name : string;
+  age  : number;
+}
+
+let p = new Point { x : 3, y : 4 };
+print(p.x);
+print(p.y);
+
+let mut q = new Point { y : 20, x : 10 };
+print(q.x);
+print(q.y);
+
+q.x = q.x + 1;
+q.y = q.y * 2;
+print(q.x);
+print(q.y);
+
+let alice = new Person { name : 'alice', age : 30 };
+print(alice.name);
+print(alice.age);
+
+let mut bob = new Person { age : 25, name : 'bob' };
+bob.age = bob.age + 1;
+bob.name = 'robert';
+print(bob.name);
+print(bob.age);
+
+let dx = q.x - p.x;
+let dy = q.y - p.y;
+print(dx * dx + dy * dy);
+
+fn Point.sum(self) -> number {
+  return self.x + self.y;
+}
+
+fn Point.shift(mut self, dx : number, dy : number) -> number {
+  self.x = self.x + dx;
+  self.y = self.y + dy;
+  return self.x + self.y;
+}
+
+fn Point.dist_sq(self, other : Point) -> number {
+  let ddx = self.x - other.x;
+  let ddy = self.y - other.y;
+  return ddx * ddx + ddy * ddy;
+}
+
+print(p.sum());
+print(q.sum());
+
+let mut r = new Point { x : 1, y : 2 };
+print(r.shift(3, 4));
+print(r.x);
+print(r.y);
+
+print(r.dist_sq(p));
+
+fn Person.greet(self) -> string {
+  return self.name;
+}
+
+fn Person.older_by(mut self, years : number) -> number {
+  self.age = self.age + years;
+  return self.age;
+}
+
+print(alice.greet());
+print(bob.older_by(4));
+print(bob.age);

@@ -63,9 +63,11 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
     { "in", OAK_TOKEN_IN },
     { "let", OAK_TOKEN_LET },
     { "mut", OAK_TOKEN_MUT },
+    { "new", OAK_TOKEN_NEW },
     { "not", OAK_TOKEN_NOT },
     { "or", OAK_TOKEN_OR },
     { "return", OAK_TOKEN_RETURN },
+    { "self", OAK_TOKEN_SELF },
     { "struct", OAK_TOKEN_STRUCT },
     { "to", OAK_TOKEN_TO },
     { "true", OAK_TOKEN_TRUE },
@@ -199,6 +201,10 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "FN";
     case OAK_TOKEN_AS:
       return "AS";
+    case OAK_TOKEN_NEW:
+      return "NEW";
+    case OAK_TOKEN_SELF:
+      return "SELF";
     default:
       return null;
   }

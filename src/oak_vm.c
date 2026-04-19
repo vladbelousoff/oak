@@ -756,6 +756,96 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         oak_value_decref(coll_v);
         break;
       }
+      case OAK_OP_NEW_STRUCT_FROM_STACK:
+      {
+        /* Stack on entry: [..., type_name_string, f0, f1, ..., f(N-1)].
+         * Result: [..., struct]. */
+        const u8 count = (u8)vm_read(vm, 1);
+        if ((usize)(vm->sp - vm->stack) < (usize)count + 1u)
+        {
+          runtime_error(vm, "stack underflow in struct literal");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_value_t* base = vm->sp - (int)count;
+        const struct oak_value_t name_v = base[-1];
+        const char* type_name = null;
+        if (oak_is_string(name_v))
+          type_name = oak_as_string(name_v)->chars;
+
+        struct oak_obj_struct_t* s = oak_struct_new((int)count, type_name);
+        for (int i = 0; i < (int)count; ++i)
+        {
+          oak_value_incref(base[i]);
+          s->fields[i] = base[i];
+        }
+        for (int i = 0; i < (int)count; ++i)
+          oak_value_decref(base[i]);
+        oak_value_decref(name_v);
+        vm->sp -= (int)count + 1;
+        vm_push_owned(vm, OAK_VALUE_OBJ(&s->obj));
+        break;
+      }
+      case OAK_OP_GET_FIELD:
+      {
+        const u8 idx = (u8)vm_read(vm, 1);
+        const struct oak_value_t recv = vm_pop(vm);
+        if (!oak_is_struct(recv))
+        {
+          runtime_error(vm,
+                        "field access requires a struct, got %s",
+                        value_kind_desc(recv));
+          oak_value_decref(recv);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_obj_struct_t* s = oak_as_struct(recv);
+        if ((int)idx >= s->field_count)
+        {
+          runtime_error(vm,
+                        "field index %u out of bounds (struct has %d fields)",
+                        (unsigned)idx,
+                        s->field_count);
+          oak_value_decref(recv);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        vm_push(vm, s->fields[idx]);
+        oak_value_decref(recv);
+        break;
+      }
+      case OAK_OP_SET_FIELD:
+      {
+        /* Stack: [..., recv, value]; result: [..., value]. */
+        const u8 idx = (u8)vm_read(vm, 1);
+        if (vm->sp - vm->stack < 2)
+        {
+          runtime_error(vm, "stack underflow in field assignment");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t value = vm->sp[-1];
+        const struct oak_value_t recv = vm->sp[-2];
+        if (!oak_is_struct(recv))
+        {
+          runtime_error(vm,
+                        "field assignment requires a struct, got %s",
+                        value_kind_desc(recv));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_obj_struct_t* s = oak_as_struct(recv);
+        if ((int)idx >= s->field_count)
+        {
+          runtime_error(vm,
+                        "field index %u out of bounds (struct has %d fields)",
+                        (unsigned)idx,
+                        s->field_count);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_value_decref(s->fields[idx]);
+        oak_value_incref(value);
+        s->fields[idx] = value;
+        oak_value_decref(recv);
+        vm->sp[-2] = value;
+        vm->sp -= 1;
+        break;
+      }
       default:
         runtime_error(vm, "internal error: unknown opcode 0x%02x", instruction);
         return OAK_VM_RUNTIME_ERROR;

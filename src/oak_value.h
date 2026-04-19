@@ -20,6 +20,7 @@ enum oak_obj_type_t
   OAK_OBJ_MAP,
   OAK_OBJ_FN,
   OAK_OBJ_NATIVE_FN,
+  OAK_OBJ_STRUCT,
 };
 
 struct oak_obj_t
@@ -84,6 +85,19 @@ struct oak_value_t
     struct oak_number_t number;
     struct oak_obj_t* obj;
   } as;
+};
+
+/* User-defined struct instance. Fields are stored densely in declaration
+ * order. The struct's compile-time type is not tracked at runtime; field
+ * lookup is resolved to a fixed index by the compiler. */
+struct oak_obj_struct_t
+{
+  struct oak_obj_t obj;
+  /* Borrowed pointer to the struct's name (lives for the lifetime of the
+   * source buffer); used for diagnostics only. May be null. */
+  const char* type_name;
+  int field_count;
+  struct oak_value_t fields[];
 };
 
 enum oak_fn_call_result_t
@@ -152,6 +166,8 @@ oak_native_fn_new(oak_native_fn_t fn, int arity, const char* name);
 struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
 
+struct oak_obj_struct_t* oak_struct_new(int field_count, const char* type_name);
+
 struct oak_obj_map_t* oak_map_new(void);
 /* Returns 1 and writes the value into *out if found; 0 otherwise. */
 int oak_map_get(const struct oak_obj_map_t* map,
@@ -210,6 +226,11 @@ static inline int oak_is_array(const struct oak_value_t value)
 static inline int oak_is_map(const struct oak_value_t value)
 {
   return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_MAP;
+}
+
+static inline int oak_is_struct(const struct oak_value_t value)
+{
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_STRUCT;
 }
 
 static inline int oak_is_i32(const struct oak_value_t value)
@@ -279,6 +300,13 @@ oak_as_map(const struct oak_value_t value)
 {
   oak_assert(oak_is_map(value));
   return (struct oak_obj_map_t*)value.as.obj;
+}
+
+static inline struct oak_obj_struct_t*
+oak_as_struct(const struct oak_value_t value)
+{
+  oak_assert(oak_is_struct(value));
+  return (struct oak_obj_struct_t*)value.as.obj;
 }
 
 static inline char* oak_as_cstring(const struct oak_value_t value)
