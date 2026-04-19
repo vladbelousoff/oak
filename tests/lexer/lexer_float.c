@@ -6,17 +6,17 @@ OAK_TEST_DECL(LexFloat)
 
   static struct oak_expected_token_t expected_tokens[] = {
     {
-        .kind = OAK_TOKEN_FLOAT_NUM,
+        .kind = OAK_TOKEN_FLOAT,
         .line = 1,
         .column = 1,
-        .pos = 1,
+        .offset = 1,
         .floating = 77.23f,
     },
   };
 
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, 1);
-  oak_lexer_cleanup(lexer);
+  oak_lexer_free(lexer);
 
   return result;
 }

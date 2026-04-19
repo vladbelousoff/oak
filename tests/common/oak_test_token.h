@@ -15,7 +15,7 @@ struct oak_expected_token_t
   enum oak_token_kind_t kind;
   int line;
   int column;
-  int pos;
+  int offset;
   union
   {
     char string[64];
@@ -31,7 +31,7 @@ oak_test_token(const struct oak_token_t* token,
 {
   if (oak_token_kind(token) != expected->kind)
   {
-    oak_log(OAK_LOG_ERR,
+    oak_log(OAK_LOG_ERROR,
             "token[%zu]: kind %s != expected %s",
             index,
             oak_token_name(oak_token_kind(token)),
@@ -40,7 +40,7 @@ oak_test_token(const struct oak_token_t* token,
   }
   if (oak_token_line(token) != expected->line)
   {
-    oak_log(OAK_LOG_ERR,
+    oak_log(OAK_LOG_ERROR,
             "token[%zu] (%s): line %d != expected %d",
             index,
             oak_token_name(oak_token_kind(token)),
@@ -50,7 +50,7 @@ oak_test_token(const struct oak_token_t* token,
   }
   if (oak_token_column(token) != expected->column)
   {
-    oak_log(OAK_LOG_ERR,
+    oak_log(OAK_LOG_ERROR,
             "token[%zu] (%s): column %d != expected %d",
             index,
             oak_token_name(oak_token_kind(token)),
@@ -58,22 +58,22 @@ oak_test_token(const struct oak_token_t* token,
             expected->column);
     return OAK_TEST_TOKEN_COLUMN;
   }
-  if (oak_token_pos(token) != expected->pos)
+  if (oak_token_offset(token) != expected->offset)
   {
-    oak_log(OAK_LOG_ERR,
-            "token[%zu] (%s): pos %d != expected %d",
+    oak_log(OAK_LOG_ERROR,
+            "token[%zu] (%s): offset %d != expected %d",
             index,
             oak_token_name(oak_token_kind(token)),
-            oak_token_pos(token),
-            expected->pos);
-    return OAK_TEST_TOKEN_POS;
+            oak_token_offset(token),
+            expected->offset);
+    return OAK_TEST_TOKEN_OFFSET;
   }
 
-  if (oak_token_kind(token) == OAK_TOKEN_INT_NUM)
+  if (oak_token_kind(token) == OAK_TOKEN_INT)
   {
     if (expected->integer != oak_token_as_i32(token))
     {
-      oak_log(OAK_LOG_ERR,
+      oak_log(OAK_LOG_ERROR,
               "token[%zu]: int value %d != expected %d",
               index,
               oak_token_as_i32(token),
@@ -82,11 +82,11 @@ oak_test_token(const struct oak_token_t* token,
     }
   }
 
-  if (oak_token_kind(token) == OAK_TOKEN_FLOAT_NUM)
+  if (oak_token_kind(token) == OAK_TOKEN_FLOAT)
   {
     if (fabsf(expected->floating - oak_token_as_f32(token)) > 0.0001f)
     {
-      oak_log(OAK_LOG_ERR,
+      oak_log(OAK_LOG_ERROR,
               "token[%zu]: float value %f != expected %f",
               index,
               (double)oak_token_as_f32(token),
@@ -98,12 +98,12 @@ oak_test_token(const struct oak_token_t* token,
   if (oak_token_kind(token) == OAK_TOKEN_STRING ||
       oak_token_kind(token) == OAK_TOKEN_IDENT)
   {
-    if (strcmp(oak_token_buf(token), expected->string) != 0)
+    if (strcmp(oak_token_text(token), expected->string) != 0)
     {
-      oak_log(OAK_LOG_ERR,
+      oak_log(OAK_LOG_ERROR,
               "token[%zu]: string \"%s\" != expected \"%s\"",
               index,
-              oak_token_buf(token),
+              oak_token_text(token),
               expected->string);
       return OAK_TEST_TOKEN_STRING;
     }
@@ -124,7 +124,7 @@ oak_test_tokens(const struct oak_lexer_result_t* lexer,
   {
     if (token_index >= count)
     {
-      oak_log(OAK_LOG_ERR,
+      oak_log(OAK_LOG_ERROR,
               "extra token at index %zu (expected %zu tokens)",
               token_index,
               count);

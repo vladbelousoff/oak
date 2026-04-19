@@ -97,9 +97,9 @@ void oak_free(void* ptr, const struct oak_src_loc_t src_loc)
       (struct oak_mem_header_t*)((char*)ptr - sizeof(struct oak_mem_header_t));
   if (header->signature != OAK_MEM_SIG)
   {
-    oak_log(OAK_LOG_ERR,
+    oak_log(OAK_LOG_ERROR,
             "memory signature mismatch: %s:%lu",
-            oak_filename(src_loc.file),
+            oak_path_basename(src_loc.file),
             src_loc.line);
   }
   else
@@ -130,9 +130,9 @@ void oak_mem_shutdown()
   {
     struct oak_mem_header_t* header =
         oak_container_of(entry, struct oak_mem_header_t, link);
-    oak_log(OAK_LOG_ERR,
+    oak_log(OAK_LOG_ERROR,
             "leaked memory: %s:%lu, size: %lu",
-            oak_filename(header->src_loc.file),
+            oak_path_basename(header->src_loc.file),
             header->src_loc.line,
             header->size);
     oak_list_remove(&header->link);

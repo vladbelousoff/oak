@@ -17,27 +17,27 @@ OAK_TEST_DECL(LexUnicode)
         .kind = OAK_TOKEN_IDENT,
         .line = 1,
         .column = 1,
-        .pos = 1,
+        .offset = 1,
         .string = "caf\xC3\xA9",
     },
     {
         .kind = OAK_TOKEN_IDENT,
         .line = 1,
         .column = 6,
-        .pos = 6,
+        .offset = 6,
         .string = "\xE5\x90\x8D",
     },
     {
         .kind = OAK_TOKEN_ASSIGN,
         .line = 1,
         .column = 8,
-        .pos = 8,
+        .offset = 8,
     },
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 10,
-        .pos = 10,
+        .offset = 10,
         .string = "\xE4\xB8\x96\xE7\x95\x8C",
     },
   };
@@ -45,7 +45,7 @@ OAK_TEST_DECL(LexUnicode)
   const usize n = oak_count_of(expected_tokens);
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, n);
-  oak_lexer_cleanup(lexer);
+  oak_lexer_free(lexer);
   return result;
 }
 

@@ -231,7 +231,7 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
       const u8 idx = chunk->bytecode[offset + 1];
       char val[64];
       snprint_value(val, sizeof(val), chunk->constants[idx]);
-      oak_log(OAK_LOG_INF,
+      oak_log(OAK_LOG_INFO,
               "%04zu %s  %-16s %4d ; %s",
               offset,
               line,
@@ -245,7 +245,7 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
       const u8 slot = chunk->bytecode[offset + 1];
       const char* local = debug_local_name(chunk, slot, offset);
       if (local)
-        oak_log(OAK_LOG_INF,
+        oak_log(OAK_LOG_INFO,
                 "%04zu %s  %-16s %4d ; %s",
                 offset,
                 line,
@@ -253,14 +253,14 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
                 slot,
                 local);
       else
-        oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d", offset, line, name, slot);
+        oak_log(OAK_LOG_INFO, "%04zu %s  %-16s %4d", offset, line, name, slot);
       return offset + 2;
     }
     case OAK_OP_FMT_JUMP_FWD:
     {
       const u16 jump = (u16)(chunk->bytecode[offset + 1] << 8) |
                             chunk->bytecode[offset + 2];
-      oak_log(OAK_LOG_INF,
+      oak_log(OAK_LOG_INFO,
               "%04zu %s  %-16s %4d -> %04zu",
               offset,
               line,
@@ -273,7 +273,7 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     {
       const u16 jump = (u16)(chunk->bytecode[offset + 1] << 8) |
                             chunk->bytecode[offset + 2];
-      oak_log(OAK_LOG_INF,
+      oak_log(OAK_LOG_INFO,
               "%04zu %s  %-16s %4d -> %04zu",
               offset,
               line,
@@ -285,18 +285,18 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     case OAK_OP_FMT_ARGC:
     {
       const u8 argc = chunk->bytecode[offset + 1];
-      oak_log(OAK_LOG_INF, "%04zu %s  %-16s %4d", offset, line, name, argc);
+      oak_log(OAK_LOG_INFO, "%04zu %s  %-16s %4d", offset, line, name, argc);
       return offset + 2;
     }
     default:
-      oak_log(OAK_LOG_INF, "%04zu %s  %s", offset, line, name);
+      oak_log(OAK_LOG_INFO, "%04zu %s  %s", offset, line, name);
       return offset + 1;
   }
 }
 
 void oak_chunk_disassemble(const struct oak_chunk_t* chunk)
 {
-  oak_log(OAK_LOG_INF,
+  oak_log(OAK_LOG_INFO,
           "---- chunk [%zu bytes, %zu constants] ----",
           chunk->count,
           chunk->const_count);

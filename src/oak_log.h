@@ -23,14 +23,14 @@
   } while (0)
 #endif
 
-const char* oak_filename(const char* path);
+const char* oak_path_basename(const char* path);
 
 enum oak_log_level_t
 {
-  OAK_LOG_INF,
-  OAK_LOG_DBG,
-  OAK_LOG_WRN,
-  OAK_LOG_ERR,
+  OAK_LOG_INFO,
+  OAK_LOG_DEBUG,
+  OAK_LOG_WARN,
+  OAK_LOG_ERROR,
 };
 
 void _oak_log_printf(enum oak_log_level_t lvl,
@@ -63,7 +63,7 @@ void _oak_log_printf(enum oak_log_level_t lvl,
 #define oak_log(lvl, fmt, ...)                                                 \
   do                                                                           \
   {                                                                            \
-    if ((lvl) == OAK_LOG_ERR || (lvl) == OAK_LOG_INF)                          \
+    if ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO)                          \
     {                                                                          \
       _oak_log_printf(lvl, fmt, ##__VA_ARGS__);                                \
     }                                                                          \
@@ -72,7 +72,7 @@ void _oak_log_printf(enum oak_log_level_t lvl,
 #define oak_log_cond(cond, lvl, fmt, ...)                                      \
   do                                                                           \
   {                                                                            \
-    if ((cond) && ((lvl) == OAK_LOG_ERR || (lvl) == OAK_LOG_INF))              \
+    if ((cond) && ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO))              \
     {                                                                          \
       _oak_log_printf(lvl, fmt, ##__VA_ARGS__);                                \
     }                                                                          \

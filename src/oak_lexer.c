@@ -62,47 +62,47 @@ static void save_token(struct oak_lexer_result_t* lexer,
   token->kind = token_kind;
   token->line = cur->line;
   token->column = cur->column;
-  token->pos = cur->pos;
-  token->size = (int)buffer_size;
+  token->offset = cur->pos;
+  token->length = (int)buffer_size;
 
   if (buffer && buffer_size > 0)
   {
-    memcpy(token->buf, buffer, buffer_size);
+    memcpy(token->text, buffer, buffer_size);
   }
 
   if (buffer_size > 0)
   {
-    token->buf[buffer_size] = '\0';
+    token->text[buffer_size] = '\0';
   }
 
 #if 0
   oak_log_cond(token_kind == OAK_TOKEN_IDENT,
-               OAK_LOG_DBG,
+               OAK_LOG_DEBUG,
                "%s %d:%d '%s'",
                oak_token_name(token_kind),
                token->line,
                token->column,
                buffer);
 
-  oak_log_cond(token_kind == OAK_TOKEN_INT_NUM,
-               OAK_LOG_DBG,
+  oak_log_cond(token_kind == OAK_TOKEN_INT,
+               OAK_LOG_DEBUG,
                "%s %d:%d %d",
                oak_token_name(token_kind),
                token->line,
                token->column,
                *(int*)buffer);
 
-  oak_log_cond(token_kind == OAK_TOKEN_FLOAT_NUM,
-               OAK_LOG_DBG,
+  oak_log_cond(token_kind == OAK_TOKEN_FLOAT,
+               OAK_LOG_DEBUG,
                "%s %d:%d %f",
                oak_token_name(token_kind),
                token->line,
                token->column,
                *(float*)buffer);
 
-  oak_log_cond(token_kind != OAK_TOKEN_IDENT && token_kind != OAK_TOKEN_INT_NUM &&
-                   token_kind != OAK_TOKEN_FLOAT_NUM,
-               OAK_LOG_DBG,
+  oak_log_cond(token_kind != OAK_TOKEN_IDENT && token_kind != OAK_TOKEN_INT &&
+                   token_kind != OAK_TOKEN_FLOAT,
+               OAK_LOG_DEBUG,
                "%s %d:%d",
                oak_token_name(token_kind),
                token->line,
@@ -163,7 +163,7 @@ struct oak_single_char_op_t
 
 /* Two-character operators table */
 static const struct oak_two_char_op_t two_char_ops[] = {
-  { '=', '=', OAK_TOKEN_EQUAL },        { '!', '=', OAK_TOKEN_NOT_EQUAL },
+  { '=', '=', OAK_TOKEN_EQUAL_EQUAL },        { '!', '=', OAK_TOKEN_BANG_EQUAL },
   { '-', '>', OAK_TOKEN_ARROW },        { '&', '&', OAK_TOKEN_AND },
   { '|', '|', OAK_TOKEN_OR },           { '>', '=', OAK_TOKEN_GREATER_EQUAL },
   { '<', '=', OAK_TOKEN_LESS_EQUAL },   { '+', '=', OAK_TOKEN_PLUS_ASSIGN },
@@ -177,7 +177,7 @@ static const struct oak_single_char_op_t single_char_ops[] = {
   { ',', OAK_TOKEN_COMMA },
   { ';', OAK_TOKEN_SEMICOLON },
   { '=', OAK_TOKEN_ASSIGN },
-  { '!', OAK_TOKEN_EXCLAMATION_MARK },
+  { '!', OAK_TOKEN_BANG },
   { '-', OAK_TOKEN_MINUS },
   { '+', OAK_TOKEN_PLUS },
   { '*', OAK_TOKEN_STAR },
@@ -192,7 +192,7 @@ static const struct oak_single_char_op_t single_char_ops[] = {
   { '>', OAK_TOKEN_GREATER },
   { '<', OAK_TOKEN_LESS },
   { '.', OAK_TOKEN_DOT },
-  { '?', OAK_TOKEN_QUESTION_MARK },
+  { '?', OAK_TOKEN_QUESTION },
 };
 
 static enum oak_lex_status_t try_scan_op(const struct oak_lexer_ctx_t* ctx,
@@ -432,7 +432,7 @@ static enum oak_lex_status_t try_scan_number(const struct oak_lexer_ctx_t* ctx,
       return OAK_LEX_NUMBER_SYNTAX;
 
     save_token(
-        ctx->lexer, &sav_cur, OAK_TOKEN_FLOAT_NUM, (char*)&val, sizeof(float));
+        ctx->lexer, &sav_cur, OAK_TOKEN_FLOAT, (char*)&val, sizeof(float));
   }
   else
   {
@@ -442,7 +442,7 @@ static enum oak_lex_status_t try_scan_number(const struct oak_lexer_ctx_t* ctx,
       return OAK_LEX_NUMBER_SYNTAX;
 
     save_token(
-        ctx->lexer, &sav_cur, OAK_TOKEN_INT_NUM, (char*)&val, sizeof(int));
+        ctx->lexer, &sav_cur, OAK_TOKEN_INT, (char*)&val, sizeof(int));
   }
 
   return OAK_LEX_OK;
@@ -531,7 +531,7 @@ static enum oak_lex_status_t try_scan_ident(const struct oak_lexer_ctx_t* ctx,
     return OAK_LEX_NO_MATCH;
   }
 
-  const enum oak_token_kind_t kind = oak_ident_kind(buffer, buffer_length);
+  const enum oak_token_kind_t kind = oak_keyword_lookup(buffer, buffer_length);
   save_token(ctx->lexer,
              &sav_cur,
              kind,
@@ -602,11 +602,11 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
       u32 cp = 0;
       const usize rem = len - (usize)cur.buf_pos;
       const int n = oak_utf8_next_bounded(&input[cur.buf_pos], rem, &cp);
-      oak_log_cond(n < 0, OAK_LOG_ERR, "invalid utf8 character: 0x%.8X", cp);
+      oak_log_cond(n < 0, OAK_LOG_ERROR, "invalid utf8 character: 0x%.8X", cp);
     }
     else
     {
-      oak_log(OAK_LOG_ERR, "lexer: status %d", (int)step);
+      oak_log(OAK_LOG_ERROR, "lexer: status %d", (int)step);
       break;
     }
   }
@@ -620,10 +620,10 @@ oak_lexer_tokens(const struct oak_lexer_result_t* result)
   return result ? &result->tokens : null;
 }
 
-void oak_lexer_cleanup(struct oak_lexer_result_t* result)
+void oak_lexer_free(struct oak_lexer_result_t* result)
 {
   if (!result)
     return;
-  oak_arena_destroy(&result->arena);
+  oak_arena_free(&result->arena);
   oak_free(result, OAK_SRC_LOC);
 }

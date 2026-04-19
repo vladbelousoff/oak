@@ -39,7 +39,7 @@ static u32 hash_string(const char* chars, const usize length)
   return hash;
 }
 
-struct oak_obj_string_t* oak_make_string(const char* chars, const usize length)
+struct oak_obj_string_t* oak_string_new(const char* chars, const usize length)
 {
   struct oak_obj_string_t* str =
       oak_alloc(sizeof(struct oak_obj_string_t) + length + 1, OAK_SRC_LOC);
@@ -52,7 +52,7 @@ struct oak_obj_string_t* oak_make_string(const char* chars, const usize length)
   return str;
 }
 
-struct oak_obj_fn_t* oak_make_fn(const usize code_offset, const int arity)
+struct oak_obj_fn_t* oak_fn_new(const usize code_offset, const int arity)
 {
   struct oak_obj_fn_t* fn = oak_alloc(sizeof(struct oak_obj_fn_t), OAK_SRC_LOC);
   fn->obj.type = OAK_OBJ_FN;
@@ -63,7 +63,7 @@ struct oak_obj_fn_t* oak_make_fn(const usize code_offset, const int arity)
 }
 
 struct oak_obj_native_fn_t*
-oak_make_native_fn(const oak_native_fn_t fn, const int arity, const char* name)
+oak_native_fn_new(const oak_native_fn_t fn, const int arity, const char* name)
 {
   struct oak_obj_native_fn_t* native =
       oak_alloc(sizeof(struct oak_obj_native_fn_t), OAK_SRC_LOC);
@@ -90,7 +90,7 @@ int oak_native_fn_format(char* buf,
   return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity, fn_ptr);
 }
 
-struct oak_obj_array_t* oak_make_array(void)
+struct oak_obj_array_t* oak_array_new(void)
 {
   struct oak_obj_array_t* arr =
       oak_alloc(sizeof(struct oak_obj_array_t), OAK_SRC_LOC);
@@ -245,35 +245,35 @@ void oak_value_print(const struct oak_value_t value)
 {
   if (oak_is_bool(value))
   {
-    oak_log(OAK_LOG_INF, "%s", oak_as_bool(value) ? "true" : "false");
+    oak_log(OAK_LOG_INFO, "%s", oak_as_bool(value) ? "true" : "false");
     return;
   }
   if (oak_is_number(value))
   {
     if (oak_is_f32(value))
-      oak_log(OAK_LOG_INF, "%f", oak_as_f32(value));
+      oak_log(OAK_LOG_INFO, "%f", oak_as_f32(value));
     else
-      oak_log(OAK_LOG_INF, "%d", oak_as_i32(value));
+      oak_log(OAK_LOG_INFO, "%d", oak_as_i32(value));
     return;
   }
   if (oak_is_obj(value))
   {
     if (oak_is_string(value))
-      oak_log(OAK_LOG_INF, "%s", oak_as_cstring(value));
+      oak_log(OAK_LOG_INFO, "%s", oak_as_cstring(value));
     else if (oak_is_fn(value))
-      oak_log(OAK_LOG_INF, "<fn @%zu>", oak_as_fn(value)->code_offset);
+      oak_log(OAK_LOG_INFO, "<fn @%zu>", oak_as_fn(value)->code_offset);
     else if (oak_is_native_fn(value))
     {
       char buf[160];
       oak_native_fn_format(buf, sizeof(buf), oak_as_native_fn(value));
-      oak_log(OAK_LOG_INF, "%s", buf);
+      oak_log(OAK_LOG_INFO, "%s", buf);
     }
     else if (oak_is_array(value))
     {
       const struct oak_obj_array_t* arr = oak_as_array(value);
-      oak_log(OAK_LOG_INF, "<array len=%zu>", arr->length);
+      oak_log(OAK_LOG_INFO, "<array len=%zu>", arr->length);
     }
     else
-      oak_log(OAK_LOG_INF, "%p", oak_as_obj(value));
+      oak_log(OAK_LOG_INFO, "%p", oak_as_obj(value));
   }
 }

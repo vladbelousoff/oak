@@ -16,10 +16,10 @@ enum oak_token_kind_t
   OAK_TOKEN_COMMA,
   OAK_TOKEN_SEMICOLON,
   OAK_TOKEN_COLON,
-  OAK_TOKEN_EQUAL,
-  OAK_TOKEN_NOT_EQUAL,
-  OAK_TOKEN_EXCLAMATION_MARK,
-  OAK_TOKEN_QUESTION_MARK,
+  OAK_TOKEN_EQUAL_EQUAL,
+  OAK_TOKEN_BANG_EQUAL,
+  OAK_TOKEN_BANG,
+  OAK_TOKEN_QUESTION,
   OAK_TOKEN_LESS,
   OAK_TOKEN_LESS_EQUAL,
   OAK_TOKEN_GREATER,
@@ -47,8 +47,8 @@ enum oak_token_kind_t
   OAK_TOKEN_AND,
   OAK_TOKEN_OR,
   OAK_TOKEN_NOT,
-  OAK_TOKEN_INT_NUM,
-  OAK_TOKEN_FLOAT_NUM,
+  OAK_TOKEN_INT,
+  OAK_TOKEN_FLOAT,
   OAK_TOKEN_STRING,
   OAK_TOKEN_ASSIGN,
   OAK_TOKEN_PLUS_ASSIGN,
@@ -62,9 +62,9 @@ enum oak_token_kind_t
   OAK_TOKEN_AS,
 };
 
-struct tea_kw_entry_t
+struct oak_keyword_entry_t
 {
-  const char* kw;
+  const char* keyword;
   enum oak_token_kind_t kind;
 };
 
@@ -74,19 +74,19 @@ struct oak_token_t
   enum oak_token_kind_t kind;
   int line;
   int column;
-  int pos;
-  int size;
-  char buf[0];
+  int offset;
+  int length;
+  char text[0];
 };
 
 enum oak_token_kind_t oak_token_kind(const struct oak_token_t* token);
 int oak_token_line(const struct oak_token_t* token);
 int oak_token_column(const struct oak_token_t* token);
-int oak_token_pos(const struct oak_token_t* token);
-int oak_token_size(const struct oak_token_t* token);
-const char* oak_token_buf(const struct oak_token_t* token);
+int oak_token_offset(const struct oak_token_t* token);
+int oak_token_length(const struct oak_token_t* token);
+const char* oak_token_text(const struct oak_token_t* token);
 int oak_token_as_i32(const struct oak_token_t* token);
 float oak_token_as_f32(const struct oak_token_t* token);
 
-enum oak_token_kind_t oak_ident_kind(const char* ident, usize length);
+enum oak_token_kind_t oak_keyword_lookup(const char* ident, usize length);
 const char* oak_token_name(enum oak_token_kind_t token_kind);

@@ -9,17 +9,17 @@
 static struct oak_chunk_t* try_compile(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
   if (!root)
   {
-    oak_parser_cleanup(result);
-    oak_lexer_cleanup(lexer);
+    oak_parser_free(result);
+    oak_lexer_free(lexer);
     return null;
   }
   struct oak_chunk_t* chunk = oak_compile(root);
-  oak_parser_cleanup(result);
-  oak_lexer_cleanup(lexer);
+  oak_parser_free(result);
+  oak_lexer_free(lexer);
   return chunk;
 }
 

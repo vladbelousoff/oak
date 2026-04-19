@@ -6,36 +6,36 @@ OAK_TEST_DECL(LexArithmeticExpression)
 
   static struct oak_expected_token_t expected_tokens[] = {
     {
-        .kind = OAK_TOKEN_INT_NUM,
+        .kind = OAK_TOKEN_INT,
         .line = 1,
         .column = 1,
-        .pos = 1,
+        .offset = 1,
         .integer = 1,
     },
     {
         .kind = OAK_TOKEN_PLUS,
         .line = 1,
         .column = 3,
-        .pos = 3,
+        .offset = 3,
     },
     {
-        .kind = OAK_TOKEN_INT_NUM,
+        .kind = OAK_TOKEN_INT,
         .line = 1,
         .column = 5,
-        .pos = 5,
+        .offset = 5,
         .integer = 2,
     },
     {
         .kind = OAK_TOKEN_STAR,
         .line = 1,
         .column = 7,
-        .pos = 7,
+        .offset = 7,
     },
     {
-        .kind = OAK_TOKEN_INT_NUM,
+        .kind = OAK_TOKEN_INT,
         .line = 1,
         .column = 9,
-        .pos = 9,
+        .offset = 9,
         .integer = 3,
     },
   };
@@ -43,7 +43,7 @@ OAK_TEST_DECL(LexArithmeticExpression)
   const usize n = oak_count_of(expected_tokens);
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, n);
-  oak_lexer_cleanup(lexer);
+  oak_lexer_free(lexer);
 
   return result;
 }

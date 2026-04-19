@@ -4,9 +4,9 @@ OAK_TEST_DECL(ParseComparison)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("a == b;");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
-  OAK_CHECK_NODE_KIND(root, OAK_NODE_KIND_PROGRAM);
+  OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 
   /*
      Expected shape:
@@ -17,17 +17,17 @@ OAK_TEST_DECL(ParseComparison)
   */
 
   const struct oak_ast_node_t* stmt = oak_test_ast_child(root, 0);
-  OAK_CHECK_NODE_KIND(stmt, OAK_NODE_KIND_STMT_EXPR);
+  OAK_CHECK_NODE_KIND(stmt, OAK_NODE_STMT_EXPR);
 
   const struct oak_ast_node_t* eq = oak_test_ast_child(stmt, 0);
-  OAK_CHECK_NODE_KIND(eq, OAK_NODE_KIND_BINARY_EQ);
-  OAK_CHECK_NODE_KIND(eq->lhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_NODE_KIND(eq, OAK_NODE_BINARY_EQ);
+  OAK_CHECK_NODE_KIND(eq->lhs, OAK_NODE_IDENT);
   OAK_CHECK_TOKEN_STR(eq->lhs, "a");
-  OAK_CHECK_NODE_KIND(eq->rhs, OAK_NODE_KIND_IDENT);
+  OAK_CHECK_NODE_KIND(eq->rhs, OAK_NODE_IDENT);
   OAK_CHECK_TOKEN_STR(eq->rhs, "b");
 
-  oak_parser_cleanup(result);
-  oak_lexer_cleanup(lexer);
+  oak_parser_free(result);
+  oak_lexer_free(lexer);
 
   return OAK_TEST_OK;
 }

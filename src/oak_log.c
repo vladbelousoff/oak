@@ -7,7 +7,7 @@
 #include <string.h>
 #include <time.h>
 
-const char* oak_filename(const char* path)
+const char* oak_path_basename(const char* path)
 {
 #if defined(_WIN32)
   const char* p = strrchr(path, '\\');
@@ -39,11 +39,11 @@ static char* oak_log_lvl_to_str(const enum oak_log_level_t lvl)
 {
   switch (lvl)
   {
-    case OAK_LOG_ERR:
+    case OAK_LOG_ERROR:
       return "ERR";
-    case OAK_LOG_WRN:
+    case OAK_LOG_WARN:
       return "WRN";
-    case OAK_LOG_DBG:
+    case OAK_LOG_DEBUG:
       return "DBG";
     default:
       break;
@@ -64,14 +64,14 @@ void _oak_log_printf(const enum oak_log_level_t lvl,
 
   int off = 0;
 #ifdef OAK_DEBUG_LOGGING
-  if (lvl != OAK_LOG_INF)
+  if (lvl != OAK_LOG_INFO)
   {
     off = snprintf(buf,
                    sizeof(buf),
                    "%s|%s %s:%u ",
                    oak_log_lvl_to_str(lvl),
                    oak_time_stamp(),
-                   oak_filename(file),
+                   oak_path_basename(file),
                    line);
   }
 

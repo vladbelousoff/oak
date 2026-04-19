@@ -14,7 +14,7 @@ OAK_TEST_DECL(UserFnCall)
       "print(add(1, 2));";
 
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
   OAK_CHECK(root != null);
 
@@ -27,8 +27,8 @@ OAK_TEST_DECL(UserFnCall)
   oak_vm_free(&vm);
   oak_chunk_free(chunk);
 
-  oak_parser_cleanup(result);
-  oak_lexer_cleanup(lexer);
+  oak_parser_free(result);
+  oak_lexer_free(lexer);
 
   OAK_CHECK(r == OAK_VM_OK);
   return OAK_TEST_OK;

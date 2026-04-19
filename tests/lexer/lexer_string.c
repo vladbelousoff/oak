@@ -21,28 +21,28 @@ OAK_TEST_DECL(LexString)
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 1,
-        .pos = 1,
+        .offset = 1,
         .string = "hello",
     },
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 9,
-        .pos = 9,
+        .offset = 9,
         .string = "\n\t\r'\\",
     },
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 22,
-        .pos = 22,
+        .offset = 22,
         .string = "\xCF\x80",
     },
     {
         .kind = OAK_TOKEN_STRING,
         .line = 1,
         .column = 26,
-        .pos = 26,
+        .offset = 26,
         .string = LONG_A,
     },
   };
@@ -50,7 +50,7 @@ OAK_TEST_DECL(LexString)
   const usize n = oak_count_of(expected_tokens);
   const enum oak_test_status_t result =
       oak_test_tokens(lexer, expected_tokens, n);
-  oak_lexer_cleanup(lexer);
+  oak_lexer_free(lexer);
   return result;
 }
 

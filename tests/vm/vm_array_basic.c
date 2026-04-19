@@ -10,7 +10,7 @@
 static enum oak_test_status_t run_program(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
   OAK_CHECK(root != null);
 
@@ -23,8 +23,8 @@ static enum oak_test_status_t run_program(const char* source)
   oak_vm_free(&vm);
   oak_chunk_free(chunk);
 
-  oak_parser_cleanup(result);
-  oak_lexer_cleanup(lexer);
+  oak_parser_free(result);
+  oak_lexer_free(lexer);
 
   OAK_CHECK(r == OAK_VM_OK);
   return OAK_TEST_OK;

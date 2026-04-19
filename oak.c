@@ -36,13 +36,13 @@ int main(const int argc, const char* argv[])
 
   struct oak_lexer_result_t* lexer =
       oak_lexer_tokenize(source_map.data, source_map.size);
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_KIND_PROGRAM);
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
   const struct oak_ast_node_t* root = oak_parser_root(result);
   if (!root)
   {
     oak_file_unmap(&source_map);
-    oak_parser_cleanup(result);
-    oak_lexer_cleanup(lexer);
+    oak_parser_free(result);
+    oak_lexer_free(lexer);
     oak_mem_shutdown();
     return 1;
   }
@@ -51,8 +51,8 @@ int main(const int argc, const char* argv[])
   if (!chunk)
   {
     oak_file_unmap(&source_map);
-    oak_parser_cleanup(result);
-    oak_lexer_cleanup(lexer);
+    oak_parser_free(result);
+    oak_lexer_free(lexer);
     oak_mem_shutdown();
     return 1;
   }
@@ -62,8 +62,8 @@ int main(const int argc, const char* argv[])
     oak_chunk_disassemble(chunk);
     oak_chunk_free(chunk);
     oak_file_unmap(&source_map);
-    oak_parser_cleanup(result);
-    oak_lexer_cleanup(lexer);
+    oak_parser_free(result);
+    oak_lexer_free(lexer);
     oak_mem_shutdown();
     return 0;
   }
@@ -75,8 +75,8 @@ int main(const int argc, const char* argv[])
   oak_chunk_free(chunk);
 
   oak_file_unmap(&source_map);
-  oak_parser_cleanup(result);
-  oak_lexer_cleanup(lexer);
+  oak_parser_free(result);
+  oak_lexer_free(lexer);
 
   oak_mem_shutdown();
 

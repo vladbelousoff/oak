@@ -19,36 +19,36 @@ int oak_token_column(const struct oak_token_t* token)
   return token->column;
 }
 
-int oak_token_pos(const struct oak_token_t* token)
+int oak_token_offset(const struct oak_token_t* token)
 {
-  return token->pos;
+  return token->offset;
 }
 
-int oak_token_size(const struct oak_token_t* token)
+int oak_token_length(const struct oak_token_t* token)
 {
-  return token->size;
+  return token->length;
 }
 
-const char* oak_token_buf(const struct oak_token_t* token)
+const char* oak_token_text(const struct oak_token_t* token)
 {
-  return token->buf;
+  return token->text;
 }
 
 int oak_token_as_i32(const struct oak_token_t* token)
 {
-  oak_assert(token->kind == OAK_TOKEN_INT_NUM);
-  return *(const int*)token->buf;
+  oak_assert(token->kind == OAK_TOKEN_INT);
+  return *(const int*)token->text;
 }
 
 float oak_token_as_f32(const struct oak_token_t* token)
 {
-  oak_assert(token->kind == OAK_TOKEN_FLOAT_NUM);
-  return *(const float*)token->buf;
+  oak_assert(token->kind == OAK_TOKEN_FLOAT);
+  return *(const float*)token->text;
 }
 
-enum oak_token_kind_t oak_ident_kind(const char* ident, const usize length)
+enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
 {
-  static const struct tea_kw_entry_t keywords[] = {
+  static const struct oak_keyword_entry_t keywords[] = {
     { "and", OAK_TOKEN_AND },
     { "as", OAK_TOKEN_AS },
     { "break", OAK_TOKEN_BREAK },
@@ -74,8 +74,8 @@ enum oak_token_kind_t oak_ident_kind(const char* ident, const usize length)
 
   for (int i = 0; i < (int)oak_count_of(keywords); ++i)
   {
-    const char* kw = keywords[i].kw;
-    if (strncmp(ident, kw, length + 1) == 0)
+    const char* keyword = keywords[i].keyword;
+    if (strncmp(ident, keyword, length + 1) == 0)
       return keywords[i].kind;
   }
 
@@ -108,14 +108,14 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "SEMICOLON";
     case OAK_TOKEN_COLON:
       return "COLON";
-    case OAK_TOKEN_EQUAL:
-      return "EQUAL";
-    case OAK_TOKEN_NOT_EQUAL:
-      return "NOT_EQUAL";
-    case OAK_TOKEN_EXCLAMATION_MARK:
-      return "EXCLAMATION_MARK";
-    case OAK_TOKEN_QUESTION_MARK:
-      return "QUESTION_MARK";
+    case OAK_TOKEN_EQUAL_EQUAL:
+      return "EQUAL_EQUAL";
+    case OAK_TOKEN_BANG_EQUAL:
+      return "BANG_EQUAL";
+    case OAK_TOKEN_BANG:
+      return "BANG";
+    case OAK_TOKEN_QUESTION:
+      return "QUESTION";
     case OAK_TOKEN_LESS:
       return "LESS";
     case OAK_TOKEN_LESS_EQUAL:
@@ -170,10 +170,10 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "OR";
     case OAK_TOKEN_NOT:
       return "NOT";
-    case OAK_TOKEN_INT_NUM:
-      return "INT_NUM";
-    case OAK_TOKEN_FLOAT_NUM:
-      return "FLOAT_NUM";
+    case OAK_TOKEN_INT:
+      return "INT";
+    case OAK_TOKEN_FLOAT:
+      return "FLOAT";
     case OAK_TOKEN_STRING:
       return "STRING";
     case OAK_TOKEN_ASSIGN:

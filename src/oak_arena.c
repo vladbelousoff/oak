@@ -64,7 +64,7 @@ void* oak_arena_alloc(struct oak_arena_t* arena, usize size)
   return ptr;
 }
 
-void oak_arena_destroy(struct oak_arena_t* arena)
+void oak_arena_free(struct oak_arena_t* arena)
 {
   struct oak_arena_block_t* block = arena->current;
   while (block)

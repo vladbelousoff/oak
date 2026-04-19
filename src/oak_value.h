@@ -129,17 +129,17 @@ struct oak_obj_native_fn_t
       .as.obj = (struct oak_obj_t*)(_obj),                                     \
   })
 
-struct oak_obj_string_t* oak_make_string(const char* chars, usize length);
+struct oak_obj_string_t* oak_string_new(const char* chars, usize length);
 
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
                                            const struct oak_obj_string_t* b);
 
-struct oak_obj_fn_t* oak_make_fn(usize code_offset, int arity);
+struct oak_obj_fn_t* oak_fn_new(usize code_offset, int arity);
 
 struct oak_obj_native_fn_t*
-oak_make_native_fn(oak_native_fn_t fn, int arity, const char* name);
+oak_native_fn_new(oak_native_fn_t fn, int arity, const char* name);
 
-struct oak_obj_array_t* oak_make_array(void);
+struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
 
 int oak_native_fn_format(char* buf,

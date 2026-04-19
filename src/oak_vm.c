@@ -33,7 +33,7 @@ static void vm_push(struct oak_vm_t* vm, const struct oak_value_t value)
 
 /* Push a value whose reference count already accounts for the new stack
  * ownership (i.e. take ownership without an extra incref). Use for values
- * just produced by oak_make_* / native fn return / similar fresh allocations
+ * just produced by oak_*_new / native fn return / similar fresh allocations
  * whose only outstanding reference is being transferred to the stack. */
 static void vm_push_owned(struct oak_vm_t* vm, const struct oak_value_t value)
 {
@@ -89,7 +89,7 @@ static void runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
   if (col < 1)
     col = 1;
 
-  oak_log(OAK_LOG_ERR, "%d:%d: error: %s", loc.line, col, buf);
+  oak_log(OAK_LOG_ERROR, "%d:%d: error: %s", loc.line, col, buf);
 }
 
 static inline u16 vm_read(struct oak_vm_t* vm, const int n)
@@ -546,7 +546,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_NEW_ARRAY:
       {
-        struct oak_obj_array_t* arr = oak_make_array();
+        struct oak_obj_array_t* arr = oak_array_new();
         vm_push_owned(vm, OAK_VALUE_OBJ(&arr->obj));
         break;
       }

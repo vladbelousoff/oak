@@ -32,10 +32,10 @@ struct oak_test_t
   {                                                                            \
     if (!(expr))                                                               \
     {                                                                          \
-      oak_log(OAK_LOG_ERR,                                                     \
+      oak_log(OAK_LOG_ERROR,                                                     \
               "check failed: %s (%s:%d)",                                      \
               #expr,                                                           \
-              oak_filename(__FILE__),                                          \
+              oak_path_basename(__FILE__),                                          \
               __LINE__);                                                       \
       return OAK_TEST_FAIL;                                                    \
     }                                                                          \
