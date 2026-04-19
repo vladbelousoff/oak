@@ -17,3 +17,32 @@ arr[0] = 100;
 arr[arr.len() - 1] = 500;
 print(arr[0]);
 print(arr[4]);
+
+fn sub(a: number, b: number) -> number {
+  return a - b;
+}
+
+let nums = [1, 54, 13, 45 - sub(5, 3)];
+print(nums.len());
+print(nums[0]);
+print(nums[1]);
+print(nums[2]);
+print(nums[3]);
+
+let words = ['sda', 'ada', 'ert', 'rer'];
+print(words.len());
+print(words[0]);
+print(words[3]);
+
+let mut more = [10, 20, 30];
+more.push(40);
+more[0] = 99;
+print(more.len());
+print(more[0]);
+print(more[3]);
+
+let mut total = 0;
+for v in nums {
+  total = total + v;
+}
+print(total);

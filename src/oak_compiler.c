@@ -1068,6 +1068,24 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         out->id = intern_type_token(c, type_node->token);
       return;
     }
+    case OAK_NODE_EXPR_ARRAY_LITERAL:
+    {
+      const struct oak_list_entry_t* first = expr->children.next;
+      if (first == &expr->children)
+        return;
+      const struct oak_ast_node_t* first_wrap =
+          oak_container_of(first, struct oak_ast_node_t, link);
+      const struct oak_ast_node_t* first_elem =
+          first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
+                                                             : first_wrap;
+      struct oak_type_t elem_ty;
+      infer_expr_static_type(c, first_elem, &elem_ty);
+      if (!oak_type_is_known(&elem_ty))
+        return;
+      out->id = elem_ty.id;
+      out->is_array = 1;
+      return;
+    }
     case OAK_NODE_INDEX_ACCESS:
     {
       struct oak_type_t coll_ty;
@@ -2020,6 +2038,74 @@ static void compile_node(struct oak_compiler_t* c,
           "untyped array literal; arrays must be typed (e.g. '[] as "
           "number[]')");
       break;
+    case OAK_NODE_EXPR_ARRAY_LITERAL:
+    {
+      const usize count = oak_list_length(&node->children);
+      if (count == 0)
+      {
+        compiler_error_at(c,
+                          null,
+                          "internal error: array literal with no elements");
+        return;
+      }
+      if (count > 255)
+      {
+        compiler_error_at(
+            c, null, "array literal too large (max 255 elements)");
+        return;
+      }
+
+      const struct oak_list_entry_t* first = node->children.next;
+      const struct oak_ast_node_t* first_wrap =
+          oak_container_of(first, struct oak_ast_node_t, link);
+      const struct oak_ast_node_t* first_elem =
+          first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
+                                                             : first_wrap;
+
+      struct oak_type_t elem_ty;
+      infer_expr_static_type(c, first_elem, &elem_ty);
+      if (!oak_type_is_known(&elem_ty))
+      {
+        compiler_error_at(
+            c,
+            first_elem ? first_elem->token : null,
+            "cannot infer array element type from first element");
+        return;
+      }
+
+      struct oak_list_entry_t* pos;
+      oak_list_for_each(pos, &node->children)
+      {
+        const struct oak_ast_node_t* wrap =
+            oak_container_of(pos, struct oak_ast_node_t, link);
+        const struct oak_ast_node_t* elem =
+            wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
+
+        struct oak_type_t et;
+        infer_expr_static_type(c, elem, &et);
+        if (oak_type_is_known(&et) && !oak_type_equal(&elem_ty, &et))
+        {
+          compiler_error_at(c,
+                            elem ? elem->token : null,
+                            "array literal element type mismatch "
+                            "(expected '%s', got '%s')",
+                            type_full_name(c, elem_ty),
+                            type_full_name(c, et));
+          return;
+        }
+
+        compile_node(c, elem);
+        if (c->has_error)
+          return;
+      }
+
+      emit_op_arg(c,
+                  OAK_OP_NEW_ARRAY_FROM_STACK,
+                  (u8)count,
+                  OAK_LOC_SYNTHETIC);
+      c->stack_depth -= (int)count;
+      break;
+    }
     case OAK_NODE_EXPR_EMPTY_MAP:
       compiler_error_at(
           c,
