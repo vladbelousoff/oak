@@ -54,4 +54,31 @@ OAK_TEST_DECL(BuiltinInput)
 #endif
 }
 
-OAK_TEST_MAIN(BuiltinInput)
+OAK_TEST_DECL(BuiltinInputEmptyLine)
+{
+#if defined(_WIN32)
+  return OAK_TEST_OK;
+#else
+  char tmpl[] = "/tmp/oak_input_emptyXXXXXX";
+  const int fd = mkstemp(tmpl);
+  OAK_CHECK(fd >= 0);
+  const char line[] = "\n";
+  OAK_CHECK(write(fd, line, sizeof(line) - 1u) == (ssize_t)(sizeof(line) - 1u));
+  OAK_CHECK(close(fd) == 0);
+  OAK_CHECK(freopen(tmpl, "r", stdin) != null);
+  (void)unlink(tmpl);
+
+  return run_program("print(input(''));");
+#endif
+}
+
+int main(const int argc, char* argv[])
+{
+  (void)argc;
+  (void)argv;
+  static struct oak_test_t t[] = {
+    OAK_TEST_ENTRY(BuiltinInput),
+    OAK_TEST_ENTRY(BuiltinInputEmptyLine),
+  };
+  return oak_test_run(t, 2);
+}

@@ -57,6 +57,10 @@ static void save_token(struct oak_lexer_result_t* lexer,
   {
     token_size += buffer_size + 1;
   }
+  else if (token_kind == OAK_TOKEN_STRING)
+  {
+    token_size += 1;
+  }
 
   struct oak_token_t* token = oak_arena_alloc(&lexer->arena, token_size);
   token->kind = token_kind;
@@ -73,6 +77,10 @@ static void save_token(struct oak_lexer_result_t* lexer,
   if (buffer_size > 0)
   {
     token->text[buffer_size] = '\0';
+  }
+  else if (token_kind == OAK_TOKEN_STRING)
+  {
+    token->text[0] = '\0';
   }
 
 #if 0
@@ -264,6 +272,13 @@ static enum oak_lex_status_t try_scan_string(const struct oak_lexer_ctx_t* ctx,
 
   const char* const end = input + ctx->input_len;
   const char* p = start + 1;
+  /* `''` — empty string (closing quote must not be consumed as content). */
+  if (p < end && *p == '\'')
+  {
+    advance_cursor(cur, 1, 1);
+    save_token(ctx->lexer, &sav_cur, OAK_TOKEN_STRING, tls_buffer, 0);
+    return OAK_LEX_OK;
+  }
   while (p < end)
   {
     u32 cp;
