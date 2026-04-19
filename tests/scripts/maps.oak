@@ -73,3 +73,27 @@ for v in nums {
   }
   print(v);
 }
+
+let scores = ['alice': 1, 'bob': 2, 'carol': 3];
+print(scores.len());
+print(scores['alice']);
+print(scores['carol']);
+
+let by_idx = [10: 'a', 20: 'b', 30: 'c'];
+print(by_idx.len());
+print(by_idx[10]);
+print(by_idx[30]);
+
+let mut counts2 = ['x': 1, 'y': 2];
+counts2['x'] = counts2['x'] + 10;
+counts2['z'] = 99;
+print(counts2['x']);
+print(counts2['y']);
+print(counts2['z']);
+print(counts2.len());
+
+let mut sum2 = 0;
+for k, v in scores {
+  sum2 = sum2 + v;
+}
+print(sum2);

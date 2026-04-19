@@ -1086,6 +1086,26 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
       out->is_array = 1;
       return;
     }
+    case OAK_NODE_EXPR_MAP_LITERAL:
+    {
+      const struct oak_list_entry_t* first = expr->children.next;
+      if (first == &expr->children)
+        return;
+      const struct oak_ast_node_t* first_entry =
+          oak_container_of(first, struct oak_ast_node_t, link);
+      if (first_entry->kind != OAK_NODE_MAP_LITERAL_ENTRY)
+        return;
+      struct oak_type_t key_ty;
+      struct oak_type_t val_ty;
+      infer_expr_static_type(c, first_entry->lhs, &key_ty);
+      infer_expr_static_type(c, first_entry->rhs, &val_ty);
+      if (!oak_type_is_known(&key_ty) || !oak_type_is_known(&val_ty))
+        return;
+      out->key_id = key_ty.id;
+      out->id = val_ty.id;
+      out->is_map = 1;
+      return;
+    }
     case OAK_NODE_INDEX_ACCESS:
     {
       struct oak_type_t coll_ty;
@@ -2113,6 +2133,105 @@ static void compile_node(struct oak_compiler_t* c,
           "untyped map literal; maps must be typed (e.g. '[:] as "
           "[string:number]')");
       break;
+    case OAK_NODE_EXPR_MAP_LITERAL:
+    {
+      const usize count = oak_list_length(&node->children);
+      if (count == 0)
+      {
+        compiler_error_at(
+            c, null, "internal error: map literal with no entries");
+        return;
+      }
+      if (count > 255)
+      {
+        compiler_error_at(
+            c, null, "map literal too large (max 255 entries)");
+        return;
+      }
+
+      const struct oak_list_entry_t* first = node->children.next;
+      const struct oak_ast_node_t* first_entry =
+          oak_container_of(first, struct oak_ast_node_t, link);
+      if (first_entry->kind != OAK_NODE_MAP_LITERAL_ENTRY ||
+          !first_entry->lhs || !first_entry->rhs)
+      {
+        compiler_error_at(c, null, "malformed map literal entry");
+        return;
+      }
+
+      struct oak_type_t key_ty;
+      struct oak_type_t val_ty;
+      infer_expr_static_type(c, first_entry->lhs, &key_ty);
+      infer_expr_static_type(c, first_entry->rhs, &val_ty);
+      if (!oak_type_is_known(&key_ty))
+      {
+        compiler_error_at(
+            c,
+            first_entry->lhs->token,
+            "cannot infer map key type from first entry");
+        return;
+      }
+      if (!oak_type_is_known(&val_ty))
+      {
+        compiler_error_at(
+            c,
+            first_entry->rhs->token,
+            "cannot infer map value type from first entry");
+        return;
+      }
+
+      struct oak_list_entry_t* pos;
+      oak_list_for_each(pos, &node->children)
+      {
+        const struct oak_ast_node_t* entry =
+            oak_container_of(pos, struct oak_ast_node_t, link);
+        if (entry->kind != OAK_NODE_MAP_LITERAL_ENTRY || !entry->lhs ||
+            !entry->rhs)
+        {
+          compiler_error_at(c, null, "malformed map literal entry");
+          return;
+        }
+
+        struct oak_type_t kt;
+        struct oak_type_t vt;
+        infer_expr_static_type(c, entry->lhs, &kt);
+        infer_expr_static_type(c, entry->rhs, &vt);
+        if (oak_type_is_known(&kt) && !oak_type_equal(&key_ty, &kt))
+        {
+          compiler_error_at(c,
+                            entry->lhs->token,
+                            "map literal key type mismatch "
+                            "(expected '%s', got '%s')",
+                            type_full_name(c, key_ty),
+                            type_full_name(c, kt));
+          return;
+        }
+        if (oak_type_is_known(&vt) && !oak_type_equal(&val_ty, &vt))
+        {
+          compiler_error_at(c,
+                            entry->rhs->token,
+                            "map literal value type mismatch "
+                            "(expected '%s', got '%s')",
+                            type_full_name(c, val_ty),
+                            type_full_name(c, vt));
+          return;
+        }
+
+        compile_node(c, entry->lhs);
+        if (c->has_error)
+          return;
+        compile_node(c, entry->rhs);
+        if (c->has_error)
+          return;
+      }
+
+      emit_op_arg(c,
+                  OAK_OP_NEW_MAP_FROM_STACK,
+                  (u8)count,
+                  OAK_LOC_SYNTHETIC);
+      c->stack_depth -= (int)count * 2;
+      break;
+    }
     case OAK_NODE_EXPR_CAST:
     {
       const struct oak_ast_node_t* value = node->lhs;

@@ -576,6 +576,29 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         vm_push_owned(vm, OAK_VALUE_OBJ(&map->obj));
         break;
       }
+      case OAK_OP_NEW_MAP_FROM_STACK:
+      {
+        const u8 count = (u8)vm_read(vm, 1);
+        const usize slots = (usize)count * 2u;
+        if ((usize)(vm->sp - vm->stack) < slots)
+        {
+          runtime_error(vm, "stack underflow in map literal");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_obj_map_t* map = oak_map_new();
+        struct oak_value_t* base = vm->sp - (int)slots;
+        for (int i = 0; i < (int)count; ++i)
+        {
+          const struct oak_value_t k = base[i * 2 + 0];
+          const struct oak_value_t v = base[i * 2 + 1];
+          oak_map_set(map, k, v);
+        }
+        for (usize i = 0; i < slots; ++i)
+          oak_value_decref(base[i]);
+        vm->sp -= (int)slots;
+        vm_push_owned(vm, OAK_VALUE_OBJ(&map->obj));
+        break;
+      }
       case OAK_OP_GET_INDEX:
       {
         const struct oak_value_t idx_v = vm_pop(vm);

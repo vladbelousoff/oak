@@ -338,7 +338,7 @@ static struct oak_grammar_entry_t oak_grammar[] = {
     },
   },
   // EXPR_PRIMARY -> INT | FLOAT | STRING | '[]' | '[:]'
-  //               | EXPR_ARRAY_LITERAL | IDENT
+  //               | EXPR_MAP_LITERAL | EXPR_ARRAY_LITERAL | IDENT
   [OAK_NODE_EXPR_PRIMARY] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
@@ -347,6 +347,7 @@ static struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STRING,
       OAK_NODE_EXPR_EMPTY_ARRAY,
       OAK_NODE_EXPR_EMPTY_MAP,
+      OAK_NODE_EXPR_MAP_LITERAL,
       OAK_NODE_EXPR_ARRAY_LITERAL,
       OAK_NODE_IDENT,
     },
@@ -379,6 +380,25 @@ static struct oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_ARRAY_LITERAL_ELEMENT] = {
     .op = OAK_GRAMMAR_UNARY,
     .rules = {
+      OAK_NODE_EXPR,
+      OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
+    },
+  },
+  // EXPR_MAP_LITERAL -> '[' MAP_LITERAL_ENTRY+ ']'
+  [OAK_NODE_EXPR_MAP_LITERAL] = {
+    .rules = {
+      OAK_TOKEN_LBRACKET | OAK_RULE_TOKEN,
+      OAK_NODE_MAP_LITERAL_ENTRY,
+      OAK_NODE_MAP_LITERAL_ENTRY | OAK_RULE_REPEAT,
+      OAK_TOKEN_RBRACKET | OAK_RULE_TOKEN,
+    },
+  },
+  // MAP_LITERAL_ENTRY -> EXPR ':' EXPR ','?
+  [OAK_NODE_MAP_LITERAL_ENTRY] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_EXPR,
+      OAK_TOKEN_COLON | OAK_RULE_TOKEN,
       OAK_NODE_EXPR,
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
