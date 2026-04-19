@@ -11,6 +11,12 @@ void oak_obj_incref(struct oak_obj_t* obj)
   oak_refcount_inc(&obj->refcount);
 }
 
+struct oak_map_entry_t
+{
+  struct oak_value_t key;
+  struct oak_value_t value;
+};
+
 void oak_obj_decref(struct oak_obj_t* obj)
 {
   if (!oak_refcount_dec(&obj->refcount))
@@ -23,6 +29,17 @@ void oak_obj_decref(struct oak_obj_t* obj)
       oak_value_decref(arr->items[i]);
     if (arr->items)
       oak_free(arr->items, OAK_SRC_LOC);
+  }
+  else if (obj->type == OAK_OBJ_MAP)
+  {
+    struct oak_obj_map_t* map = (struct oak_obj_map_t*)obj;
+    for (usize i = 0; i < map->length; ++i)
+    {
+      oak_value_decref(map->entries[i].key);
+      oak_value_decref(map->entries[i].value);
+    }
+    if (map->entries)
+      oak_free(map->entries, OAK_SRC_LOC);
   }
 
   oak_free(obj, OAK_SRC_LOC);
@@ -113,6 +130,103 @@ void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
   }
   oak_value_incref(value);
   arr->items[arr->length++] = value;
+}
+
+struct oak_obj_map_t* oak_map_new(void)
+{
+  struct oak_obj_map_t* map =
+      oak_alloc(sizeof(struct oak_obj_map_t), OAK_SRC_LOC);
+  map->obj.type = OAK_OBJ_MAP;
+  oak_refcount_init(&map->obj.refcount, 1);
+  map->length = 0;
+  map->capacity = 0;
+  map->entries = null;
+  return map;
+}
+
+static usize map_find_index(const struct oak_obj_map_t* map,
+                            const struct oak_value_t key)
+{
+  for (usize i = 0; i < map->length; ++i)
+  {
+    if (oak_value_equal(map->entries[i].key, key))
+      return i;
+  }
+  return map->length;
+}
+
+int oak_map_get(const struct oak_obj_map_t* map,
+                const struct oak_value_t key,
+                struct oak_value_t* out)
+{
+  const usize idx = map_find_index(map, key);
+  if (idx == map->length)
+    return 0;
+  if (out)
+    *out = map->entries[idx].value;
+  return 1;
+}
+
+int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
+{
+  return map_find_index(map, key) != map->length;
+}
+
+int oak_map_delete(struct oak_obj_map_t* map, const struct oak_value_t key)
+{
+  const usize idx = map_find_index(map, key);
+  if (idx == map->length)
+    return 0;
+  oak_value_decref(map->entries[idx].key);
+  oak_value_decref(map->entries[idx].value);
+  /* Compact: move the last entry into this slot. Entry order is not
+   * meaningful from the language's point of view. */
+  const usize last = map->length - 1;
+  if (idx != last)
+    map->entries[idx] = map->entries[last];
+  map->length = last;
+  return 1;
+}
+
+struct oak_value_t oak_map_key_at(const struct oak_obj_map_t* map,
+                                  const usize index)
+{
+  oak_assert(index < map->length);
+  return map->entries[index].key;
+}
+
+struct oak_value_t oak_map_value_at(const struct oak_obj_map_t* map,
+                                    const usize index)
+{
+  oak_assert(index < map->length);
+  return map->entries[index].value;
+}
+
+void oak_map_set(struct oak_obj_map_t* map,
+                 const struct oak_value_t key,
+                 const struct oak_value_t value)
+{
+  const usize idx = map_find_index(map, key);
+  if (idx != map->length)
+  {
+    oak_value_incref(value);
+    oak_value_decref(map->entries[idx].value);
+    map->entries[idx].value = value;
+    return;
+  }
+
+  if (map->length >= map->capacity)
+  {
+    const usize new_cap = map->capacity == 0 ? 8u : map->capacity * 2u;
+    map->entries = oak_realloc(
+        map->entries, new_cap * sizeof(struct oak_map_entry_t), OAK_SRC_LOC);
+    map->capacity = new_cap;
+  }
+  oak_value_incref(key);
+  oak_value_incref(value);
+  map->entries[map->length].key = key;
+  map->entries[map->length].value = value;
+  map->length++;
 }
 
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
@@ -220,6 +334,11 @@ enum oak_fn_call_result_t oak_builtin_len(void* vm,
     *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
     return OAK_FN_CALL_OK;
   }
+  if (oak_is_map(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_map(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
   if (oak_is_string(args[0]))
   {
     *out_result = OAK_VALUE_I32((int)oak_as_string(args[0])->length);
@@ -238,6 +357,32 @@ enum oak_fn_call_result_t oak_builtin_push(void* vm,
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_array_push(oak_as_array(args[0]), args[1]);
   *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_builtin_has(void* vm,
+                                          const struct oak_value_t* args,
+                                          const int argc,
+                                          struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 2 || !oak_is_map(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const int found = oak_map_has(oak_as_map(args[0]), args[1]);
+  *out_result = OAK_VALUE_BOOL(found);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_builtin_delete(void* vm,
+                                             const struct oak_value_t* args,
+                                             const int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 2 || !oak_is_map(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const int removed = oak_map_delete(oak_as_map(args[0]), args[1]);
+  *out_result = OAK_VALUE_BOOL(removed);
   return OAK_FN_CALL_OK;
 }
 
@@ -272,6 +417,11 @@ void oak_value_print(const struct oak_value_t value)
     {
       const struct oak_obj_array_t* arr = oak_as_array(value);
       oak_log(OAK_LOG_INFO, "<array len=%zu>", arr->length);
+    }
+    else if (oak_is_map(value))
+    {
+      const struct oak_obj_map_t* map = oak_as_map(value);
+      oak_log(OAK_LOG_INFO, "<map len=%zu>", map->length);
     }
     else
       oak_log(OAK_LOG_INFO, "%p", oak_as_obj(value));

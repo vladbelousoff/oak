@@ -65,6 +65,16 @@ struct oak_obj_array_t
   struct oak_value_t* items;
 };
 
+struct oak_map_entry_t;
+
+struct oak_obj_map_t
+{
+  struct oak_obj_t obj;
+  usize length;
+  usize capacity;
+  struct oak_map_entry_t* entries;
+};
+
 struct oak_value_t
 {
   enum oak_value_type_t type;
@@ -142,6 +152,22 @@ oak_native_fn_new(oak_native_fn_t fn, int arity, const char* name);
 struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
 
+struct oak_obj_map_t* oak_map_new(void);
+/* Returns 1 and writes the value into *out if found; 0 otherwise. */
+int oak_map_get(const struct oak_obj_map_t* map,
+                struct oak_value_t key,
+                struct oak_value_t* out);
+/* Inserts or replaces the value for `key`. Increments refcounts as needed. */
+void oak_map_set(struct oak_obj_map_t* map,
+                 struct oak_value_t key,
+                 struct oak_value_t value);
+int oak_map_has(const struct oak_obj_map_t* map, struct oak_value_t key);
+/* Removes the entry with the given key. Returns 1 if removed, 0 otherwise. */
+int oak_map_delete(struct oak_obj_map_t* map, struct oak_value_t key);
+struct oak_value_t oak_map_key_at(const struct oak_obj_map_t* map, usize index);
+struct oak_value_t oak_map_value_at(const struct oak_obj_map_t* map,
+                                    usize index);
+
 int oak_native_fn_format(char* buf,
                          usize size,
                          const struct oak_obj_native_fn_t* native);
@@ -179,6 +205,11 @@ static inline int oak_is_native_fn(const struct oak_value_t value)
 static inline int oak_is_array(const struct oak_value_t value)
 {
   return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_ARRAY;
+}
+
+static inline int oak_is_map(const struct oak_value_t value)
+{
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_MAP;
 }
 
 static inline int oak_is_i32(const struct oak_value_t value)
@@ -243,6 +274,13 @@ oak_as_array(const struct oak_value_t value)
   return (struct oak_obj_array_t*)value.as.obj;
 }
 
+static inline struct oak_obj_map_t*
+oak_as_map(const struct oak_value_t value)
+{
+  oak_assert(oak_is_map(value));
+  return (struct oak_obj_map_t*)value.as.obj;
+}
+
 static inline char* oak_as_cstring(const struct oak_value_t value)
 {
   return oak_as_string(value)->chars;
@@ -273,3 +311,13 @@ enum oak_fn_call_result_t oak_builtin_push(void* vm,
                                            const struct oak_value_t* args,
                                            int argc,
                                            struct oak_value_t* out_result);
+
+enum oak_fn_call_result_t oak_builtin_has(void* vm,
+                                          const struct oak_value_t* args,
+                                          int argc,
+                                          struct oak_value_t* out_result);
+
+enum oak_fn_call_result_t oak_builtin_delete(void* vm,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result);

@@ -60,6 +60,7 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
     { "for", OAK_TOKEN_FOR },
     { "from", OAK_TOKEN_FROM },
     { "if", OAK_TOKEN_IF },
+    { "in", OAK_TOKEN_IN },
     { "let", OAK_TOKEN_LET },
     { "mut", OAK_TOKEN_MUT },
     { "not", OAK_TOKEN_NOT },
@@ -154,6 +155,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "FROM";
     case OAK_TOKEN_TO:
       return "TO";
+    case OAK_TOKEN_IN:
+      return "IN";
     case OAK_TOKEN_BREAK:
       return "BREAK";
     case OAK_TOKEN_CONTINUE:

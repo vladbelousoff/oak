@@ -1,0 +1,50 @@
+#include "oak_compiler.h"
+#include "oak_lexer.h"
+#include "oak_parser.h"
+#include "oak_test.h"
+#include "oak_test_run.h"
+#include "oak_vm.h"
+
+#include <string.h>
+
+static enum oak_test_status_t run_program(const char* source)
+{
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
+  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
+  const struct oak_ast_node_t* root = oak_parser_root(result);
+  OAK_CHECK(root != null);
+
+  struct oak_chunk_t* chunk = oak_compile(root);
+  OAK_CHECK(chunk != null);
+
+  struct oak_vm_t vm;
+  oak_vm_init(&vm);
+  const enum oak_vm_result_t r = oak_vm_run(&vm, chunk);
+  oak_vm_free(&vm);
+  oak_chunk_free(chunk);
+
+  oak_parser_free(result);
+  oak_lexer_free(lexer);
+
+  OAK_CHECK(r == OAK_VM_OK);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(MapBasic)
+{
+  /* Construct a typed map, insert and update entries, look them up by key,
+   * and call .len() as a method on the map receiver. */
+  const char* source = "let mut a = [:] as [string:number];\n"
+                       "a['one'] = 1;\n"
+                       "a['two'] = 2;\n"
+                       "a['three'] = 3;\n"
+                       "print(a.len());\n"
+                       "print(a['one']);\n"
+                       "print(a['two']);\n"
+                       "print(a['three']);\n"
+                       "a['two'] = 22;\n"
+                       "print(a['two']);\n";
+  return run_program(source);
+}
+
+OAK_TEST_MAIN(MapBasic)

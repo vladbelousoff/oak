@@ -18,12 +18,18 @@ typedef int oak_type_id_t;
 
 #define OAK_MAX_TYPES 64
 
-/* A typed slot. is_array indicates that the value is an array whose element
- * type is `id`. Two typed slots are equal iff both `id` and `is_array` match. */
+/* A typed slot.
+ * - is_array indicates that the value is an array whose element type is `id`.
+ * - is_map indicates that the value is a map; the value type is `id` and the
+ *   key type is `key_id`.
+ * Two typed slots are equal iff `id`, `is_array`, `is_map`, and (when
+ * `is_map`) `key_id` all match. */
 struct oak_type_t
 {
   oak_type_id_t id;
+  oak_type_id_t key_id;
   int is_array;
+  int is_map;
 };
 
 struct oak_type_entry_t
@@ -61,7 +67,9 @@ const char* oak_type_registry_name(const struct oak_type_registry_t* reg,
 static inline void oak_type_clear(struct oak_type_t* t)
 {
   t->id = OAK_TYPE_UNKNOWN;
+  t->key_id = OAK_TYPE_UNKNOWN;
   t->is_array = 0;
+  t->is_map = 0;
 }
 
 static inline int oak_type_is_known(const struct oak_type_t* t)
@@ -72,5 +80,13 @@ static inline int oak_type_is_known(const struct oak_type_t* t)
 static inline int oak_type_equal(const struct oak_type_t* a,
                                  const struct oak_type_t* b)
 {
-  return a->id == b->id && a->is_array == b->is_array;
+  if (a->id != b->id)
+    return 0;
+  if (a->is_array != b->is_array)
+    return 0;
+  if (a->is_map != b->is_map)
+    return 0;
+  if (a->is_map && a->key_id != b->key_id)
+    return 0;
+  return 1;
 }

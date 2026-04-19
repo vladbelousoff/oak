@@ -1,0 +1,75 @@
+let mut a = [:] as [string:number];
+a['one'] = 1;
+a['two'] = 2;
+a['three'] = 3;
+
+print(a.len());
+print(a['one']);
+print(a['two']);
+print(a['three']);
+
+a['two'] = 22;
+print(a['two']);
+print(a.len());
+
+let mut counts = [:] as [string:number];
+counts['x'] = 0;
+counts['x'] = counts['x'] + 1;
+counts['x'] = counts['x'] + 1;
+print(counts['x']);
+
+let mut by_id = [:] as [number:string];
+by_id[1] = 'alpha';
+by_id[2] = 'beta';
+print(by_id[1]);
+print(by_id[2]);
+print(by_id.len());
+
+print(a.has('one'));
+print(a.has('missing'));
+print(a.delete('one'));
+print(a.has('one'));
+print(a.delete('one'));
+print(a.len());
+
+let mut sum = 0;
+for k, v in a {
+  sum = sum + v;
+}
+print(sum);
+
+let mut keys_total = 0;
+for v in by_id {
+  keys_total = keys_total + v;
+}
+print(keys_total);
+
+let mut nums = [] as number[];
+nums.push(10);
+nums.push(20);
+nums.push(30);
+
+let mut total = 0;
+for v in nums {
+  total = total + v;
+}
+print(total);
+
+for i, v in nums {
+  print(i);
+  print(v);
+}
+
+for v in nums {
+  if v == 20 {
+    continue;
+  }
+  print(v);
+}
+
+for v in nums {
+  if v == 20 {
+    break;
+  }
+  print(v);
+}

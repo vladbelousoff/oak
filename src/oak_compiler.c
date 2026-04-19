@@ -88,11 +88,14 @@ struct oak_method_binding_t
   u8 const_idx;
   /* Includes the implicit receiver. So `arr.push(x)` -> arity 2. */
   int total_arity;
+  /* Compile-time return type of this method (always a built-in id). */
+  oak_type_id_t return_type_id;
   /* Optional. Called after arity is verified, before bytecode is emitted. */
   oak_method_validate_args_fn validate_args;
 };
 
 #define OAK_MAX_ARRAY_METHODS 8
+#define OAK_MAX_MAP_METHODS   8
 
 struct oak_compiler_t
 {
@@ -109,6 +112,8 @@ struct oak_compiler_t
   struct oak_type_registry_t type_registry;
   struct oak_method_binding_t array_methods[OAK_MAX_ARRAY_METHODS];
   int array_method_count;
+  struct oak_method_binding_t map_methods[OAK_MAX_MAP_METHODS];
+  int map_method_count;
 };
 
 /* Convenience: intern a type id from a token spelling. */
@@ -561,14 +566,29 @@ struct oak_array_method_def_t
   oak_native_fn_t impl;
   /* Total arity, including the implicit receiver. */
   int total_arity;
+  oak_type_id_t return_type_id;
   oak_method_validate_args_fn validate_args;
 };
 
+static void validate_map_key_arg(struct oak_compiler_t* c,
+                                 const struct oak_ast_node_t* call,
+                                 struct oak_type_t recv_ty,
+                                 const struct oak_token_t* err_tok);
+
 static const struct oak_array_method_def_t array_method_table[] = {
   /* push(receiver, value) -> new length. */
-  { "push", oak_builtin_push, 2, validate_array_push_args },
+  { "push", oak_builtin_push, 2, OAK_TYPE_NUMBER, validate_array_push_args },
   /* len(receiver) -> length. */
-  { "len", oak_builtin_len, 1, null },
+  { "len", oak_builtin_len, 1, OAK_TYPE_NUMBER, null },
+};
+
+static const struct oak_array_method_def_t map_method_table[] = {
+  /* len(receiver) -> length. */
+  { "len", oak_builtin_len, 1, OAK_TYPE_NUMBER, null },
+  /* has(receiver, key) -> bool. */
+  { "has", oak_builtin_has, 2, OAK_TYPE_BOOL, validate_map_key_arg },
+  /* delete(receiver, key) -> bool (true if removed). */
+  { "delete", oak_builtin_delete, 2, OAK_TYPE_BOOL, validate_map_key_arg },
 };
 
 static void register_array_methods(struct oak_compiler_t* c)
@@ -594,6 +614,7 @@ static void register_array_methods(struct oak_compiler_t* c)
     slot->name_len = strlen(def->name);
     slot->const_idx = idx;
     slot->total_arity = def->total_arity;
+    slot->return_type_id = def->return_type_id;
     slot->validate_args = def->validate_args;
   }
 }
@@ -604,6 +625,45 @@ find_array_method(struct oak_compiler_t* c, const char* name, const usize len)
   for (int i = 0; i < c->array_method_count; ++i)
   {
     const struct oak_method_binding_t* m = &c->array_methods[i];
+    if (m->name_len == len && memcmp(m->name, name, len) == 0)
+      return m;
+  }
+  return null;
+}
+
+static void register_map_methods(struct oak_compiler_t* c)
+{
+  for (usize i = 0; i < oak_count_of(map_method_table); ++i)
+  {
+    if (c->map_method_count >= OAK_MAX_MAP_METHODS)
+    {
+      compiler_error_at(
+          c, null, "too many map methods (max %d)", OAK_MAX_MAP_METHODS);
+      return;
+    }
+
+    const struct oak_array_method_def_t* def = &map_method_table[i];
+    const u8 idx =
+        intern_native_constant(c, def->impl, def->total_arity, def->name);
+    if (c->has_error)
+      return;
+
+    struct oak_method_binding_t* slot = &c->map_methods[c->map_method_count++];
+    slot->name = def->name;
+    slot->name_len = strlen(def->name);
+    slot->const_idx = idx;
+    slot->total_arity = def->total_arity;
+    slot->return_type_id = def->return_type_id;
+    slot->validate_args = def->validate_args;
+  }
+}
+
+static const struct oak_method_binding_t*
+find_map_method(struct oak_compiler_t* c, const char* name, const usize len)
+{
+  for (int i = 0; i < c->map_method_count; ++i)
+  {
+    const struct oak_method_binding_t* m = &c->map_methods[i];
     if (m->name_len == len && memcmp(m->name, name, len) == 0)
       return m;
   }
@@ -808,6 +868,9 @@ static void compile_program(struct oak_compiler_t* c,
   register_array_methods(c);
   if (c->has_error)
     return;
+  register_map_methods(c);
+  if (c->has_error)
+    return;
   register_program_functions(c, program);
   if (c->has_error)
     return;
@@ -945,21 +1008,21 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         return;
       if (callee->kind == OAK_NODE_MEMBER_ACCESS)
       {
-        /* Methods on arrays (`push`, `len`) currently all yield numbers. */
         const struct oak_ast_node_t* recv = callee->lhs;
         const struct oak_ast_node_t* method = callee->rhs;
         if (!recv || !method || method->kind != OAK_NODE_IDENT)
           return;
         struct oak_type_t recv_ty;
         infer_expr_static_type(c, recv, &recv_ty);
-        if (!recv_ty.is_array)
-          return;
-        const struct oak_method_binding_t* m =
-            find_array_method(c,
-                              oak_token_text(method->token),
-                              (usize)oak_token_length(method->token));
+        const char* mn = oak_token_text(method->token);
+        const usize mn_len = (usize)oak_token_length(method->token);
+        const struct oak_method_binding_t* m = null;
+        if (recv_ty.is_array)
+          m = find_array_method(c, mn, mn_len);
+        else if (recv_ty.is_map)
+          m = find_map_method(c, mn, mn_len);
         if (m)
-          out->id = OAK_TYPE_NUMBER;
+          out->id = m->return_type_id;
         return;
       }
       if (callee->kind != OAK_NODE_IDENT)
@@ -989,18 +1052,35 @@ static void infer_expr_static_type(struct oak_compiler_t* c,
         out->is_array = 1;
         return;
       }
+      if (type_node->kind == OAK_NODE_TYPE_MAP)
+      {
+        const struct oak_ast_node_t* key = type_node->lhs;
+        const struct oak_ast_node_t* val = type_node->rhs;
+        if (!key || !val || key->kind != OAK_NODE_IDENT ||
+            val->kind != OAK_NODE_IDENT)
+          return;
+        out->key_id = intern_type_token(c, key->token);
+        out->id = intern_type_token(c, val->token);
+        out->is_map = 1;
+        return;
+      }
       if (type_node->kind == OAK_NODE_IDENT)
         out->id = intern_type_token(c, type_node->token);
       return;
     }
     case OAK_NODE_INDEX_ACCESS:
     {
-      struct oak_type_t arr_ty;
-      infer_expr_static_type(c, expr->lhs, &arr_ty);
-      if (arr_ty.is_array && oak_type_is_known(&arr_ty))
+      struct oak_type_t coll_ty;
+      infer_expr_static_type(c, expr->lhs, &coll_ty);
+      if (coll_ty.is_array && oak_type_is_known(&coll_ty))
       {
-        out->id = arr_ty.id;
-        out->is_array = 0;
+        out->id = coll_ty.id;
+        return;
+      }
+      if (coll_ty.is_map && oak_type_is_known(&coll_ty))
+      {
+        out->id = coll_ty.id;
+        return;
       }
       return;
     }
@@ -1013,6 +1093,28 @@ static const char* type_kind_name(struct oak_compiler_t* c,
                                   const struct oak_type_t t)
 {
   return oak_type_registry_name(&c->type_registry, t.id);
+}
+
+/* Format a type name into a thread-local buffer for error messages. */
+static const char* type_full_name(struct oak_compiler_t* c,
+                                  const struct oak_type_t t)
+{
+  static _Thread_local char buf[128];
+  if (t.is_map)
+  {
+    snprintf(buf,
+             sizeof(buf),
+             "[%s:%s]",
+             oak_type_registry_name(&c->type_registry, t.key_id),
+             oak_type_registry_name(&c->type_registry, t.id));
+    return buf;
+  }
+  if (t.is_array)
+  {
+    snprintf(buf, sizeof(buf), "%s[]", type_kind_name(c, t));
+    return buf;
+  }
+  return type_kind_name(c, t);
 }
 
 static void
@@ -1065,11 +1167,10 @@ validate_user_fn_call_arg_types(struct oak_compiler_t* c,
         err_tok = arg_wrap->child->token;
       compiler_error_at(c,
                         err_tok,
-                        "argument %zu: expected type '%s', found '%s%s'",
+                        "argument %zu: expected type '%s', found '%s'",
                         i + 1,
-                        type_kind_name(c, want),
-                        type_kind_name(c, got),
-                        got.is_array ? "[]" : "");
+                        type_full_name(c, want),
+                        type_full_name(c, got));
     }
   }
 }
@@ -1238,6 +1339,190 @@ static void compile_fn_call_arg(struct oak_compiler_t* c,
     compile_node(c, arg);
 }
 
+/* Iterates over an array or map.
+ *
+ *   for v in arr        // v = element value
+ *   for i, v in arr     // i = index (0-based), v = element value
+ *   for k in map        // k = key
+ *   for k, v in map     // k = key, v = value
+ *
+ * The collection is evaluated once. Iteration is positional: snapshotting
+ * the length up-front means inserts during a map iteration won't be seen,
+ * and deletes can shift remaining entries (the map stores them densely). */
+static void compile_stmt_for_in(struct oak_compiler_t* c,
+                                const struct oak_ast_node_t* node)
+{
+  const usize child_count = ast_child_count(node);
+  if (child_count != 3 && child_count != 4)
+  {
+    compiler_error_at(c, null, "malformed 'for ... in' statement");
+    return;
+  }
+
+  struct oak_list_entry_t* pos = node->children.next;
+  const struct oak_ast_node_t* first_ident =
+      oak_container_of(pos, struct oak_ast_node_t, link);
+  pos = pos->next;
+  const struct oak_ast_node_t* second_ident = null;
+  if (child_count == 4)
+  {
+    second_ident = oak_container_of(pos, struct oak_ast_node_t, link);
+    pos = pos->next;
+  }
+  const struct oak_ast_node_t* coll_expr =
+      oak_container_of(pos, struct oak_ast_node_t, link);
+  pos = pos->next;
+  const struct oak_ast_node_t* body =
+      oak_container_of(pos, struct oak_ast_node_t, link);
+
+  const struct oak_code_loc_t loc = code_loc_from_token(first_ident->token);
+
+  struct oak_type_t coll_ty;
+  infer_expr_static_type(c, coll_expr, &coll_ty);
+  if (!oak_type_is_known(&coll_ty) || (!coll_ty.is_array && !coll_ty.is_map))
+  {
+    compiler_error_at(c,
+                      coll_expr->token ? coll_expr->token : first_ident->token,
+                      "'for ... in' requires an array or map, got '%s'",
+                      type_full_name(c, coll_ty));
+    return;
+  }
+
+  /* Look up the receiver's len() binding so we can snapshot length once. */
+  const struct oak_method_binding_t* len_m =
+      coll_ty.is_map ? find_map_method(c, "len", 3)
+                     : find_array_method(c, "len", 3);
+  if (!len_m)
+  {
+    compiler_error_at(c,
+                      coll_expr->token ? coll_expr->token : first_ident->token,
+                      "internal error: missing 'len' method binding");
+    return;
+  }
+
+  /* Names of the loop variables. Two-var form binds both; one-var form binds
+   * only the value (k for maps, v for arrays). */
+  const struct oak_ast_node_t* k_ident = null;
+  const struct oak_ast_node_t* v_ident = null;
+  if (second_ident)
+  {
+    k_ident = first_ident;
+    v_ident = second_ident;
+  }
+  else
+  {
+    if (coll_ty.is_map)
+      k_ident = first_ident; /* iterate keys by default */
+    else
+      v_ident = first_ident; /* arrays: iterate values */
+  }
+
+  const int base_depth = c->stack_depth;
+
+  begin_scope(c);
+
+  /* slot 0: the collection itself (evaluated exactly once). */
+  compile_node(c, coll_expr);
+  const int coll_slot = c->stack_depth - 1;
+  add_local(c, "$coll", 0, coll_slot, 0, coll_ty);
+
+  /* slot 1: iteration index, mutable hidden local. */
+  emit_op_arg(c, OAK_OP_CONSTANT, intern_constant(c, OAK_VALUE_I32(0)), loc);
+  const int idx_slot = c->stack_depth - 1;
+  const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
+  add_local(c, "$i", 0, idx_slot, 1, num_ty);
+
+  /* slot 2: snapshot length. Emit `len_fn(coll)` via OP_CALL. */
+  emit_op_arg(c, OAK_OP_CONSTANT, len_m->const_idx, loc);
+  emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
+  emit_op_arg(c, OAK_OP_CALL, (u8)len_m->total_arity, loc);
+  c->stack_depth -= len_m->total_arity;
+  const int limit_slot = c->stack_depth - 1;
+  add_local(c, "$n", 0, limit_slot, 0, num_ty);
+
+  struct oak_loop_frame_t loop = {
+    .enclosing = c->current_loop,
+    .loop_start = c->chunk->count,
+    .exit_depth = base_depth,
+    .continue_depth = base_depth + 3,
+    .break_count = 0,
+    .continue_count = 0,
+  };
+  c->current_loop = &loop;
+
+  /* Loop condition: idx < limit. */
+  emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+  emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)limit_slot, loc);
+  emit_op(c, OAK_OP_LT, loc);
+  const usize exit_jump = emit_jump(c, OAK_OP_JUMP_IF_FALSE, loc);
+
+  /* Per-iteration scope: exposes k, v to the body. */
+  begin_scope(c);
+
+  /* Push k (key for maps, index for arrays). */
+  if (k_ident)
+  {
+    if (coll_ty.is_map)
+    {
+      emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
+      emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+      emit_op(c, OAK_OP_MAP_KEY_AT, loc);
+      const struct oak_type_t key_ty = { .id = coll_ty.key_id };
+      add_local(c,
+                oak_token_text(k_ident->token),
+                (usize)oak_token_length(k_ident->token),
+                c->stack_depth - 1,
+                0,
+                key_ty);
+    }
+    else
+    {
+      emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+      add_local(c,
+                oak_token_text(k_ident->token),
+                (usize)oak_token_length(k_ident->token),
+                c->stack_depth - 1,
+                0,
+                num_ty);
+    }
+  }
+
+  /* Push v (value for both maps and arrays). */
+  if (v_ident)
+  {
+    emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
+    emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+    emit_op(c, coll_ty.is_map ? OAK_OP_MAP_VALUE_AT : OAK_OP_GET_INDEX, loc);
+    const struct oak_type_t val_ty = { .id = coll_ty.id };
+    add_local(c,
+              oak_token_text(v_ident->token),
+              (usize)oak_token_length(v_ident->token),
+              c->stack_depth - 1,
+              0,
+              val_ty);
+  }
+
+  compile_block(c, body);
+
+  /* Pop per-iter k, v (compile-time + runtime). */
+  end_scope(c);
+
+  /* `continue` lands here (after k/v are popped). */
+  patch_jumps(c, loop.continue_jumps, loop.continue_count);
+
+  emit_op_arg(c, OAK_OP_INC_LOCAL, (u8)idx_slot, loc);
+  emit_loop(c, loop.loop_start, loc);
+  patch_jump(c, exit_jump);
+
+  /* Tear down hidden iterator state ($n, $i, $coll). */
+  end_scope(c);
+
+  /* `break` lands here, after all iterator state is popped. */
+  patch_jumps(c, loop.break_jumps, loop.break_count);
+
+  c->current_loop = loop.enclosing;
+}
+
 static const struct oak_ast_node_t*
 fn_call_arg_expr_at(const struct oak_ast_node_t* call, const usize index)
 {
@@ -1273,15 +1558,39 @@ static void validate_array_push_args(struct oak_compiler_t* c,
   if (!oak_type_is_known(&val_ty))
     return;
 
-  const struct oak_type_t element_ty = { .id = recv_ty.id, .is_array = 0 };
+  const struct oak_type_t element_ty = { .id = recv_ty.id };
   if (!oak_type_equal(&element_ty, &val_ty))
   {
     compiler_error_at(c,
                       val_expr->token ? val_expr->token : err_tok,
-                      "cannot push value of type '%s%s' to array of '%s'",
-                      type_kind_name(c, val_ty),
-                      val_ty.is_array ? "[]" : "",
-                      type_kind_name(c, element_ty));
+                      "cannot push value of type '%s' to array of '%s'",
+                      type_full_name(c, val_ty),
+                      type_full_name(c, element_ty));
+  }
+}
+
+static void validate_map_key_arg(struct oak_compiler_t* c,
+                                 const struct oak_ast_node_t* call,
+                                 const struct oak_type_t recv_ty,
+                                 const struct oak_token_t* err_tok)
+{
+  const struct oak_ast_node_t* key_expr = fn_call_arg_expr_at(call, 0);
+  if (!key_expr)
+    return;
+
+  struct oak_type_t key_ty;
+  infer_expr_static_type(c, key_expr, &key_ty);
+  if (!oak_type_is_known(&key_ty))
+    return;
+
+  const struct oak_type_t want_key = { .id = recv_ty.key_id };
+  if (!oak_type_equal(&want_key, &key_ty))
+  {
+    compiler_error_at(c,
+                      key_expr->token ? key_expr->token : err_tok,
+                      "map key must be of type '%s', got '%s'",
+                      type_full_name(c, want_key),
+                      type_full_name(c, key_ty));
   }
 }
 
@@ -1311,26 +1620,28 @@ static void compile_method_call(struct oak_compiler_t* c,
   struct oak_type_t recv_ty;
   infer_expr_static_type(c, receiver, &recv_ty);
 
-  if (!recv_ty.is_array || !oak_type_is_known(&recv_ty))
+  if ((!recv_ty.is_array && !recv_ty.is_map) || !oak_type_is_known(&recv_ty))
   {
     compiler_error_at(c,
                       receiver->token ? receiver->token : method->token,
-                      "method '.%.*s' requires a typed array receiver",
+                      "method '.%.*s' requires a typed array or map receiver",
                       mname_len,
                       mname);
     return;
   }
 
   const struct oak_method_binding_t* m =
-      find_array_method(c, mname, (usize)mname_len);
+      recv_ty.is_map ? find_map_method(c, mname, (usize)mname_len)
+                     : find_array_method(c, mname, (usize)mname_len);
   if (!m)
   {
     compiler_error_at(c,
                       method->token,
-                      "no method '%.*s' on array of '%s'",
+                      "no method '%.*s' on %s '%s'",
                       mname_len,
                       mname,
-                      type_kind_name(c, recv_ty));
+                      recv_ty.is_map ? "map" : "array of",
+                      type_full_name(c, recv_ty));
     return;
   }
 
@@ -1590,34 +1901,51 @@ static void compile_node(struct oak_compiler_t* c,
 
       if (lhs->kind == OAK_NODE_INDEX_ACCESS)
       {
-        struct oak_type_t arr_ty;
-        infer_expr_static_type(c, lhs->lhs, &arr_ty);
-        if (!arr_ty.is_array || !oak_type_is_known(&arr_ty))
+        struct oak_type_t coll_ty;
+        infer_expr_static_type(c, lhs->lhs, &coll_ty);
+        if ((!coll_ty.is_array && !coll_ty.is_map) ||
+            !oak_type_is_known(&coll_ty))
         {
           compiler_error_at(c,
                             lhs->lhs->token,
-                            "indexed assignment requires a typed array");
+                            "indexed assignment requires a typed array or "
+                            "map");
           return;
+        }
+
+        if (coll_ty.is_map)
+        {
+          struct oak_type_t key_ty;
+          infer_expr_static_type(c, lhs->rhs, &key_ty);
+          if (oak_type_is_known(&key_ty))
+          {
+            const struct oak_type_t want_key = { .id = coll_ty.key_id };
+            if (!oak_type_equal(&want_key, &key_ty))
+            {
+              compiler_error_at(c,
+                                lhs->rhs->token,
+                                "map key must be of type '%s', got '%s'",
+                                type_full_name(c, want_key),
+                                type_full_name(c, key_ty));
+              return;
+            }
+          }
         }
 
         struct oak_type_t val_ty;
         infer_expr_static_type(c, rhs, &val_ty);
         if (oak_type_is_known(&val_ty))
         {
-          const struct oak_type_t element_ty = {
-            .id = arr_ty.id,
-            .is_array = 0,
-          };
+          const struct oak_type_t element_ty = { .id = coll_ty.id };
           if (!oak_type_equal(&element_ty, &val_ty))
           {
             compiler_error_at(
                 c,
                 rhs->token,
-                "cannot assign value of type '%s%s' to element of '%s' "
-                "array",
-                type_kind_name(c, val_ty),
-                val_ty.is_array ? "[]" : "",
-                type_kind_name(c, element_ty));
+                "cannot assign value of type '%s' to element of '%s' %s",
+                type_full_name(c, val_ty),
+                type_full_name(c, element_ty),
+                coll_ty.is_map ? "map" : "array");
             return;
           }
         }
@@ -1692,6 +2020,13 @@ static void compile_node(struct oak_compiler_t* c,
           "untyped array literal; arrays must be typed (e.g. '[] as "
           "number[]')");
       break;
+    case OAK_NODE_EXPR_EMPTY_MAP:
+      compiler_error_at(
+          c,
+          null,
+          "untyped map literal; maps must be typed (e.g. '[:] as "
+          "[string:number]')");
+      break;
     case OAK_NODE_EXPR_CAST:
     {
       const struct oak_ast_node_t* value = node->lhs;
@@ -1723,10 +2058,36 @@ static void compile_node(struct oak_compiler_t* c,
         break;
       }
 
+      if (type_node->kind == OAK_NODE_TYPE_MAP)
+      {
+        const struct oak_ast_node_t* key = type_node->lhs;
+        const struct oak_ast_node_t* val = type_node->rhs;
+        if (!key || !val || key->kind != OAK_NODE_IDENT ||
+            val->kind != OAK_NODE_IDENT)
+        {
+          compiler_error_at(c,
+                            null,
+                            "map cast requires key and value types "
+                            "(e.g. '[string:number]')");
+          return;
+        }
+        if (value->kind != OAK_NODE_EXPR_EMPTY_MAP)
+        {
+          compiler_error_at(c,
+                            null,
+                            "only empty map literals can be cast to a "
+                            "map type (e.g. '[:] as [string:number]')");
+          return;
+        }
+        emit_op(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC);
+        break;
+      }
+
       compiler_error_at(c,
                         null,
                         "'as' is currently only supported for typing array "
-                        "literals (e.g. '[] as number[]')");
+                        "and map literals (e.g. '[] as number[]', "
+                        "'[:] as [string:number]')");
       break;
     }
     case OAK_NODE_INDEX_ACCESS:
@@ -1744,6 +2105,9 @@ static void compile_node(struct oak_compiler_t* c,
       break;
     case OAK_NODE_STMT_FOR_FROM:
       compile_stmt_for_from(c, node);
+      break;
+    case OAK_NODE_STMT_FOR_IN:
+      compile_stmt_for_in(c, node);
       break;
     case OAK_NODE_STMT_BREAK:
     case OAK_NODE_STMT_CONTINUE:
@@ -1786,6 +2150,7 @@ struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)
     .function_depth = 0,
     .fn_registry_count = 0,
     .array_method_count = 0,
+    .map_method_count = 0,
   };
   oak_type_registry_init(&compiler.type_registry);
 

@@ -39,8 +39,11 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_CALL] = { "OP_CALL", OAK_OP_FMT_ARGC, 0 },
   [OAK_OP_RETURN] = { "OP_RETURN", OAK_OP_FMT_NONE, 0 },
   [OAK_OP_NEW_ARRAY] = { "OP_NEW_ARRAY", OAK_OP_FMT_NONE, 1 },
+  [OAK_OP_NEW_MAP] = { "OP_NEW_MAP", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_GET_INDEX] = { "OP_GET_INDEX", OAK_OP_FMT_NONE, -1 },
   [OAK_OP_SET_INDEX] = { "OP_SET_INDEX", OAK_OP_FMT_NONE, -2 },
+  [OAK_OP_MAP_KEY_AT] = { "OP_MAP_KEY_AT", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_MAP_VALUE_AT] = { "OP_MAP_VALUE_AT", OAK_OP_FMT_NONE, -1 },
 };
 
 #define OAK_OP_INFO_COUNT oak_count_of(oak_op_info)
@@ -190,6 +193,9 @@ snprint_value(char* buf, const usize size, const struct oak_value_t value)
     if (oak_is_array(value))
       return snprintf(
           buf, size, "<array len=%zu>", oak_as_array(value)->length);
+    if (oak_is_map(value))
+      return snprintf(
+          buf, size, "<map len=%zu>", oak_as_map(value)->length);
     return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
   }
   buf[0] = '\0';

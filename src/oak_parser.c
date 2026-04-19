@@ -308,6 +308,7 @@ static struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT_IF,
       OAK_NODE_STMT_WHILE,
       OAK_NODE_STMT_FOR_FROM,
+      OAK_NODE_STMT_FOR_IN,
       OAK_NODE_STMT_BREAK,
       OAK_NODE_STMT_CONTINUE,
       OAK_NODE_STMT_RETURN,
@@ -489,6 +490,18 @@ static struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_FROM | OAK_RULE_TOKEN,
       OAK_NODE_EXPR,
       OAK_TOKEN_TO | OAK_RULE_TOKEN,
+      OAK_NODE_EXPR,
+      OAK_NODE_BLOCK,
+    },
+  },
+  // STMT_FOR_IN -> 'for' IDENT (',' IDENT)? 'in' EXPR BLOCK
+  [OAK_NODE_STMT_FOR_IN] = {
+    .rules = {
+      OAK_TOKEN_FOR | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
+      OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
+      OAK_NODE_IDENT | OAK_RULE_OPTIONAL,
+      OAK_TOKEN_IN | OAK_RULE_TOKEN,
       OAK_NODE_EXPR,
       OAK_NODE_BLOCK,
     },
