@@ -14,19 +14,16 @@ set(OAK_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(OAK_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
 # Sources
-set(OAK_CORE_SOURCES
-        ${OAK_SRC_DIR}/oak_log.c
-        ${OAK_SRC_DIR}/oak_mem.c
-        ${OAK_SRC_DIR}/oak_arena.c
-        ${OAK_SRC_DIR}/oak_lexer.c
-        ${OAK_SRC_DIR}/oak_token.c
-        ${OAK_SRC_DIR}/oak_parser.c
-        ${OAK_SRC_DIR}/oak_value.c
-        ${OAK_SRC_DIR}/oak_chunk.c
-        ${OAK_SRC_DIR}/oak_type.c
-        ${OAK_SRC_DIR}/oak_compiler.c
-        ${OAK_SRC_DIR}/oak_vm.c
-        ${OAK_SRC_DIR}/oak_file_map.c
+file(GLOB_RECURSE OAK_CORE_SOURCES ${OAK_SRC_DIR}/*.c)
+
+set(OAK_SRC_INCLUDE_DIRS
+        ${OAK_SRC_DIR}
+        ${OAK_SRC_DIR}/common
+        ${OAK_SRC_DIR}/runtime
+        ${OAK_SRC_DIR}/lexer
+        ${OAK_SRC_DIR}/parser
+        ${OAK_SRC_DIR}/compiler
+        ${OAK_SRC_DIR}/vm
 )
 
 # Tests
@@ -50,7 +47,7 @@ target_include_directories(liboak
         PUBLIC
         ${OAK_INCLUDE_DIR}
         PRIVATE
-        ${OAK_SRC_DIR}
+        ${OAK_SRC_INCLUDE_DIRS}
 )
 
 target_compile_definitions(liboak PRIVATE ${OAK_DEBUG_DEFINES})
@@ -63,7 +60,7 @@ target_include_directories(oak
         PUBLIC
         ${OAK_INCLUDE_DIR}
         PRIVATE
-        ${OAK_SRC_DIR}
+        ${OAK_SRC_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -87,7 +84,7 @@ foreach (test_src ${OAK_TEST_SOURCES})
     target_include_directories(${test_name}
             PRIVATE
             ${OAK_INCLUDE_DIR}
-            ${OAK_SRC_DIR}
+            ${OAK_SRC_INCLUDE_DIRS}
             ${OAK_TESTS_DIR}/common
     )
 

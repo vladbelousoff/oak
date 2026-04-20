@@ -1,0 +1,538 @@
+#include "oak_vm_internal.h"
+
+void oak_vm_init(struct oak_vm_t* vm)
+{
+  vm->chunk = null;
+  vm->ip = null;
+  vm->sp = vm->stack;
+  vm->stack_base = 0;
+  vm->frame_count = 0;
+}
+
+void oak_vm_free(struct oak_vm_t* vm)
+{
+  while (vm->sp > vm->stack)
+  {
+    --vm->sp;
+    oak_value_decref(*vm->sp);
+  }
+
+  vm->chunk = null;
+  vm->ip = null;
+}
+
+enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
+{
+  vm->chunk = chunk;
+  vm->ip = chunk->bytecode;
+
+  for (;;)
+  {
+    const u8 instruction = oak_vm_read(vm, 1);
+    switch (instruction)
+    {
+      case OAK_OP_HALT:
+        return OAK_VM_OK;
+      case OAK_OP_CONSTANT:
+      {
+        const u8 idx = oak_vm_read(vm, 1);
+        oak_vm_push(vm, chunk->constants[idx]);
+        break;
+      }
+      case OAK_OP_TRUE:
+        oak_vm_push(vm, OAK_VALUE_BOOL(1));
+        break;
+      case OAK_OP_FALSE:
+        oak_vm_push(vm, OAK_VALUE_BOOL(0));
+        break;
+      case OAK_OP_POP:
+      {
+        const struct oak_value_t val = oak_vm_pop(vm);
+        oak_value_decref(val);
+        break;
+      }
+      case OAK_OP_GET_LOCAL:
+      {
+        const u8 slot = oak_vm_read(vm, 1);
+        const usize idx = vm->stack_base + (usize)slot;
+        if (idx >= OAK_STACK_MAX)
+        {
+          oak_vm_runtime_error(
+              vm, "local slot out of range (slot %u)", slot);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_vm_push(vm, vm->stack[idx]);
+        break;
+      }
+      case OAK_OP_SET_LOCAL:
+      {
+        const u8 slot = oak_vm_read(vm, 1);
+        const usize idx = vm->stack_base + (usize)slot;
+        if (idx >= OAK_STACK_MAX)
+        {
+          oak_vm_runtime_error(
+              vm, "local slot out of range (slot %u)", slot);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t old_val = vm->stack[idx];
+        const struct oak_value_t new_val = oak_vm_peek(vm, 0);
+        oak_value_incref(new_val);
+        vm->stack[idx] = new_val;
+        oak_value_decref(old_val);
+        break;
+      }
+      case OAK_OP_INC_LOCAL:
+      case OAK_OP_DEC_LOCAL:
+      {
+        const u8 slot = oak_vm_read(vm, 1);
+        const usize idx = vm->stack_base + (usize)slot;
+        if (idx >= OAK_STACK_MAX)
+        {
+          oak_vm_runtime_error(
+              vm, "local slot out of range (slot %u)", slot);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t val = vm->stack[idx];
+        if (!oak_is_number(val))
+        {
+          oak_vm_runtime_error(
+              vm,
+              "local increment/decrement expects a number, got %s",
+              oak_vm_value_kind_desc(val));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (oak_is_i32(val))
+        {
+          const int delta = instruction == OAK_OP_INC_LOCAL ? 1 : -1;
+          vm->stack[idx] = OAK_VALUE_I32(oak_as_i32(val) + delta);
+          break;
+        }
+        const float fdelta = instruction == OAK_OP_INC_LOCAL ? 1.0f : -1.0f;
+        vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) + fdelta);
+        break;
+      }
+      case OAK_OP_ADD:
+      case OAK_OP_SUB:
+      case OAK_OP_MUL:
+      case OAK_OP_DIV:
+      case OAK_OP_MOD:
+      {
+        const struct oak_value_t b = oak_vm_pop(vm);
+        const struct oak_value_t a = oak_vm_pop(vm);
+
+        if (instruction == OAK_OP_ADD && oak_is_string(a) && oak_is_string(b))
+        {
+          struct oak_obj_string_t* result =
+              oak_string_concat(oak_as_string(a), oak_as_string(b));
+          oak_vm_push_owned(vm, OAK_VALUE_OBJ(result));
+          oak_value_decref(a);
+          oak_value_decref(b);
+          break;
+        }
+
+        const enum oak_vm_result_t r =
+            oak_vm_numeric_binary(vm, instruction, a, b);
+        oak_value_decref(a);
+        oak_value_decref(b);
+        if (r != OAK_VM_OK)
+          return r;
+        break;
+      }
+      case OAK_OP_NEGATE:
+      {
+        struct oak_value_t val = oak_vm_pop(vm);
+        if (!oak_is_number(val))
+        {
+          oak_value_decref(val);
+          oak_vm_runtime_error(vm,
+                               "unary '-' expects a number, got %s",
+                               oak_vm_value_kind_desc(val));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (oak_is_i32(val))
+          oak_vm_push(vm, OAK_VALUE_I32(-oak_as_i32(val)));
+        else
+          oak_vm_push(vm, OAK_VALUE_F32(-oak_as_f32(val)));
+        oak_value_decref(val);
+        break;
+      }
+      case OAK_OP_NOT:
+      {
+        struct oak_value_t val = oak_vm_pop(vm);
+        oak_vm_push(vm, OAK_VALUE_BOOL(!oak_is_truthy(val)));
+        oak_value_decref(val);
+        break;
+      }
+      case OAK_OP_EQ:
+      case OAK_OP_NEQ:
+      {
+        struct oak_value_t b = oak_vm_pop(vm);
+        struct oak_value_t a = oak_vm_pop(vm);
+        int eq = oak_value_equal(a, b);
+        oak_vm_push(vm, OAK_VALUE_BOOL(instruction == OAK_OP_EQ ? eq : !eq));
+        oak_value_decref(a);
+        oak_value_decref(b);
+        break;
+      }
+      case OAK_OP_LT:
+      case OAK_OP_LE:
+      case OAK_OP_GT:
+      case OAK_OP_GE:
+      {
+        struct oak_value_t b = oak_vm_pop(vm);
+        struct oak_value_t a = oak_vm_pop(vm);
+        enum oak_vm_result_t r =
+            oak_vm_numeric_compare(vm, instruction, a, b);
+        oak_value_decref(a);
+        oak_value_decref(b);
+        if (r != OAK_VM_OK)
+          return r;
+        break;
+      }
+      case OAK_OP_JUMP:
+      {
+        const u16 offset = oak_vm_read(vm, 2);
+        vm->ip += offset;
+        break;
+      }
+      case OAK_OP_JUMP_IF_FALSE:
+      {
+        const u16 offset = oak_vm_read(vm, 2);
+        struct oak_value_t cond = oak_vm_pop(vm);
+        if (!oak_is_truthy(cond))
+          vm->ip += offset;
+        oak_value_decref(cond);
+        break;
+      }
+      case OAK_OP_LOOP:
+      {
+        const u16 offset = oak_vm_read(vm, 2);
+        vm->ip -= offset;
+        break;
+      }
+      case OAK_OP_CALL:
+      {
+        const enum oak_vm_result_t r = oak_vm_op_call(vm);
+        if (r != OAK_VM_OK)
+          return r;
+        break;
+      }
+      case OAK_OP_RETURN:
+      {
+        const enum oak_vm_result_t r = oak_vm_op_return(vm);
+        if (r != OAK_VM_OK)
+          return r;
+        break;
+      }
+      case OAK_OP_NEW_ARRAY:
+      {
+        struct oak_obj_array_t* arr = oak_array_new();
+        oak_vm_push_owned(vm, OAK_VALUE_OBJ(&arr->obj));
+        break;
+      }
+      case OAK_OP_NEW_ARRAY_FROM_STACK:
+      {
+        const u8 count = (u8)oak_vm_read(vm, 1);
+        if ((usize)(vm->sp - vm->stack) < (usize)count)
+        {
+          oak_vm_runtime_error(vm, "stack underflow in array literal");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_obj_array_t* arr = oak_array_new();
+        struct oak_value_t* base = vm->sp - (int)count;
+        for (int i = 0; i < (int)count; ++i)
+          oak_array_push(arr, base[i]);
+        for (int i = 0; i < (int)count; ++i)
+          oak_value_decref(base[i]);
+        vm->sp -= (int)count;
+        oak_vm_push_owned(vm, OAK_VALUE_OBJ(&arr->obj));
+        break;
+      }
+      case OAK_OP_NEW_MAP:
+      {
+        struct oak_obj_map_t* map = oak_map_new();
+        oak_vm_push_owned(vm, OAK_VALUE_OBJ(&map->obj));
+        break;
+      }
+      case OAK_OP_NEW_MAP_FROM_STACK:
+      {
+        const u8 count = (u8)oak_vm_read(vm, 1);
+        const usize slots = (usize)count * 2u;
+        if ((usize)(vm->sp - vm->stack) < slots)
+        {
+          oak_vm_runtime_error(vm, "stack underflow in map literal");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_obj_map_t* map = oak_map_new();
+        struct oak_value_t* base = vm->sp - (int)slots;
+        for (int i = 0; i < (int)count; ++i)
+        {
+          const struct oak_value_t k = base[i * 2 + 0];
+          const struct oak_value_t v = base[i * 2 + 1];
+          oak_map_set(map, k, v);
+        }
+        for (usize i = 0; i < slots; ++i)
+          oak_value_decref(base[i]);
+        vm->sp -= (int)slots;
+        oak_vm_push_owned(vm, OAK_VALUE_OBJ(&map->obj));
+        break;
+      }
+      case OAK_OP_GET_INDEX:
+      {
+        const struct oak_value_t idx_v = oak_vm_pop(vm);
+        const struct oak_value_t coll_v = oak_vm_pop(vm);
+
+        if (oak_is_map(coll_v))
+        {
+          const struct oak_obj_map_t* map = oak_as_map(coll_v);
+          struct oak_value_t out;
+          if (!oak_map_get(map, idx_v, &out))
+          {
+            oak_vm_runtime_error(vm, "key not found in map");
+            oak_value_decref(idx_v);
+            oak_value_decref(coll_v);
+            return OAK_VM_RUNTIME_ERROR;
+          }
+          oak_vm_push(vm, out);
+          oak_value_decref(idx_v);
+          oak_value_decref(coll_v);
+          break;
+        }
+
+        if (!oak_is_array(coll_v))
+        {
+          oak_vm_runtime_error(vm,
+                               "indexing requires an array or map, got %s",
+                               oak_vm_value_kind_desc(coll_v));
+          oak_value_decref(idx_v);
+          oak_value_decref(coll_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (!oak_is_i32(idx_v))
+        {
+          oak_vm_runtime_error(vm,
+                               "array index must be an integer, got %s",
+                               oak_vm_value_kind_desc(idx_v));
+          oak_value_decref(idx_v);
+          oak_value_decref(coll_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_obj_array_t* arr = oak_as_array(coll_v);
+        const int i = oak_as_i32(idx_v);
+        if (i < 0 || (usize)i >= arr->length)
+        {
+          oak_vm_runtime_error(vm,
+                               "array index %d out of bounds (length %zu)",
+                               i,
+                               arr->length);
+          oak_value_decref(idx_v);
+          oak_value_decref(coll_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_vm_push(vm, arr->items[i]);
+        oak_value_decref(idx_v);
+        oak_value_decref(coll_v);
+        break;
+      }
+      case OAK_OP_SET_INDEX:
+      {
+        /* stack: [..., collection, index, value]; result leaves [..., value]. */
+        if (vm->sp - vm->stack < 3)
+        {
+          oak_vm_runtime_error(vm, "stack underflow in indexed assignment");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t value = vm->sp[-1];
+        const struct oak_value_t idx_v = vm->sp[-2];
+        const struct oak_value_t coll_v = vm->sp[-3];
+
+        if (oak_is_map(coll_v))
+        {
+          struct oak_obj_map_t* map = oak_as_map(coll_v);
+          oak_map_set(map, idx_v, value);
+          oak_value_decref(coll_v);
+          oak_value_decref(idx_v);
+          vm->sp[-3] = value;
+          vm->sp -= 2;
+          break;
+        }
+
+        if (!oak_is_array(coll_v))
+        {
+          oak_vm_runtime_error(
+              vm,
+              "indexed assignment requires an array or map, got %s",
+              oak_vm_value_kind_desc(coll_v));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (!oak_is_i32(idx_v))
+        {
+          oak_vm_runtime_error(vm,
+                               "array index must be an integer, got %s",
+                               oak_vm_value_kind_desc(idx_v));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_obj_array_t* arr = oak_as_array(coll_v);
+        const int i = oak_as_i32(idx_v);
+        if (i < 0 || (usize)i >= arr->length)
+        {
+          oak_vm_runtime_error(vm,
+                               "array index %d out of bounds (length %zu)",
+                               i,
+                               arr->length);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_value_decref(arr->items[i]);
+        oak_value_incref(value);
+        arr->items[i] = value;
+        oak_value_decref(coll_v);
+        oak_value_decref(idx_v);
+        vm->sp[-3] = value;
+        vm->sp -= 2;
+        break;
+      }
+      case OAK_OP_MAP_KEY_AT:
+      case OAK_OP_MAP_VALUE_AT:
+      {
+        const struct oak_value_t idx_v = oak_vm_pop(vm);
+        const struct oak_value_t coll_v = oak_vm_pop(vm);
+
+        if (!oak_is_map(coll_v))
+        {
+          oak_vm_runtime_error(vm,
+                               "map iteration requires a map, got %s",
+                               oak_vm_value_kind_desc(coll_v));
+          oak_value_decref(idx_v);
+          oak_value_decref(coll_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (!oak_is_i32(idx_v))
+        {
+          oak_vm_runtime_error(
+              vm,
+              "map iterator index must be an integer, got %s",
+              oak_vm_value_kind_desc(idx_v));
+          oak_value_decref(idx_v);
+          oak_value_decref(coll_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_obj_map_t* map = oak_as_map(coll_v);
+        const int i = oak_as_i32(idx_v);
+        if (i < 0 || (usize)i >= map->length)
+        {
+          oak_vm_runtime_error(
+              vm,
+              "map iterator index %d out of bounds (length %zu)",
+              i,
+              map->length);
+          oak_value_decref(idx_v);
+          oak_value_decref(coll_v);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t v = instruction == OAK_OP_MAP_KEY_AT
+                                         ? oak_map_key_at(map, (usize)i)
+                                         : oak_map_value_at(map, (usize)i);
+        oak_vm_push(vm, v);
+        oak_value_decref(idx_v);
+        oak_value_decref(coll_v);
+        break;
+      }
+      case OAK_OP_NEW_STRUCT_FROM_STACK:
+      {
+        /* Stack on entry: [..., type_name_string, f0, f1, ..., f(N-1)].
+         * Result: [..., struct]. */
+        const u8 count = (u8)oak_vm_read(vm, 1);
+        if ((usize)(vm->sp - vm->stack) < (usize)count + 1u)
+        {
+          oak_vm_runtime_error(vm, "stack underflow in struct literal");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_value_t* base = vm->sp - (int)count;
+        const struct oak_value_t name_v = base[-1];
+        const char* type_name = null;
+        if (oak_is_string(name_v))
+          type_name = oak_as_string(name_v)->chars;
+
+        struct oak_obj_struct_t* s = oak_struct_new((int)count, type_name);
+        for (int i = 0; i < (int)count; ++i)
+        {
+          oak_value_incref(base[i]);
+          s->fields[i] = base[i];
+        }
+        for (int i = 0; i < (int)count; ++i)
+          oak_value_decref(base[i]);
+        oak_value_decref(name_v);
+        vm->sp -= (int)count + 1;
+        oak_vm_push_owned(vm, OAK_VALUE_OBJ(&s->obj));
+        break;
+      }
+      case OAK_OP_GET_FIELD:
+      {
+        const u8 idx = (u8)oak_vm_read(vm, 1);
+        const struct oak_value_t recv = oak_vm_pop(vm);
+        if (!oak_is_struct(recv))
+        {
+          oak_vm_runtime_error(vm,
+                               "field access requires a struct, got %s",
+                               oak_vm_value_kind_desc(recv));
+          oak_value_decref(recv);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_obj_struct_t* s = oak_as_struct(recv);
+        if ((int)idx >= s->field_count)
+        {
+          oak_vm_runtime_error(
+              vm,
+              "field index %u out of bounds (struct has %d fields)",
+              (unsigned)idx,
+              s->field_count);
+          oak_value_decref(recv);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_vm_push(vm, s->fields[idx]);
+        oak_value_decref(recv);
+        break;
+      }
+      case OAK_OP_SET_FIELD:
+      {
+        /* Stack: [..., recv, value]; result: [..., value]. */
+        const u8 idx = (u8)oak_vm_read(vm, 1);
+        if (vm->sp - vm->stack < 2)
+        {
+          oak_vm_runtime_error(vm, "stack underflow in field assignment");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_value_t value = vm->sp[-1];
+        const struct oak_value_t recv = vm->sp[-2];
+        if (!oak_is_struct(recv))
+        {
+          oak_vm_runtime_error(vm,
+                               "field assignment requires a struct, got %s",
+                               oak_vm_value_kind_desc(recv));
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        struct oak_obj_struct_t* s = oak_as_struct(recv);
+        if ((int)idx >= s->field_count)
+        {
+          oak_vm_runtime_error(
+              vm,
+              "field index %u out of bounds (struct has %d fields)",
+              (unsigned)idx,
+              s->field_count);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_value_decref(s->fields[idx]);
+        oak_value_incref(value);
+        s->fields[idx] = value;
+        oak_value_decref(recv);
+        vm->sp[-2] = value;
+        vm->sp -= 1;
+        break;
+      }
+      default:
+        oak_vm_runtime_error(
+            vm, "internal error: unknown opcode 0x%02x", instruction);
+        return OAK_VM_RUNTIME_ERROR;
+    }
+  }
+}
