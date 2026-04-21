@@ -55,17 +55,15 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
     if (item->kind != OAK_NODE_STRUCT_DECL)
       continue;
 
-    const struct oak_list_entry_t* first = item->children.next;
-    if (first == &item->children)
+    if (!item->lhs || !item->rhs)
     {
       oak_compiler_error_at(c, item->token, "malformed struct declaration");
       return;
     }
 
-    /* The grammar produces TYPE_NAME first; for a plain user struct it nests
-     * an IDENT child. We only support simple ident names for struct types. */
-    const struct oak_ast_node_t* type_name_node =
-        oak_container_of(first, struct oak_ast_node_t, link);
+    /* lhs = TYPE_NAME; for a plain user struct it nests an IDENT child. We only
+     * support simple ident names for struct types. */
+    const struct oak_ast_node_t* type_name_node = item->lhs;
     const struct oak_ast_node_t* name_ident = type_name_node;
     if (type_name_node->kind == OAK_NODE_TYPE_NAME)
     {
@@ -115,10 +113,18 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
     }
     slot->field_count = 0;
 
+    const struct oak_ast_node_t* fields_wrap = item->rhs;
+    if (fields_wrap->kind != OAK_NODE_STRUCT_FIELDS)
+    {
+      oak_compiler_error_at(c, item->token, "malformed struct declaration");
+      return;
+    }
+
     /* Collect field declarations in source order. Each entry is a binary node
      * STRUCT_FIELD_DECL(IDENT, IDENT) where lhs is the field name and rhs
      * names the field's type. */
-    for (struct oak_list_entry_t* fpos = first->next; fpos != &item->children;
+    for (struct oak_list_entry_t* fpos = fields_wrap->children.next;
+         fpos != &fields_wrap->children;
          fpos = fpos->next)
     {
       const struct oak_ast_node_t* fdecl =

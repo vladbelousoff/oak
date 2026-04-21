@@ -161,15 +161,23 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT,
     },
   },
-  // STRUCT_DECL -> 'type' TYPE_NAME 'struct' '{' STRUCT_FIELD_DECL* '}'
+  // STRUCT_DECL -> 'type' TYPE_NAME 'struct' '{' STRUCT_FIELDS '}'
+  //   (binary: lhs = TYPE_NAME, rhs = STRUCT_FIELDS)
   [OAK_NODE_STRUCT_DECL] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_TYPE | OAK_RULE_TOKEN,
       OAK_NODE_TYPE_NAME,
       OAK_TOKEN_STRUCT | OAK_RULE_TOKEN,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_STRUCT_FIELD_DECL | OAK_RULE_REPEAT,
+      OAK_NODE_STRUCT_FIELDS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // STRUCT_FIELDS -> STRUCT_FIELD_DECL*
+  [OAK_NODE_STRUCT_FIELDS] = {
+    .rules = {
+      OAK_NODE_STRUCT_FIELD_DECL | OAK_RULE_REPEAT,
     },
   },
   // STRUCT_FIELD_DECL -> IDENT ':' IDENT ';'
@@ -182,15 +190,23 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // ENUM_DECL -> 'type' IDENT 'enum' '{' IDENT* '}'
+  // ENUM_DECL -> 'type' IDENT 'enum' '{' ENUM_VARIANTS '}'
+  //   (binary: lhs = IDENT, rhs = ENUM_VARIANTS)
   [OAK_NODE_ENUM_DECL] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_TYPE | OAK_RULE_TOKEN,
       OAK_NODE_IDENT,
       OAK_TOKEN_ENUM | OAK_RULE_TOKEN,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT | OAK_RULE_REPEAT,
+      OAK_NODE_ENUM_VARIANTS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // ENUM_VARIANTS -> IDENT*
+  [OAK_NODE_ENUM_VARIANTS] = {
+    .rules = {
+      OAK_NODE_IDENT | OAK_RULE_REPEAT,
     },
   },
   // TYPE_NAME -> TYPE_ARRAY | TYPE_MAP | IDENT
