@@ -440,8 +440,9 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,
     },
   },
-  // FN_RETURN_TYPE -> '->' TYPE_NAME
+  // FN_RETURN_TYPE -> '->' TYPE_NAME (unary: child = TYPE_NAME)
   [OAK_NODE_FN_RETURN_TYPE] = {
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_ARROW | OAK_RULE_TOKEN,
       OAK_NODE_TYPE_NAME,

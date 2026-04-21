@@ -156,10 +156,7 @@ oak_compiler_fn_decl_return_type_node(const struct oak_ast_node_t* decl)
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (ch->kind != OAK_NODE_FN_RETURN_TYPE)
       continue;
-    const struct oak_list_entry_t* f = ch->children.next;
-    if (f == &ch->children)
-      return null;
-    return oak_container_of(f, struct oak_ast_node_t, link);
+    return ch->child;
   }
   return null;
 }
