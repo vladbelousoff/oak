@@ -271,6 +271,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
   },
   // STMT_EXPR -> EXPR ';'
   [OAK_NODE_STMT_EXPR] = {
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_NODE_EXPR,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
@@ -302,14 +303,21 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // EXPR_STRUCT_LITERAL -> 'new' IDENT '{' STRUCT_LITERAL_FIELD* '}'
+  // EXPR_STRUCT_LITERAL -> 'new' IDENT '{' STRUCT_LITERAL_FIELDS '}'
   [OAK_NODE_EXPR_STRUCT_LITERAL] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_NEW | OAK_RULE_TOKEN,
       OAK_NODE_IDENT,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_STRUCT_LITERAL_FIELD | OAK_RULE_REPEAT,
+      OAK_NODE_STRUCT_LITERAL_FIELDS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // STRUCT_LITERAL_FIELDS -> STRUCT_LITERAL_FIELD*
+  [OAK_NODE_STRUCT_LITERAL_FIELDS] = {
+    .rules = {
+      OAK_NODE_STRUCT_LITERAL_FIELD | OAK_RULE_REPEAT,
     },
   },
   // STRUCT_LITERAL_FIELD -> IDENT ':' EXPR ','?

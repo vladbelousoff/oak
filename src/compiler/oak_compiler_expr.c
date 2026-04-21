@@ -169,8 +169,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_STMT_EXPR:
     {
       const int depth_before = c->stack_depth;
-      struct oak_ast_node_t* expr;
-      oak_ast_node_unpack(node, &expr);
+      struct oak_ast_node_t* expr = node->child;
       oak_compiler_compile_node(c, expr);
       if (c->stack_depth > depth_before)
         oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
@@ -696,19 +695,18 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     }
     case OAK_NODE_EXPR_STRUCT_LITERAL:
     {
-      const struct oak_list_entry_t* first = node->children.next;
-      if (first == &node->children)
-      {
-        oak_compiler_error_at(
-            c, node->token, "struct literal missing type name");
-        return;
-      }
-      const struct oak_ast_node_t* name_node =
-          oak_container_of(first, struct oak_ast_node_t, link);
+      const struct oak_ast_node_t* name_node = node->lhs;
+      const struct oak_ast_node_t* fields_node = node->rhs;
       if (!name_node || name_node->kind != OAK_NODE_IDENT)
       {
         oak_compiler_error_at(
             c, node->token, "struct literal: type must be an identifier");
+        return;
+      }
+      if (!fields_node || fields_node->kind != OAK_NODE_STRUCT_LITERAL_FIELDS)
+      {
+        oak_compiler_error_at(
+            c, node->token, "struct literal: malformed field list");
         return;
       }
       const char* sname = oak_token_text(name_node->token);
@@ -729,9 +727,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
        * position so we can emit them in declaration order regardless of the
        * order they appear in the source. */
       const struct oak_ast_node_t* exprs[OAK_MAX_STRUCT_FIELDS] = { 0 };
-      for (struct oak_list_entry_t* pos = first->next;
-           pos != &node->children;
-           pos = pos->next)
+      struct oak_list_entry_t* pos;
+      oak_list_for_each(pos, &fields_node->children)
       {
         const struct oak_ast_node_t* entry =
             oak_container_of(pos, struct oak_ast_node_t, link);

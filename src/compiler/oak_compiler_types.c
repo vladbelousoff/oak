@@ -236,11 +236,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
     }
     case OAK_NODE_EXPR_STRUCT_LITERAL:
     {
-      const struct oak_list_entry_t* first = expr->children.next;
-      if (first == &expr->children)
-        return;
-      const struct oak_ast_node_t* name_node =
-          oak_container_of(first, struct oak_ast_node_t, link);
+      const struct oak_ast_node_t* name_node = expr->lhs;
       if (!name_node || name_node->kind != OAK_NODE_IDENT)
         return;
       const struct oak_registered_struct_t* sd =
