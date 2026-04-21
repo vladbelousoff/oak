@@ -63,12 +63,11 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
 
     /* lhs = TYPE_NAME; for a plain user struct it nests an IDENT child. We only
      * support simple ident names for struct types. */
-    const struct oak_ast_node_t* type_name_node = item->lhs;
-    const struct oak_ast_node_t* name_ident = type_name_node;
-    if (type_name_node->kind == OAK_NODE_TYPE_NAME)
+    const struct oak_ast_node_t* name_ident = item->lhs;
+    if (name_ident->kind == OAK_NODE_TYPE_NAME)
     {
-      const struct oak_list_entry_t* tn_first = type_name_node->children.next;
-      if (tn_first == &type_name_node->children)
+      const struct oak_list_entry_t* tn_first = name_ident->children.next;
+      if (tn_first == &name_ident->children)
       {
         oak_compiler_error_at(
             c, item->token, "struct type name must be an identifier");
