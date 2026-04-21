@@ -362,13 +362,22 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },
-  // EXPR_MAP_LITERAL -> '[' MAP_LITERAL_ENTRY+ ']'
+  // EXPR_MAP_LITERAL -> '[' MAP_LITERAL_ENTRY MAP_LITERAL_ENTRIES ']'
+  // (binary: first entry + zero-or-more additional entries; needed for two
+  //  parsed nonterminals under OAK_GRAMMAR_BINARY.)
   [OAK_NODE_EXPR_MAP_LITERAL] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_LBRACKET | OAK_RULE_TOKEN,
       OAK_NODE_MAP_LITERAL_ENTRY,
-      OAK_NODE_MAP_LITERAL_ENTRY | OAK_RULE_REPEAT,
+      OAK_NODE_MAP_LITERAL_ENTRIES,
       OAK_TOKEN_RBRACKET | OAK_RULE_TOKEN,
+    },
+  },
+  // MAP_LITERAL_ENTRIES -> MAP_LITERAL_ENTRY*
+  [OAK_NODE_MAP_LITERAL_ENTRIES] = {
+    .rules = {
+      OAK_NODE_MAP_LITERAL_ENTRY | OAK_RULE_REPEAT,
     },
   },
   // MAP_LITERAL_ENTRY -> EXPR ':' EXPR ','?

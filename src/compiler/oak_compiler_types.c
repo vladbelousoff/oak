@@ -200,12 +200,8 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
     }
     case OAK_NODE_EXPR_MAP_LITERAL:
     {
-      const struct oak_list_entry_t* first = expr->children.next;
-      if (first == &expr->children)
-        return;
-      const struct oak_ast_node_t* first_entry =
-          oak_container_of(first, struct oak_ast_node_t, link);
-      if (first_entry->kind != OAK_NODE_MAP_LITERAL_ENTRY)
+      const struct oak_ast_node_t* first_entry = expr->lhs;
+      if (!first_entry || first_entry->kind != OAK_NODE_MAP_LITERAL_ENTRY)
         return;
       struct oak_type_t key_ty;
       struct oak_type_t val_ty;

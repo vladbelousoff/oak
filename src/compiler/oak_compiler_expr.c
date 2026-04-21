@@ -480,13 +480,17 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       break;
     case OAK_NODE_EXPR_MAP_LITERAL:
     {
-      const usize count = oak_list_length(&node->children);
-      if (count == 0)
+      const struct oak_ast_node_t* first_entry = node->lhs;
+      const struct oak_ast_node_t* more = node->rhs;
+      if (!first_entry || !more ||
+          more->kind != OAK_NODE_MAP_LITERAL_ENTRIES)
       {
-        oak_compiler_error_at(
-            c, null, "internal error: map literal with no entries");
+        oak_compiler_error_at(c, null, "malformed map literal");
         return;
       }
+
+      const usize count =
+          1u + oak_list_length(&more->children);
       if (count > 255)
       {
         oak_compiler_error_at(
@@ -494,9 +498,6 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         return;
       }
 
-      const struct oak_list_entry_t* first = node->children.next;
-      const struct oak_ast_node_t* first_entry =
-          oak_container_of(first, struct oak_ast_node_t, link);
       if (first_entry->kind != OAK_NODE_MAP_LITERAL_ENTRY ||
           !first_entry->lhs || !first_entry->rhs)
       {
@@ -526,7 +527,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       }
 
       struct oak_list_entry_t* pos;
-      oak_list_for_each(pos, &node->children)
+      oak_list_for_each(pos, &more->children)
       {
         const struct oak_ast_node_t* entry =
             oak_container_of(pos, struct oak_ast_node_t, link);
@@ -561,7 +562,18 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                             oak_compiler_type_full_name(c, vt));
           return;
         }
+      }
 
+      oak_compiler_compile_node(c, first_entry->lhs);
+      if (c->has_error)
+        return;
+      oak_compiler_compile_node(c, first_entry->rhs);
+      if (c->has_error)
+        return;
+      oak_list_for_each(pos, &more->children)
+      {
+        const struct oak_ast_node_t* entry =
+            oak_container_of(pos, struct oak_ast_node_t, link);
         oak_compiler_compile_node(c, entry->lhs);
         if (c->has_error)
           return;
