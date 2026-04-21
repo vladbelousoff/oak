@@ -11,6 +11,20 @@ int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl)
 }
 
 const struct oak_ast_node_t*
+oak_compiler_fn_decl_param_list(const struct oak_ast_node_t* decl)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &decl->children)
+  {
+    const struct oak_ast_node_t* ch =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (ch->kind == OAK_NODE_FN_PARAM_LIST)
+      return ch;
+  }
+  return null;
+}
+
+const struct oak_ast_node_t*
 oak_compiler_fn_decl_name_node(const struct oak_ast_node_t* decl)
 {
   const struct oak_list_entry_t* e = decl->children.next;
@@ -23,8 +37,11 @@ oak_compiler_fn_decl_name_node(const struct oak_ast_node_t* decl)
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_self_param(const struct oak_ast_node_t* decl)
 {
+  const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
+  if (!plist)
+    return null;
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &decl->children)
+  oak_list_for_each(pos, &plist->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
@@ -110,9 +127,12 @@ oak_compiler_fn_param_type_ident(const struct oak_ast_node_t* param)
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_param_at(const struct oak_ast_node_t* decl, const int index)
 {
+  const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
+  if (!plist)
+    return null;
   int i = 0;
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &decl->children)
+  oak_list_for_each(pos, &plist->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
@@ -129,27 +149,29 @@ oak_compiler_fn_decl_param_at(const struct oak_ast_node_t* decl, const int index
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_return_type_node(const struct oak_ast_node_t* decl)
 {
-  const struct oak_ast_node_t* block = oak_compiler_fn_decl_block(decl);
-  if (!block)
-    return null;
-  struct oak_list_entry_t* prev = block->link.prev;
-  if (prev == &decl->children)
-    return null;
-  const struct oak_ast_node_t* before =
-      oak_container_of(prev, struct oak_ast_node_t, link);
-  if (before->kind == OAK_NODE_FN_PARAM)
-    return null;
-  const struct oak_ast_node_t* name = oak_compiler_fn_decl_name_node(decl);
-  if (before == name)
-    return null;
-  return before;
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &decl->children)
+  {
+    const struct oak_ast_node_t* ch =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (ch->kind != OAK_NODE_FN_RETURN_TYPE)
+      continue;
+    const struct oak_list_entry_t* f = ch->children.next;
+    if (f == &ch->children)
+      return null;
+    return oak_container_of(f, struct oak_ast_node_t, link);
+  }
+  return null;
 }
 
 int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl)
 {
+  const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
+  if (!plist)
+    return 0;
   int n = 0;
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &decl->children)
+  oak_list_for_each(pos, &plist->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
@@ -378,8 +400,16 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
     oak_compiler_add_local(c, "self", 4u, slot++, oak_compiler_fn_param_self_is_mutable(sp), self_ty);
   }
 
+  const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
+  if (!plist || plist->kind != OAK_NODE_FN_PARAM_LIST)
+  {
+    oak_compiler_error_at(c, decl->token, "malformed function declaration");
+    c->function_depth--;
+    return;
+  }
+
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &decl->children)
+  oak_list_for_each(pos, &plist->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);

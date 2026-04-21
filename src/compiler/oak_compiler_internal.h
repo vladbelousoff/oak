@@ -299,6 +299,9 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
 int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl);
 
 const struct oak_ast_node_t*
+oak_compiler_fn_decl_param_list(const struct oak_ast_node_t* decl);
+
+const struct oak_ast_node_t*
 oak_compiler_fn_decl_name_node(const struct oak_ast_node_t* decl);
 
 const struct oak_ast_node_t*
