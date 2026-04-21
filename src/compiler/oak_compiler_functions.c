@@ -1,9 +1,30 @@
 #include "oak_compiler_internal.h"
 
+static const struct oak_ast_node_t* oak_fn_decl_proto(const struct oak_ast_node_t* decl)
+{
+  return decl->lhs;
+}
+
+static const struct oak_ast_node_t* oak_fn_decl_head(const struct oak_ast_node_t* decl)
+{
+  return oak_fn_decl_proto(decl)->lhs;
+}
+
+static const struct oak_ast_node_t* oak_fn_decl_prefix(const struct oak_ast_node_t* decl)
+{
+  return oak_fn_decl_head(decl)->lhs;
+}
+
+static const struct oak_ast_node_t* oak_fn_decl_params_tail(const struct oak_ast_node_t* decl)
+{
+  return oak_fn_decl_proto(decl)->rhs;
+}
+
 int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl)
 {
-  const struct oak_list_entry_t* first = decl->children.next;
-  if (first == &decl->children)
+  const struct oak_ast_node_t* prefix = oak_fn_decl_prefix(decl);
+  const struct oak_list_entry_t* first = prefix->children.next;
+  if (first == &prefix->children)
     return 0;
   const struct oak_ast_node_t* n =
       oak_container_of(first, struct oak_ast_node_t, link);
@@ -13,8 +34,9 @@ int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl)
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_param_list(const struct oak_ast_node_t* decl)
 {
+  const struct oak_ast_node_t* tail = oak_fn_decl_params_tail(decl);
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &decl->children)
+  oak_list_for_each(pos, &tail->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
@@ -27,11 +49,9 @@ oak_compiler_fn_decl_param_list(const struct oak_ast_node_t* decl)
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_name_node(const struct oak_ast_node_t* decl)
 {
-  const struct oak_list_entry_t* e = decl->children.next;
-  oak_assert(e != &decl->children);
-  if (oak_compiler_fn_decl_has_receiver(decl))
-    e = e->next;
-  return oak_container_of(e, struct oak_ast_node_t, link);
+  const struct oak_ast_node_t* head = oak_fn_decl_head(decl);
+  oak_assert(head->rhs != null);
+  return head->rhs;
 }
 
 const struct oak_ast_node_t*
@@ -67,15 +87,7 @@ int oak_compiler_fn_param_self_is_mutable(const struct oak_ast_node_t* self_para
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_block(const struct oak_ast_node_t* decl)
 {
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &decl->children)
-  {
-    const struct oak_ast_node_t* ch =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (ch->kind == OAK_NODE_BLOCK)
-      return ch;
-  }
-  return null;
+  return decl->rhs;
 }
 
 int oak_compiler_fn_param_is_mutable(const struct oak_ast_node_t* param)
@@ -149,8 +161,9 @@ oak_compiler_fn_decl_param_at(const struct oak_ast_node_t* decl, const int index
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_return_type_node(const struct oak_ast_node_t* decl)
 {
+  const struct oak_ast_node_t* tail = oak_fn_decl_params_tail(decl);
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &decl->children)
+  oak_list_for_each(pos, &tail->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
@@ -198,8 +211,11 @@ void oak_compiler_register_program_functions(struct oak_compiler_t* c,
 
     if (oak_compiler_fn_decl_has_receiver(item))
     {
+      const struct oak_ast_node_t* prefix = oak_fn_decl_prefix(item);
+      const struct oak_list_entry_t* rpos = prefix->children.next;
+      oak_assert(rpos != &prefix->children);
       const struct oak_ast_node_t* recv_node =
-          oak_container_of(item->children.next, struct oak_ast_node_t, link);
+          oak_container_of(rpos, struct oak_ast_node_t, link);
       const struct oak_ast_node_t* recv_ident = recv_node->child;
       if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
       {

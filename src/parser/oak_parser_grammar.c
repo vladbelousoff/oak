@@ -420,15 +420,42 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT_ASSIGNMENT,
     },
   },
-  // FN_DECL -> 'fn' FN_RECEIVER? IDENT FN_PARAM_LIST FN_RETURN_TYPE? BLOCK
+  // FN_DECL -> FN_PROTO BLOCK (binary: lhs = signature, rhs = body)
   [OAK_NODE_FN_DECL] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_FN_PROTO,
+      OAK_NODE_BLOCK,
+    },
+  },
+  // FN_PROTO -> FN_HEAD FN_PARAMS_AND_RET (binary: lhs = name intro, rhs = params + return)
+  [OAK_NODE_FN_PROTO] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_FN_HEAD,
+      OAK_NODE_FN_PARAMS_AND_RET,
+    },
+  },
+  // FN_HEAD -> FN_PREFIX IDENT (binary: lhs = 'fn' receiver?, rhs = function name)
+  [OAK_NODE_FN_HEAD] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_FN_PREFIX,
+      OAK_NODE_IDENT,
+    },
+  },
+  // FN_PREFIX -> 'fn' FN_RECEIVER?
+  [OAK_NODE_FN_PREFIX] = {
     .rules = {
       OAK_TOKEN_FN | OAK_RULE_TOKEN,
       OAK_NODE_FN_RECEIVER | OAK_RULE_OPTIONAL,
-      OAK_NODE_IDENT,
+    },
+  },
+  // FN_PARAMS_AND_RET -> FN_PARAM_LIST FN_RETURN_TYPE?
+  [OAK_NODE_FN_PARAMS_AND_RET] = {
+    .rules = {
       OAK_NODE_FN_PARAM_LIST,
       OAK_NODE_FN_RETURN_TYPE | OAK_RULE_OPTIONAL,
-      OAK_NODE_BLOCK,
     },
   },
   // FN_PARAM_LIST -> '(' FN_PARAM_SELF? FN_PARAM* ')'
