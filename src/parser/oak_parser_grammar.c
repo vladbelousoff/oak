@@ -458,13 +458,19 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_FN_RETURN_TYPE | OAK_RULE_OPTIONAL,
     },
   },
-  // FN_PARAM_LIST -> '(' FN_PARAM_SELF? FN_PARAM* ')'
+  // FN_PARAM_LIST -> '(' FN_PARAM_SELF? FN_PARAMS ')'
   [OAK_NODE_FN_PARAM_LIST] = {
     .rules = {
       OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
       OAK_NODE_FN_PARAM_SELF | OAK_RULE_OPTIONAL,
-      OAK_NODE_FN_PARAM | OAK_RULE_REPEAT,
+      OAK_NODE_FN_PARAMS,
       OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,
+    },
+  },
+  // FN_PARAMS -> FN_PARAM*
+  [OAK_NODE_FN_PARAMS] = {
+    .rules = {
+      OAK_NODE_FN_PARAM | OAK_RULE_REPEAT,
     },
   },
   // FN_RETURN_TYPE -> '->' TYPE_NAME (unary: child = TYPE_NAME)

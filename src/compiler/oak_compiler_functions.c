@@ -20,6 +20,20 @@ static const struct oak_ast_node_t* oak_fn_decl_params_tail(const struct oak_ast
   return oak_fn_decl_proto(decl)->rhs;
 }
 
+static const struct oak_ast_node_t*
+oak_fn_param_list_regular_params(const struct oak_ast_node_t* plist)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &plist->children)
+  {
+    const struct oak_ast_node_t* ch =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (ch->kind == OAK_NODE_FN_PARAMS)
+      return ch;
+  }
+  return null;
+}
+
 int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl)
 {
   const struct oak_ast_node_t* prefix = oak_fn_decl_prefix(decl);
@@ -149,9 +163,12 @@ oak_compiler_fn_decl_param_at(const struct oak_ast_node_t* decl, const int index
   const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
   if (!plist)
     return null;
+  const struct oak_ast_node_t* params = oak_fn_param_list_regular_params(plist);
+  if (!params)
+    return null;
   int i = 0;
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &plist->children)
+  oak_list_for_each(pos, &params->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
@@ -186,9 +203,12 @@ int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl)
   const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
   if (!plist)
     return 0;
+  const struct oak_ast_node_t* params = oak_fn_param_list_regular_params(plist);
+  if (!params)
+    return 0;
   int n = 0;
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &plist->children)
+  oak_list_for_each(pos, &params->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
@@ -428,8 +448,16 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
     return;
   }
 
+  const struct oak_ast_node_t* params = oak_fn_param_list_regular_params(plist);
+  if (!params)
+  {
+    oak_compiler_error_at(c, decl->token, "malformed function declaration");
+    c->function_depth--;
+    return;
+  }
+
   struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &plist->children)
+  oak_list_for_each(pos, &params->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);

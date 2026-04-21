@@ -52,7 +52,11 @@ OAK_TEST_DECL(ParseFnReceiver)
   OAK_CHECK_NODE_KIND(plist, OAK_NODE_FN_PARAM_LIST);
   OAK_CHECK_CHILD_COUNT(plist, 1);
 
-  const struct oak_ast_node_t* param = oak_test_ast_child(plist, 0);
+  const struct oak_ast_node_t* params = oak_test_ast_child(plist, 0);
+  OAK_CHECK_NODE_KIND(params, OAK_NODE_FN_PARAMS);
+  OAK_CHECK_CHILD_COUNT(params, 1);
+
+  const struct oak_ast_node_t* param = oak_test_ast_child(params, 0);
   OAK_CHECK_NODE_KIND(param, OAK_NODE_FN_PARAM);
   OAK_CHECK_CHILD_COUNT(param, 2);
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param, 0), OAK_NODE_IDENT);

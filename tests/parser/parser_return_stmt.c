@@ -36,12 +36,16 @@ OAK_TEST_DECL(ParseReturnStmt)
 
   const struct oak_ast_node_t* plist = oak_test_ast_child(params_tail, 0);
   OAK_CHECK_NODE_KIND(plist, OAK_NODE_FN_PARAM_LIST);
-  OAK_CHECK_CHILD_COUNT(plist, 2);
+  OAK_CHECK_CHILD_COUNT(plist, 1);
 
-  const struct oak_ast_node_t* param0 = oak_test_ast_child(plist, 0);
+  const struct oak_ast_node_t* params = oak_test_ast_child(plist, 0);
+  OAK_CHECK_NODE_KIND(params, OAK_NODE_FN_PARAMS);
+  OAK_CHECK_CHILD_COUNT(params, 2);
+
+  const struct oak_ast_node_t* param0 = oak_test_ast_child(params, 0);
   OAK_CHECK_NODE_KIND(param0, OAK_NODE_FN_PARAM);
 
-  const struct oak_ast_node_t* param1 = oak_test_ast_child(plist, 1);
+  const struct oak_ast_node_t* param1 = oak_test_ast_child(params, 1);
   OAK_CHECK_NODE_KIND(param1, OAK_NODE_FN_PARAM);
 
   const struct oak_ast_node_t* ret_wrap = oak_test_ast_child(params_tail, 1);

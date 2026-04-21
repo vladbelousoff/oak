@@ -48,9 +48,13 @@ OAK_TEST_DECL(ParseFnDecl)
 
   const struct oak_ast_node_t* plist = oak_test_ast_child(params_tail, 0);
   OAK_CHECK_NODE_KIND(plist, OAK_NODE_FN_PARAM_LIST);
-  OAK_CHECK_CHILD_COUNT(plist, 2);
+  OAK_CHECK_CHILD_COUNT(plist, 1);
 
-  const struct oak_ast_node_t* param0 = oak_test_ast_child(plist, 0);
+  const struct oak_ast_node_t* params = oak_test_ast_child(plist, 0);
+  OAK_CHECK_NODE_KIND(params, OAK_NODE_FN_PARAMS);
+  OAK_CHECK_CHILD_COUNT(params, 2);
+
+  const struct oak_ast_node_t* param0 = oak_test_ast_child(params, 0);
   OAK_CHECK_NODE_KIND(param0, OAK_NODE_FN_PARAM);
   OAK_CHECK_CHILD_COUNT(param0, 2);
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 0), OAK_NODE_IDENT);
@@ -58,7 +62,7 @@ OAK_TEST_DECL(ParseFnDecl)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param0, 1), OAK_NODE_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(param0, 1), "number");
 
-  const struct oak_ast_node_t* param1 = oak_test_ast_child(plist, 1);
+  const struct oak_ast_node_t* param1 = oak_test_ast_child(params, 1);
   OAK_CHECK_NODE_KIND(param1, OAK_NODE_FN_PARAM);
   OAK_CHECK_CHILD_COUNT(param1, 2);
   OAK_CHECK_NODE_KIND(oak_test_ast_child(param1, 0), OAK_NODE_IDENT);
