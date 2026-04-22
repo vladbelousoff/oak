@@ -1,0 +1,62 @@
+fn partition(mut arr: number[], lo: number, hi: number) -> number {
+  let pivot = arr[hi];
+  let mut i = lo - 1;
+  let mut j = lo;
+  while j < hi {
+    if arr[j] <= pivot {
+      i += 1;
+      let tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    j += 1;
+  }
+  let tmp = arr[i + 1];
+  arr[i + 1] = arr[hi];
+  arr[hi] = tmp;
+  return i + 1;
+}
+
+fn quicksort(mut arr: number[], lo: number, hi: number) -> number {
+  if lo < hi {
+    let p = partition(arr, lo, hi);
+    quicksort(arr, lo, p - 1);
+    quicksort(arr, p + 1, hi);
+  }
+  return 0;
+}
+
+fn sort(mut arr: number[]) -> number {
+  quicksort(arr, 0, arr.len() - 1);
+  return arr.len();
+}
+
+let mut xs = [10, 7, 8, 9, 1, 5];
+sort(xs);
+for v in xs {
+  print(v);
+}
+
+let mut big = [33, 10, 55, 71, 29, 3, 82, 17, 46, 94, 2, 68, 24, 50, 11];
+sort(big);
+for v in big {
+  print(v);
+}
+
+let mut dups = [5, 3, 5, 3, 5, 3, 5];
+sort(dups);
+for v in dups {
+  print(v);
+}
+
+let mut already = [1, 2, 3, 4, 5];
+sort(already);
+for v in already {
+  print(v);
+}
+
+let mut reverse_order = [5, 4, 3, 2, 1];
+sort(reverse_order);
+for v in reverse_order {
+  print(v);
+}

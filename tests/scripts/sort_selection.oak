@@ -1,0 +1,39 @@
+fn selection_sort(mut arr: number[]) -> number {
+  let n = arr.len();
+  let mut i = 0;
+  while i < n {
+    let mut min_idx = i;
+    let mut j = i + 1;
+    while j < n {
+      if arr[j] < arr[min_idx] {
+        min_idx = j;
+      }
+      j += 1;
+    }
+    if min_idx != i {
+      let tmp = arr[i];
+      arr[i] = arr[min_idx];
+      arr[min_idx] = tmp;
+    }
+    i += 1;
+  }
+  return n;
+}
+
+let mut xs = [64, 25, 12, 22, 11];
+selection_sort(xs);
+for v in xs {
+  print(v);
+}
+
+let mut sorted = [1, 2, 3, 4, 5];
+selection_sort(sorted);
+for v in sorted {
+  print(v);
+}
+
+let mut reversed = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+selection_sort(reversed);
+for v in reversed {
+  print(v);
+}

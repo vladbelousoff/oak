@@ -1,0 +1,42 @@
+fn insertion_sort(mut arr: number[]) -> number {
+  let n = arr.len();
+  let mut i = 1;
+  while i < n {
+    let key = arr[i];
+    let mut j = i;
+    let mut shifting = 1;
+    while shifting == 1 {
+      if j == 0 {
+        shifting = 0;
+      } else {
+        if arr[j - 1] > key {
+          arr[j] = arr[j - 1];
+          j -= 1;
+        } else {
+          shifting = 0;
+        }
+      }
+    }
+    arr[j] = key;
+    i += 1;
+  }
+  return n;
+}
+
+let mut xs = [12, 11, 13, 5, 6];
+insertion_sort(xs);
+for v in xs {
+  print(v);
+}
+
+let mut nums = [100, -3, 50, 7, 0, 42, -100, 8];
+insertion_sort(nums);
+for v in nums {
+  print(v);
+}
+
+let mut dups = [4, 4, 4, 1, 1, 2, 2];
+insertion_sort(dups);
+for v in dups {
+  print(v);
+}
