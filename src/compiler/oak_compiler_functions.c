@@ -526,7 +526,6 @@ oak_compiler_validate_user_fn_call_arg_types(struct oak_compiler_t* c,
     }
     const struct oak_type_t want = {
       .id = oak_compiler_intern_type_token(c, want_type_node->token),
-      .is_array = 0,
     };
 
     struct oak_type_t got;
@@ -547,6 +546,21 @@ oak_compiler_validate_user_fn_call_arg_types(struct oak_compiler_t* c,
                         i + 1,
                         oak_compiler_type_full_name(c, want),
                         oak_compiler_type_full_name(c, got));
+    }
+
+    if (oak_compiler_fn_param_is_mutable(param) &&
+        oak_type_is_refcounted(&want) &&
+        !oak_compiler_expr_is_mutable_place(c, arg_expr))
+    {
+      const struct oak_token_t* err_tok = arg_expr->token;
+      if (!err_tok && arg_wrap->kind == OAK_NODE_FN_CALL_ARG &&
+          arg_wrap->child && arg_wrap->child->token)
+        err_tok = arg_wrap->child->token;
+      oak_compiler_error_at(c,
+                        err_tok,
+                        "argument %zu: cannot pass an immutable value to a "
+                        "mutable parameter",
+                        i + 1);
     }
   }
 }
@@ -605,6 +619,21 @@ oak_compiler_validate_struct_method_call_arg_types(struct oak_compiler_t* c,
                         i + 1,
                         oak_compiler_type_full_name(c, want),
                         oak_compiler_type_full_name(c, got));
+    }
+
+    if (oak_compiler_fn_param_is_mutable(param) &&
+        oak_type_is_refcounted(&want) &&
+        !oak_compiler_expr_is_mutable_place(c, arg_expr))
+    {
+      const struct oak_token_t* err_tok = arg_expr->token;
+      if (!err_tok && arg_wrap->kind == OAK_NODE_FN_CALL_ARG &&
+          arg_wrap->child && arg_wrap->child->token)
+        err_tok = arg_wrap->child->token;
+      oak_compiler_error_at(c,
+                        err_tok,
+                        "argument %d: cannot pass an immutable value to a "
+                        "mutable parameter",
+                        i + 1);
     }
   }
 }

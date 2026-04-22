@@ -232,6 +232,9 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* lhs,
                                        const char* non_ident_msg);
 
+int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
+                                        const struct oak_ast_node_t* expr);
+
 /* ---------- oak_compiler_types.c ---------- */
 
 oak_type_id_t oak_compiler_intern_type_token(struct oak_compiler_t* c,

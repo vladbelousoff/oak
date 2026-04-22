@@ -203,6 +203,16 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       struct oak_type_t rhs_ty;
       oak_compiler_infer_expr_static_type(c, rhs, &rhs_ty);
 
+      if (is_mutable && oak_type_is_refcounted(&rhs_ty) &&
+          !oak_compiler_expr_is_mutable_place(c, rhs))
+      {
+        oak_compiler_error_at(c,
+                              rhs->token,
+                              "cannot create a mutable binding from an "
+                              "immutable expression");
+        return;
+      }
+
       oak_compiler_compile_node(c, rhs);
       const char* name = oak_token_text(ident->token);
       const int size = oak_token_length(ident->token);
@@ -220,7 +230,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       {
         struct oak_type_t coll_ty;
         oak_compiler_infer_expr_static_type(c, lhs->lhs, &coll_ty);
-        if ((!coll_ty.is_array && !coll_ty.is_map) ||
+        if (coll_ty.kind == OAK_TYPE_KIND_SCALAR ||
             !oak_type_is_known(&coll_ty))
         {
           oak_compiler_error_at(c,
@@ -230,7 +240,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
           return;
         }
 
-        if (coll_ty.is_map)
+        if (coll_ty.kind == OAK_TYPE_KIND_MAP)
         {
           struct oak_type_t key_ty;
           oak_compiler_infer_expr_static_type(c, lhs->rhs, &key_ty);
@@ -262,7 +272,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                 "cannot assign value of type '%s' to element of '%s' %s",
                 oak_compiler_type_full_name(c, val_ty),
                 oak_compiler_type_full_name(c, element_ty),
-                coll_ty.is_map ? "map" : "array");
+                coll_ty.kind == OAK_TYPE_KIND_MAP ? "map" : "array");
             return;
           }
         }

@@ -90,3 +90,28 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
   }
   return slot;
 }
+
+int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
+                                        const struct oak_ast_node_t* expr)
+{
+  if (!expr) return 1;
+  if (expr->kind == OAK_NODE_IDENT)
+  {
+    int is_mutable = 0;
+    oak_compiler_find_local(c,
+                            oak_token_text(expr->token),
+                            (usize)oak_token_length(expr->token),
+                            &is_mutable);
+    return is_mutable;
+  }
+  if (expr->kind == OAK_NODE_SELF)
+  {
+    int is_mutable = 0;
+    oak_compiler_find_local(c, "self", 4u, &is_mutable);
+    return is_mutable;
+  }
+  if (expr->kind == OAK_NODE_MEMBER_ACCESS ||
+      expr->kind == OAK_NODE_INDEX_ACCESS)
+    return oak_compiler_expr_is_mutable_place(c, expr->lhs);
+  return 1;
+}

@@ -59,7 +59,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
 
   /* Struct method calls dispatch to a regular user function whose first
    * parameter is the receiver (`self`). */
-  if (oak_type_is_known(&recv_ty) && !recv_ty.is_array && !recv_ty.is_map)
+  if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
     const struct oak_registered_struct_t* sd =
         oak_compiler_find_struct_by_type_id(c, recv_ty.id);
@@ -104,6 +104,21 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
       if (c->has_error)
         return;
 
+      if (sm->decl)
+      {
+        const struct oak_ast_node_t* self_p =
+            oak_compiler_fn_decl_self_param(sm->decl);
+        if (self_p && oak_compiler_fn_param_self_is_mutable(self_p) &&
+            !oak_compiler_expr_is_mutable_place(c, receiver))
+        {
+          oak_compiler_error_at(c,
+                            receiver->token,
+                            "cannot call mutable method on an immutable "
+                            "receiver");
+          return;
+        }
+      }
+
       oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, sm->const_idx, call_loc);
       oak_compiler_compile_node(c, receiver);
 
@@ -122,7 +137,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
     }
   }
 
-  if ((!recv_ty.is_array && !recv_ty.is_map) || !oak_type_is_known(&recv_ty))
+  if (recv_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&recv_ty))
   {
     oak_compiler_error_at(c,
                       receiver->token ? receiver->token : method->token,
@@ -134,8 +149,9 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   }
 
   const struct oak_method_binding_t* m =
-      recv_ty.is_map ? oak_compiler_find_map_method(c, mname, (usize)mname_len)
-                     : oak_compiler_find_array_method(c, mname, (usize)mname_len);
+      recv_ty.kind == OAK_TYPE_KIND_MAP
+          ? oak_compiler_find_map_method(c, mname, (usize)mname_len)
+          : oak_compiler_find_array_method(c, mname, (usize)mname_len);
   if (!m)
   {
     oak_compiler_error_at(c,
@@ -143,7 +159,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
                       "no method '%.*s' on %s '%s'",
                       mname_len,
                       mname,
-                      recv_ty.is_map ? "map" : "array of",
+                      recv_ty.kind == OAK_TYPE_KIND_MAP ? "map" : "array of",
                       oak_compiler_type_full_name(c, recv_ty));
     return;
   }

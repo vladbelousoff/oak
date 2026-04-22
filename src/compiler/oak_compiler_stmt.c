@@ -106,10 +106,7 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
   struct oak_type_t from_ty;
   oak_compiler_infer_expr_static_type(c, from_expr, &from_ty);
   if (!oak_type_is_known(&from_ty))
-  {
     from_ty.id = OAK_TYPE_NUMBER;
-    from_ty.is_array = 0;
-  }
 
   oak_compiler_compile_node(c, from_expr);
   const int loop_var_slot = c->stack_depth - 1;
@@ -123,10 +120,7 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
   struct oak_type_t to_ty;
   oak_compiler_infer_expr_static_type(c, to_expr, &to_ty);
   if (!oak_type_is_known(&to_ty))
-  {
     to_ty.id = OAK_TYPE_NUMBER;
-    to_ty.is_array = 0;
-  }
 
   oak_compiler_compile_node(c, to_expr);
   const int limit_slot = c->stack_depth - 1;
@@ -208,7 +202,7 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
 
   struct oak_type_t coll_ty;
   oak_compiler_infer_expr_static_type(c, coll_expr, &coll_ty);
-  if (!oak_type_is_known(&coll_ty) || (!coll_ty.is_array && !coll_ty.is_map))
+  if (!oak_type_is_known(&coll_ty) || coll_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
     oak_compiler_error_at(c,
                       coll_expr->token ? coll_expr->token : first_ident->token,
@@ -219,8 +213,8 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
 
   /* Look up the receiver's len() binding so we can snapshot length once. */
   const struct oak_method_binding_t* len_m =
-      coll_ty.is_map ? oak_compiler_find_map_method(c, "len", 3)
-                     : oak_compiler_find_array_method(c, "len", 3);
+      coll_ty.kind == OAK_TYPE_KIND_MAP ? oak_compiler_find_map_method(c, "len", 3)
+                                        : oak_compiler_find_array_method(c, "len", 3);
   if (!len_m)
   {
     oak_compiler_error_at(c,
@@ -240,7 +234,7 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   }
   else
   {
-    if (coll_ty.is_map)
+    if (coll_ty.kind == OAK_TYPE_KIND_MAP)
       k_ident = first_ident; /* iterate keys by default */
     else
       v_ident = first_ident; /* arrays: iterate values */
@@ -291,7 +285,7 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   /* Push k (key for maps, index for arrays). */
   if (k_ident)
   {
-    if (coll_ty.is_map)
+    if (coll_ty.kind == OAK_TYPE_KIND_MAP)
     {
       oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
       oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
@@ -321,7 +315,10 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   {
     oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
     oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
-    oak_compiler_emit_op(c, coll_ty.is_map ? OAK_OP_MAP_VALUE_AT : OAK_OP_GET_INDEX, loc);
+    oak_compiler_emit_op(
+        c,
+        coll_ty.kind == OAK_TYPE_KIND_MAP ? OAK_OP_MAP_VALUE_AT : OAK_OP_GET_INDEX,
+        loc);
     const struct oak_type_t val_ty = { .id = coll_ty.id };
     oak_compiler_add_local(c,
               oak_token_text(v_ident->token),

@@ -94,8 +94,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         oak_compiler_infer_expr_static_type(c, recv, &recv_ty);
         const char* mn = oak_token_text(method->token);
         const usize mn_len = (usize)oak_token_length(method->token);
-        if (oak_type_is_known(&recv_ty) && !recv_ty.is_array
-            && !recv_ty.is_map)
+        if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
         {
           const struct oak_registered_struct_t* sd =
               oak_compiler_find_struct_by_type_id(c, recv_ty.id);
@@ -121,9 +120,9 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           return;
         }
         const struct oak_method_binding_t* m = null;
-        if (recv_ty.is_array)
+        if (recv_ty.kind == OAK_TYPE_KIND_ARRAY)
           m = oak_compiler_find_array_method(c, mn, mn_len);
-        else if (recv_ty.is_map)
+        else if (recv_ty.kind == OAK_TYPE_KIND_MAP)
           m = oak_compiler_find_map_method(c, mn, mn_len);
         if (m)
           out->id = m->return_type_id;
@@ -160,7 +159,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         if (!elem || elem->kind != OAK_NODE_IDENT)
           return;
         out->id = oak_compiler_intern_type_token(c, elem->token);
-        out->is_array = 1;
+        out->kind = OAK_TYPE_KIND_ARRAY;
         return;
       }
       if (type_node->kind == OAK_NODE_TYPE_MAP)
@@ -172,7 +171,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           return;
         out->key_id = oak_compiler_intern_type_token(c, key->token);
         out->id = oak_compiler_intern_type_token(c, val->token);
-        out->is_map = 1;
+        out->kind = OAK_TYPE_KIND_MAP;
         return;
       }
       if (type_node->kind == OAK_NODE_IDENT)
@@ -195,7 +194,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       if (!oak_type_is_known(&elem_ty))
         return;
       out->id = elem_ty.id;
-      out->is_array = 1;
+      out->kind = OAK_TYPE_KIND_ARRAY;
       return;
     }
     case OAK_NODE_EXPR_MAP_LITERAL:
@@ -211,19 +210,19 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         return;
       out->key_id = key_ty.id;
       out->id = val_ty.id;
-      out->is_map = 1;
+      out->kind = OAK_TYPE_KIND_MAP;
       return;
     }
     case OAK_NODE_INDEX_ACCESS:
     {
       struct oak_type_t coll_ty;
       oak_compiler_infer_expr_static_type(c, expr->lhs, &coll_ty);
-      if (coll_ty.is_array && oak_type_is_known(&coll_ty))
+      if (coll_ty.kind == OAK_TYPE_KIND_ARRAY && oak_type_is_known(&coll_ty))
       {
         out->id = coll_ty.id;
         return;
       }
-      if (coll_ty.is_map && oak_type_is_known(&coll_ty))
+      if (coll_ty.kind == OAK_TYPE_KIND_MAP && oak_type_is_known(&coll_ty))
       {
         out->id = coll_ty.id;
         return;
@@ -284,7 +283,7 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
                                         const struct oak_type_t t)
 {
   static _Thread_local char buf[128];
-  if (t.is_map)
+  if (t.kind == OAK_TYPE_KIND_MAP)
   {
     snprintf(buf,
              sizeof(buf),
@@ -293,7 +292,7 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
              oak_type_registry_name(&c->type_registry, t.id));
     return buf;
   }
-  if (t.is_array)
+  if (t.kind == OAK_TYPE_KIND_ARRAY)
   {
     snprintf(buf, sizeof(buf), "%s[]", oak_compiler_type_kind_name(c, t));
     return buf;
