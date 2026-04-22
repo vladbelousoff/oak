@@ -413,7 +413,9 @@ struct oak_grammar_entry_t oak_grammar[] = {
     },
   },
   // STMT_LET_ASSIGNMENT -> 'let' MUT_KEYWORD? STMT_ASSIGNMENT
+  //   (binary: lhs = MUT_KEYWORD?, rhs = STMT_ASSIGNMENT)
   [OAK_NODE_STMT_LET_ASSIGNMENT] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_LET | OAK_RULE_TOKEN,
       OAK_NODE_MUT_KEYWORD | OAK_RULE_OPTIONAL,
@@ -445,21 +447,27 @@ struct oak_grammar_entry_t oak_grammar[] = {
     },
   },
   // FN_PREFIX -> 'fn' FN_RECEIVER?
+  //   (unary: child = FN_RECEIVER? for easy receiver lookup)
   [OAK_NODE_FN_PREFIX] = {
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_FN | OAK_RULE_TOKEN,
       OAK_NODE_FN_RECEIVER | OAK_RULE_OPTIONAL,
     },
   },
   // FN_PARAMS_AND_RET -> FN_PARAM_LIST FN_RETURN_TYPE?
+  //   (binary: lhs = FN_PARAM_LIST, rhs = FN_RETURN_TYPE?)
   [OAK_NODE_FN_PARAMS_AND_RET] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_NODE_FN_PARAM_LIST,
       OAK_NODE_FN_RETURN_TYPE | OAK_RULE_OPTIONAL,
     },
   },
   // FN_PARAM_LIST -> '(' FN_PARAM_SELF? FN_PARAMS ')'
+  //   (binary: lhs = FN_PARAM_SELF?, rhs = FN_PARAMS)
   [OAK_NODE_FN_PARAM_LIST] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
       OAK_NODE_FN_PARAM_SELF | OAK_RULE_OPTIONAL,
@@ -500,7 +508,9 @@ struct oak_grammar_entry_t oak_grammar[] = {
     },
   },
   // FN_PARAM_SELF -> MUT_KEYWORD? 'self' ','?
+  //   (binary: lhs = MUT_KEYWORD?, rhs = SELF)
   [OAK_NODE_FN_PARAM_SELF] = {
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_NODE_MUT_KEYWORD | OAK_RULE_OPTIONAL,
       OAK_NODE_SELF,
@@ -537,8 +547,9 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },
-  // STMT_RETURN -> 'return' EXPR ';'
+  // STMT_RETURN -> 'return' EXPR ';' (unary: child = EXPR)
   [OAK_NODE_STMT_RETURN] = {
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_RETURN | OAK_RULE_TOKEN,
       OAK_NODE_EXPR,

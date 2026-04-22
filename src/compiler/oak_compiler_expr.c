@@ -177,21 +177,12 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     }
     case OAK_NODE_STMT_LET_ASSIGNMENT:
     {
-      int is_mutable = 0;
-      const struct oak_ast_node_t* assign = null;
+      /* STMT_LET_ASSIGNMENT is BINARY: lhs = MUT_KEYWORD? (non-null iff
+       * mutable), rhs = STMT_ASSIGNMENT. */
+      const int is_mutable = node->lhs != null;
+      const struct oak_ast_node_t* assign = node->rhs;
 
-      struct oak_list_entry_t* pos;
-      oak_list_for_each(pos, &node->children)
-      {
-        const struct oak_ast_node_t* child =
-            oak_container_of(pos, struct oak_ast_node_t, link);
-        if (child->kind == OAK_NODE_MUT_KEYWORD)
-          is_mutable = 1;
-        else if (child->kind == OAK_NODE_STMT_ASSIGNMENT)
-          assign = child;
-      }
-
-      if (!assign)
+      if (!assign || assign->kind != OAK_NODE_STMT_ASSIGNMENT)
       {
         oak_compiler_error_at(c, null, "malformed 'let' statement");
         return;

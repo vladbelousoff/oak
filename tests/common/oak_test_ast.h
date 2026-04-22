@@ -12,14 +12,24 @@ static struct oak_ast_node_t*
 oak_test_ast_child(const struct oak_ast_node_t* node, const usize index)
 {
   if (oak_node_is_unary_op(node->kind))
-    return index == 0 ? node->child : null;
+    return (index == 0 && node->child) ? node->child : null;
 
   if (oak_node_is_binary_op(node->kind))
   {
-    if (index == 0)
-      return node->lhs;
-    if (index == 1)
-      return node->rhs;
+    /* Compact null slots so callers can use sequential indices that match
+     * the value returned by oak_test_ast_child_count(). */
+    usize i = 0;
+    if (node->lhs)
+    {
+      if (i == index)
+        return node->lhs;
+      ++i;
+    }
+    if (node->rhs)
+    {
+      if (i == index)
+        return node->rhs;
+    }
     return null;
   }
 

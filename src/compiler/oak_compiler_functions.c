@@ -23,41 +23,21 @@ static const struct oak_ast_node_t* oak_fn_decl_params_tail(const struct oak_ast
 static const struct oak_ast_node_t*
 oak_fn_param_list_regular_params(const struct oak_ast_node_t* plist)
 {
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &plist->children)
-  {
-    const struct oak_ast_node_t* ch =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (ch->kind == OAK_NODE_FN_PARAMS)
-      return ch;
-  }
-  return null;
+  /* FN_PARAM_LIST is BINARY: lhs = FN_PARAM_SELF? , rhs = FN_PARAMS. */
+  return plist->rhs;
 }
 
 int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl)
 {
-  const struct oak_ast_node_t* prefix = oak_fn_decl_prefix(decl);
-  const struct oak_list_entry_t* first = prefix->children.next;
-  if (first == &prefix->children)
-    return 0;
-  const struct oak_ast_node_t* n =
-      oak_container_of(first, struct oak_ast_node_t, link);
-  return n->kind == OAK_NODE_FN_RECEIVER;
+  /* FN_PREFIX is UNARY: child = FN_RECEIVER? (null when absent). */
+  return oak_fn_decl_prefix(decl)->child != null;
 }
 
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_param_list(const struct oak_ast_node_t* decl)
 {
-  const struct oak_ast_node_t* tail = oak_fn_decl_params_tail(decl);
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &tail->children)
-  {
-    const struct oak_ast_node_t* ch =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (ch->kind == OAK_NODE_FN_PARAM_LIST)
-      return ch;
-  }
-  return null;
+  /* FN_PARAMS_AND_RET is BINARY: lhs = FN_PARAM_LIST, rhs = FN_RETURN_TYPE?. */
+  return oak_fn_decl_params_tail(decl)->lhs;
 }
 
 const struct oak_ast_node_t*
@@ -74,28 +54,14 @@ oak_compiler_fn_decl_self_param(const struct oak_ast_node_t* decl)
   const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
   if (!plist)
     return null;
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &plist->children)
-  {
-    const struct oak_ast_node_t* ch =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (ch->kind == OAK_NODE_FN_PARAM_SELF)
-      return ch;
-  }
-  return null;
+  /* FN_PARAM_LIST is BINARY: lhs = FN_PARAM_SELF? (null when absent). */
+  return plist->lhs;
 }
 
 int oak_compiler_fn_param_self_is_mutable(const struct oak_ast_node_t* self_param)
 {
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &self_param->children)
-  {
-    const struct oak_ast_node_t* ch =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (ch->kind == OAK_NODE_MUT_KEYWORD)
-      return 1;
-  }
-  return 0;
+  /* FN_PARAM_SELF is BINARY: lhs = MUT_KEYWORD? (non-null iff mutable). */
+  return self_param->lhs != null;
 }
 
 const struct oak_ast_node_t*
@@ -185,17 +151,12 @@ oak_compiler_fn_decl_param_at(const struct oak_ast_node_t* decl, const int index
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_return_type_node(const struct oak_ast_node_t* decl)
 {
+  /* FN_PARAMS_AND_RET is BINARY: rhs = FN_RETURN_TYPE? (null when absent).
+   * FN_RETURN_TYPE is UNARY: child = TYPE_NAME. */
   const struct oak_ast_node_t* tail = oak_fn_decl_params_tail(decl);
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &tail->children)
-  {
-    const struct oak_ast_node_t* ch =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (ch->kind != OAK_NODE_FN_RETURN_TYPE)
-      continue;
-    return ch->child;
-  }
-  return null;
+  if (!tail->rhs)
+    return null;
+  return tail->rhs->child;
 }
 
 int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl)
@@ -238,11 +199,9 @@ void oak_compiler_register_program_functions(struct oak_compiler_t* c,
 
     if (oak_compiler_fn_decl_has_receiver(item))
     {
-      const struct oak_ast_node_t* prefix = oak_fn_decl_prefix(item);
-      const struct oak_list_entry_t* rpos = prefix->children.next;
-      oak_assert(rpos != &prefix->children);
-      const struct oak_ast_node_t* recv_node =
-          oak_container_of(rpos, struct oak_ast_node_t, link);
+      /* FN_PREFIX is UNARY: child = FN_RECEIVER when a receiver is present. */
+      const struct oak_ast_node_t* recv_node = oak_fn_decl_prefix(item)->child;
+      oak_assert(recv_node != null);
       const struct oak_ast_node_t* recv_ident = recv_node->child;
       if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
       {
@@ -329,8 +288,10 @@ void oak_compiler_register_program_functions(struct oak_compiler_t* c,
 
     if (self_param)
     {
-      const struct oak_ast_node_t* first_child = oak_container_of(
-          self_param->children.next, struct oak_ast_node_t, link);
+      /* FN_PARAM_SELF is BINARY: lhs = MUT?, rhs = SELF. Report on MUT if
+       * present, otherwise SELF. */
+      const struct oak_ast_node_t* first_child =
+          self_param->lhs ? self_param->lhs : self_param->rhs;
       oak_compiler_error_at(c,
                         first_child->token,
                         "'self' parameter is only valid on methods (use"
@@ -395,8 +356,8 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_ast_node_t* expr = null;
-  oak_ast_node_unpack(node, &expr);
+  /* STMT_RETURN is UNARY: child = EXPR (always present for now). */
+  const struct oak_ast_node_t* expr = node->child;
   if (expr)
     oak_compiler_compile_node(c, expr);
   else

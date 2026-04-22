@@ -47,8 +47,20 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
 {
   struct oak_list_entry_t* saved = p->curr;
   const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
+  const int is_binary = entry->op == OAK_GRAMMAR_BINARY;
+  const int is_unary = entry->op == OAK_GRAMMAR_UNARY;
+  const int is_fixed = is_binary || is_unary;
+
   struct oak_list_entry_t collected;
   oak_list_init(&collected);
+
+  /* For UNARY/BINARY nodes every non-token rule maps to a positional slot
+   * (child for UNARY; lhs/rhs for BINARY). Optional rules that don't match
+   * still occupy their slot, storing null so the shape of the node is
+   * stable regardless of whether the optional was present. */
+  struct oak_ast_node_t* slots[2] = { null, null };
+  usize slot_count = 0;
+  const usize max_slots = is_binary ? 2u : (is_unary ? 1u : 0u);
 
   const usize count = oak_parser_grammar_rule_count(entry);
   for (usize i = 0; i < count; ++i)
@@ -85,6 +97,7 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
         (enum oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
     if (is_repeat)
     {
+      oak_assert(!is_fixed);
       for (;;)
       {
         struct oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
@@ -96,28 +109,24 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
     }
 
     struct oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
-    if (is_optional)
-    {
-      if (child)
-        oak_list_add_tail(&collected, &child->link);
-      continue;
-    }
-    if (!child)
+    if (!child && !is_optional)
     {
       p->curr = saved;
       return null;
     }
-    oak_list_add_tail(&collected, &child->link);
+
+    if (is_fixed)
+    {
+      oak_assert(slot_count < max_slots);
+      slots[slot_count++] = child;
+      continue;
+    }
+
+    if (child)
+      oak_list_add_tail(&collected, &child->link);
   }
 
-  const int is_binary = entry->op == OAK_GRAMMAR_BINARY;
-  const int is_unary = entry->op == OAK_GRAMMAR_UNARY;
-  if (is_binary && oak_list_length(&collected) < 2)
-  {
-    p->curr = saved;
-    return null;
-  }
-  if (is_unary && oak_list_empty(&collected))
+  if (is_fixed && slot_count != max_slots)
   {
     p->curr = saved;
     return null;
@@ -134,15 +143,12 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
 
   if (is_binary)
   {
-    struct oak_list_entry_t* lhs = oak_list_first(&collected);
-    struct oak_list_entry_t* rhs = oak_list_next(lhs, &collected);
-    node->lhs = oak_container_of(lhs, struct oak_ast_node_t, link);
-    node->rhs = oak_container_of(rhs, struct oak_ast_node_t, link);
+    node->lhs = slots[0];
+    node->rhs = slots[1];
   }
   else if (is_unary)
   {
-    struct oak_list_entry_t* first = oak_list_first(&collected);
-    node->child = oak_container_of(first, struct oak_ast_node_t, link);
+    node->child = slots[0];
   }
   else
   {
