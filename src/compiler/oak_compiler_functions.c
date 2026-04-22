@@ -118,20 +118,27 @@ oak_compiler_fn_param_ident(const struct oak_ast_node_t* param)
 }
 
 const struct oak_ast_node_t*
-oak_compiler_fn_param_type_ident(const struct oak_ast_node_t* param)
+oak_compiler_fn_param_type_node(const struct oak_ast_node_t* param)
 {
-  int ident_index = 0;
+  int ident_seen = 0;
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &param->children)
   {
     const struct oak_ast_node_t* ch =
         oak_container_of(pos, struct oak_ast_node_t, link);
+    if (ch->kind == OAK_NODE_MUT_KEYWORD)
+      continue;
     if (ch->kind == OAK_NODE_IDENT)
     {
-      if (ident_index == 1)
-        return ch;
-      ++ident_index;
+      if (!ident_seen)
+      {
+        ident_seen = 1;
+        continue;
+      }
+      return ch;
     }
+    if (ch->kind == OAK_NODE_TYPE_ARRAY || ch->kind == OAK_NODE_TYPE_MAP)
+      return ch;
   }
   return null;
 }
@@ -435,11 +442,11 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
       c->function_depth--;
       return;
     }
-    const struct oak_ast_node_t* type_id = oak_compiler_fn_param_type_ident(ch);
+    const struct oak_ast_node_t* type_id = oak_compiler_fn_param_type_node(ch);
     struct oak_type_t param_type;
     oak_type_clear(&param_type);
-    if (type_id && type_id->kind == OAK_NODE_IDENT)
-      param_type.id = oak_compiler_intern_type_token(c, type_id->token);
+    if (type_id)
+      oak_compiler_type_node_to_type(c, type_id, &param_type);
     oak_compiler_add_local(c,
               oak_token_text(id->token),
               (usize)oak_token_length(id->token),
@@ -517,16 +524,21 @@ oak_compiler_validate_user_fn_call_arg_types(struct oak_compiler_t* c,
       oak_compiler_error_at(c, null, "internal error: missing parameter %zu", i);
       return;
     }
-    const struct oak_ast_node_t* want_type_node = oak_compiler_fn_param_type_ident(param);
-    if (!want_type_node || want_type_node->kind != OAK_NODE_IDENT)
+    const struct oak_ast_node_t* want_type_node = oak_compiler_fn_param_type_node(param);
+    if (!want_type_node)
     {
       oak_compiler_error_at(
           c, param->token, "malformed function parameter (expected type name)");
       return;
     }
-    const struct oak_type_t want = {
-      .id = oak_compiler_intern_type_token(c, want_type_node->token),
-    };
+    struct oak_type_t want;
+    oak_compiler_type_node_to_type(c, want_type_node, &want);
+    if (!oak_type_is_known(&want))
+    {
+      oak_compiler_error_at(
+          c, param->token, "malformed function parameter type");
+      return;
+    }
 
     struct oak_type_t got;
     oak_compiler_infer_expr_static_type(c, arg_expr, &got);
@@ -592,16 +604,21 @@ oak_compiler_validate_struct_method_call_arg_types(struct oak_compiler_t* c,
       oak_compiler_error_at(c, null, "internal error: missing parameter %d", i);
       return;
     }
-    const struct oak_ast_node_t* want_type_node = oak_compiler_fn_param_type_ident(param);
-    if (!want_type_node || want_type_node->kind != OAK_NODE_IDENT)
+    const struct oak_ast_node_t* want_type_node = oak_compiler_fn_param_type_node(param);
+    if (!want_type_node)
     {
       oak_compiler_error_at(
           c, param->token, "malformed function parameter (expected type name)");
       return;
     }
-    const struct oak_type_t want = {
-      .id = oak_compiler_intern_type_token(c, want_type_node->token),
-    };
+    struct oak_type_t want;
+    oak_compiler_type_node_to_type(c, want_type_node, &want);
+    if (!oak_type_is_known(&want))
+    {
+      oak_compiler_error_at(
+          c, param->token, "malformed function parameter type");
+      return;
+    }
 
     struct oak_type_t got;
     oak_compiler_infer_expr_static_type(c, arg_expr, &got);

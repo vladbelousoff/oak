@@ -483,13 +483,13 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_DOT | OAK_RULE_TOKEN,
     },
   },
-  // FN_PARAM -> MUT_KEYWORD? IDENT ':' IDENT ','?
+  // FN_PARAM -> MUT_KEYWORD? IDENT ':' TYPE_NAME ','?
   [OAK_NODE_FN_PARAM] = {
     .rules = {
       OAK_NODE_MUT_KEYWORD | OAK_RULE_OPTIONAL,
       OAK_NODE_IDENT,
       OAK_TOKEN_COLON | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT,
+      OAK_NODE_TYPE_NAME,
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },

@@ -237,6 +237,10 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
 
 /* ---------- oak_compiler_types.c ---------- */
 
+void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* type_node,
+                                    struct oak_type_t* out);
+
 oak_type_id_t oak_compiler_intern_type_token(struct oak_compiler_t* c,
                                              const struct oak_token_t* token);
 
@@ -321,7 +325,7 @@ const struct oak_ast_node_t*
 oak_compiler_fn_param_ident(const struct oak_ast_node_t* param);
 
 const struct oak_ast_node_t*
-oak_compiler_fn_param_type_ident(const struct oak_ast_node_t* param);
+oak_compiler_fn_param_type_node(const struct oak_ast_node_t* param);
 
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_param_at(const struct oak_ast_node_t* decl, int index);

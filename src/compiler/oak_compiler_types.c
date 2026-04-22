@@ -1,5 +1,39 @@
 #include "oak_compiler_internal.h"
 
+void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* type_node,
+                                    struct oak_type_t* out)
+{
+  oak_type_clear(out);
+  if (!type_node)
+    return;
+  if (type_node->kind == OAK_NODE_IDENT)
+  {
+    out->id = oak_compiler_intern_type_token(c, type_node->token);
+    return;
+  }
+  if (type_node->kind == OAK_NODE_TYPE_ARRAY)
+  {
+    const struct oak_ast_node_t* elem = type_node->child;
+    if (!elem || elem->kind != OAK_NODE_IDENT)
+      return;
+    out->id = oak_compiler_intern_type_token(c, elem->token);
+    out->kind = OAK_TYPE_KIND_ARRAY;
+    return;
+  }
+  if (type_node->kind == OAK_NODE_TYPE_MAP)
+  {
+    const struct oak_ast_node_t* key = type_node->lhs;
+    const struct oak_ast_node_t* val = type_node->rhs;
+    if (!key || !val || key->kind != OAK_NODE_IDENT || val->kind != OAK_NODE_IDENT)
+      return;
+    out->key_id = oak_compiler_intern_type_token(c, key->token);
+    out->id = oak_compiler_intern_type_token(c, val->token);
+    out->kind = OAK_TYPE_KIND_MAP;
+    return;
+  }
+}
+
 oak_type_id_t oak_compiler_intern_type_token(struct oak_compiler_t* c,
                                              const struct oak_token_t* token)
 {
@@ -278,15 +312,20 @@ const char* oak_compiler_type_kind_name(struct oak_compiler_t* c,
   return oak_type_registry_name(&c->type_registry, t.id);
 }
 
-/* Format a type name into a thread-local buffer for error messages. */
+/* Format a type name into a thread-local buffer for error messages.
+ * Uses a small ring of buffers so two calls in the same varargs list
+ * (e.g. "expected '%s', found '%s'") each return a distinct pointer. */
 const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
                                         const struct oak_type_t t)
 {
-  static _Thread_local char buf[128];
+  static _Thread_local char bufs[4][128];
+  static _Thread_local int  slot = 0;
+  char* buf = bufs[slot % 4];
+  ++slot;
   if (t.kind == OAK_TYPE_KIND_MAP)
   {
     snprintf(buf,
-             sizeof(buf),
+             128,
              "[%s:%s]",
              oak_type_registry_name(&c->type_registry, t.key_id),
              oak_type_registry_name(&c->type_registry, t.id));
@@ -294,7 +333,7 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
   }
   if (t.kind == OAK_TYPE_KIND_ARRAY)
   {
-    snprintf(buf, sizeof(buf), "%s[]", oak_compiler_type_kind_name(c, t));
+    snprintf(buf, 128, "%s[]", oak_compiler_type_kind_name(c, t));
     return buf;
   }
   return oak_compiler_type_kind_name(c, t);
