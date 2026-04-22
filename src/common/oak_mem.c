@@ -6,11 +6,14 @@
 #ifdef OAK_TRACK_MEMORY
 #include "oak_list.h"
 #include "oak_log.h"
-#endif
 
-#ifdef OAK_TRACK_MEMORY
 static struct oak_list_entry_t memory_allocations;
 static int memory_tracking_enabled = 0;
+
+static inline struct oak_mem_header_t* header_of(void* ptr)
+{
+  return (struct oak_mem_header_t*)((char*)ptr - sizeof(struct oak_mem_header_t));
+}
 #endif
 
 #define OAK_MEM_SMB 0x77
@@ -20,23 +23,17 @@ void* oak_alloc(const usize size, const struct oak_src_loc_t src_loc)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);
-  // It's not a memory leak, it's just a trick to add a bit more
-  // info about allocated memory, so...
-  // ReSharper disable once CppDFAMemoryLeak
   char* data = malloc(sizeof(struct oak_mem_header_t) + size);
   if (data == null)
-  {
     return null;
-  }
 
   struct oak_mem_header_t* header = (struct oak_mem_header_t*)data;
   header->signature = OAK_MEM_SIG;
   header->src_loc = src_loc;
   header->size = size;
   oak_list_add_tail(&memory_allocations, &header->link);
-  memset(&data[sizeof(struct oak_mem_header_t)], OAK_MEM_SMB, size);
-  // ReSharper disable once CppDFAMemoryLeak
-  return &data[sizeof(struct oak_mem_header_t)];
+  memset(data + sizeof(struct oak_mem_header_t), OAK_MEM_SMB, size);
+  return data + sizeof(struct oak_mem_header_t);
 #else
   (void)src_loc;
   return malloc(size);
@@ -50,39 +47,25 @@ void* oak_realloc(void* ptr,
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);
   if (ptr == null)
-  {
     return oak_alloc(size, src_loc);
-  }
 
-  struct oak_mem_header_t* old_header =
-      (struct oak_mem_header_t*)((char*)ptr - sizeof(struct oak_mem_header_t));
-
+  struct oak_mem_header_t* old_header = header_of(ptr);
   oak_list_remove(&old_header->link);
 
   const usize old_size = old_header->size;
-  // ReSharper disable once CppDFAMemoryLeak
   char* data = realloc(old_header, sizeof(struct oak_mem_header_t) + size);
   if (data == null)
-  {
     return null;
-  }
 
   if (size > old_size)
-  {
-    memset(&data[sizeof(struct oak_mem_header_t) + old_size],
-           OAK_MEM_SMB,
-           size - old_size);
-  }
+    memset(data + sizeof(struct oak_mem_header_t) + old_size, OAK_MEM_SMB, size - old_size);
 
   struct oak_mem_header_t* header = (struct oak_mem_header_t*)data;
-  oak_list_add_tail(&memory_allocations, &header->link);
-
   header->signature = OAK_MEM_SIG;
   header->src_loc = src_loc;
   header->size = size;
-
-  // ReSharper disable once CppDFAMemoryLeak
-  return &data[sizeof(struct oak_mem_header_t)];
+  oak_list_add_tail(&memory_allocations, &header->link);
+  return data + sizeof(struct oak_mem_header_t);
 #else
   (void)src_loc;
   return realloc(ptr, size);
@@ -93,8 +76,7 @@ void oak_free(void* ptr, const struct oak_src_loc_t src_loc)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);
-  struct oak_mem_header_t* header =
-      (struct oak_mem_header_t*)((char*)ptr - sizeof(struct oak_mem_header_t));
+  struct oak_mem_header_t* header = header_of(ptr);
   if (header->signature != OAK_MEM_SIG)
   {
     oak_log(OAK_LOG_ERROR,

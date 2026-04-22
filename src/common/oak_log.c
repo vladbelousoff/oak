@@ -1,5 +1,6 @@
 #include "oak_log.h"
 
+#include "oak_count_of.h"
 #include "oak_types.h"
 
 #include <stdarg.h>
@@ -35,21 +36,10 @@ static const char* oak_time_stamp(void)
   return buf;
 }
 
-static char* oak_log_lvl_to_str(const enum oak_log_level_t lvl)
+static const char* oak_log_lvl_to_str(const enum oak_log_level_t lvl)
 {
-  switch (lvl)
-  {
-    case OAK_LOG_ERROR:
-      return "ERR";
-    case OAK_LOG_WARN:
-      return "WRN";
-    case OAK_LOG_DEBUG:
-      return "DBG";
-    default:
-      break;
-  }
-
-  return "INF";
+  static const char* const s[] = {"INF", "DBG", "WRN", "ERR"};
+  return (unsigned)lvl < oak_count_of(s) ? s[lvl] : s[0];
 }
 
 void _oak_log_printf(const enum oak_log_level_t lvl,

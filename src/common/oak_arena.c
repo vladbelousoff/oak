@@ -42,10 +42,8 @@ void* oak_arena_alloc(struct oak_arena_t* arena, usize size)
 {
   const usize aligned = align_up(size);
   struct oak_arena_block_t* cur = arena->current;
-  const int need_block =
-      !cur || cur->used + aligned > cur->capacity;
 
-  if (need_block)
+  if (!cur || cur->used + aligned > cur->capacity)
   {
     usize cap = arena->block_size;
     if (aligned > cap)

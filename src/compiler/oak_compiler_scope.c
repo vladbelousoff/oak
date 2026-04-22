@@ -50,12 +50,14 @@ void oak_compiler_begin_scope(struct oak_compiler_t* c)
 
 void oak_compiler_end_scope(struct oak_compiler_t* c)
 {
+  int pops = 0;
   while (c->local_count > 0
          && c->locals[c->local_count - 1].depth == c->scope_depth)
   {
-    oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
+    pops++;
     c->local_count--;
   }
+  oak_compiler_emit_pops(c, pops, OAK_LOC_SYNTHETIC);
   c->scope_depth--;
 }
 

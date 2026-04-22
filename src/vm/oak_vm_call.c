@@ -81,7 +81,7 @@ enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
 
 enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)
 {
-  if (vm->frame_count <= 0)
+  if (vm->frame_count == 0)
   {
     oak_vm_runtime_error(vm, "'return' outside of a function");
     return OAK_VM_RUNTIME_ERROR;

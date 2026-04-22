@@ -114,5 +114,3 @@ void oak_parser_free(struct oak_parser_result_t* result);
 
 int oak_node_is_unary_op(enum oak_node_kind_t kind);
 int oak_node_is_binary_op(enum oak_node_kind_t kind);
-
-void oak_ast_node_unpack(const struct oak_ast_node_t* node, ...);

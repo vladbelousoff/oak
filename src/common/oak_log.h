@@ -11,10 +11,11 @@
 
 #ifdef OAK_DEBUG_LOGGING
 #define oak_assert(condition)                                                  \
-  if (!(condition))                                                            \
+  do                                                                           \
   {                                                                            \
-    oak_debug_break();                                                         \
-  }
+    if (!(condition))                                                          \
+      oak_debug_break();                                                       \
+  } while (0)
 #else
 #define oak_assert(condition)                                                  \
   do                                                                           \

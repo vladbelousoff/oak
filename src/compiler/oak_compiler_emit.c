@@ -63,8 +63,8 @@ void oak_compiler_patch_jump(struct oak_compiler_t* c, const usize offset)
     return;
   }
 
-  c->chunk->bytecode[offset + 0] = (u8)(jump >> 8 & 0xff);
-  c->chunk->bytecode[offset + 1] = (u8)(jump >> 0 & 0xff);
+  c->chunk->bytecode[offset]     = (u8)(jump >> 8);
+  c->chunk->bytecode[offset + 1] = (u8)(jump);
 }
 
 void oak_compiler_patch_jumps(struct oak_compiler_t* c,
@@ -87,8 +87,8 @@ void oak_compiler_emit_loop(struct oak_compiler_t* c,
     return;
   }
 
-  oak_compiler_emit_byte(c, (u8)(jump >> 8 & 0xff), loc);
-  oak_compiler_emit_byte(c, (u8)(jump >> 0 & 0xff), loc);
+  oak_compiler_emit_byte(c, (u8)(jump >> 8), loc);
+  oak_compiler_emit_byte(c, (u8)(jump),      loc);
 }
 
 void oak_compiler_emit_pops(struct oak_compiler_t* c,
