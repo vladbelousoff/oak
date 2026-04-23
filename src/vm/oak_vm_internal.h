@@ -7,7 +7,11 @@
 static inline void oak_vm_push(struct oak_vm_t* vm,
                                const struct oak_value_t value)
 {
-  oak_assert(vm->sp < vm->stack + OAK_STACK_MAX);
+  if (vm->sp >= vm->stack + OAK_STACK_MAX)
+  {
+    vm->had_stack_overflow = 1;
+    return;
+  }
   oak_value_incref(value);
   *vm->sp++ = value;
 }
@@ -19,7 +23,11 @@ static inline void oak_vm_push(struct oak_vm_t* vm,
 static inline void oak_vm_push_owned(struct oak_vm_t* vm,
                                      const struct oak_value_t value)
 {
-  oak_assert(vm->sp < vm->stack + OAK_STACK_MAX);
+  if (vm->sp >= vm->stack + OAK_STACK_MAX)
+  {
+    vm->had_stack_overflow = 1;
+    return;
+  }
   *vm->sp++ = value;
 }
 
@@ -39,8 +47,24 @@ static inline u16 oak_vm_read(struct oak_vm_t* vm, const int n)
 {
   u16 val = 0;
   for (int i = 0; i < n; i++)
-    val = (val << 8) | *vm->ip++;
+    val = (u16)((val << 8) | *vm->ip++);
   return val;
+}
+
+static inline u16 oak_vm_read_u16(struct oak_vm_t* vm)
+{
+  const u16 hi = *vm->ip++;
+  const u16 lo = *vm->ip++;
+  return (u16)((hi << 8) | lo);
+}
+
+static inline u32 oak_vm_read_u32(struct oak_vm_t* vm)
+{
+  const u32 b0 = *vm->ip++;
+  const u32 b1 = *vm->ip++;
+  const u32 b2 = *vm->ip++;
+  const u32 b3 = *vm->ip++;
+  return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
 }
 
 const char* oak_vm_value_kind_desc(struct oak_value_t v);

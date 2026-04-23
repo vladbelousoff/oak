@@ -37,9 +37,8 @@ void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
 oak_type_id_t oak_compiler_intern_type_token(struct oak_compiler_t* c,
                                              const struct oak_token_t* token)
 {
-  return oak_type_registry_intern(&c->type_registry,
-                                  oak_token_text(token),
-                                  (usize)oak_token_length(token));
+  return oak_type_registry_intern(
+      &c->type_registry, oak_token_text(token), oak_token_length(token));
 }
 
 int oak_compiler_local_type_get(struct oak_compiler_t* c,
@@ -50,7 +49,7 @@ int oak_compiler_local_type_get(struct oak_compiler_t* c,
   for (int i = c->local_count - 1; i >= 0; --i)
   {
     const struct oak_local_t* L = &c->locals[i];
-    if (L->length == len && memcmp(L->name, name, len) == 0)
+    if (oak_name_eq(L->name, L->length, name, len))
     {
       *out = L->type;
       return 1;
@@ -89,12 +88,14 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
     case OAK_NODE_BINARY_LESS_EQ:
     case OAK_NODE_BINARY_GREATER:
     case OAK_NODE_BINARY_GREATER_EQ:
+    case OAK_NODE_BINARY_AND:
+    case OAK_NODE_BINARY_OR:
       out->id = OAK_TYPE_BOOL;
       return;
     case OAK_NODE_IDENT:
     {
       const char* name = oak_token_text(expr->token);
-      const usize len = (usize)oak_token_length(expr->token);
+      const usize len = oak_token_length(expr->token);
       struct oak_type_t local_ty;
       oak_type_clear(&local_ty);
       if (oak_compiler_local_type_get(c, name, len, &local_ty))
@@ -127,7 +128,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         struct oak_type_t recv_ty;
         oak_compiler_infer_expr_static_type(c, recv, &recv_ty);
         const char* mn = oak_token_text(method->token);
-        const usize mn_len = (usize)oak_token_length(method->token);
+        const usize mn_len = oak_token_length(method->token);
         if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
         {
           const struct oak_registered_struct_t* sd =
@@ -137,8 +138,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
             for (int i = 0; i < sd->method_count; ++i)
             {
               const struct oak_struct_method_t* sm = &sd->methods[i];
-              if (sm->name_len == mn_len
-                  && memcmp(sm->name, mn, mn_len) == 0)
+              if (oak_name_eq(sm->name, sm->name_len, mn, mn_len))
               {
                 if (sm->decl)
                 {
@@ -165,7 +165,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       if (callee->kind != OAK_NODE_IDENT)
         return;
       const char* cn = oak_token_text(callee->token);
-      const usize clen = (usize)oak_token_length(callee->token);
+      const usize clen = oak_token_length(callee->token);
       const struct oak_registered_fn_t* fe =
           oak_compiler_find_registered_fn_entry(c, cn, clen);
       if (fe && !fe->decl && fe->name_len == 5u
@@ -268,11 +268,9 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       const struct oak_ast_node_t* name_node = expr->lhs;
       if (!name_node || name_node->kind != OAK_NODE_IDENT)
         return;
-      const struct oak_registered_struct_t* sd =
-          oak_compiler_find_struct_by_name(
-              c,
-              oak_token_text(name_node->token),
-              (usize)oak_token_length(name_node->token));
+      const struct oak_registered_struct_t* sd = oak_compiler_find_struct_by_name(
+          c, oak_token_text(name_node->token),
+          oak_token_length(name_node->token));
       if (!sd)
         return;
       out->id = sd->type_id;
@@ -286,16 +284,10 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         return;
       struct oak_type_t recv_ty;
       oak_compiler_infer_expr_static_type(c, recv, &recv_ty);
-      if (!oak_type_is_known(&recv_ty))
-        return;
-      const struct oak_registered_struct_t* sd =
-          oak_compiler_find_struct_by_type_id(c, recv_ty.id);
-      if (!sd)
-        return;
-      const int idx =
-          oak_compiler_find_struct_field(sd,
-                                         oak_token_text(fname->token),
-                                         (usize)oak_token_length(fname->token));
+      const struct oak_registered_struct_t* sd = null;
+      const int idx = oak_compiler_struct_field_index(
+          c, recv_ty, oak_token_text(fname->token),
+          oak_token_length(fname->token), &sd);
       if (idx < 0)
         return;
       *out = sd->fields[idx].type;

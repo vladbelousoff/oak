@@ -42,7 +42,7 @@ void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
   token->line = cur->line;
   token->column = cur->column;
   token->offset = cur->pos;
-  token->length = (int)buffer_size;
+  token->length = buffer_size;
 
   if (buffer && buffer_size > 0)
   {
@@ -105,6 +105,7 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
                                        .input_len = len };
   oak_list_init(&result->tokens);
   oak_arena_init(&result->arena, 0);
+  result->error_count = 0;
 
   while ((usize)cur.buf_pos < len)
   {
@@ -121,10 +122,12 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
       const usize rem = len - (usize)cur.buf_pos;
       const int n = oak_utf8_next_bounded(&input[cur.buf_pos], rem, &cp);
       oak_log_cond(n < 0, OAK_LOG_ERROR, "invalid utf8 character: 0x%.8X", cp);
+      result->error_count++;
     }
     else
     {
       oak_log(OAK_LOG_ERROR, "lexer: status %d", (int)step);
+      result->error_count++;
       break;
     }
   }
@@ -136,6 +139,11 @@ const struct oak_list_entry_t*
 oak_lexer_tokens(const struct oak_lexer_result_t* result)
 {
   return result ? &result->tokens : null;
+}
+
+int oak_lexer_error_count(const struct oak_lexer_result_t* result)
+{
+  return result ? result->error_count : 0;
 }
 
 void oak_lexer_free(struct oak_lexer_result_t* result)

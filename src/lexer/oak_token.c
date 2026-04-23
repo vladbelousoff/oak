@@ -24,7 +24,7 @@ int oak_token_offset(const struct oak_token_t* token)
   return token->offset;
 }
 
-int oak_token_length(const struct oak_token_t* token)
+usize oak_token_length(const struct oak_token_t* token)
 {
   return token->length;
 }

@@ -1,5 +1,155 @@
 #include "oak_vm_internal.h"
 
+static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
+{
+  const struct oak_value_t subscript = oak_vm_pop(vm);
+  const struct oak_value_t recv = oak_vm_pop(vm);
+
+  if (oak_is_map(recv))
+  {
+    const struct oak_obj_map_t* map = oak_as_map(recv);
+    struct oak_value_t out;
+    if (!oak_map_get(map, subscript, &out))
+    {
+      oak_vm_runtime_error(vm, "key not found in map");
+      oak_value_decref(subscript);
+      oak_value_decref(recv);
+      return OAK_VM_RUNTIME_ERROR;
+    }
+    oak_vm_push(vm, out);
+    oak_value_decref(subscript);
+    oak_value_decref(recv);
+    return OAK_VM_OK;
+  }
+
+  if (!oak_is_array(recv))
+  {
+    oak_vm_runtime_error(vm, "indexing requires an array or map, got %s",
+                         oak_vm_value_kind_desc(recv));
+    oak_value_decref(subscript);
+    oak_value_decref(recv);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  if (!oak_is_i32(subscript))
+  {
+    oak_vm_runtime_error(vm, "array index must be an integer, got %s",
+                         oak_vm_value_kind_desc(subscript));
+    oak_value_decref(subscript);
+    oak_value_decref(recv);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  const struct oak_obj_array_t* arr = oak_as_array(recv);
+  const int i = oak_as_i32(subscript);
+  if (i < 0 || (usize)i >= arr->length)
+  {
+    oak_vm_runtime_error(
+        vm, "array index %d out of bounds (length %zu)", i, arr->length);
+    oak_value_decref(subscript);
+    oak_value_decref(recv);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  oak_vm_push(vm, arr->items[i]);
+  oak_value_decref(subscript);
+  oak_value_decref(recv);
+  return OAK_VM_OK;
+}
+
+static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
+{
+  if (vm->sp - vm->stack < 3)
+  {
+    oak_vm_runtime_error(vm, "stack underflow in indexed assignment");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  const struct oak_value_t value = vm->sp[-1];
+  const struct oak_value_t subscript = vm->sp[-2];
+  const struct oak_value_t recv = vm->sp[-3];
+
+  if (oak_is_map(recv))
+  {
+    struct oak_obj_map_t* map = oak_as_map(recv);
+    oak_map_set(map, subscript, value);
+    oak_value_decref(recv);
+    oak_value_decref(subscript);
+    vm->sp[-3] = value;
+    vm->sp -= 2;
+    return OAK_VM_OK;
+  }
+
+  if (!oak_is_array(recv))
+  {
+    oak_vm_runtime_error(
+        vm, "indexed assignment requires an array or map, got %s",
+        oak_vm_value_kind_desc(recv));
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  if (!oak_is_i32(subscript))
+  {
+    oak_vm_runtime_error(
+        vm, "array index must be an integer, got %s",
+        oak_vm_value_kind_desc(subscript));
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  struct oak_obj_array_t* arr = oak_as_array(recv);
+  const int i = oak_as_i32(subscript);
+  if (i < 0 || (usize)i >= arr->length)
+  {
+    oak_vm_runtime_error(
+        vm, "array index %d out of bounds (length %zu)", i, arr->length);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  oak_value_decref(arr->items[i]);
+  oak_value_incref(value);
+  arr->items[i] = value;
+  oak_value_decref(recv);
+  oak_value_decref(subscript);
+  vm->sp[-3] = value;
+  vm->sp -= 2;
+  return OAK_VM_OK;
+}
+
+static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
+                                                 const u8 instruction)
+{
+  const struct oak_value_t iter_index = oak_vm_pop(vm);
+  const struct oak_value_t map_val = oak_vm_pop(vm);
+
+  if (!oak_is_map(map_val))
+  {
+    oak_vm_runtime_error(
+        vm, "map iteration requires a map, got %s", oak_vm_value_kind_desc(map_val));
+    oak_value_decref(iter_index);
+    oak_value_decref(map_val);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  if (!oak_is_i32(iter_index))
+  {
+    oak_vm_runtime_error(
+        vm, "map iterator index must be an integer, got %s",
+        oak_vm_value_kind_desc(iter_index));
+    oak_value_decref(iter_index);
+    oak_value_decref(map_val);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  const struct oak_obj_map_t* map = oak_as_map(map_val);
+  const int i = oak_as_i32(iter_index);
+  if (i < 0 || (usize)i >= map->length)
+  {
+    oak_vm_runtime_error(
+        vm, "map iterator index %d out of bounds (length %zu)", i, map->length);
+    oak_value_decref(iter_index);
+    oak_value_decref(map_val);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  const struct oak_value_t v = instruction == OAK_OP_MAP_KEY_AT
+                                    ? oak_map_key_at(map, (usize)i)
+                                    : oak_map_value_at(map, (usize)i);
+  oak_vm_push(vm, v);
+  oak_value_decref(iter_index);
+  oak_value_decref(map_val);
+  return OAK_VM_OK;
+}
+
 void oak_vm_init(struct oak_vm_t* vm)
 {
   vm->chunk = null;
@@ -7,6 +157,7 @@ void oak_vm_init(struct oak_vm_t* vm)
   vm->sp = vm->stack;
   vm->stack_base = 0;
   vm->frame_count = 0;
+  vm->had_stack_overflow = 0;
 }
 
 void oak_vm_free(struct oak_vm_t* vm)
@@ -28,6 +179,19 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
 
   for (;;)
   {
+    if (vm->had_stack_overflow)
+    {
+      vm->had_stack_overflow = 0;
+      oak_vm_runtime_error(vm, "stack overflow (max %d values)", OAK_STACK_MAX);
+      return OAK_VM_RUNTIME_ERROR;
+    }
+
+    if (vm->ip < chunk->bytecode || vm->ip >= chunk->bytecode + chunk->count)
+    {
+      oak_log(OAK_LOG_ERROR, "vm: instruction pointer out of bounds");
+      return OAK_VM_RUNTIME_ERROR;
+    }
+
     const u8 instruction = oak_vm_read(vm, 1);
     switch (instruction)
     {
@@ -36,6 +200,26 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_CONSTANT:
       {
         const u8 idx = oak_vm_read(vm, 1);
+        if ((usize)idx >= chunk->const_count)
+        {
+          oak_vm_runtime_error(
+              vm, "constant index %u out of range (%zu constants)",
+              (unsigned)idx, chunk->const_count);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        oak_vm_push(vm, chunk->constants[idx]);
+        break;
+      }
+      case OAK_OP_CONSTANT_LONG:
+      {
+        const u16 idx = oak_vm_read_u16(vm);
+        if ((usize)idx >= chunk->const_count)
+        {
+          oak_vm_runtime_error(
+              vm, "constant index %u out of range (%zu constants)",
+              (unsigned)idx, chunk->const_count);
+          return OAK_VM_RUNTIME_ERROR;
+        }
         oak_vm_push(vm, chunk->constants[idx]);
         break;
       }
@@ -191,13 +375,13 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_JUMP:
       {
-        const u16 offset = oak_vm_read(vm, 2);
+        const u32 offset = oak_vm_read_u32(vm);
         vm->ip += offset;
         break;
       }
       case OAK_OP_JUMP_IF_FALSE:
       {
-        const u16 offset = oak_vm_read(vm, 2);
+        const u32 offset = oak_vm_read_u32(vm);
         struct oak_value_t cond = oak_vm_pop(vm);
         if (!oak_is_truthy(cond))
           vm->ip += offset;
@@ -206,7 +390,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_LOOP:
       {
-        const u16 offset = oak_vm_read(vm, 2);
+        const u32 offset = oak_vm_read_u32(vm);
         vm->ip -= offset;
         break;
       }
@@ -279,162 +463,24 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_GET_INDEX:
       {
-        const struct oak_value_t idx_v = oak_vm_pop(vm);
-        const struct oak_value_t coll_v = oak_vm_pop(vm);
-
-        if (oak_is_map(coll_v))
-        {
-          const struct oak_obj_map_t* map = oak_as_map(coll_v);
-          struct oak_value_t out;
-          if (!oak_map_get(map, idx_v, &out))
-          {
-            oak_vm_runtime_error(vm, "key not found in map");
-            oak_value_decref(idx_v);
-            oak_value_decref(coll_v);
-            return OAK_VM_RUNTIME_ERROR;
-          }
-          oak_vm_push(vm, out);
-          oak_value_decref(idx_v);
-          oak_value_decref(coll_v);
-          break;
-        }
-
-        if (!oak_is_array(coll_v))
-        {
-          oak_vm_runtime_error(vm,
-                               "indexing requires an array or map, got %s",
-                               oak_vm_value_kind_desc(coll_v));
-          oak_value_decref(idx_v);
-          oak_value_decref(coll_v);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        if (!oak_is_i32(idx_v))
-        {
-          oak_vm_runtime_error(vm,
-                               "array index must be an integer, got %s",
-                               oak_vm_value_kind_desc(idx_v));
-          oak_value_decref(idx_v);
-          oak_value_decref(coll_v);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        const struct oak_obj_array_t* arr = oak_as_array(coll_v);
-        const int i = oak_as_i32(idx_v);
-        if (i < 0 || (usize)i >= arr->length)
-        {
-          oak_vm_runtime_error(vm,
-                               "array index %d out of bounds (length %zu)",
-                               i,
-                               arr->length);
-          oak_value_decref(idx_v);
-          oak_value_decref(coll_v);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        oak_vm_push(vm, arr->items[i]);
-        oak_value_decref(idx_v);
-        oak_value_decref(coll_v);
+        const enum oak_vm_result_t r = vm_op_get_index_impl(vm);
+        if (r != OAK_VM_OK)
+          return r;
         break;
       }
       case OAK_OP_SET_INDEX:
       {
-        /* stack: [..., collection, index, value]; result leaves [..., value]. */
-        if (vm->sp - vm->stack < 3)
-        {
-          oak_vm_runtime_error(vm, "stack underflow in indexed assignment");
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        const struct oak_value_t value = vm->sp[-1];
-        const struct oak_value_t idx_v = vm->sp[-2];
-        const struct oak_value_t coll_v = vm->sp[-3];
-
-        if (oak_is_map(coll_v))
-        {
-          struct oak_obj_map_t* map = oak_as_map(coll_v);
-          oak_map_set(map, idx_v, value);
-          oak_value_decref(coll_v);
-          oak_value_decref(idx_v);
-          vm->sp[-3] = value;
-          vm->sp -= 2;
-          break;
-        }
-
-        if (!oak_is_array(coll_v))
-        {
-          oak_vm_runtime_error(
-              vm,
-              "indexed assignment requires an array or map, got %s",
-              oak_vm_value_kind_desc(coll_v));
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        if (!oak_is_i32(idx_v))
-        {
-          oak_vm_runtime_error(vm,
-                               "array index must be an integer, got %s",
-                               oak_vm_value_kind_desc(idx_v));
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        struct oak_obj_array_t* arr = oak_as_array(coll_v);
-        const int i = oak_as_i32(idx_v);
-        if (i < 0 || (usize)i >= arr->length)
-        {
-          oak_vm_runtime_error(vm,
-                               "array index %d out of bounds (length %zu)",
-                               i,
-                               arr->length);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        oak_value_decref(arr->items[i]);
-        oak_value_incref(value);
-        arr->items[i] = value;
-        oak_value_decref(coll_v);
-        oak_value_decref(idx_v);
-        vm->sp[-3] = value;
-        vm->sp -= 2;
+        const enum oak_vm_result_t r = vm_op_set_index_impl(vm);
+        if (r != OAK_VM_OK)
+          return r;
         break;
       }
       case OAK_OP_MAP_KEY_AT:
       case OAK_OP_MAP_VALUE_AT:
       {
-        const struct oak_value_t idx_v = oak_vm_pop(vm);
-        const struct oak_value_t coll_v = oak_vm_pop(vm);
-
-        if (!oak_is_map(coll_v))
-        {
-          oak_vm_runtime_error(vm,
-                               "map iteration requires a map, got %s",
-                               oak_vm_value_kind_desc(coll_v));
-          oak_value_decref(idx_v);
-          oak_value_decref(coll_v);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        if (!oak_is_i32(idx_v))
-        {
-          oak_vm_runtime_error(
-              vm,
-              "map iterator index must be an integer, got %s",
-              oak_vm_value_kind_desc(idx_v));
-          oak_value_decref(idx_v);
-          oak_value_decref(coll_v);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        const struct oak_obj_map_t* map = oak_as_map(coll_v);
-        const int i = oak_as_i32(idx_v);
-        if (i < 0 || (usize)i >= map->length)
-        {
-          oak_vm_runtime_error(
-              vm,
-              "map iterator index %d out of bounds (length %zu)",
-              i,
-              map->length);
-          oak_value_decref(idx_v);
-          oak_value_decref(coll_v);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        const struct oak_value_t v = instruction == OAK_OP_MAP_KEY_AT
-                                         ? oak_map_key_at(map, (usize)i)
-                                         : oak_map_value_at(map, (usize)i);
-        oak_vm_push(vm, v);
-        oak_value_decref(idx_v);
-        oak_value_decref(coll_v);
+        const enum oak_vm_result_t r = vm_op_map_key_value_at(vm, instruction);
+        if (r != OAK_VM_OK)
+          return r;
         break;
       }
       case OAK_OP_NEW_STRUCT_FROM_STACK:
@@ -448,10 +494,10 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           return OAK_VM_RUNTIME_ERROR;
         }
         struct oak_value_t* base = vm->sp - (int)count;
-        const struct oak_value_t name_v = base[-1];
+        const struct oak_value_t type_name_val = base[-1];
         const char* type_name = null;
-        if (oak_is_string(name_v))
-          type_name = oak_as_string(name_v)->chars;
+        if (oak_is_string(type_name_val))
+          type_name = oak_as_string(type_name_val)->chars;
 
         struct oak_obj_struct_t* s = oak_struct_new((int)count, type_name);
         for (int i = 0; i < (int)count; ++i)
@@ -461,7 +507,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         }
         for (int i = 0; i < (int)count; ++i)
           oak_value_decref(base[i]);
-        oak_value_decref(name_v);
+        oak_value_decref(type_name_val);
         vm->sp -= (int)count + 1;
         oak_vm_push_owned(vm, OAK_VALUE_OBJ(&s->obj));
         break;

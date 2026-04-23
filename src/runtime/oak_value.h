@@ -68,12 +68,22 @@ struct oak_obj_array_t
 
 struct oak_map_entry_t;
 
+/* Insertion-ordered map backed by a dense `entries[]` array for O(1)
+ * positional access and an open-addressing hash table (`ht[]`) for O(1)
+ * key lookup.  `ht[i]` holds the index into `entries[]` for a live entry,
+ * MAP_HT_EMPTY when the slot is unused, or MAP_HT_TOMBSTONE when an entry
+ * was deleted.  `ht_capacity` is always a power of two >= 8. */
+#define MAP_HT_EMPTY     ((usize)-1)
+#define MAP_HT_TOMBSTONE ((usize)-2)
+
 struct oak_obj_map_t
 {
   struct oak_obj_t obj;
-  usize length;
-  usize capacity;
+  usize length;       /* live entries in entries[] */
+  usize capacity;     /* allocated slots in entries[] */
   struct oak_map_entry_t* entries;
+  usize ht_capacity;  /* slots in ht[] (power of 2) */
+  usize* ht;          /* open-addressing hash table */
 };
 
 struct oak_value_t

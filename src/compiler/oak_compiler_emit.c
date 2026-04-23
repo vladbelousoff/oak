@@ -29,17 +29,48 @@ void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
     c->stack_depth += info->stack_effect;
 }
 
-u8 oak_compiler_intern_constant(struct oak_compiler_t* c,
-                                const struct oak_value_t value)
+u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
+                                 const struct oak_value_t value)
 {
-  if (c->chunk->const_count >= 256)
+  if (c->chunk->const_count >= 65536)
   {
-    oak_compiler_error_at(c, null, "too many constants in one chunk (max 256)");
+    oak_compiler_error_at(c, null, "too many constants in one chunk (max 65536)");
     return 0;
   }
+  /* Deduplicate integer and float constants to conserve pool slots. */
+  if (oak_is_number(value))
+  {
+    for (usize i = 0; i < c->chunk->const_count; ++i)
+    {
+      const struct oak_value_t existing = c->chunk->constants[i];
+      if (oak_value_equal(existing, value))
+        return (u16)i;
+    }
+  }
   const usize idx = oak_chunk_add_constant(c->chunk, value);
-  oak_assert(idx <= 255);
-  return (u8)idx;
+  oak_assert(idx <= 65535);
+  return (u16)idx;
+}
+
+/* Emit a constant load using OP_CONSTANT (1-byte index) for small pools or
+ * OP_CONSTANT_LONG (2-byte index) for larger ones. */
+void oak_compiler_emit_constant(struct oak_compiler_t* c,
+                                const u16 idx,
+                                const struct oak_code_loc_t loc)
+{
+  if (idx <= 255)
+  {
+    oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, (u8)idx, loc);
+  }
+  else
+  {
+    oak_compiler_emit_byte(c, OAK_OP_CONSTANT_LONG, loc);
+    oak_compiler_emit_byte(c, (u8)(idx >> 8), loc);
+    oak_compiler_emit_byte(c, (u8)(idx), loc);
+    const struct oak_op_info_t* info = oak_op_get_info(OAK_OP_CONSTANT_LONG);
+    if (info)
+      c->stack_depth += info->stack_effect;
+  }
 }
 
 usize oak_compiler_emit_jump(struct oak_compiler_t* c,
@@ -47,24 +78,22 @@ usize oak_compiler_emit_jump(struct oak_compiler_t* c,
                              const struct oak_code_loc_t loc)
 {
   oak_compiler_emit_op(c, op, loc);
+  /* Reserve 4 bytes for the 32-bit forward jump offset (big-endian). */
   oak_compiler_emit_byte(c, 0xff, loc);
   oak_compiler_emit_byte(c, 0xff, loc);
-  return c->chunk->count - 2;
+  oak_compiler_emit_byte(c, 0xff, loc);
+  oak_compiler_emit_byte(c, 0xff, loc);
+  return c->chunk->count - 4;
 }
 
-/* On range error, leaves placeholder operands; do not execute bytecode if
- * has_error. */
 void oak_compiler_patch_jump(struct oak_compiler_t* c, const usize offset)
 {
-  const usize jump = c->chunk->count - offset - 2;
-  if (jump > 0xffff)
-  {
-    oak_compiler_error_at(c, null, "jump offset too large (max 65535 bytes)");
-    return;
-  }
-
-  c->chunk->bytecode[offset]     = (u8)(jump >> 8);
-  c->chunk->bytecode[offset + 1] = (u8)(jump);
+  /* Distance from end of the 4-byte operand to the current position. */
+  const usize jump = c->chunk->count - offset - 4;
+  c->chunk->bytecode[offset]     = (u8)(jump >> 24);
+  c->chunk->bytecode[offset + 1] = (u8)(jump >> 16);
+  c->chunk->bytecode[offset + 2] = (u8)(jump >> 8);
+  c->chunk->bytecode[offset + 3] = (u8)(jump);
 }
 
 void oak_compiler_patch_jumps(struct oak_compiler_t* c,
@@ -80,15 +109,12 @@ void oak_compiler_emit_loop(struct oak_compiler_t* c,
                             const struct oak_code_loc_t loc)
 {
   oak_compiler_emit_op(c, OAK_OP_LOOP, loc);
-  const usize jump = c->chunk->count - loop_start + 2;
-  if (jump > 0xffff)
-  {
-    oak_compiler_error_at(c, null, "loop body too large (max 65535 bytes)");
-    return;
-  }
-
-  oak_compiler_emit_byte(c, (u8)(jump >> 8), loc);
-  oak_compiler_emit_byte(c, (u8)(jump),      loc);
+  /* The 4-byte operand itself is included in the backward distance. */
+  const usize jump = c->chunk->count - loop_start + 4;
+  oak_compiler_emit_byte(c, (u8)(jump >> 24), loc);
+  oak_compiler_emit_byte(c, (u8)(jump >> 16), loc);
+  oak_compiler_emit_byte(c, (u8)(jump >> 8),  loc);
+  oak_compiler_emit_byte(c, (u8)(jump),        loc);
 }
 
 void oak_compiler_emit_pops(struct oak_compiler_t* c,

@@ -1,6 +1,7 @@
 #include "oak_type.h"
 
 #include "oak_log.h"
+#include "oak_str.h"
 
 #include <string.h>
 
@@ -53,7 +54,7 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
   for (int i = 1; i < reg->count; ++i)
   {
     const struct oak_type_entry_t* e = &reg->entries[i];
-    if (e->len == len && memcmp(e->name, name, len) == 0)
+    if (oak_name_eq(e->name, e->len, name, len))
       return (oak_type_id_t)i;
   }
   return OAK_TYPE_UNKNOWN;

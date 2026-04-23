@@ -78,7 +78,8 @@ struct oak_token_t
   int line;
   int column;
   int offset;
-  int length;
+  /* Lexeme length in bytes; same unsigned domain as `oak_string` / name lengths. */
+  usize length;
   char text[0];
 };
 
@@ -86,7 +87,7 @@ enum oak_token_kind_t oak_token_kind(const struct oak_token_t* token);
 int oak_token_line(const struct oak_token_t* token);
 int oak_token_column(const struct oak_token_t* token);
 int oak_token_offset(const struct oak_token_t* token);
-int oak_token_length(const struct oak_token_t* token);
+usize oak_token_length(const struct oak_token_t* token);
 const char* oak_token_text(const struct oak_token_t* token);
 int oak_token_as_i32(const struct oak_token_t* token);
 float oak_token_as_f32(const struct oak_token_t* token);

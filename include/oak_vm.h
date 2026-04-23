@@ -29,9 +29,11 @@ struct oak_vm_t
   usize stack_base;
   struct oak_call_frame_t frames[OAK_FRAMES_MAX];
   int frame_count;
+  int had_stack_overflow;
 };
 
 void oak_vm_init(struct oak_vm_t* vm);
 void oak_vm_free(struct oak_vm_t* vm);
 
 enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk);
+

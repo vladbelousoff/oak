@@ -8,7 +8,7 @@ int oak_compiler_find_local(const struct oak_compiler_t* c,
   for (int i = c->local_count - 1; i >= 0; --i)
   {
     const struct oak_local_t* local = &c->locals[i];
-    if (local->length == length && memcmp(local->name, name, length) == 0)
+    if (oak_name_eq(local->name, local->length, name, length))
     {
       if (out_is_mutable)
         *out_is_mutable = local->is_mutable;
@@ -71,23 +71,18 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
     return -1;
   }
   const char* name = oak_token_text(lhs->token);
-  const int name_len = oak_token_length(lhs->token);
+  const usize name_len = oak_token_length(lhs->token);
   int is_mutable = 0;
-  const int slot =
-      oak_compiler_find_local(c, name, (usize)name_len, &is_mutable);
+  const int slot = oak_compiler_find_local(c, name, name_len, &is_mutable);
   if (slot < 0)
   {
-    oak_compiler_error_at(
-        c, lhs->token, "undefined variable '%.*s'", name_len, name);
+    oak_compiler_error_at(c, lhs->token, "undefined variable '%s'", name);
     return -1;
   }
   if (!is_mutable)
   {
-    oak_compiler_error_at(c,
-                          lhs->token,
-                          "cannot assign to immutable variable '%.*s'",
-                          name_len,
-                          name);
+    oak_compiler_error_at(
+        c, lhs->token, "cannot assign to immutable variable '%s'", name);
     return -1;
   }
   return slot;
@@ -100,10 +95,9 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
   if (expr->kind == OAK_NODE_IDENT)
   {
     int is_mutable = 0;
-    oak_compiler_find_local(c,
-                            oak_token_text(expr->token),
-                            (usize)oak_token_length(expr->token),
-                            &is_mutable);
+    oak_compiler_find_local(
+        c, oak_token_text(expr->token), oak_token_length(expr->token),
+        &is_mutable);
     return is_mutable;
   }
   if (expr->kind == OAK_NODE_SELF)

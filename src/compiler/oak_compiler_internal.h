@@ -2,6 +2,7 @@
 
 #include "oak_compiler.h"
 #include "oak_count_of.h"
+#include "oak_str.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_type.h"
@@ -15,6 +16,8 @@
 #define OAK_MAX_USER_FNS 64
 /* Max recorded forward jumps (break or continue) per loop. */
 #define OAK_MAX_LOOP_BRANCHES 64
+/* Max total enum variant entries across all enum declarations. */
+#define OAK_MAX_ENUM_VARIANTS 128
 
 #define OAK_LOC_SYNTHETIC ((struct oak_code_loc_t){ .line = 0, .column = 1 })
 
@@ -51,7 +54,7 @@ struct oak_registered_fn_t
 {
   const char* name;
   usize name_len;
-  u8 const_idx;
+  u16 const_idx;
   int arity_min;
   int arity_max;
   const struct oak_ast_node_t* decl;
@@ -83,7 +86,7 @@ struct oak_method_binding_t
 {
   const char* name;
   usize name_len;
-  u8 const_idx;
+  u16 const_idx;
   /* Includes the implicit receiver. So `arr.push(x)` -> arity 2. */
   int total_arity;
   /* Compile-time return type of this method (always a built-in id). */
@@ -108,7 +111,7 @@ struct oak_struct_method_t
 {
   const char* name;
   usize name_len;
-  u8 const_idx;
+  u16 const_idx;
   /* Total arity including the implicit `self` receiver. */
   int arity;
   const struct oak_ast_node_t* decl;
@@ -125,6 +128,17 @@ struct oak_registered_struct_t
   struct oak_struct_method_t methods[OAK_MAX_STRUCT_METHODS];
 };
 
+/* A single variant of a user-defined enum, lowered to a named integer
+ * constant in the chunk's constant pool. */
+struct oak_enum_variant_t
+{
+  /* Borrowed pointer into the lexer arena (lives for the compilation). */
+  const char* name;
+  usize name_len;
+  u16 const_idx;
+  int value;
+};
+
 struct oak_compiler_t
 {
   struct oak_chunk_t* chunk;
@@ -133,6 +147,11 @@ struct oak_compiler_t
   int scope_depth;
   int stack_depth;
   int has_error;
+  /* Total errors accumulated across all recovered statement boundaries. */
+  int error_count;
+  /* Return type declared for the current function, OAK_TYPE_UNKNOWN when no
+   * function is being compiled or no return type was declared. */
+  struct oak_type_t declared_return_type;
   struct oak_loop_frame_t* current_loop;
   int function_depth;
   struct oak_registered_fn_t fn_registry[OAK_MAX_USER_FNS];
@@ -144,9 +163,12 @@ struct oak_compiler_t
   int map_method_count;
   struct oak_registered_struct_t structs[OAK_MAX_STRUCTS];
   int struct_count;
+  struct oak_enum_variant_t enum_variants[OAK_MAX_ENUM_VARIANTS];
+  int enum_variant_count;
 };
 
-struct oak_array_method_def_t
+/* Static table row for a built-in receiver method (array or map). */
+struct oak_builtin_method_def_t
 {
   const char* name;
   oak_native_fn_t impl;
@@ -183,8 +205,12 @@ void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
                               u8 arg,
                               struct oak_code_loc_t loc);
 
-u8 oak_compiler_intern_constant(struct oak_compiler_t* c,
-                                struct oak_value_t value);
+u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
+                                 struct oak_value_t value);
+
+void oak_compiler_emit_constant(struct oak_compiler_t* c,
+                                u16 idx,
+                                struct oak_code_loc_t loc);
 
 usize oak_compiler_emit_jump(struct oak_compiler_t* c,
                              u8 op,
@@ -261,11 +287,11 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
 
 /* ---------- oak_compiler_builtins.c ---------- */
 
-u8 oak_compiler_intern_native_constant(struct oak_compiler_t* c,
-                                       oak_native_fn_t impl,
-                                       int arity_min,
-                                       int arity_max,
-                                       const char* name);
+u16 oak_compiler_intern_native_constant(struct oak_compiler_t* c,
+                                        oak_native_fn_t impl,
+                                        int arity_min,
+                                        int arity_max,
+                                        const char* name);
 
 void oak_compiler_register_native_builtins(struct oak_compiler_t* c);
 
@@ -283,6 +309,16 @@ oak_compiler_find_map_method(struct oak_compiler_t* c,
                              const char* name,
                              usize len);
 
+/* ---------- oak_compiler_enums.c ---------- */
+
+void oak_compiler_register_program_enums(struct oak_compiler_t* c,
+                                         const struct oak_ast_node_t* prog);
+
+const struct oak_enum_variant_t*
+oak_compiler_find_enum_variant(const struct oak_compiler_t* c,
+                               const char* name,
+                               usize len);
+
 /* ---------- oak_compiler_structs.c ---------- */
 
 const struct oak_registered_struct_t*
@@ -297,6 +333,24 @@ oak_compiler_find_struct_by_type_id(const struct oak_compiler_t* c,
 int oak_compiler_find_struct_field(const struct oak_registered_struct_t* s,
                                    const char* name,
                                    usize len);
+
+/* If `recv_ty` is a known struct, sets `*out_sd` and returns the field index.
+ * Returns -1 if the type is not a struct, or the field name is not found
+ * (in the latter case `*out_sd` is still the matching struct). */
+int oak_compiler_struct_field_index(
+    const struct oak_compiler_t* c,
+    struct oak_type_t recv_ty,
+    const char* field_name,
+    usize field_len,
+    const struct oak_registered_struct_t** out_sd);
+
+/* Resolves a member for codegen; emits errors and returns -1 on failure. */
+int oak_compiler_require_struct_field(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* recv,
+    const struct oak_ast_node_t* fname_ident,
+    int is_assignment,
+    const struct oak_registered_struct_t** out_sd);
 
 void oak_compiler_register_program_structs(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* prog);

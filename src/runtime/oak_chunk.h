@@ -6,6 +6,9 @@ enum oak_opcode_t
 {
   OAK_OP_HALT,
   OAK_OP_CONSTANT,
+  /* Like OP_CONSTANT but uses a 16-bit (big-endian) index, supporting up to
+   * 65535 constants in a single chunk. */
+  OAK_OP_CONSTANT_LONG,
   OAK_OP_TRUE,
   OAK_OP_FALSE,
   OAK_OP_POP,
@@ -48,6 +51,7 @@ enum oak_op_format_t
 {
   OAK_OP_FMT_NONE,
   OAK_OP_FMT_CONSTANT,
+  OAK_OP_FMT_CONSTANT_LONG, /* 16-bit constant index */
   OAK_OP_FMT_SLOT,
   OAK_OP_FMT_JUMP_FWD,
   OAK_OP_FMT_JUMP_BACK,

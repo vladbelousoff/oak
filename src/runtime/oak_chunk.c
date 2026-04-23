@@ -13,6 +13,7 @@
 const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_HALT] = { "OP_HALT", OAK_OP_FMT_NONE, 0 },
   [OAK_OP_CONSTANT] = { "OP_CONSTANT", OAK_OP_FMT_CONSTANT, 1 },
+  [OAK_OP_CONSTANT_LONG] = { "OP_CONSTANT_LONG", OAK_OP_FMT_CONSTANT_LONG, 1 },
   [OAK_OP_TRUE] = { "OP_TRUE", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_FALSE] = { "OP_FALSE", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_POP] = { "OP_POP", OAK_OP_FMT_NONE, -1 },
@@ -262,7 +263,7 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
       char val[64];
       snprint_value(val, sizeof(val), chunk->constants[idx]);
       oak_log(OAK_LOG_INFO,
-              "%04zu %s  %-16s %4d ; %s",
+              "%04zu %s  %-20s %4d ; %s",
               offset,
               line,
               name,
@@ -270,52 +271,71 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
               val);
       return offset + 2;
     }
+    case OAK_OP_FMT_CONSTANT_LONG:
+    {
+      const u16 idx = (u16)((u16)chunk->bytecode[offset + 1] << 8) |
+                           chunk->bytecode[offset + 2];
+      char val[64];
+      snprint_value(val, sizeof(val), chunk->constants[idx]);
+      oak_log(OAK_LOG_INFO,
+              "%04zu %s  %-20s %4u ; %s",
+              offset,
+              line,
+              name,
+              (unsigned)idx,
+              val);
+      return offset + 3;
+    }
     case OAK_OP_FMT_SLOT:
     {
       const u8 slot = chunk->bytecode[offset + 1];
       const char* local = debug_local_name(chunk, slot, offset);
       if (local)
         oak_log(OAK_LOG_INFO,
-                "%04zu %s  %-16s %4d ; %s",
+                "%04zu %s  %-20s %4d ; %s",
                 offset,
                 line,
                 name,
                 slot,
                 local);
       else
-        oak_log(OAK_LOG_INFO, "%04zu %s  %-16s %4d", offset, line, name, slot);
+        oak_log(OAK_LOG_INFO, "%04zu %s  %-20s %4d", offset, line, name, slot);
       return offset + 2;
     }
     case OAK_OP_FMT_JUMP_FWD:
     {
-      const u16 jump = (u16)(chunk->bytecode[offset + 1] << 8) |
-                            chunk->bytecode[offset + 2];
+      const u32 jump = ((u32)chunk->bytecode[offset + 1] << 24) |
+                       ((u32)chunk->bytecode[offset + 2] << 16) |
+                       ((u32)chunk->bytecode[offset + 3] << 8)  |
+                        (u32)chunk->bytecode[offset + 4];
       oak_log(OAK_LOG_INFO,
-              "%04zu %s  %-16s %4d -> %04zu",
+              "%04zu %s  %-20s %6u -> %04zu",
               offset,
               line,
               name,
               jump,
-              offset + 3 + jump);
-      return offset + 3;
+              offset + 5 + (usize)jump);
+      return offset + 5;
     }
     case OAK_OP_FMT_JUMP_BACK:
     {
-      const u16 jump = (u16)(chunk->bytecode[offset + 1] << 8) |
-                            chunk->bytecode[offset + 2];
+      const u32 jump = ((u32)chunk->bytecode[offset + 1] << 24) |
+                       ((u32)chunk->bytecode[offset + 2] << 16) |
+                       ((u32)chunk->bytecode[offset + 3] << 8)  |
+                        (u32)chunk->bytecode[offset + 4];
       oak_log(OAK_LOG_INFO,
-              "%04zu %s  %-16s %4d -> %04zu",
+              "%04zu %s  %-20s %6u -> %04zu",
               offset,
               line,
               name,
               jump,
-              offset + 3 - jump);
-      return offset + 3;
+              offset + 5 - (usize)jump);
+      return offset + 5;
     }
     case OAK_OP_FMT_ARGC:
     {
       const u8 argc = chunk->bytecode[offset + 1];
-      oak_log(OAK_LOG_INFO, "%04zu %s  %-16s %4d", offset, line, name, argc);
+      oak_log(OAK_LOG_INFO, "%04zu %s  %-20s %4d", offset, line, name, argc);
       return offset + 2;
     }
     default:

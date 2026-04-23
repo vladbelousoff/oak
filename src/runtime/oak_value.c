@@ -40,6 +40,8 @@ void oak_obj_decref(struct oak_obj_t* obj)
     }
     if (map->entries)
       oak_free(map->entries, OAK_SRC_LOC);
+    if (map->ht)
+      oak_free(map->ht, OAK_SRC_LOC);
   }
   else if (obj->type == OAK_OBJ_STRUCT)
   {
@@ -186,50 +188,153 @@ struct oak_obj_map_t* oak_map_new(void)
   map->length = 0;
   map->capacity = 0;
   map->entries = null;
+  map->ht_capacity = 0;
+  map->ht = null;
   return map;
 }
 
-static usize map_find_index(const struct oak_obj_map_t* map,
-                            const struct oak_value_t key)
+/* FNV-1a-inspired hash for a runtime value. */
+static u32 hash_value(const struct oak_value_t v)
 {
+  switch (v.type)
+  {
+    case OAK_VAL_BOOL:
+      return (u32)oak_as_bool(v) * 2654435761u;
+    case OAK_VAL_NUMBER:
+      if (oak_is_f32(v))
+      {
+        float f = oak_as_f32(v);
+        u32 bits = 0;
+        memcpy(&bits, &f, sizeof(bits));
+        return bits * 2654435761u;
+      }
+      return (u32)oak_as_i32(v) * 2654435761u;
+    case OAK_VAL_OBJ:
+      if (oak_is_string(v))
+        return oak_as_string(v)->hash;
+      return (u32)(uintptr_t)oak_as_obj(v) * 2654435761u;
+  }
+  return 0;
+}
+
+/* Open-addressing probe (linear).  Returns the ht slot where the key was
+ * found or the best insertion slot (first tombstone, or first empty).
+ * *out_idx is set to the entries[] index when found, or MAP_HT_EMPTY. */
+static usize ht_probe(const usize* ht,
+                      const usize ht_cap,
+                      const struct oak_map_entry_t* entries,
+                      const struct oak_value_t key,
+                      usize* out_idx)
+{
+  const u32 hash = hash_value(key);
+  usize slot = (usize)(hash & (u32)(ht_cap - 1u));
+  usize first_tomb = MAP_HT_EMPTY;
+  for (;;)
+  {
+    const usize idx = ht[slot];
+    if (idx == MAP_HT_EMPTY)
+    {
+      *out_idx = MAP_HT_EMPTY;
+      return (first_tomb != MAP_HT_EMPTY) ? first_tomb : slot;
+    }
+    if (idx == MAP_HT_TOMBSTONE)
+    {
+      if (first_tomb == MAP_HT_EMPTY)
+        first_tomb = slot;
+    }
+    else if (oak_value_equal(entries[idx].key, key))
+    {
+      *out_idx = idx;
+      return slot;
+    }
+    slot = (slot + 1u) & (ht_cap - 1u);
+  }
+}
+
+/* Rebuild the hash table with a new capacity (must be a power of two). */
+static void map_ht_rebuild(struct oak_obj_map_t* map, const usize new_cap)
+{
+  usize* new_ht = oak_alloc(new_cap * sizeof(usize), OAK_SRC_LOC);
+  for (usize i = 0; i < new_cap; ++i)
+    new_ht[i] = MAP_HT_EMPTY;
+
   for (usize i = 0; i < map->length; ++i)
   {
-    if (oak_value_equal(map->entries[i].key, key))
-      return i;
+    const u32 hash = hash_value(map->entries[i].key);
+    usize slot = (usize)(hash & (u32)(new_cap - 1u));
+    while (new_ht[slot] != MAP_HT_EMPTY)
+      slot = (slot + 1u) & (new_cap - 1u);
+    new_ht[slot] = i;
   }
-  return map->length;
+
+  if (map->ht)
+    oak_free(map->ht, OAK_SRC_LOC);
+  map->ht = new_ht;
+  map->ht_capacity = new_cap;
 }
 
 int oak_map_get(const struct oak_obj_map_t* map,
                 const struct oak_value_t key,
                 struct oak_value_t* out)
 {
-  const usize idx = map_find_index(map, key);
-  if (idx == map->length)
+  if (!map->ht || map->length == 0)
+    return 0;
+  usize entry_idx;
+  ht_probe(map->ht, map->ht_capacity, map->entries, key, &entry_idx);
+  if (entry_idx == MAP_HT_EMPTY)
     return 0;
   if (out)
-    *out = map->entries[idx].value;
+    *out = map->entries[entry_idx].value;
   return 1;
 }
 
 int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
 {
-  return map_find_index(map, key) != map->length;
+  if (!map->ht || map->length == 0)
+    return 0;
+  usize entry_idx;
+  ht_probe(map->ht, map->ht_capacity, map->entries, key, &entry_idx);
+  return entry_idx != MAP_HT_EMPTY;
 }
 
 int oak_map_delete(struct oak_obj_map_t* map, const struct oak_value_t key)
 {
-  const usize idx = map_find_index(map, key);
-  if (idx == map->length)
+  if (!map->ht || map->length == 0)
     return 0;
-  oak_value_decref(map->entries[idx].key);
-  oak_value_decref(map->entries[idx].value);
-  /* Compact: move the last entry into this slot. Entry order is not
-   * meaningful from the language's point of view. */
-  const usize last = map->length - 1;
-  if (idx != last)
-    map->entries[idx] = map->entries[last];
-  map->length = last;
+
+  usize entry_idx;
+  const usize del_slot =
+      ht_probe(map->ht, map->ht_capacity, map->entries, key, &entry_idx);
+  if (entry_idx == MAP_HT_EMPTY)
+    return 0;
+
+  const struct oak_value_t del_key = map->entries[entry_idx].key;
+  const struct oak_value_t del_val = map->entries[entry_idx].value;
+
+  /* Mark the hash table slot as deleted. */
+  map->ht[del_slot] = MAP_HT_TOMBSTONE;
+
+  /* Compact the dense entries array. */
+  const usize last = map->length - 1u;
+  if (entry_idx != last)
+  {
+    map->entries[entry_idx] = map->entries[last];
+
+    /* Update the ht slot that was pointing to `last` so it points to the
+     * entry's new position.  We probe for the moved entry's key; del_slot is
+     * now a tombstone so the probe correctly skips it and reaches the original
+     * slot that held `last`. */
+    usize moved_idx;
+    const usize moved_slot =
+        ht_probe(map->ht, map->ht_capacity, map->entries,
+                 map->entries[entry_idx].key, &moved_idx);
+    (void)moved_idx;
+    map->ht[moved_slot] = entry_idx;
+  }
+
+  map->length--;
+  oak_value_decref(del_key);
+  oak_value_decref(del_val);
   return 1;
 }
 
@@ -251,26 +356,41 @@ void oak_map_set(struct oak_obj_map_t* map,
                  const struct oak_value_t key,
                  const struct oak_value_t value)
 {
-  const usize idx = map_find_index(map, key);
-  if (idx != map->length)
+  /* Grow hash table before inserting so the load factor stays below 75 %. */
+  if (!map->ht || (map->length + 1u) * 4u > map->ht_capacity * 3u)
   {
+    const usize new_cap =
+        map->ht_capacity < 8u ? 8u : map->ht_capacity * 2u;
+    map_ht_rebuild(map, new_cap);
+  }
+
+  usize entry_idx;
+  const usize slot =
+      ht_probe(map->ht, map->ht_capacity, map->entries, key, &entry_idx);
+
+  if (entry_idx != MAP_HT_EMPTY)
+  {
+    /* Update existing entry in-place. */
     oak_value_incref(value);
-    oak_value_decref(map->entries[idx].value);
-    map->entries[idx].value = value;
+    oak_value_decref(map->entries[entry_idx].value);
+    map->entries[entry_idx].value = value;
     return;
   }
 
+  /* Grow the dense entries array if needed. */
   if (map->length >= map->capacity)
   {
-    const usize new_cap = map->capacity == 0 ? 8u : map->capacity * 2u;
+    const usize new_cap = map->capacity == 0u ? 8u : map->capacity * 2u;
     map->entries = oak_realloc(
         map->entries, new_cap * sizeof(struct oak_map_entry_t), OAK_SRC_LOC);
     map->capacity = new_cap;
   }
+
   oak_value_incref(key);
   oak_value_incref(value);
-  map->entries[map->length].key = key;
+  map->entries[map->length].key   = key;
   map->entries[map->length].value = value;
+  map->ht[slot] = map->length;
   map->length++;
 }
 

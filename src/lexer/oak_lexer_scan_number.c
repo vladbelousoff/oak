@@ -42,7 +42,14 @@ oak_lexer_try_scan_number(const struct oak_lexer_ctx_t* ctx, const char* input)
       p++;
       oak_lexer_advance_cursor(cur, 1, 1);
 
-      // Must have at least one digit after e/E
+      /* Optional sign after e/E (e.g. 1e-3, 2.5e+10). */
+      if (p < end && (*p == '+' || *p == '-'))
+      {
+        p++;
+        oak_lexer_advance_cursor(cur, 1, 1);
+      }
+
+      /* Must have at least one digit after e/E (and optional sign). */
       if (p >= end || *p < '0' || *p > '9')
         return OAK_LEX_NUMBER_SYNTAX;
     }

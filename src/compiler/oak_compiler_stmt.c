@@ -7,7 +7,19 @@ void oak_compiler_compile_block(struct oak_compiler_t* c,
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &block->children)
   {
+    const int saved_stack = c->stack_depth;
+    const int saved_locals = c->local_count;
     oak_compiler_compile_node(c, oak_container_of(pos, struct oak_ast_node_t, link));
+    /* On statement-level error, record it and continue with the next statement
+     * so the compiler can report as many independent errors as possible. */
+    if (c->has_error)
+    {
+      c->error_count++;
+      c->has_error = 0;
+      /* Restore the stack/local state so the next statement compiles cleanly. */
+      c->stack_depth = saved_stack;
+      c->local_count = saved_locals;
+    }
   }
   oak_compiler_end_scope(c);
 }
@@ -172,6 +184,67 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
  * The collection is evaluated once. Iteration is positional: snapshotting
  * the length up-front means inserts during a map iteration won't be seen,
  * and deletes can shift remaining entries (the map stores them densely). */
+
+static void for_in_init_hidden_state(
+    struct oak_compiler_t* c, const struct oak_code_loc_t loc,
+    const struct oak_method_binding_t* len_m, const int coll_slot,
+    int* out_idx_slot, int* out_limit_slot)
+{
+  oak_compiler_emit_constant(
+      c, oak_compiler_intern_constant(c, OAK_VALUE_I32(0)), loc);
+  *out_idx_slot = c->stack_depth - 1;
+  const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
+  oak_compiler_add_local(c, "$i", 0, *out_idx_slot, 1, num_ty);
+
+  oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, len_m->const_idx, loc);
+  oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
+  oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)len_m->total_arity, loc);
+  c->stack_depth -= len_m->total_arity;
+  *out_limit_slot = c->stack_depth - 1;
+  oak_compiler_add_local(c, "$n", 0, *out_limit_slot, 0, num_ty);
+}
+
+static void for_in_bind_loop_idents(
+    struct oak_compiler_t* c, const struct oak_code_loc_t loc,
+    const struct oak_type_t* coll_ty, const int coll_slot, const int idx_slot,
+    const struct oak_ast_node_t* k_ident, const struct oak_ast_node_t* v_ident)
+{
+  if (k_ident)
+  {
+    if (coll_ty->kind == OAK_TYPE_KIND_MAP)
+    {
+      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
+      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+      oak_compiler_emit_op(c, OAK_OP_MAP_KEY_AT, loc);
+      const struct oak_type_t key_ty = { .id = coll_ty->key_id };
+      oak_compiler_add_local(
+          c, oak_token_text(k_ident->token),
+          oak_token_length(k_ident->token), c->stack_depth - 1, 0, key_ty);
+    }
+    else
+    {
+      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+      const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
+      oak_compiler_add_local(
+          c, oak_token_text(k_ident->token),
+          oak_token_length(k_ident->token), c->stack_depth - 1, 0, num_ty);
+    }
+  }
+  if (v_ident)
+  {
+    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
+    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+    oak_compiler_emit_op(
+        c, coll_ty->kind == OAK_TYPE_KIND_MAP ? OAK_OP_MAP_VALUE_AT
+                                            : OAK_OP_GET_INDEX,
+        loc);
+    const struct oak_type_t val_ty = { .id = coll_ty->id };
+    oak_compiler_add_local(
+        c, oak_token_text(v_ident->token),
+        oak_token_length(v_ident->token), c->stack_depth - 1, 0, val_ty);
+  }
+}
+
 void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
                                 const struct oak_ast_node_t* node)
 {
@@ -249,19 +322,9 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   const int coll_slot = c->stack_depth - 1;
   oak_compiler_add_local(c, "$coll", 0, coll_slot, 0, coll_ty);
 
-  /* slot 1: iteration index, mutable hidden local. */
-  oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, oak_compiler_intern_constant(c, OAK_VALUE_I32(0)), loc);
-  const int idx_slot = c->stack_depth - 1;
-  const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
-  oak_compiler_add_local(c, "$i", 0, idx_slot, 1, num_ty);
-
-  /* slot 2: snapshot length. Emit `len_fn(coll)` via OP_CALL. */
-  oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, len_m->const_idx, loc);
-  oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
-  oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)len_m->total_arity, loc);
-  c->stack_depth -= len_m->total_arity;
-  const int limit_slot = c->stack_depth - 1;
-  oak_compiler_add_local(c, "$n", 0, limit_slot, 0, num_ty);
+  int idx_slot;
+  int limit_slot;
+  for_in_init_hidden_state(c, loc, len_m, coll_slot, &idx_slot, &limit_slot);
 
   struct oak_loop_frame_t loop = {
     .enclosing = c->current_loop,
@@ -282,51 +345,7 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   /* Per-iteration scope: exposes k, v to the body. */
   oak_compiler_begin_scope(c);
 
-  /* Push k (key for maps, index for arrays). */
-  if (k_ident)
-  {
-    if (coll_ty.kind == OAK_TYPE_KIND_MAP)
-    {
-      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
-      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
-      oak_compiler_emit_op(c, OAK_OP_MAP_KEY_AT, loc);
-      const struct oak_type_t key_ty = { .id = coll_ty.key_id };
-      oak_compiler_add_local(c,
-                oak_token_text(k_ident->token),
-                (usize)oak_token_length(k_ident->token),
-                c->stack_depth - 1,
-                0,
-                key_ty);
-    }
-    else
-    {
-      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
-      oak_compiler_add_local(c,
-                oak_token_text(k_ident->token),
-                (usize)oak_token_length(k_ident->token),
-                c->stack_depth - 1,
-                0,
-                num_ty);
-    }
-  }
-
-  /* Push v (value for both maps and arrays). */
-  if (v_ident)
-  {
-    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
-    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
-    oak_compiler_emit_op(
-        c,
-        coll_ty.kind == OAK_TYPE_KIND_MAP ? OAK_OP_MAP_VALUE_AT : OAK_OP_GET_INDEX,
-        loc);
-    const struct oak_type_t val_ty = { .id = coll_ty.id };
-    oak_compiler_add_local(c,
-              oak_token_text(v_ident->token),
-              (usize)oak_token_length(v_ident->token),
-              c->stack_depth - 1,
-              0,
-              val_ty);
-  }
+  for_in_bind_loop_idents(c, loc, &coll_ty, coll_slot, idx_slot, k_ident, v_ident);
 
   oak_compiler_compile_block(c, body);
 
