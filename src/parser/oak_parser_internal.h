@@ -4,12 +4,6 @@
 #include "oak_count_of.h"
 #include "oak_parser.h"
 
-struct oak_parser_result_t
-{
-  struct oak_ast_node_t* root;
-  struct oak_arena_t arena;
-};
-
 struct oak_parser_t
 {
   const struct oak_list_entry_t* head;

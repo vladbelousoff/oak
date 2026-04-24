@@ -144,13 +144,12 @@ struct oak_enum_variant_t
 struct oak_compiler_t
 {
   struct oak_chunk_t* chunk;
+  struct oak_compile_result_t* result; /* errors written directly here */
   struct oak_local_t locals[OAK_MAX_LOCALS];
   int local_count;
   int scope_depth;
   int stack_depth;
   int has_error;
-  /* Total errors accumulated across all recovered statement boundaries. */
-  int error_count;
   /* Return type of the function being compiled: omitted `->` is void
    * (OAK_TYPE_VOID). Cleared to unknown between functions. */
   struct oak_type_t declared_return_type;
