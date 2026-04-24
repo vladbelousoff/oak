@@ -42,7 +42,7 @@ fn mergesort(mut arr: number[], mut aux: number[], lo: number, hi: number) -> nu
 }
 
 fn sort(mut arr: number[]) -> number {
-  let n = arr.len();
+  let n = arr.size();
   let mut aux = [] as number[];
   let mut t = 0;
   while t < n {

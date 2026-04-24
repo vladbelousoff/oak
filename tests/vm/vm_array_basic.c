@@ -33,12 +33,12 @@ static enum oak_test_status_t run_program(const char* source)
 OAK_TEST_DECL(ArrayBasic)
 {
   /* Push elements, read them back via indexing, mutate via index assignment,
-   * and call .len() / .push() as array methods. */
+   * and call .size() / .push() as array methods. */
   const char* source = "let mut arr = [] as number[];\n"
                        "arr.push(10);\n"
                        "arr.push(20);\n"
                        "arr.push(30);\n"
-                       "print(arr.len());\n"
+                       "print(arr.size());\n"
                        "print(arr[0]);\n"
                        "print(arr[1]);\n"
                        "print(arr[2]);\n"

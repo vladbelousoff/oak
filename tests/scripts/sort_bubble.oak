@@ -6,7 +6,7 @@ fn swap(mut arr: number[], i: number, j: number) -> number {
 }
 
 fn bubble_sort(mut arr: number[]) -> number {
-  let n = arr.len();
+  let n = arr.size();
   let mut i = 0;
   while i < n {
     let mut j = 0;
@@ -29,7 +29,7 @@ for v in xs {
 
 let mut empty = [] as number[];
 bubble_sort(empty);
-print(empty.len());
+print(empty.size());
 
 let mut one = [42];
 bubble_sort(one);

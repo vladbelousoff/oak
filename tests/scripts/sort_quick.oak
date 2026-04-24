@@ -27,8 +27,8 @@ fn quicksort(mut arr: number[], lo: number, hi: number) -> number {
 }
 
 fn sort(mut arr: number[]) -> number {
-  quicksort(arr, 0, arr.len() - 1);
-  return arr.len();
+  quicksort(arr, 0, arr.size() - 1);
+  return arr.size();
 }
 
 let mut xs = [10, 7, 8, 9, 1, 5];

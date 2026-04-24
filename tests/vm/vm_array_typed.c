@@ -53,7 +53,7 @@ OAK_TEST_DECL(ArrayMustBeTyped)
   chunk = try_compile("let mut arr = [] as number[];\n"
                       "arr.push(1);\n"
                       "arr[0] = 42;\n"
-                      "print(arr.len());\n");
+                      "print(arr.size());\n");
   OAK_CHECK(chunk != null);
   oak_chunk_free(chunk);
 

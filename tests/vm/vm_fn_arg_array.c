@@ -57,7 +57,7 @@ OAK_TEST_DECL(FnArgArray)
   const char* source_mut =
       "fn append(mut arr: number[]) -> number {\n"
       "  arr.push(99);\n"
-      "  return arr.len();\n"
+      "  return arr.size();\n"
       "}\n"
       "let mut b = [1, 2];\n"
       "print(append(b));";

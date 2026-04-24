@@ -58,7 +58,7 @@ OAK_TEST_DECL(MapHasDelete)
                        "print(m.delete('a'));\n"
                        "print(m.delete('a'));\n"
                        "print(m.has('a'));\n"
-                       "print(m.len());\n";
+                       "print(m.size());\n";
   return run_program(source);
 }
 
@@ -147,7 +147,7 @@ OAK_TEST_DECL(MapMethodTypes)
   chunk = try_compile("let mut m = [:] as [string:number];\n"
                       "m['a'] = 1;\n"
                       "if m.has('a') { print(m['a']); }\n"
-                      "if m.delete('a') { print(m.len()); }\n");
+                      "if m.delete('a') { print(m.size()); }\n");
   OAK_CHECK(chunk != null);
   oak_chunk_free(chunk);
 

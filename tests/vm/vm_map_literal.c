@@ -53,7 +53,7 @@ OAK_TEST_DECL(MapLiteral)
   const enum oak_test_status_t r1 = run_program(
       "fn dbl(x: number) -> number { return x * 2; }\n"
       "let scores = ['alice': 10, 'bob': 20 + dbl(5), 'carol': 7];\n"
-      "print(scores.len());\n"
+      "print(scores.size());\n"
       "print(scores['alice']);\n"
       "print(scores['bob']);\n"
       "print(scores['carol']);\n");
@@ -62,7 +62,7 @@ OAK_TEST_DECL(MapLiteral)
   /* number -> string keys/values inferred from first entry. */
   const enum oak_test_status_t r2 = run_program(
       "let by_id = [1: 'alpha', 2: 'beta', 3: 'gamma'];\n"
-      "print(by_id.len());\n"
+      "print(by_id.size());\n"
       "print(by_id[1]);\n"
       "print(by_id[3]);\n");
   OAK_CHECK(r2 == OAK_TEST_OK);
@@ -74,7 +74,7 @@ OAK_TEST_DECL(MapLiteral)
       "m['z'] = 99;\n"
       "print(m['x']);\n"
       "print(m['z']);\n"
-      "print(m.len());\n");
+      "print(m.size());\n");
   OAK_CHECK(r3 == OAK_TEST_OK);
 
   /* Mismatched value type rejected at compile time. */

@@ -3,14 +3,14 @@ a['one'] = 1;
 a['two'] = 2;
 a['three'] = 3;
 
-print(a.len());
+print(a.size());
 print(a['one']);
 print(a['two']);
 print(a['three']);
 
 a['two'] = 22;
 print(a['two']);
-print(a.len());
+print(a.size());
 
 let mut counts = [:] as [string:number];
 counts['x'] = 0;
@@ -23,14 +23,14 @@ by_id[1] = 'alpha';
 by_id[2] = 'beta';
 print(by_id[1]);
 print(by_id[2]);
-print(by_id.len());
+print(by_id.size());
 
 print(a.has('one'));
 print(a.has('missing'));
 print(a.delete('one'));
 print(a.has('one'));
 print(a.delete('one'));
-print(a.len());
+print(a.size());
 
 let mut sum = 0;
 for k, v in a {
@@ -75,12 +75,12 @@ for v in nums {
 }
 
 let scores = ['alice': 1, 'bob': 2, 'carol': 3];
-print(scores.len());
+print(scores.size());
 print(scores['alice']);
 print(scores['carol']);
 
 let by_idx = [10: 'a', 20: 'b', 30: 'c'];
-print(by_idx.len());
+print(by_idx.size());
 print(by_idx[10]);
 print(by_idx[30]);
 
@@ -90,7 +90,7 @@ counts2['z'] = 99;
 print(counts2['x']);
 print(counts2['y']);
 print(counts2['z']);
-print(counts2.len());
+print(counts2.size());
 
 let mut sum2 = 0;
 for k, v in scores {
