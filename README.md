@@ -145,12 +145,12 @@ q.translate(2, 3);
 
 ### Enums
 
-Enum variants are lowered to named integer constants and are accessible as plain identifiers.
+Enum variants are lowered to named integer constants and are accessed with the `EnumName.Variant` syntax.
 
 ```oak
 type Color enum { Red, Green, Blue }
 
-let c = Green;      // c == 1
+let c = Color.Green;  // c == 1
 ```
 
 ### Arrays

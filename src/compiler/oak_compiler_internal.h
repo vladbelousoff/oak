@@ -135,6 +135,8 @@ struct oak_enum_variant_t
   /* Borrowed pointer into the lexer arena (lives for the compilation). */
   const char* name;
   usize name_len;
+  const char* enum_name;
+  usize enum_name_len;
   u16 const_idx;
   int value;
 };
@@ -323,6 +325,17 @@ const struct oak_enum_variant_t*
 oak_compiler_find_enum_variant(const struct oak_compiler_t* c,
                                const char* name,
                                usize len);
+
+const struct oak_enum_variant_t*
+oak_compiler_find_enum_variant_qualified(const struct oak_compiler_t* c,
+                                         const char* enum_name,
+                                         usize enum_name_len,
+                                         const char* variant_name,
+                                         usize variant_name_len);
+
+int oak_compiler_is_enum_name(const struct oak_compiler_t* c,
+                              const char* name,
+                              usize len);
 
 /* ---------- oak_compiler_structs.c ---------- */
 
