@@ -7,8 +7,8 @@ void oak_compiler_compile_block(struct oak_compiler_t* c,
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &block->children)
   {
-    const int saved_stack = c->stack_depth;
-    const int saved_locals = c->local_count;
+    const int saved_stack  = c->scope.stack_depth;
+    const int saved_locals = c->scope.local_count;
     oak_compiler_compile_node(c, oak_container_of(pos, struct oak_ast_node_t, link));
     /* On statement-level error, record it and continue with the next statement
      * so the compiler can report as many independent errors as possible. */
@@ -16,8 +16,8 @@ void oak_compiler_compile_block(struct oak_compiler_t* c,
     {
       c->has_error = 0;
       /* Restore the stack/local state so the next statement compiles cleanly. */
-      c->stack_depth = saved_stack;
-      c->local_count = saved_locals;
+      c->scope.stack_depth = saved_stack;
+      c->scope.local_count = saved_locals;
     }
   }
   oak_compiler_end_scope(c);
@@ -73,21 +73,21 @@ void oak_compiler_compile_stmt_while(struct oak_compiler_t* c,
   }
 
   struct oak_loop_frame_t loop = {
-    .enclosing = c->current_loop,
-    .loop_start = c->chunk->count,
-    .exit_depth = c->stack_depth,
-    .continue_depth = c->stack_depth,
-    .break_count = 0,
+    .enclosing      = c->scope.current_loop,
+    .loop_start     = c->chunk->count,
+    .exit_depth     = c->scope.stack_depth,
+    .continue_depth = c->scope.stack_depth,
+    .break_count    = 0,
     .continue_count = 0,
   };
 
-  /* current_loop points at stack-allocated frame; reset before return. */
-  c->current_loop = &loop;
+  /* current_loop points at a stack-allocated frame; reset before return. */
+  c->scope.current_loop = &loop;
 
   oak_compiler_reject_void_value_expr(c, node->lhs);
   if (c->has_error)
   {
-    c->current_loop = loop.enclosing;
+    c->scope.current_loop = loop.enclosing;
     return;
   }
 
@@ -102,7 +102,7 @@ void oak_compiler_compile_stmt_while(struct oak_compiler_t* c,
   oak_compiler_patch_jump(c, exit_jump);
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
-  c->current_loop = loop.enclosing;
+  c->scope.current_loop = loop.enclosing;
 }
 
 void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
@@ -144,7 +144,7 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
     from_ty.id = OAK_TYPE_NUMBER;
 
   oak_compiler_compile_node(c, from_expr);
-  const int loop_var_slot = c->stack_depth - 1;
+  const int loop_var_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c,
             oak_token_text(ident->token),
             oak_token_length(ident->token),
@@ -158,19 +158,19 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
     to_ty.id = OAK_TYPE_NUMBER;
 
   oak_compiler_compile_node(c, to_expr);
-  const int limit_slot = c->stack_depth - 1;
+  const int limit_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c, "", 0, limit_slot, 0, to_ty);
 
   struct oak_loop_frame_t loop = {
-    .enclosing = c->current_loop,
-    .loop_start = c->chunk->count,
-    .exit_depth = c->stack_depth - 2,
-    .continue_depth = c->stack_depth,
-    .break_count = 0,
+    .enclosing      = c->scope.current_loop,
+    .loop_start     = c->chunk->count,
+    .exit_depth     = c->scope.stack_depth - 2,
+    .continue_depth = c->scope.stack_depth,
+    .break_count    = 0,
     .continue_count = 0,
   };
 
-  c->current_loop = &loop;
+  c->scope.current_loop = &loop;
 
   {
     const struct oak_code_loc_t ident_loc = oak_compiler_loc_from_token(ident->token);
@@ -193,7 +193,7 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
 
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
-  c->current_loop = loop.enclosing;
+  c->scope.current_loop = loop.enclosing;
 }
 
 
@@ -215,15 +215,15 @@ static void for_in_init_hidden_state(
 {
   oak_compiler_emit_constant(
       c, oak_compiler_intern_constant(c, OAK_VALUE_I32(0)), loc);
-  *out_idx_slot = c->stack_depth - 1;
+  *out_idx_slot = c->scope.stack_depth - 1;
   const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
   oak_compiler_add_local(c, "$i", 0, *out_idx_slot, 1, num_ty);
 
   oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, len_m->const_idx, loc);
   oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
   oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)len_m->total_arity, loc);
-  c->stack_depth -= len_m->total_arity;
-  *out_limit_slot = c->stack_depth - 1;
+  c->scope.stack_depth -= len_m->total_arity;
+  *out_limit_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c, "$n", 0, *out_limit_slot, 0, num_ty);
 }
 
@@ -242,7 +242,7 @@ static void for_in_bind_loop_idents(
       const struct oak_type_t key_ty = { .id = coll_ty->key_id };
       oak_compiler_add_local(
           c, oak_token_text(k_ident->token),
-          oak_token_length(k_ident->token), c->stack_depth - 1, 0, key_ty);
+          oak_token_length(k_ident->token), c->scope.stack_depth - 1, 0, key_ty);
     }
     else
     {
@@ -250,7 +250,7 @@ static void for_in_bind_loop_idents(
       const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
       oak_compiler_add_local(
           c, oak_token_text(k_ident->token),
-          oak_token_length(k_ident->token), c->stack_depth - 1, 0, num_ty);
+          oak_token_length(k_ident->token), c->scope.stack_depth - 1, 0, num_ty);
     }
   }
   if (v_ident)
@@ -264,7 +264,7 @@ static void for_in_bind_loop_idents(
     const struct oak_type_t val_ty = { .id = coll_ty->id };
     oak_compiler_add_local(
         c, oak_token_text(v_ident->token),
-        oak_token_length(v_ident->token), c->stack_depth - 1, 0, val_ty);
+        oak_token_length(v_ident->token), c->scope.stack_depth - 1, 0, val_ty);
   }
 }
 
@@ -336,13 +336,13 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
       v_ident = first_ident; /* arrays: iterate values */
   }
 
-  const int base_depth = c->stack_depth;
+  const int base_depth = c->scope.stack_depth;
 
   oak_compiler_begin_scope(c);
 
   /* slot 0: the collection itself (evaluated exactly once). */
   oak_compiler_compile_node(c, coll_expr);
-  const int coll_slot = c->stack_depth - 1;
+  const int coll_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c, "$coll", 0, coll_slot, 0, coll_ty);
 
   int idx_slot;
@@ -350,14 +350,14 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   for_in_init_hidden_state(c, loc, len_m, coll_slot, &idx_slot, &limit_slot);
 
   struct oak_loop_frame_t loop = {
-    .enclosing = c->current_loop,
-    .loop_start = c->chunk->count,
-    .exit_depth = base_depth,
+    .enclosing      = c->scope.current_loop,
+    .loop_start     = c->chunk->count,
+    .exit_depth     = base_depth,
     .continue_depth = base_depth + 3,
-    .break_count = 0,
+    .break_count    = 0,
     .continue_count = 0,
   };
-  c->current_loop = &loop;
+  c->scope.current_loop = &loop;
 
   /* Loop condition: idx < limit. */
   oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
@@ -388,5 +388,5 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   /* `break` lands here, after all iterator state is popped. */
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
-  c->current_loop = loop.enclosing;
+  c->scope.current_loop = loop.enclosing;
 }

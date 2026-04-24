@@ -16,28 +16,21 @@ u16 oak_compiler_intern_native_constant(struct oak_compiler_t* c,
 static void register_native_fn(struct oak_compiler_t* c,
                                const struct oak_native_binding_t* binding)
 {
-  if (c->fn_registry_count >= OAK_MAX_USER_FNS)
-  {
-    oak_compiler_error_at(c,
-                          null,
-                          "too many functions in one program (max %d)",
-                          OAK_MAX_USER_FNS);
-    return;
-  }
-
   const u16 idx = oak_compiler_intern_native_constant(c,
                                                       binding->impl,
                                                       binding->arity_min,
                                                       binding->arity_max,
                                                       binding->name);
 
-  struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
-  slot->name = binding->name;
-  slot->name_len = strlen(binding->name);
-  slot->const_idx = idx;
-  slot->arity_min = binding->arity_min;
-  slot->arity_max = binding->arity_max;
-  slot->decl = null;
+  struct oak_registered_fn_t entry = {
+    .name      = binding->name,
+    .name_len  = strlen(binding->name),
+    .const_idx = idx,
+    .arity_min = binding->arity_min,
+    .arity_max = binding->arity_max,
+    .decl      = null,
+  };
+  oak_fn_registry_insert(&c->fns, &entry);
 }
 
 static enum oak_fn_call_result_t builtin_print(void* vm,
@@ -240,10 +233,10 @@ register_method_table_from_defs(struct oak_compiler_t* c,
     if (c->has_error)
       return;
     struct oak_method_binding_t* slot = &slots[(*out_count)++];
-    slot->name = def->name;
-    slot->name_len = strlen(def->name);
-    slot->const_idx = idx;
-    slot->total_arity = def->total_arity;
+    slot->name          = def->name;
+    slot->name_len      = strlen(def->name);
+    slot->const_idx     = idx;
+    slot->total_arity   = def->total_arity;
     slot->return_type_id = def->return_type_id;
     slot->validate_args = def->validate_args;
   }
@@ -267,7 +260,8 @@ method_binding_find(const struct oak_method_binding_t* table,
 void oak_compiler_register_array_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(
-      c, c->array_methods, &c->array_method_count, OAK_MAX_ARRAY_METHODS,
+      c, c->builtin_methods.array, &c->builtin_methods.array_count,
+      OAK_MAX_ARRAY_METHODS,
       "array", array_method_table, oak_count_of(array_method_table));
 }
 
@@ -277,14 +271,15 @@ oak_compiler_find_array_method(struct oak_compiler_t* c,
                                const usize len)
 {
   return method_binding_find(
-      c->array_methods, c->array_method_count, name, len);
+      c->builtin_methods.array, c->builtin_methods.array_count, name, len);
 }
 
 void oak_compiler_register_map_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(
-      c, c->map_methods, &c->map_method_count, OAK_MAX_MAP_METHODS, "map",
-      map_method_table, oak_count_of(map_method_table));
+      c, c->builtin_methods.map, &c->builtin_methods.map_count,
+      OAK_MAX_MAP_METHODS,
+      "map", map_method_table, oak_count_of(map_method_table));
 }
 
 const struct oak_method_binding_t*
@@ -293,5 +288,5 @@ oak_compiler_find_map_method(struct oak_compiler_t* c,
                              const usize len)
 {
   return method_binding_find(
-      c->map_methods, c->map_method_count, name, len);
+      c->builtin_methods.map, c->builtin_methods.map_count, name, len);
 }
