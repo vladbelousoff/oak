@@ -547,12 +547,12 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },
-  // STMT_RETURN -> 'return' EXPR ';' (unary: child = EXPR)
+  // STMT_RETURN -> 'return' EXPR? ';' (unary: child = EXPR?)
   [OAK_NODE_STMT_RETURN] = {
     .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_RETURN | OAK_RULE_TOKEN,
-      OAK_NODE_EXPR,
+      OAK_NODE_EXPR | OAK_RULE_OPTIONAL,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
