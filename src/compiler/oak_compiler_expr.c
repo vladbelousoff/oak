@@ -428,6 +428,32 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
         c, node->token, "field access requires the form 'expr.field'");
     return;
   }
+
+  /* Enum variant access: EnumName.Variant */
+  if (recv->kind == OAK_NODE_IDENT)
+  {
+    const char* recv_name = oak_token_text(recv->token);
+    const usize recv_len = oak_token_length(recv->token);
+    if (oak_compiler_is_enum_name(c, recv_name, recv_len))
+    {
+      const char* vname = oak_token_text(fname->token);
+      const usize vlen = oak_token_length(fname->token);
+      const struct oak_enum_variant_t* ev =
+          oak_compiler_find_enum_variant_qualified(
+              c, recv_name, recv_len, vname, vlen);
+      if (!ev)
+      {
+        oak_compiler_error_at(c, fname->token,
+                              "'%s' is not a variant of enum '%s'",
+                              vname, recv_name);
+        return;
+      }
+      oak_compiler_emit_constant(
+          c, ev->const_idx, oak_compiler_loc_from_token(fname->token));
+      return;
+    }
+  }
+
   oak_compiler_reject_void_value_expr(c, recv);
   if (c->has_error)
     return;
@@ -604,16 +630,6 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       {
         oak_compiler_emit_op_arg(
             c, OAK_OP_GET_LOCAL, (u8)slot, oak_compiler_loc_from_token(node->token));
-        break;
-      }
-      /* Fall back to enum variant constants before reporting undefined. */
-      const struct oak_enum_variant_t* ev =
-          oak_compiler_find_enum_variant(c, name, len);
-      if (ev)
-      {
-        oak_compiler_emit_constant(c,
-                                   ev->const_idx,
-                                   oak_compiler_loc_from_token(node->token));
         break;
       }
       oak_compiler_error_at(c, node->token, "undefined variable '%s'", name);

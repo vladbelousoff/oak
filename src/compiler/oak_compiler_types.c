@@ -294,6 +294,17 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       const struct oak_ast_node_t* fname = expr->rhs;
       if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
         return;
+      /* Enum variant access: EnumName.Variant yields a number. */
+      if (recv->kind == OAK_NODE_IDENT)
+      {
+        const char* recv_name = oak_token_text(recv->token);
+        const usize recv_len = oak_token_length(recv->token);
+        if (oak_compiler_is_enum_name(c, recv_name, recv_len))
+        {
+          out->id = OAK_TYPE_NUMBER;
+          return;
+        }
+      }
       struct oak_type_t recv_ty;
       oak_compiler_infer_expr_static_type(c, recv, &recv_ty);
       const struct oak_registered_struct_t* sd = null;

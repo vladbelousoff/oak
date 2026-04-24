@@ -17,11 +17,16 @@ struct oak_parser_t
   struct oak_arena_t* arena;
 };
 
-#define OAK_RULE_TOKEN    ((unsigned short)(1 << 15))
-#define OAK_RULE_REPEAT   ((unsigned short)(1 << 14))
-#define OAK_RULE_OPTIONAL ((unsigned short)(1 << 13))
+#define OAK_RULE_TOKEN     ((unsigned short)(1 << 15))
+#define OAK_RULE_REPEAT    ((unsigned short)(1 << 14))
+#define OAK_RULE_OPTIONAL  ((unsigned short)(1 << 13))
+/* When combined with OAK_RULE_REPEAT (non-token), skip an optional comma
+ * before each repetition attempt.  Handles both space- and comma-separated
+ * lists and allows an optional trailing comma. */
+#define OAK_RULE_COMMA_SEP ((unsigned short)(1 << 12))
 #define OAK_RULE_KIND_MASK                                                     \
-  ((unsigned short)~(OAK_RULE_TOKEN | OAK_RULE_REPEAT | OAK_RULE_OPTIONAL))
+  ((unsigned short)~(OAK_RULE_TOKEN | OAK_RULE_REPEAT |                       \
+                     OAK_RULE_OPTIONAL | OAK_RULE_COMMA_SEP))
 
 enum oak_grammar_op_t
 {

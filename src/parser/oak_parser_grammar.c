@@ -203,10 +203,10 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // ENUM_VARIANTS -> IDENT*
+  // ENUM_VARIANTS -> IDENT (',' IDENT)*   (commas optional, trailing comma ok)
   [OAK_NODE_ENUM_VARIANTS] = {
     .rules = {
-      OAK_NODE_IDENT | OAK_RULE_REPEAT,
+      OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
     },
   },
   // TYPE_NAME -> TYPE_ARRAY | TYPE_MAP | IDENT

@@ -16,6 +16,36 @@ oak_compiler_find_enum_variant(const struct oak_compiler_t* c,
   return null;
 }
 
+const struct oak_enum_variant_t*
+oak_compiler_find_enum_variant_qualified(const struct oak_compiler_t* c,
+                                         const char* enum_name,
+                                         const usize enum_name_len,
+                                         const char* variant_name,
+                                         const usize variant_name_len)
+{
+  for (int i = 0; i < c->enum_variant_count; ++i)
+  {
+    const struct oak_enum_variant_t* v = &c->enum_variants[i];
+    if (oak_name_eq(v->enum_name, v->enum_name_len, enum_name, enum_name_len) &&
+        oak_name_eq(v->name, v->name_len, variant_name, variant_name_len))
+      return v;
+  }
+  return null;
+}
+
+int oak_compiler_is_enum_name(const struct oak_compiler_t* c,
+                              const char* name,
+                              const usize len)
+{
+  for (int i = 0; i < c->enum_variant_count; ++i)
+  {
+    const struct oak_enum_variant_t* v = &c->enum_variants[i];
+    if (oak_name_eq(v->enum_name, v->enum_name_len, name, len))
+      return 1;
+  }
+  return 0;
+}
+
 void oak_compiler_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* program)
 {
@@ -75,6 +105,8 @@ void oak_compiler_register_program_enums(struct oak_compiler_t* c,
           &c->enum_variants[c->enum_variant_count++];
       slot->name = vname;
       slot->name_len = vname_len;
+      slot->enum_name = oak_token_text(name_node->token);
+      slot->enum_name_len = oak_token_length(name_node->token);
       slot->const_idx = idx;
       slot->value = ordinal;
       ++ordinal;
