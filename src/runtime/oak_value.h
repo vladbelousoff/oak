@@ -341,10 +341,10 @@ enum oak_fn_call_result_t oak_builtin_print(void* vm,
                                             int argc,
                                             struct oak_value_t* out_result);
 
-enum oak_fn_call_result_t oak_builtin_len(void* vm,
-                                          const struct oak_value_t* args,
-                                          int argc,
-                                          struct oak_value_t* out_result);
+enum oak_fn_call_result_t oak_builtin_size(void* vm,
+                                           const struct oak_value_t* args,
+                                           int argc,
+                                           struct oak_value_t* out_result);
 
 enum oak_fn_call_result_t oak_builtin_push(void* vm,
                                            const struct oak_value_t* args,

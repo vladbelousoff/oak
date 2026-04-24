@@ -308,15 +308,15 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
     return;
   }
 
-  /* Look up the receiver's len() binding so we can snapshot length once. */
+  /* Look up the receiver's size() binding so we can snapshot length once. */
   const struct oak_method_binding_t* len_m =
-      coll_ty.kind == OAK_TYPE_KIND_MAP ? oak_compiler_find_map_method(c, "len", 3)
-                                        : oak_compiler_find_array_method(c, "len", 3);
+      coll_ty.kind == OAK_TYPE_KIND_MAP ? oak_compiler_find_map_method(c, "size", 4)
+                                        : oak_compiler_find_array_method(c, "size", 4);
   if (!len_m)
   {
     oak_compiler_error_at(c,
                       coll_expr->token ? coll_expr->token : first_ident->token,
-                      "internal error: missing 'len' method binding");
+                      "internal error: missing 'size' method binding");
     return;
   }
 

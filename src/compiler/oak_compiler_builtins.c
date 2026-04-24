@@ -113,13 +113,13 @@ static void validate_map_key_arg(struct oak_compiler_t* c,
 static const struct oak_builtin_method_def_t array_method_table[] = {
   /* push(receiver, value) -> new length. */
   { "push", oak_builtin_push, 2, OAK_TYPE_NUMBER, validate_array_push_args },
-  /* len(receiver) -> length. */
-  { "len", oak_builtin_len, 1, OAK_TYPE_NUMBER, null },
+  /* size(receiver) -> length. */
+  { "size", oak_builtin_size, 1, OAK_TYPE_NUMBER, null },
 };
 
 static const struct oak_builtin_method_def_t map_method_table[] = {
-  /* len(receiver) -> length. */
-  { "len", oak_builtin_len, 1, OAK_TYPE_NUMBER, null },
+  /* size(receiver) -> length. */
+  { "size", oak_builtin_size, 1, OAK_TYPE_NUMBER, null },
   /* has(receiver, key) -> bool. */
   { "has", oak_builtin_has, 2, OAK_TYPE_BOOL, validate_map_key_arg },
   /* delete(receiver, key) -> bool (true if removed). */
