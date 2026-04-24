@@ -180,8 +180,8 @@ let scores = ['alice': 95, 'bob': 87];
 
 | Function | Description |
 |----------|-------------|
-| `print(v)` | Print a value followed by a newline |
-| `input()` | Read a line from stdin; returns a string |
+| `print(v)` | Print a value without a trailing newline |
+| `println(v)` | Print a value followed by a newline |
 
 ### Collection methods
 

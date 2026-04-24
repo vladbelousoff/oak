@@ -335,33 +335,4 @@ void oak_value_incref(struct oak_value_t value);
 void oak_value_decref(struct oak_value_t value);
 
 void oak_value_print(struct oak_value_t value);
-
-enum oak_fn_call_result_t oak_builtin_print(void* vm,
-                                            const struct oak_value_t* args,
-                                            int argc,
-                                            struct oak_value_t* out_result);
-
-enum oak_fn_call_result_t oak_builtin_size(void* vm,
-                                           const struct oak_value_t* args,
-                                           int argc,
-                                           struct oak_value_t* out_result);
-
-enum oak_fn_call_result_t oak_builtin_push(void* vm,
-                                           const struct oak_value_t* args,
-                                           int argc,
-                                           struct oak_value_t* out_result);
-
-enum oak_fn_call_result_t oak_builtin_has(void* vm,
-                                          const struct oak_value_t* args,
-                                          int argc,
-                                          struct oak_value_t* out_result);
-
-enum oak_fn_call_result_t oak_builtin_delete(void* vm,
-                                             const struct oak_value_t* args,
-                                             int argc,
-                                             struct oak_value_t* out_result);
-
-enum oak_fn_call_result_t oak_builtin_input(void* vm,
-                                            const struct oak_value_t* args,
-                                            int argc,
-                                            struct oak_value_t* out_result);
+void oak_value_println(struct oak_value_t value);
