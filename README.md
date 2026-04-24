@@ -13,21 +13,6 @@ cmake -S . -B build
 cmake --build build
 ```
 
-The build produces:
-
-| Target | Location |
-|--------|----------|
-| `liboak` static library | `build/Debug/liboak.lib` (or `.a`) |
-| `oak` command-line interpreter | `build/Debug/oak.exe` (or `oak`) |
-
-### Running an Oak script
-
-```sh
-./build/Debug/oak path/to/script.oak
-```
-
----
-
 ## Running the test suite
 
 ```sh
