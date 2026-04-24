@@ -41,6 +41,10 @@ void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
           ? oak_container_of(pos, struct oak_ast_node_t, link)
           : null;
 
+  oak_compiler_reject_void_value_expr(c, cond);
+  if (c->has_error)
+    return;
+
   oak_compiler_compile_node(c, cond);
   const usize then_jump =
       oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
@@ -81,6 +85,13 @@ void oak_compiler_compile_stmt_while(struct oak_compiler_t* c,
   /* current_loop points at stack-allocated frame; reset before return. */
   c->current_loop = &loop;
 
+  oak_compiler_reject_void_value_expr(c, node->lhs);
+  if (c->has_error)
+  {
+    c->current_loop = loop.enclosing;
+    return;
+  }
+
   oak_compiler_compile_node(c, node->lhs);
   const usize exit_jump =
       oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
@@ -114,6 +125,19 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
       oak_container_of(pos, struct oak_ast_node_t, link);
 
   oak_compiler_begin_scope(c);
+
+  oak_compiler_reject_void_value_expr(c, from_expr);
+  if (c->has_error)
+  {
+    oak_compiler_end_scope(c);
+    return;
+  }
+  oak_compiler_reject_void_value_expr(c, to_expr);
+  if (c->has_error)
+  {
+    oak_compiler_end_scope(c);
+    return;
+  }
 
   struct oak_type_t from_ty;
   oak_compiler_infer_expr_static_type(c, from_expr, &from_ty);

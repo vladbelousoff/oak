@@ -368,11 +368,26 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
     return;
   }
 
-  /* STMT_RETURN is UNARY: child = EXPR (always present for now). */
+  /* STMT_RETURN is UNARY: child = EXPR? */
   const struct oak_ast_node_t* expr = node->child;
-  if (expr)
+  if (oak_type_is_void(&c->declared_return_type))
   {
-    /* Verify the return expression type against the declared return type. */
+    if (expr)
+    {
+      oak_compiler_error_at(
+          c, expr->token ? expr->token : node->token,
+          "void function cannot return a value");
+      return;
+    }
+  }
+  else
+  {
+    if (!expr)
+    {
+      oak_compiler_error_at(
+          c, node->token, "missing return value (function returns a value)");
+      return;
+    }
     if (oak_type_is_known(&c->declared_return_type))
     {
       struct oak_type_t got;
@@ -387,12 +402,14 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
       }
     }
     oak_compiler_compile_node(c, expr);
+    if (c->has_error)
+      return;
+    oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
+    return;
   }
-  else
-  {
-    const u16 z = oak_compiler_intern_constant(c, OAK_VALUE_I32(0));
-    oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
-  }
+
+  const u16 z = oak_compiler_intern_constant(c, OAK_VALUE_I32(0));
+  oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
   oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 }
 
@@ -416,11 +433,24 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
   c->stack_depth = 0;
   c->current_loop = null;
 
-  /* Record the declared return type (if any) for return-statement checking. */
+  /* Return type: omitted `->` means void. */
   oak_type_clear(&c->declared_return_type);
   const struct oak_ast_node_t* ret_type_node = oak_compiler_fn_decl_return_type_node(decl);
   if (ret_type_node)
+  {
     oak_compiler_type_node_to_type(c, ret_type_node, &c->declared_return_type);
+    if (oak_type_is_void(&c->declared_return_type))
+    {
+      oak_compiler_error_at(
+          c, ret_type_node->token,
+          "omit the return type for a function with no value; 'void' is not "
+          "allowed after '->'");
+      c->function_depth--;
+      return;
+    }
+  }
+  else
+    c->declared_return_type.id = OAK_TYPE_VOID;
 
   int slot = 0;
   if (recv)
@@ -585,6 +615,14 @@ validate_call_arg_types_for_decl(struct oak_compiler_t* c,
     oak_compiler_infer_expr_static_type(c, arg_expr, &got);
     if (!oak_type_is_known(&got))
       continue;
+
+    if (oak_type_is_void(&got))
+    {
+      const struct oak_token_t* err_tok = arg_expr_error_token(
+          arg_expr, arg_wrap);
+      oak_compiler_error_at(c, err_tok, "argument %zu cannot be void", i + 1u);
+      return;
+    }
 
     if (!oak_type_equal(&want, &got))
     {

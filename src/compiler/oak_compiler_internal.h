@@ -149,8 +149,8 @@ struct oak_compiler_t
   int has_error;
   /* Total errors accumulated across all recovered statement boundaries. */
   int error_count;
-  /* Return type declared for the current function, OAK_TYPE_UNKNOWN when no
-   * function is being compiled or no return type was declared. */
+  /* Return type of the function being compiled: omitted `->` is void
+   * (OAK_TYPE_VOID). Cleared to unknown between functions. */
   struct oak_type_t declared_return_type;
   struct oak_loop_frame_t* current_loop;
   int function_depth;
@@ -266,6 +266,11 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
 void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* type_node,
                                     struct oak_type_t* out);
+
+/* Fails compilation if the expression is typed as void (e.g. call to a void
+ * function). No-op for null or not-yet-inferrable types. */
+void oak_compiler_reject_void_value_expr(struct oak_compiler_t* c,
+                                        const struct oak_ast_node_t* expr);
 
 oak_type_id_t oak_compiler_intern_type_token(struct oak_compiler_t* c,
                                              const struct oak_token_t* token);

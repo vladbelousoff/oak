@@ -16,6 +16,15 @@ int oak_compiler_ast_is_int_literal(const struct oak_ast_node_t* node,
          oak_token_as_i32(node->token) == value;
 }
 
+static void reject_binary_void(struct oak_compiler_t* c,
+                                const struct oak_ast_node_t* node)
+{
+  oak_compiler_reject_void_value_expr(c, node->lhs);
+  if (c->has_error)
+    return;
+  oak_compiler_reject_void_value_expr(c, node->rhs);
+}
+
 u8 oak_compiler_opcode_for_node_kind(const enum oak_node_kind_t kind)
 {
   switch (kind)
@@ -94,6 +103,12 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
 
     struct oak_type_t val_ty;
     oak_compiler_infer_expr_static_type(c, rhs, &val_ty);
+    if (oak_type_is_void(&val_ty))
+    {
+      oak_compiler_error_at(
+          c, rhs->token, "cannot assign void to an indexed value");
+      return;
+    }
     if (oak_type_is_known(&val_ty))
     {
       const struct oak_type_t element_ty = { .id = coll_ty.id };
@@ -135,6 +150,13 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
 
     struct oak_type_t val_ty;
     oak_compiler_infer_expr_static_type(c, rhs, &val_ty);
+    if (oak_type_is_void(&val_ty))
+    {
+      oak_compiler_error_at(
+          c, rhs->token ? rhs->token : fname->token,
+          "cannot assign void to a struct field");
+      return;
+    }
     if (oak_type_is_known(&val_ty) &&
         !oak_type_equal(&sd->fields[idx].type, &val_ty))
     {
@@ -157,6 +179,10 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
   const int slot = oak_compiler_compile_assign_target(
       c, lhs, "assignment target must be a variable");
   if (slot < 0)
+    return;
+
+  oak_compiler_reject_void_value_expr(c, rhs);
+  if (c->has_error)
     return;
 
   oak_compiler_compile_node(c, rhs);
@@ -392,7 +418,7 @@ static void compile_expr_cast(struct oak_compiler_t* c,
 }
 
 static void compile_expr_member_access(struct oak_compiler_t* c,
-                                       const struct oak_ast_node_t* node)
+                                      const struct oak_ast_node_t* node)
 {
   const struct oak_ast_node_t* recv = node->lhs;
   const struct oak_ast_node_t* fname = node->rhs;
@@ -402,6 +428,9 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
         c, node->token, "field access requires the form 'expr.field'");
     return;
   }
+  oak_compiler_reject_void_value_expr(c, recv);
+  if (c->has_error)
+    return;
   const struct oak_registered_struct_t* sd = null;
   const int idx = oak_compiler_require_struct_field(c, recv, fname, 0, &sd);
   (void)sd;
@@ -615,6 +644,9 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_BINARY_GREATER:
     case OAK_NODE_BINARY_GREATER_EQ:
     {
+      reject_binary_void(c, node);
+      if (c->has_error)
+        return;
       oak_compiler_compile_node(c, node->lhs);
       oak_compiler_compile_node(c, node->rhs);
       oak_compiler_emit_op(c,
@@ -624,6 +656,9 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     }
     case OAK_NODE_BINARY_AND:
     {
+      reject_binary_void(c, node);
+      if (c->has_error)
+        return;
       /* Short-circuit &&:
        *   evaluate lhs
        *   JUMP_IF_FALSE [false_branch]   ; pops lhs; jump if lhs is falsy
@@ -656,6 +691,9 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     }
     case OAK_NODE_BINARY_OR:
     {
+      reject_binary_void(c, node);
+      if (c->has_error)
+        return;
       /* Short-circuit ||:
        *   evaluate lhs
        *   NOT                            ; invert lhs for JUMP_IF_FALSE
@@ -691,6 +729,9 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_UNARY_NEG:
     case OAK_NODE_UNARY_NOT:
     {
+      oak_compiler_reject_void_value_expr(c, node->child);
+      if (c->has_error)
+        return;
       oak_compiler_compile_node(c, node->child);
       oak_compiler_emit_op(c,
               oak_compiler_opcode_for_node_kind(node->kind),
@@ -735,6 +776,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         return;
       }
 
+      oak_compiler_reject_void_value_expr(c, rhs);
+      if (c->has_error)
+        return;
+
       oak_compiler_compile_node(c, rhs);
       const char* name = oak_token_text(ident->token);
       const usize name_len = oak_token_length(ident->token);
@@ -777,6 +822,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         break;
       }
 
+      oak_compiler_reject_void_value_expr(c, node->rhs);
+      if (c->has_error)
+        return;
+
       oak_compiler_emit_op_arg(
           c, OAK_OP_GET_LOCAL, (u8)slot, oak_compiler_loc_from_token(lhs->token));
       oak_compiler_compile_node(c, node->rhs);
@@ -815,6 +864,12 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       break;
     case OAK_NODE_INDEX_ACCESS:
     {
+      oak_compiler_reject_void_value_expr(c, node->lhs);
+      if (c->has_error)
+        return;
+      oak_compiler_reject_void_value_expr(c, node->rhs);
+      if (c->has_error)
+        return;
       oak_compiler_compile_node(c, node->lhs);
       oak_compiler_compile_node(c, node->rhs);
       oak_compiler_emit_op(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
