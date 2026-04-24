@@ -53,11 +53,17 @@ static void compile_program(struct oak_compiler_t* c,
   oak_compiler_register_program_functions(c, program);
   if (c->has_error)
     return;
+  oak_compiler_register_program_methods(c, program);
+  if (c->has_error)
+    return;
   compile_program_items(c, program);
   if (c->has_error)
     return;
   oak_compiler_emit_op(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
   oak_compiler_compile_function_bodies(c);
+  if (c->has_error)
+    return;
+  oak_compiler_compile_method_bodies(c);
 }
 
 struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)

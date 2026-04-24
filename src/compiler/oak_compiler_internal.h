@@ -392,6 +392,9 @@ int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl);
 void oak_compiler_register_program_functions(struct oak_compiler_t* c,
                                              const struct oak_ast_node_t* prog);
 
+void oak_compiler_register_program_methods(struct oak_compiler_t* c,
+                                           const struct oak_ast_node_t* prog);
+
 const struct oak_registered_fn_t*
 oak_compiler_find_registered_fn_entry(struct oak_compiler_t* c,
                                       const char* name,
@@ -401,6 +404,8 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node);
 
 void oak_compiler_compile_function_bodies(struct oak_compiler_t* c);
+
+void oak_compiler_compile_method_bodies(struct oak_compiler_t* c);
 
 void oak_compiler_validate_user_fn_call_arg_types(
     struct oak_compiler_t* c,

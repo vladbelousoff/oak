@@ -179,89 +179,14 @@ int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl)
   return n;
 }
 
-static void register_program_fn_decl(struct oak_compiler_t* c,
-                                    const struct oak_ast_node_t* item)
+static void register_regular_fn_decl(struct oak_compiler_t* c,
+                                      const struct oak_ast_node_t* item)
 {
   const struct oak_ast_node_t* name_node = oak_compiler_fn_decl_name_node(item);
   const char* name = oak_token_text(name_node->token);
   const usize name_len = oak_token_length(name_node->token);
   const int explicit_arity = oak_compiler_count_fn_params(item);
   const struct oak_ast_node_t* self_param = oak_compiler_fn_decl_self_param(item);
-
-  if (oak_compiler_fn_decl_has_receiver(item))
-  {
-    const struct oak_ast_node_t* recv_node = oak_fn_decl_prefix(item)->child;
-    oak_assert(recv_node != null);
-    const struct oak_ast_node_t* recv_ident = recv_node->child;
-    if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
-    {
-      oak_compiler_error_at(
-          c, recv_node->token, "method receiver must be a type name");
-      return;
-    }
-
-    if (!self_param)
-    {
-      oak_compiler_error_at(
-          c, name_node->token,
-          "method '%s' must declare 'self' or 'mut self' as its first"
-          " parameter",
-          name);
-      return;
-    }
-
-    const char* sname = oak_token_text(recv_ident->token);
-    const usize sname_len = oak_token_length(recv_ident->token);
-    struct oak_registered_struct_t* sd = null;
-    for (int i = 0; i < c->struct_count; ++i)
-    {
-      struct oak_registered_struct_t* cand = &c->structs[i];
-      if (oak_name_eq(cand->name, cand->name_len, sname, sname_len))
-      {
-        sd = cand;
-        break;
-      }
-    }
-    if (!sd)
-    {
-      oak_compiler_error_at(
-          c, recv_ident->token, "no such struct '%s' for method receiver",
-          sname);
-      return;
-    }
-
-    for (int i = 0; i < sd->method_count; ++i)
-    {
-      const struct oak_struct_method_t* e = &sd->methods[i];
-      if (oak_name_eq(e->name, e->name_len, name, name_len))
-      {
-        oak_compiler_error_at(
-            c, name_node->token, "duplicate method '%s' on struct '%s'", name,
-            sd->name);
-        return;
-      }
-    }
-
-    if (sd->method_count >= OAK_MAX_STRUCT_METHODS)
-    {
-      oak_compiler_error_at(
-          c, name_node->token, "too many methods on struct '%s' (max %d)",
-          sd->name, OAK_MAX_STRUCT_METHODS);
-      return;
-    }
-
-    const int total_arity = explicit_arity + 1;
-    struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
-    const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
-
-    struct oak_struct_method_t* slot = &sd->methods[sd->method_count++];
-    slot->name = name;
-    slot->name_len = name_len;
-    slot->const_idx = idx;
-    slot->arity = total_arity;
-    slot->decl = item;
-    return;
-  }
 
   if (self_param)
   {
@@ -305,8 +230,89 @@ static void register_program_fn_decl(struct oak_compiler_t* c,
   slot->decl = item;
 }
 
+static void register_method_decl(struct oak_compiler_t* c,
+                                  const struct oak_ast_node_t* item)
+{
+  const struct oak_ast_node_t* name_node = oak_compiler_fn_decl_name_node(item);
+  const char* name = oak_token_text(name_node->token);
+  const usize name_len = oak_token_length(name_node->token);
+  const int explicit_arity = oak_compiler_count_fn_params(item);
+  const struct oak_ast_node_t* self_param = oak_compiler_fn_decl_self_param(item);
+
+  const struct oak_ast_node_t* recv_node = oak_fn_decl_prefix(item)->child;
+  oak_assert(recv_node != null);
+  const struct oak_ast_node_t* recv_ident = recv_node->child;
+  if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
+  {
+    oak_compiler_error_at(
+        c, recv_node->token, "method receiver must be a type name");
+    return;
+  }
+
+  if (!self_param)
+  {
+    oak_compiler_error_at(
+        c, name_node->token,
+        "method '%s' must declare 'self' or 'mut self' as its first"
+        " parameter",
+        name);
+    return;
+  }
+
+  const char* sname = oak_token_text(recv_ident->token);
+  const usize sname_len = oak_token_length(recv_ident->token);
+  struct oak_registered_struct_t* sd = null;
+  for (int i = 0; i < c->struct_count; ++i)
+  {
+    struct oak_registered_struct_t* cand = &c->structs[i];
+    if (oak_name_eq(cand->name, cand->name_len, sname, sname_len))
+    {
+      sd = cand;
+      break;
+    }
+  }
+  if (!sd)
+  {
+    oak_compiler_error_at(
+        c, recv_ident->token, "no such struct '%s' for method receiver",
+        sname);
+    return;
+  }
+
+  for (int i = 0; i < sd->method_count; ++i)
+  {
+    const struct oak_struct_method_t* e = &sd->methods[i];
+    if (oak_name_eq(e->name, e->name_len, name, name_len))
+    {
+      oak_compiler_error_at(
+          c, name_node->token, "duplicate method '%s' on struct '%s'", name,
+          sd->name);
+      return;
+    }
+  }
+
+  if (sd->method_count >= OAK_MAX_STRUCT_METHODS)
+  {
+    oak_compiler_error_at(
+        c, name_node->token, "too many methods on struct '%s' (max %d)",
+        sd->name, OAK_MAX_STRUCT_METHODS);
+    return;
+  }
+
+  const int total_arity = explicit_arity + 1;
+  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
+  const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
+
+  struct oak_struct_method_t* slot = &sd->methods[sd->method_count++];
+  slot->name = name;
+  slot->name_len = name_len;
+  slot->const_idx = idx;
+  slot->arity = total_arity;
+  slot->decl = item;
+}
+
 void oak_compiler_register_program_functions(struct oak_compiler_t* c,
-                                       const struct oak_ast_node_t* program)
+                                             const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
@@ -315,7 +321,27 @@ void oak_compiler_register_program_functions(struct oak_compiler_t* c,
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (item->kind != OAK_NODE_FN_DECL)
       continue;
-    register_program_fn_decl(c, item);
+    if (oak_compiler_fn_decl_has_receiver(item))
+      continue;
+    register_regular_fn_decl(c, item);
+    if (c->has_error)
+      return;
+  }
+}
+
+void oak_compiler_register_program_methods(struct oak_compiler_t* c,
+                                           const struct oak_ast_node_t* program)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &program->children)
+  {
+    const struct oak_ast_node_t* item =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (item->kind != OAK_NODE_FN_DECL)
+      continue;
+    if (!oak_compiler_fn_decl_has_receiver(item))
+      continue;
+    register_method_decl(c, item);
     if (c->has_error)
       return;
   }
@@ -479,7 +505,10 @@ void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
     if (c->has_error)
       return;
   }
+}
 
+void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
+{
   for (int s = 0; s < c->struct_count; ++s)
   {
     const struct oak_registered_struct_t* sd = &c->structs[s];
