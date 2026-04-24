@@ -14,7 +14,7 @@ void oak_compiler_emit_op(struct oak_compiler_t* c,
   oak_compiler_emit_byte(c, op, loc);
   const struct oak_op_info_t* info = oak_op_get_info(op);
   if (info)
-    c->stack_depth += info->stack_effect;
+    c->scope.stack_depth += info->stack_effect;
 }
 
 void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
@@ -26,7 +26,7 @@ void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
   oak_compiler_emit_byte(c, arg, loc);
   const struct oak_op_info_t* info = oak_op_get_info(op);
   if (info)
-    c->stack_depth += info->stack_effect;
+    c->scope.stack_depth += info->stack_effect;
 }
 
 u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
@@ -69,7 +69,7 @@ void oak_compiler_emit_constant(struct oak_compiler_t* c,
     oak_compiler_emit_byte(c, (u8)(idx), loc);
     const struct oak_op_info_t* info = oak_op_get_info(OAK_OP_CONSTANT_LONG);
     if (info)
-      c->stack_depth += info->stack_effect;
+      c->scope.stack_depth += info->stack_effect;
   }
 }
 
@@ -131,8 +131,8 @@ void oak_compiler_emit_loop_control_jump(struct oak_compiler_t* c,
                                          const int target_depth,
                                          const char* keyword)
 {
-  const int saved_depth = c->stack_depth;
-  oak_compiler_emit_pops(c, c->stack_depth - target_depth, OAK_LOC_SYNTHETIC);
+  const int saved_depth = c->scope.stack_depth;
+  oak_compiler_emit_pops(c, c->scope.stack_depth - target_depth, OAK_LOC_SYNTHETIC);
 
   if (*count >= OAK_MAX_LOOP_BRANCHES)
   {
@@ -141,10 +141,10 @@ void oak_compiler_emit_loop_control_jump(struct oak_compiler_t* c,
                           "too many '%s' statements in loop (max %d)",
                           keyword,
                           OAK_MAX_LOOP_BRANCHES);
-    c->stack_depth = saved_depth;
+    c->scope.stack_depth = saved_depth;
     return;
   }
   jumps[(*count)++] =
       oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
-  c->stack_depth = saved_depth;
+  c->scope.stack_depth = saved_depth;
 }

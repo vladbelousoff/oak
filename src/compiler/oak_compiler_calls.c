@@ -71,7 +71,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   struct oak_type_t recv_ty;
   oak_compiler_infer_expr_static_type(c, receiver, &recv_ty);
 
-  /* Struct method calls dispatch to a regular user function whose first
+  /* Struct method calls dispatch to a regular user fn whose first
    * parameter is the receiver (`self`). */
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
@@ -128,7 +128,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
       compile_call_args_after_callee(c, node);
 
       oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)sm->arity, call_loc);
-      c->stack_depth -= sm->arity;
+      c->scope.stack_depth -= sm->arity;
       return;
     }
   }
@@ -175,7 +175,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   compile_call_args_after_callee(c, node);
 
   oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)m->total_arity, call_loc);
-  c->stack_depth -= m->total_arity;
+  c->scope.stack_depth -= m->total_arity;
 }
 
 void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
@@ -250,5 +250,5 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
   }
 
   oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)argc, call_loc);
-  c->stack_depth -= argc;
+  c->scope.stack_depth -= argc;
 }

@@ -21,7 +21,7 @@ static void compile_program_items(struct oak_compiler_t* c,
     if (c->has_error)
     {
       c->has_error = 0;
-      c->stack_depth = 0; /* top-level scope has no stack state */
+      c->scope.stack_depth = 0; /* top-level scope has no stack state */
     }
   }
 }
@@ -76,30 +76,38 @@ void oak_compile(const struct oak_ast_node_t* root,
   oak_type_clear(&no_return_type);
 
   struct oak_compiler_t compiler = {
-    .chunk = chunk,
-    .result = out,
-    .local_count = 0,
-    .scope_depth = 0,
-    .stack_depth = 0,
+    .chunk     = chunk,
+    .result    = out,
     .has_error = 0,
-    .declared_return_type = no_return_type,
-    .current_loop = null,
-    .function_depth = 0,
-    .fn_registry_count = 0,
-    .array_method_count = 0,
-    .map_method_count = 0,
-    .enum_variant_count = 0,
+    .scope = {
+      .local_count          = 0,
+      .scope_depth          = 0,
+      .stack_depth          = 0,
+      .declared_return_type = no_return_type,
+      .current_loop         = null,
+      .fn_depth             = 0,
+    },
   };
-  oak_type_registry_init(&compiler.type_registry);
+  oak_type_registry_init(&compiler.types);
+  oak_fn_registry_init(&compiler.fns);
+  oak_struct_registry_init(&compiler.structs);
+  oak_enum_registry_init(&compiler.enums);
 
   if (!root || root->kind != OAK_NODE_PROGRAM)
   {
     oak_compiler_error_at(&compiler, null, "expected a program root");
     oak_chunk_free(chunk);
+    oak_fn_registry_free(&compiler.fns);
+    oak_struct_registry_free(&compiler.structs);
+    oak_enum_registry_free(&compiler.enums);
     return;
   }
 
   compile_program(&compiler, root);
+
+  oak_fn_registry_free(&compiler.fns);
+  oak_struct_registry_free(&compiler.structs);
+  oak_enum_registry_free(&compiler.enums);
 
   if (out->error_count > 0)
   {

@@ -38,7 +38,7 @@ oak_type_id_t oak_compiler_intern_type_token(struct oak_compiler_t* c,
                                              const struct oak_token_t* token)
 {
   return oak_type_registry_intern(
-      &c->type_registry, oak_token_text(token), oak_token_length(token));
+      &c->types, oak_token_text(token), oak_token_length(token));
 }
 
 int oak_compiler_local_type_get(struct oak_compiler_t* c,
@@ -46,9 +46,9 @@ int oak_compiler_local_type_get(struct oak_compiler_t* c,
                                 const usize len,
                                 struct oak_type_t* out)
 {
-  for (int i = c->local_count - 1; i >= 0; --i)
+  for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
-    const struct oak_local_t* L = &c->locals[i];
+    const struct oak_local_t* L = &c->scope.locals[i];
     if (oak_name_eq(L->name, L->length, name, len))
     {
       *out = L->type;
@@ -324,7 +324,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
 const char* oak_compiler_type_kind_name(struct oak_compiler_t* c,
                                         const struct oak_type_t t)
 {
-  return oak_type_registry_name(&c->type_registry, t.id);
+  return oak_type_registry_name(&c->types, t.id);
 }
 
 /* Format a type name into a thread-local buffer for error messages.
@@ -342,8 +342,8 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
     snprintf(buf,
              128,
              "[%s:%s]",
-             oak_type_registry_name(&c->type_registry, t.key_id),
-             oak_type_registry_name(&c->type_registry, t.id));
+             oak_type_registry_name(&c->types, t.key_id),
+             oak_type_registry_name(&c->types, t.id));
     return buf;
   }
   if (t.kind == OAK_TYPE_KIND_ARRAY)

@@ -1,5 +1,58 @@
 #include "oak_compiler_internal.h"
 
+/* ---------- oak_fn_registry_t lifecycle ---------- */
+
+void oak_fn_registry_init(struct oak_fn_registry_t* r)
+{
+  oak_hash_table_init(&r->by_name);
+  r->entries  = null;
+  r->count    = 0;
+  r->capacity = 0;
+}
+
+void oak_fn_registry_free(struct oak_fn_registry_t* r)
+{
+  oak_hash_table_free(&r->by_name);
+  if (r->entries)
+    oak_free(r->entries, OAK_SRC_LOC);
+  r->entries  = null;
+  r->count    = 0;
+  r->capacity = 0;
+}
+
+struct oak_registered_fn_t*
+oak_fn_registry_insert(struct oak_fn_registry_t* r,
+                       const struct oak_registered_fn_t* fn)
+{
+  if (r->count >= r->capacity)
+  {
+    const int new_cap = r->capacity < 8 ? 8 : r->capacity * 2;
+    r->entries = oak_realloc(r->entries,
+                             (usize)new_cap * sizeof *r->entries,
+                             OAK_SRC_LOC);
+    r->capacity = new_cap;
+  }
+  const int idx = r->count;
+  r->entries[idx] = *fn;
+  r->count++;
+  oak_hash_table_insert(&r->by_name, r->entries[idx].name,
+                        r->entries[idx].name_len, idx);
+  return &r->entries[idx];
+}
+
+const struct oak_registered_fn_t*
+oak_fn_registry_find(const struct oak_fn_registry_t* r,
+                     const char* name,
+                     usize len)
+{
+  const int idx = oak_hash_table_get(&r->by_name, name, len);
+  if (idx < 0)
+    return null;
+  return &r->entries[idx];
+}
+
+/* ---------- AST helpers ---------- */
+
 static const struct oak_ast_node_t* oak_fn_decl_proto(const struct oak_ast_node_t* decl)
 {
   return decl->lhs;
@@ -179,6 +232,8 @@ int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl)
   return n;
 }
 
+/* ---------- Registration ---------- */
+
 static void register_regular_fn_decl(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* item)
 {
@@ -200,34 +255,24 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     return;
   }
 
-  for (int i = 0; i < c->fn_registry_count; ++i)
+  if (oak_fn_registry_find(&c->fns, name, name_len))
   {
-    const struct oak_registered_fn_t* e = &c->fn_registry[i];
-    if (oak_name_eq(e->name, e->name_len, name, name_len))
-    {
-      oak_compiler_error_at(
-          c, name_node->token, "duplicate function '%s'", name);
-      return;
-    }
-  }
-
-  if (c->fn_registry_count >= OAK_MAX_USER_FNS)
-  {
-    oak_compiler_error_at(
-        c, null, "too many functions in one program (max %d)", OAK_MAX_USER_FNS);
+    oak_compiler_error_at(c, name_node->token, "duplicate function '%s'", name);
     return;
   }
 
   struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
-  struct oak_registered_fn_t* slot = &c->fn_registry[c->fn_registry_count++];
-  slot->name = name;
-  slot->name_len = name_len;
-  slot->const_idx = idx;
-  slot->arity_min = explicit_arity;
-  slot->arity_max = explicit_arity;
-  slot->decl = item;
+  struct oak_registered_fn_t entry = {
+    .name      = name,
+    .name_len  = name_len,
+    .const_idx = idx,
+    .arity_min = explicit_arity,
+    .arity_max = explicit_arity,
+    .decl      = item,
+  };
+  oak_fn_registry_insert(&c->fns, &entry);
 }
 
 static void register_method_decl(struct oak_compiler_t* c,
@@ -261,10 +306,12 @@ static void register_method_decl(struct oak_compiler_t* c,
 
   const char* sname = oak_token_text(recv_ident->token);
   const usize sname_len = oak_token_length(recv_ident->token);
+
+  /* Find the target struct (mutable pointer needed to add a method slot). */
   struct oak_registered_struct_t* sd = null;
-  for (int i = 0; i < c->struct_count; ++i)
+  for (int i = 0; i < c->structs.count; ++i)
   {
-    struct oak_registered_struct_t* cand = &c->structs[i];
+    struct oak_registered_struct_t* cand = &c->structs.entries[i];
     if (oak_name_eq(cand->name, cand->name_len, sname, sname_len))
     {
       sd = cand;
@@ -304,11 +351,11 @@ static void register_method_decl(struct oak_compiler_t* c,
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
   struct oak_struct_method_t* slot = &sd->methods[sd->method_count++];
-  slot->name = name;
-  slot->name_len = name_len;
+  slot->name      = name;
+  slot->name_len  = name_len;
   slot->const_idx = idx;
-  slot->arity = total_arity;
-  slot->decl = item;
+  slot->arity     = total_arity;
+  slot->decl      = item;
 }
 
 void oak_compiler_register_program_functions(struct oak_compiler_t* c,
@@ -350,19 +397,15 @@ void oak_compiler_register_program_methods(struct oak_compiler_t* c,
 const struct oak_registered_fn_t* oak_compiler_find_registered_fn_entry(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
-  for (int i = 0; i < c->fn_registry_count; ++i)
-  {
-    const struct oak_registered_fn_t* e = &c->fn_registry[i];
-    if (oak_name_eq(e->name, e->name_len, name, len))
-      return e;
-  }
-  return null;
+  return oak_fn_registry_find(&c->fns, name, len);
 }
+
+/* ---------- Body compilation ---------- */
 
 void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
                                 const struct oak_ast_node_t* node)
 {
-  if (c->function_depth == 0)
+  if (c->scope.fn_depth == 0)
   {
     oak_compiler_error_at(c, null, "'return' outside of a function");
     return;
@@ -370,7 +413,7 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
 
   /* STMT_RETURN is UNARY: child = EXPR? */
   const struct oak_ast_node_t* expr = node->child;
-  if (oak_type_is_void(&c->declared_return_type))
+  if (oak_type_is_void(&c->scope.declared_return_type))
   {
     if (expr)
     {
@@ -388,17 +431,18 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
           c, node->token, "missing return value (function returns a value)");
       return;
     }
-    if (oak_type_is_known(&c->declared_return_type))
+    if (oak_type_is_known(&c->scope.declared_return_type))
     {
       struct oak_type_t got;
       oak_compiler_infer_expr_static_type(c, expr, &got);
-      if (oak_type_is_known(&got) && !oak_type_equal(&c->declared_return_type, &got))
+      if (oak_type_is_known(&got) &&
+          !oak_type_equal(&c->scope.declared_return_type, &got))
       {
-        oak_compiler_error_at(c,
-                              expr->token ? expr->token : node->token,
-                              "return type mismatch: expected '%s', found '%s'",
-                              oak_compiler_type_full_name(c, c->declared_return_type),
-                              oak_compiler_type_full_name(c, got));
+        oak_compiler_error_at(
+            c, expr->token ? expr->token : node->token,
+            "return type mismatch: expected '%s', found '%s'",
+            oak_compiler_type_full_name(c, c->scope.declared_return_type),
+            oak_compiler_type_full_name(c, got));
       }
     }
     oak_compiler_compile_node(c, expr);
@@ -413,7 +457,7 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
   oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 }
 
-/* If `recv_struct` is non-null, the function is treated as a method: an
+/* If `recv_struct` is non-null, the fn is treated as a method: an
  * implicit `self` local is installed at slot 0 with the receiver's static
  * type, and explicit parameters start at slot 1. */
 void oak_compiler_compile_function_body(struct oak_compiler_t* c,
@@ -427,49 +471,50 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
     return;
   }
 
-  c->function_depth++;
-  c->local_count = 0;
-  c->scope_depth = 0;
-  c->stack_depth = 0;
-  c->current_loop = null;
+  c->scope.fn_depth++;
+  c->scope.local_count = 0;
+  c->scope.scope_depth = 0;
+  c->scope.stack_depth = 0;
+  c->scope.current_loop = null;
 
   /* Return type: omitted `->` means void. */
-  oak_type_clear(&c->declared_return_type);
-  const struct oak_ast_node_t* ret_type_node = oak_compiler_fn_decl_return_type_node(decl);
+  oak_type_clear(&c->scope.declared_return_type);
+  const struct oak_ast_node_t* ret_type_node =
+      oak_compiler_fn_decl_return_type_node(decl);
   if (ret_type_node)
   {
-    oak_compiler_type_node_to_type(c, ret_type_node, &c->declared_return_type);
-    if (oak_type_is_void(&c->declared_return_type))
+    oak_compiler_type_node_to_type(
+        c, ret_type_node, &c->scope.declared_return_type);
+    if (oak_type_is_void(&c->scope.declared_return_type))
     {
       oak_compiler_error_at(
           c, ret_type_node->token,
           "omit the return type for a function with no value; 'void' is not "
           "allowed after '->'");
-      c->function_depth--;
+      c->scope.fn_depth--;
       return;
     }
   }
   else
-    c->declared_return_type.id = OAK_TYPE_VOID;
+    c->scope.declared_return_type.id = OAK_TYPE_VOID;
 
   int slot = 0;
   if (recv)
   {
     const struct oak_ast_node_t* sp = oak_compiler_fn_decl_self_param(decl);
-    /* The presence of FN_PARAM_SELF was already checked when the method
-     * was registered; treat its absence here as an internal error. */
     oak_assert(sp != null);
     struct oak_type_t self_ty;
     oak_type_clear(&self_ty);
     self_ty.id = recv->type_id;
-    oak_compiler_add_local(c, "self", 4u, slot++, oak_compiler_fn_param_self_is_mutable(sp), self_ty);
+    oak_compiler_add_local(c, "self", 4u, slot++,
+                           oak_compiler_fn_param_self_is_mutable(sp), self_ty);
   }
 
   const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
   if (!plist || plist->kind != OAK_NODE_FN_PARAM_LIST)
   {
     oak_compiler_error_at(c, decl->token, "malformed function declaration");
-    c->function_depth--;
+    c->scope.fn_depth--;
     return;
   }
 
@@ -477,7 +522,7 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
   if (!params)
   {
     oak_compiler_error_at(c, decl->token, "malformed function declaration");
-    c->function_depth--;
+    c->scope.fn_depth--;
     return;
   }
 
@@ -492,7 +537,7 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
     if (!id)
     {
       oak_compiler_error_at(c, ch->token, "malformed function parameter");
-      c->function_depth--;
+      c->scope.fn_depth--;
       return;
     }
     const struct oak_ast_node_t* type_id = oak_compiler_fn_param_type_node(ch);
@@ -508,7 +553,7 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
               param_type);
   }
 
-  c->stack_depth = slot;
+  c->scope.stack_depth = slot;
 
   oak_compiler_compile_block(c, body);
 
@@ -516,16 +561,16 @@ void oak_compiler_compile_function_body(struct oak_compiler_t* c,
   oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
   oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 
-  /* Clear the return type so it doesn't apply outside this function. */
-  oak_type_clear(&c->declared_return_type);
-  c->function_depth--;
+  /* Clear the return type so it doesn't apply outside this fn. */
+  oak_type_clear(&c->scope.declared_return_type);
+  c->scope.fn_depth--;
 }
 
 void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
 {
-  for (int i = 0; i < c->fn_registry_count; ++i)
+  for (int i = 0; i < c->fns.count; ++i)
   {
-    const struct oak_registered_fn_t* e = &c->fn_registry[i];
+    const struct oak_registered_fn_t* e = &c->fns.entries[i];
     if (!e->decl)
       continue;
     struct oak_value_t fn_val = c->chunk->constants[e->const_idx];
@@ -539,9 +584,9 @@ void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
 
 void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
 {
-  for (int s = 0; s < c->struct_count; ++s)
+  for (int s = 0; s < c->structs.count; ++s)
   {
-    const struct oak_registered_struct_t* sd = &c->structs[s];
+    const struct oak_registered_struct_t* sd = &c->structs.entries[s];
     for (int m = 0; m < sd->method_count; ++m)
     {
       const struct oak_struct_method_t* me = &sd->methods[m];
@@ -557,6 +602,8 @@ void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
   }
 }
 
+/* ---------- Argument type validation ---------- */
+
 static const struct oak_token_t*
 arg_expr_error_token(const struct oak_ast_node_t* arg_expr,
                      const struct oak_ast_node_t* arg_wrap)
@@ -568,9 +615,6 @@ arg_expr_error_token(const struct oak_ast_node_t* arg_expr,
   return err_tok;
 }
 
-/* call->children: callee, then each explicit argument. decl is the function or
- * method's AST (parameters match argument order, including implicit receiver
- * for methods when the caller validates it separately). */
 static void
 validate_call_arg_types_for_decl(struct oak_compiler_t* c,
                                  const struct oak_ast_node_t* call,
@@ -662,9 +706,6 @@ oak_compiler_validate_user_fn_call_arg_types(
   validate_call_arg_types_for_decl(c, call, fn->decl);
 }
 
-/* Type-check explicit arguments of a struct method call against the method's
- * declared parameters. The receiver itself is not validated here (it has
- * already been checked to be the right struct type by the caller). */
 void
 oak_compiler_validate_struct_method_call_arg_types(
     struct oak_compiler_t* c,

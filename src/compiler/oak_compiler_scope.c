@@ -5,9 +5,9 @@ int oak_compiler_find_local(const struct oak_compiler_t* c,
                             const usize length,
                             int* out_is_mutable)
 {
-  for (int i = c->local_count - 1; i >= 0; --i)
+  for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
-    const struct oak_local_t* local = &c->locals[i];
+    const struct oak_local_t* local = &c->scope.locals[i];
     if (oak_name_eq(local->name, local->length, name, length))
     {
       if (out_is_mutable)
@@ -26,18 +26,18 @@ void oak_compiler_add_local(struct oak_compiler_t* c,
                             const int is_mutable,
                             const struct oak_type_t type)
 {
-  if (c->local_count >= OAK_MAX_LOCALS)
+  if (c->scope.local_count >= OAK_MAX_LOCALS)
   {
     oak_compiler_error_at(
         c, null, "too many local variables (max %d)", OAK_MAX_LOCALS);
     return;
   }
-  struct oak_local_t* local = &c->locals[c->local_count++];
+  struct oak_local_t* local = &c->scope.locals[c->scope.local_count++];
   local->name = name;
   local->length = length;
   local->slot = slot;
   local->is_mutable = is_mutable;
-  local->depth = c->scope_depth;
+  local->depth = c->scope.scope_depth;
   local->type = type;
 
   oak_chunk_add_debug_local(c->chunk, slot, name, length);
@@ -45,20 +45,20 @@ void oak_compiler_add_local(struct oak_compiler_t* c,
 
 void oak_compiler_begin_scope(struct oak_compiler_t* c)
 {
-  c->scope_depth++;
+  c->scope.scope_depth++;
 }
 
 void oak_compiler_end_scope(struct oak_compiler_t* c)
 {
   int pops = 0;
-  while (c->local_count > 0
-         && c->locals[c->local_count - 1].depth == c->scope_depth)
+  while (c->scope.local_count > 0
+         && c->scope.locals[c->scope.local_count - 1].depth == c->scope.scope_depth)
   {
     pops++;
-    c->local_count--;
+    c->scope.local_count--;
   }
   oak_compiler_emit_pops(c, pops, OAK_LOC_SYNTHETIC);
-  c->scope_depth--;
+  c->scope.scope_depth--;
 }
 
 int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
