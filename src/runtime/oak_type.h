@@ -14,7 +14,8 @@ typedef int oak_type_id_t;
 #define OAK_TYPE_NUMBER  ((oak_type_id_t)1)
 #define OAK_TYPE_STRING  ((oak_type_id_t)2)
 #define OAK_TYPE_BOOL    ((oak_type_id_t)3)
-#define OAK_TYPE_FIRST_USER ((oak_type_id_t)4)
+#define OAK_TYPE_VOID    ((oak_type_id_t)4)
+#define OAK_TYPE_FIRST_USER ((oak_type_id_t)5)
 
 #define OAK_MAX_TYPES 64
 
@@ -82,6 +83,11 @@ static inline void oak_type_clear(struct oak_type_t* t)
 static inline int oak_type_is_known(const struct oak_type_t* t)
 {
   return t->id != OAK_TYPE_UNKNOWN;
+}
+
+static inline int oak_type_is_void(const struct oak_type_t* t)
+{
+  return t->kind == OAK_TYPE_KIND_SCALAR && t->id == OAK_TYPE_VOID;
 }
 
 static inline int oak_type_equal(const struct oak_type_t* a,

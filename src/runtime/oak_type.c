@@ -15,6 +15,7 @@ static const struct oak_builtin_type_t builtin_types[] = {
   { OAK_TYPE_NUMBER, "number" },
   { OAK_TYPE_STRING, "string" },
   { OAK_TYPE_BOOL, "bool" },
+  { OAK_TYPE_VOID, "void" },
 };
 
 #define OAK_BUILTIN_COUNT                                                      \

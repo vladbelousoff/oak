@@ -142,10 +142,12 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               {
                 if (sm->decl)
                 {
-                  const struct oak_ast_node_t* ret =
+                  const struct oak_ast_node_t* retn =
                       oak_compiler_fn_decl_return_type_node(sm->decl);
-                  if (ret && ret->kind == OAK_NODE_IDENT)
-                    out->id = oak_compiler_intern_type_token(c, ret->token);
+                  if (retn)
+                    oak_compiler_type_node_to_type(c, retn, out);
+                  else
+                    out->id = OAK_TYPE_VOID;
                 }
                 return;
               }
@@ -168,18 +170,28 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       const usize clen = oak_token_length(callee->token);
       const struct oak_registered_fn_t* fe =
           oak_compiler_find_registered_fn_entry(c, cn, clen);
-      if (fe && !fe->decl && fe->name_len == 5u
-          && memcmp(fe->name, "input", 5u) == 0)
+      if (fe && !fe->decl)
       {
-        out->id = OAK_TYPE_STRING;
+        if (fe->name_len == 5u && memcmp(fe->name, "input", 5u) == 0)
+        {
+          out->id = OAK_TYPE_STRING;
+          return;
+        }
+        if (fe->name_len == 5u && memcmp(fe->name, "print", 5u) == 0)
+        {
+          out->id = OAK_TYPE_VOID;
+          return;
+        }
         return;
       }
-      if (!fe || !fe->decl)
+      if (!fe)
         return;
-      const struct oak_ast_node_t* ret =
+      const struct oak_ast_node_t* retn =
           oak_compiler_fn_decl_return_type_node(fe->decl);
-      if (ret && ret->kind == OAK_NODE_IDENT)
-        out->id = oak_compiler_intern_type_token(c, ret->token);
+      if (retn)
+        oak_compiler_type_node_to_type(c, retn, out);
+      else
+        out->id = OAK_TYPE_VOID;
       return;
     }
     case OAK_NODE_EXPR_CAST:
@@ -329,4 +341,18 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
     return buf;
   }
   return oak_compiler_type_kind_name(c, t);
+}
+
+void oak_compiler_reject_void_value_expr(struct oak_compiler_t* c,
+                                        const struct oak_ast_node_t* expr)
+{
+  if (!expr)
+    return;
+  struct oak_type_t t;
+  oak_compiler_infer_expr_static_type(c, expr, &t);
+  if (oak_type_is_void(&t))
+  {
+    oak_compiler_error_at(
+        c, expr->token, "this expression has no value (void)");
+  }
 }
