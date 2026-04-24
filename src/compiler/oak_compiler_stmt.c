@@ -14,7 +14,6 @@ void oak_compiler_compile_block(struct oak_compiler_t* c,
      * so the compiler can report as many independent errors as possible. */
     if (c->has_error)
     {
-      c->error_count++;
       c->has_error = 0;
       /* Restore the stack/local state so the next statement compiles cleanly. */
       c->stack_depth = saved_stack;

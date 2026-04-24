@@ -16,19 +16,16 @@ void oak_compiler_error_at(struct oak_compiler_t* c,
                            const char* fmt,
                            ...)
 {
-  static _Thread_local char buf[512];
-  va_list ap;
-  va_start(ap, fmt);
-  vsnprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
+  if (c->result->error_count < OAK_MAX_DIAGNOSTICS)
+  {
+    struct oak_diagnostic_t* d = &c->result->errors[c->result->error_count++];
+    d->line = token ? oak_token_line(token) : 0;
+    d->column = token ? oak_token_column(token) : 0;
 
-  if (token)
-    oak_log(OAK_LOG_ERROR,
-            "%d:%d: error: %s",
-            oak_token_line(token),
-            oak_token_column(token),
-            buf);
-  else
-    oak_log(OAK_LOG_ERROR, "error: %s", buf);
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(d->message, sizeof(d->message), fmt, ap);
+    va_end(ap);
+  }
   c->has_error = 1;
 }

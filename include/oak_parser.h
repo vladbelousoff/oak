@@ -1,5 +1,7 @@
 #pragma once
 
+#include "oak_arena.h"
+#include "oak_diagnostic.h"
 #include "oak_lexer.h"
 #include "oak_token.h"
 
@@ -104,12 +106,22 @@ struct oak_ast_node_t
   };
 };
 
-struct oak_parser_result_t;
+struct oak_parser_result_t
+{
+  struct oak_ast_node_t* root;
+  struct oak_arena_t arena;
+  struct oak_diagnostic_t errors[OAK_MAX_DIAGNOSTICS];
+  int error_count;
+};
 
-struct oak_parser_result_t* oak_parse(const struct oak_lexer_result_t* lexer,
-                                      enum oak_node_kind_t kind);
+void oak_parse(const struct oak_lexer_result_t* lexer,
+               enum oak_node_kind_t kind,
+               struct oak_parser_result_t* out);
 struct oak_ast_node_t*
 oak_parser_root(const struct oak_parser_result_t* result);
+int oak_parser_error_count(const struct oak_parser_result_t* result);
+const struct oak_diagnostic_t*
+oak_parser_errors(const struct oak_parser_result_t* result);
 void oak_parser_free(struct oak_parser_result_t* result);
 
 int oak_node_is_unary_op(enum oak_node_kind_t kind);

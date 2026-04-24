@@ -9,18 +9,20 @@
 static struct oak_chunk_t* try_compile(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   if (!root)
   {
-    oak_parser_free(result);
+    oak_parser_free(&result);
     oak_lexer_free(lexer);
     return null;
   }
-  struct oak_chunk_t* chunk = oak_compile(root);
-  oak_parser_free(result);
+  struct oak_compile_result_t cr = {0};
+  oak_compile(root, &cr);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
-  return chunk;
+  return cr.chunk;
 }
 
 OAK_TEST_DECL(ArrayMustBeTyped)

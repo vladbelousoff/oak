@@ -20,7 +20,6 @@ static void compile_program_items(struct oak_compiler_t* c,
      * checked and all errors are reported in a single compilation pass. */
     if (c->has_error)
     {
-      c->error_count++;
       c->has_error = 0;
       c->stack_depth = 0; /* top-level scope has no stack state */
     }
@@ -66,7 +65,8 @@ static void compile_program(struct oak_compiler_t* c,
   oak_compiler_compile_method_bodies(c);
 }
 
-struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)
+void oak_compile(const struct oak_ast_node_t* root,
+                 struct oak_compile_result_t* out)
 {
   struct oak_chunk_t* chunk =
       oak_alloc(sizeof(struct oak_chunk_t), OAK_SRC_LOC);
@@ -77,11 +77,11 @@ struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)
 
   struct oak_compiler_t compiler = {
     .chunk = chunk,
+    .result = out,
     .local_count = 0,
     .scope_depth = 0,
     .stack_depth = 0,
     .has_error = 0,
-    .error_count = 0,
     .declared_return_type = no_return_type,
     .current_loop = null,
     .function_depth = 0,
@@ -96,16 +96,25 @@ struct oak_chunk_t* oak_compile(const struct oak_ast_node_t* root)
   {
     oak_compiler_error_at(&compiler, null, "expected a program root");
     oak_chunk_free(chunk);
-    return null;
+    return;
   }
 
   compile_program(&compiler, root);
 
-  if (compiler.has_error || compiler.error_count > 0)
+  if (out->error_count > 0)
   {
     oak_chunk_free(chunk);
-    return null;
+    return;
   }
 
-  return chunk;
+  out->chunk = chunk;
+}
+
+void oak_compile_result_free(struct oak_compile_result_t* result)
+{
+  if (result && result->chunk)
+  {
+    oak_chunk_free(result->chunk);
+    result->chunk = null;
+  }
 }
