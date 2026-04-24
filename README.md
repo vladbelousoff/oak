@@ -159,7 +159,7 @@ let c = Green;      // c == 1
 let mut nums = [] as number[];
 nums.push(10);
 nums.push(20);
-print(nums.len());   // 2
+print(nums.size());  // 2
 print(nums[0]);      // 10
 ```
 
@@ -168,7 +168,7 @@ print(nums[0]);      // 10
 ```oak
 let mut m = [:] as [string:number];
 m['x'] = 1;
-print(m.len());     // 1
+print(m.size());    // 1
 print(m.has('x'));  // true
 m.delete('x');
 
@@ -181,10 +181,16 @@ let scores = ['alice': 95, 'bob': 87];
 | Function | Description |
 |----------|-------------|
 | `print(v)` | Print a value followed by a newline |
-| `len(c)` | Number of elements in an array, map, or string |
-| `push(arr, v)` | Append to an array; returns new length |
-| `has(m, k)` | `true` if map `m` contains key `k` |
-| `delete(m, k)` | Remove key `k` from map; returns `true` if it existed |
+| `input()` | Read a line from stdin; returns a string |
+
+### Collection methods
+
+| Method | Receiver | Description |
+|--------|----------|-------------|
+| `.size()` | array, map | Number of elements |
+| `.push(v)` | array | Append `v`; returns new size |
+| `.has(k)` | map | `true` if key `k` exists |
+| `.delete(k)` | map | Remove key `k`; returns `true` if it existed |
 
 ---
 
