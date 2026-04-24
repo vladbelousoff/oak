@@ -93,17 +93,27 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
       continue;
     }
 
+    const int is_comma_sep = rule & OAK_RULE_COMMA_SEP;
     const enum oak_node_kind_t child_kind =
         (enum oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
     if (is_repeat)
     {
       oak_assert(!is_fixed);
+      int is_first = 1;
       for (;;)
       {
+        if (is_comma_sep && !is_first)
+        {
+          /* Comma required between elements; a trailing comma is allowed
+           * (the comma is consumed but the next parse attempt fails). */
+          if (!oak_parser_try_skip_token(p, OAK_TOKEN_COMMA))
+            break;
+        }
         struct oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
         if (!child)
           break;
         oak_list_add_tail(&collected, &child->link);
+        is_first = 0;
       }
       continue;
     }
