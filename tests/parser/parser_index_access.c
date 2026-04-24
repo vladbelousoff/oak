@@ -5,8 +5,9 @@ OAK_TEST_DECL(ParseIndexAccess)
   struct oak_lexer_result_t* lexer =
       OAK_LEX("arr[0]; obj.items[i]; matrix[0][1];");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
   OAK_CHECK_CHILD_COUNT(root, 3);
 
@@ -53,7 +54,7 @@ OAK_TEST_DECL(ParseIndexAccess)
   OAK_CHECK_INT_VAL(oak_test_ast_child(inner, 1), 0);
   OAK_CHECK_INT_VAL(oak_test_ast_child(outer, 1), 1);
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;

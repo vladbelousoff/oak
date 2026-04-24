@@ -4,8 +4,9 @@ OAK_TEST_DECL(ParseWhileStmt)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("while x < 10 { x = x + 1; }");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_STMT);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_STMT, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_STMT_WHILE);
 
   /*
@@ -45,7 +46,7 @@ OAK_TEST_DECL(ParseWhileStmt)
   const struct oak_ast_node_t* assign_rhs = oak_test_ast_child(body_stmt, 1);
   OAK_CHECK_NODE_KIND(assign_rhs, OAK_NODE_BINARY_ADD);
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;

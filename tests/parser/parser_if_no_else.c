@@ -4,8 +4,9 @@ OAK_TEST_DECL(ParseIfNoElse)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("if x == 1 { y = 2; }");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_STMT);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_STMT, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_STMT_IF);
 
   /*
@@ -33,7 +34,7 @@ OAK_TEST_DECL(ParseIfNoElse)
   const struct oak_ast_node_t* then_stmt = oak_test_ast_child(then_block, 0);
   OAK_CHECK_NODE_KIND(then_stmt, OAK_NODE_STMT_ASSIGNMENT);
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;

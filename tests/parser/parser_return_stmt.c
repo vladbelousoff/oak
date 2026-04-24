@@ -5,8 +5,9 @@ OAK_TEST_DECL(ParseReturnStmt)
   struct oak_lexer_result_t* lexer =
       OAK_LEX("fn add(x : number, y : number) -> number { return x + y; }");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 
   /*
@@ -74,7 +75,7 @@ OAK_TEST_DECL(ParseReturnStmt)
   OAK_CHECK_NODE_KIND(rhs, OAK_NODE_IDENT);
   OAK_CHECK_TOKEN_STR(rhs, "y");
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;

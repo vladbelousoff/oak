@@ -5,8 +5,9 @@ OAK_TEST_DECL(ParseLvalueAssign)
   struct oak_lexer_result_t* lexer =
       OAK_LEX("obj.x = 1; arr[0] = 2; obj.x += 3; arr[i] -= 4;");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
   OAK_CHECK_CHILD_COUNT(root, 4);
 
@@ -63,7 +64,7 @@ OAK_TEST_DECL(ParseLvalueAssign)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(stmt3, 1), OAK_NODE_INT);
   OAK_CHECK_INT_VAL(oak_test_ast_child(stmt3, 1), 4);
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;

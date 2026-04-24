@@ -4,8 +4,9 @@ OAK_TEST_DECL(ParseDivisionModulo)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("12 / 4 % 3;");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 
   /* / and % have the same precedence and are left-associative:
@@ -32,7 +33,7 @@ OAK_TEST_DECL(ParseDivisionModulo)
   OAK_CHECK_NODE_KIND(mod->rhs, OAK_NODE_INT);
   OAK_CHECK_INT_VAL(mod->rhs, 3);
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;

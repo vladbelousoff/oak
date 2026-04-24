@@ -4,8 +4,9 @@ OAK_TEST_DECL(ParseMemberAccess)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("obj.x + obj.y;");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 
   /*
@@ -40,7 +41,7 @@ OAK_TEST_DECL(ParseMemberAccess)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(rhs, 1), OAK_NODE_IDENT);
   OAK_CHECK_TOKEN_STR(oak_test_ast_child(rhs, 1), "y");
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;

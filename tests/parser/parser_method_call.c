@@ -4,8 +4,9 @@ OAK_TEST_DECL(ParseMethodCall)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("obj.method(1, 2);");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 
   /*
@@ -49,7 +50,7 @@ OAK_TEST_DECL(ParseMethodCall)
   OAK_CHECK_NODE_KIND(oak_test_ast_child(arg1, 0), OAK_NODE_INT);
   OAK_CHECK_INT_VAL(oak_test_ast_child(arg1, 0), 2);
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;
