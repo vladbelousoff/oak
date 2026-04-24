@@ -48,7 +48,7 @@ OAK_TEST_DECL(MapMustBeTyped)
   chunk = try_compile("let mut m = [:] as [string:number];\n"
                       "m['x'] = 1;\n"
                       "m['y'] = 2;\n"
-                      "print(m.len());\n"
+                      "print(m.size());\n"
                       "print(m['x']);\n");
   OAK_CHECK(chunk != null);
   oak_chunk_free(chunk);

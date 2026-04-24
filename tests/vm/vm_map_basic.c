@@ -33,12 +33,12 @@ static enum oak_test_status_t run_program(const char* source)
 OAK_TEST_DECL(MapBasic)
 {
   /* Construct a typed map, insert and update entries, look them up by key,
-   * and call .len() as a method on the map receiver. */
+   * and call .size() as a method on the map receiver. */
   const char* source = "let mut a = [:] as [string:number];\n"
                        "a['one'] = 1;\n"
                        "a['two'] = 2;\n"
                        "a['three'] = 3;\n"
-                       "print(a.len());\n"
+                       "print(a.size());\n"
                        "print(a['one']);\n"
                        "print(a['two']);\n"
                        "print(a['three']);\n"

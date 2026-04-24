@@ -53,7 +53,7 @@ OAK_TEST_DECL(ArrayLiteral)
   const enum oak_test_status_t r1 = run_program(
       "fn sub(a: number, b: number) -> number { return a - b; }\n"
       "let nums = [1, 54, 13, 45 - sub(5, 3)];\n"
-      "print(nums.len());\n"
+      "print(nums.size());\n"
       "print(nums[0]);\n"
       "print(nums[3]);\n");
   OAK_CHECK(r1 == OAK_TEST_OK);
@@ -61,7 +61,7 @@ OAK_TEST_DECL(ArrayLiteral)
   /* String literal infers element type from the first element. */
   const enum oak_test_status_t r2 = run_program(
       "let words = ['sda', 'ada', 'ert', 'rer'];\n"
-      "print(words.len());\n"
+      "print(words.size());\n"
       "print(words[0]);\n"
       "print(words[3]);\n");
   OAK_CHECK(r2 == OAK_TEST_OK);

@@ -5,16 +5,16 @@ arr.push(3);
 arr.push(4);
 arr.push(5);
 
-print(arr.len());
+print(arr.size());
 
 let mut sum = 0;
-for i from 0 to arr.len() {
+for i from 0 to arr.size() {
   sum += arr[i];
 }
 print(sum);
 
 arr[0] = 100;
-arr[arr.len() - 1] = 500;
+arr[arr.size() - 1] = 500;
 print(arr[0]);
 print(arr[4]);
 
@@ -23,21 +23,21 @@ fn sub(a: number, b: number) -> number {
 }
 
 let nums = [1, 54, 13, 45 - sub(5, 3)];
-print(nums.len());
+print(nums.size());
 print(nums[0]);
 print(nums[1]);
 print(nums[2]);
 print(nums[3]);
 
 let words = ['sda', 'ada', 'ert', 'rer'];
-print(words.len());
+print(words.size());
 print(words[0]);
 print(words[3]);
 
 let mut more = [10, 20, 30];
 more.push(40);
 more[0] = 99;
-print(more.len());
+print(more.size());
 print(more[0]);
 print(more[3]);
 

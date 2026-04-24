@@ -1,5 +1,5 @@
 fn selection_sort(mut arr: number[]) -> number {
-  let n = arr.len();
+  let n = arr.size();
   let mut i = 0;
   while i < n {
     let mut min_idx = i;

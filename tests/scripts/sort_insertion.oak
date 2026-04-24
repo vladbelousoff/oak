@@ -1,5 +1,5 @@
 fn insertion_sort(mut arr: number[]) -> number {
-  let n = arr.len();
+  let n = arr.size();
   let mut i = 1;
   while i < n {
     let key = arr[i];
