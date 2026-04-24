@@ -473,181 +473,66 @@ void oak_value_decref(const struct oak_value_t value)
     oak_obj_decref(oak_as_obj(value));
 }
 
-enum oak_fn_call_result_t oak_builtin_print(void* vm,
-                                            const struct oak_value_t* args,
-                                            int argc,
-                                            struct oak_value_t* out_result)
-{
-  (void)vm;
-  if (argc != 1)
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_value_print(args[0]);
-  *out_result = OAK_VALUE_I32(0);
-  return OAK_FN_CALL_OK;
-}
 
-enum oak_fn_call_result_t oak_builtin_size(void* vm,
-                                           const struct oak_value_t* args,
-                                           const int argc,
-                                           struct oak_value_t* out_result)
-{
-  (void)vm;
-  if (argc != 1)
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  if (oak_is_array(args[0]))
-  {
-    *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
-    return OAK_FN_CALL_OK;
-  }
-  if (oak_is_map(args[0]))
-  {
-    *out_result = OAK_VALUE_I32((int)oak_as_map(args[0])->length);
-    return OAK_FN_CALL_OK;
-  }
-  if (oak_is_string(args[0]))
-  {
-    *out_result = OAK_VALUE_I32((int)oak_as_string(args[0])->length);
-    return OAK_FN_CALL_OK;
-  }
-  return OAK_FN_CALL_RUNTIME_ERROR;
-}
-
-enum oak_fn_call_result_t oak_builtin_push(void* vm,
-                                           const struct oak_value_t* args,
-                                           const int argc,
-                                           struct oak_value_t* out_result)
-{
-  (void)vm;
-  if (argc != 2 || !oak_is_array(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_array_push(oak_as_array(args[0]), args[1]);
-  *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
-  return OAK_FN_CALL_OK;
-}
-
-enum oak_fn_call_result_t oak_builtin_has(void* vm,
-                                          const struct oak_value_t* args,
-                                          const int argc,
-                                          struct oak_value_t* out_result)
-{
-  (void)vm;
-  if (argc != 2 || !oak_is_map(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  const int found = oak_map_has(oak_as_map(args[0]), args[1]);
-  *out_result = OAK_VALUE_BOOL(found);
-  return OAK_FN_CALL_OK;
-}
-
-enum oak_fn_call_result_t oak_builtin_delete(void* vm,
-                                             const struct oak_value_t* args,
-                                             const int argc,
-                                             struct oak_value_t* out_result)
-{
-  (void)vm;
-  if (argc != 2 || !oak_is_map(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  const int removed = oak_map_delete(oak_as_map(args[0]), args[1]);
-  *out_result = OAK_VALUE_BOOL(removed);
-  return OAK_FN_CALL_OK;
-}
-
-enum oak_fn_call_result_t oak_builtin_input(void* vm,
-                                            const struct oak_value_t* args,
-                                            const int argc,
-                                            struct oak_value_t* out_result)
-{
-  (void)vm;
-  oak_assert(argc >= 0 && argc <= 1);
-  if (argc == 1)
-  {
-    if (!oak_is_string(args[0]))
-      return OAK_FN_CALL_RUNTIME_ERROR;
-    fputs(oak_as_cstring(args[0]), stdout);
-    fflush(stdout);
-  }
-
-  usize cap = 128u;
-  char* buf = oak_alloc(cap, OAK_SRC_LOC);
-  usize len = 0u;
-  int c;
-  while ((c = getc(stdin)) != EOF)
-  {
-    if (c == '\n')
-      break;
-    if (len + 1u >= cap)
-    {
-      cap *= 2u;
-      buf = oak_realloc(buf, cap, OAK_SRC_LOC);
-    }
-    buf[len++] = (char)c;
-  }
-
-  if (c == EOF)
-  {
-    if (ferror(stdin))
-    {
-      oak_free(buf, OAK_SRC_LOC);
-      return OAK_FN_CALL_RUNTIME_ERROR;
-    }
-    if (len == 0u && feof(stdin))
-    {
-      oak_free(buf, OAK_SRC_LOC);
-      return OAK_FN_CALL_RUNTIME_ERROR;
-    }
-  }
-
-  struct oak_obj_string_t* s = oak_string_new(buf, len);
-  oak_free(buf, OAK_SRC_LOC);
-  *out_result = OAK_VALUE_OBJ(&s->obj);
-  return OAK_FN_CALL_OK;
-}
-
-void oak_value_print(const struct oak_value_t value)
+/* Renders value into buf (no newline). buf must be at least 1 byte. */
+static void oak_value_format(const struct oak_value_t value,
+                             char* buf,
+                             const usize size)
 {
   if (oak_is_bool(value))
   {
-    oak_log(OAK_LOG_INFO, "%s", oak_as_bool(value) ? "true" : "false");
+    snprintf(buf, size, "%s", oak_as_bool(value) ? "true" : "false");
     return;
   }
   if (oak_is_number(value))
   {
     if (oak_is_f32(value))
-      oak_log(OAK_LOG_INFO, "%f", oak_as_f32(value));
+      snprintf(buf, size, "%f", oak_as_f32(value));
     else
-      oak_log(OAK_LOG_INFO, "%d", oak_as_i32(value));
+      snprintf(buf, size, "%d", oak_as_i32(value));
     return;
   }
   if (oak_is_obj(value))
   {
     if (oak_is_string(value))
-      oak_log(OAK_LOG_INFO, "%s", oak_as_cstring(value));
+      snprintf(buf, size, "%s", oak_as_cstring(value));
     else if (oak_is_fn(value))
-      oak_log(OAK_LOG_INFO, "<fn @%zu>", oak_as_fn(value)->code_offset);
+      snprintf(buf, size, "<fn @%zu>", oak_as_fn(value)->code_offset);
     else if (oak_is_native_fn(value))
-    {
-      char buf[160];
-      oak_native_fn_format(buf, sizeof(buf), oak_as_native_fn(value));
-      oak_log(OAK_LOG_INFO, "%s", buf);
-    }
+      oak_native_fn_format(buf, size, oak_as_native_fn(value));
     else if (oak_is_array(value))
-    {
-      const struct oak_obj_array_t* arr = oak_as_array(value);
-      oak_log(OAK_LOG_INFO, "<array len=%zu>", arr->length);
-    }
+      snprintf(buf, size, "<array len=%zu>", oak_as_array(value)->length);
     else if (oak_is_map(value))
-    {
-      const struct oak_obj_map_t* map = oak_as_map(value);
-      oak_log(OAK_LOG_INFO, "<map len=%zu>", map->length);
-    }
+      snprintf(buf, size, "<map len=%zu>", oak_as_map(value)->length);
     else if (oak_is_struct(value))
     {
       const struct oak_obj_struct_t* s = oak_as_struct(value);
-      oak_log(OAK_LOG_INFO,
-              "<%s fields=%d>",
-              s->type_name ? s->type_name : "struct",
-              s->field_count);
+      snprintf(buf, size, "<%s fields=%d>",
+               s->type_name ? s->type_name : "struct",
+               s->field_count);
     }
     else
-      oak_log(OAK_LOG_INFO, "%p", oak_as_obj(value));
+      snprintf(buf, size, "%p", (void*)oak_as_obj(value));
+    return;
   }
+  buf[0] = '\0';
+}
+
+#define OAK_PRINT_BUF_SIZE 4096
+
+void oak_value_print(const struct oak_value_t value)
+{
+  char buf[OAK_PRINT_BUF_SIZE];
+  oak_value_format(value, buf, sizeof(buf));
+  fputs(buf, stdout);
+}
+
+void oak_value_println(const struct oak_value_t value)
+{
+  char buf[OAK_PRINT_BUF_SIZE + 1];
+  oak_value_format(value, buf, OAK_PRINT_BUF_SIZE);
+  const usize len = strlen(buf);
+  buf[len]     = '\n';
+  buf[len + 1] = '\0';
+  fputs(buf, stdout);
 }

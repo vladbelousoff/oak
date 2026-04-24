@@ -40,9 +40,100 @@ static void register_native_fn(struct oak_compiler_t* c,
   slot->decl = null;
 }
 
+static enum oak_fn_call_result_t builtin_print(void* vm,
+                                               const struct oak_value_t* args,
+                                               int argc,
+                                               struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  oak_value_print(args[0]);
+  *out_result = OAK_VALUE_I32(0);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_println(void* vm,
+                                                 const struct oak_value_t* args,
+                                                 int argc,
+                                                 struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  oak_value_println(args[0]);
+  *out_result = OAK_VALUE_I32(0);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_size(void* vm,
+                                              const struct oak_value_t* args,
+                                              int argc,
+                                              struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (oak_is_array(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  if (oak_is_map(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_map(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  if (oak_is_string(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_string(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  return OAK_FN_CALL_RUNTIME_ERROR;
+}
+
+static enum oak_fn_call_result_t builtin_push(void* vm,
+                                              const struct oak_value_t* args,
+                                              int argc,
+                                              struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 2 || !oak_is_array(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  oak_array_push(oak_as_array(args[0]), args[1]);
+  *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_has(void* vm,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 2 || !oak_is_map(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const int found = oak_map_has(oak_as_map(args[0]), args[1]);
+  *out_result = OAK_VALUE_BOOL(found);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_delete(void* vm,
+                                                const struct oak_value_t* args,
+                                                int argc,
+                                                struct oak_value_t* out_result)
+{
+  (void)vm;
+  if (argc != 2 || !oak_is_map(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const int removed = oak_map_delete(oak_as_map(args[0]), args[1]);
+  *out_result = OAK_VALUE_BOOL(removed);
+  return OAK_FN_CALL_OK;
+}
+
 static const struct oak_native_binding_t native_builtins[] = {
-  { "print", oak_builtin_print, 1, 1 },
-  { "input", oak_builtin_input, 0, 1 },
+  { "print",   builtin_print,   1, 1 },
+  { "println", builtin_println, 1, 1 },
 };
 
 void oak_compiler_register_native_builtins(struct oak_compiler_t* c)
@@ -112,18 +203,18 @@ static void validate_map_key_arg(struct oak_compiler_t* c,
 
 static const struct oak_builtin_method_def_t array_method_table[] = {
   /* push(receiver, value) -> new length. */
-  { "push", oak_builtin_push, 2, OAK_TYPE_NUMBER, validate_array_push_args },
+  { "push", builtin_push, 2, OAK_TYPE_NUMBER, validate_array_push_args },
   /* size(receiver) -> length. */
-  { "size", oak_builtin_size, 1, OAK_TYPE_NUMBER, null },
+  { "size", builtin_size, 1, OAK_TYPE_NUMBER, null },
 };
 
 static const struct oak_builtin_method_def_t map_method_table[] = {
   /* size(receiver) -> length. */
-  { "size", oak_builtin_size, 1, OAK_TYPE_NUMBER, null },
+  { "size", builtin_size, 1, OAK_TYPE_NUMBER, null },
   /* has(receiver, key) -> bool. */
-  { "has", oak_builtin_has, 2, OAK_TYPE_BOOL, validate_map_key_arg },
+  { "has", builtin_has, 2, OAK_TYPE_BOOL, validate_map_key_arg },
   /* delete(receiver, key) -> bool (true if removed). */
-  { "delete", oak_builtin_delete, 2, OAK_TYPE_BOOL, validate_map_key_arg },
+  { "delete", builtin_delete, 2, OAK_TYPE_BOOL, validate_map_key_arg },
 };
 
 static void
