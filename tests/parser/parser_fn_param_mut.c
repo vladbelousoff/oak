@@ -5,8 +5,9 @@ OAK_TEST_DECL(ParseFnParamMut)
   struct oak_lexer_result_t* lexer =
       OAK_LEX("fn foo(mut x : number, y : number) -> number { x = 1; }");
 
-  struct oak_parser_result_t* result = oak_parse(lexer, OAK_NODE_PROGRAM);
-  const struct oak_ast_node_t* root = oak_parser_root(result);
+  struct oak_parser_result_t result = {0};
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 
   /*
@@ -70,7 +71,7 @@ OAK_TEST_DECL(ParseFnParamMut)
   const struct oak_ast_node_t* stmt = oak_test_ast_child(body, 0);
   OAK_CHECK_NODE_KIND(stmt, OAK_NODE_STMT_ASSIGNMENT);
 
-  oak_parser_free(result);
+  oak_parser_free(&result);
   oak_lexer_free(lexer);
 
   return OAK_TEST_OK;
