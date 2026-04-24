@@ -253,7 +253,7 @@ static void compile_expr_array_literal(struct oak_compiler_t* c,
 
   oak_compiler_emit_op_arg(
       c, OAK_OP_NEW_ARRAY_FROM_STACK, (u8)count, OAK_LOC_SYNTHETIC);
-  c->stack_depth -= (int)count;
+  c->scope.stack_depth -= (int)count;
 }
 
 static void compile_expr_map_literal(struct oak_compiler_t* c,
@@ -355,7 +355,7 @@ static void compile_expr_map_literal(struct oak_compiler_t* c,
 
   oak_compiler_emit_op_arg(
       c, OAK_OP_NEW_MAP_FROM_STACK, (u8)count, OAK_LOC_SYNTHETIC);
-  c->stack_depth -= (int)count * 2;
+  c->scope.stack_depth -= (int)count * 2;
 }
 
 static void compile_expr_cast(struct oak_compiler_t* c,
@@ -578,7 +578,7 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
 
   oak_compiler_emit_op_arg(
       c, OAK_OP_NEW_STRUCT_FROM_STACK, (u8)sd->field_count, OAK_LOC_SYNTHETIC);
-  c->stack_depth -= sd->field_count;
+  c->scope.stack_depth -= sd->field_count;
 }
 
 void oak_compiler_compile_node(struct oak_compiler_t* c,
@@ -692,7 +692,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         return;
       const usize false_jump =
           oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, loc);
-      const int depth_after_jif = c->stack_depth;
+      const int depth_after_jif = c->scope.stack_depth;
       oak_compiler_compile_node(c, node->rhs);
       if (c->has_error)
         return;
@@ -700,7 +700,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_emit_op(c, OAK_OP_NOT, loc);
       const usize end_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, loc);
       oak_compiler_patch_jump(c, false_jump);
-      c->stack_depth = depth_after_jif;
+      c->scope.stack_depth = depth_after_jif;
       oak_compiler_emit_op(c, OAK_OP_FALSE, loc);
       oak_compiler_patch_jump(c, end_jump);
       break;
@@ -729,7 +729,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_emit_op(c, OAK_OP_NOT, loc);
       const usize true_jump =
           oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, loc);
-      const int depth_after_jif = c->stack_depth;
+      const int depth_after_jif = c->scope.stack_depth;
       oak_compiler_compile_node(c, node->rhs);
       if (c->has_error)
         return;
@@ -737,7 +737,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_emit_op(c, OAK_OP_NOT, loc);
       const usize end_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, loc);
       oak_compiler_patch_jump(c, true_jump);
-      c->stack_depth = depth_after_jif;
+      c->scope.stack_depth = depth_after_jif;
       oak_compiler_emit_op(c, OAK_OP_TRUE, loc);
       oak_compiler_patch_jump(c, end_jump);
       break;
@@ -756,10 +756,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     }
     case OAK_NODE_STMT_EXPR:
     {
-      const int depth_before = c->stack_depth;
+      const int depth_before = c->scope.stack_depth;
       struct oak_ast_node_t* expr = node->child;
       oak_compiler_compile_node(c, expr);
-      if (c->stack_depth > depth_before)
+      if (c->scope.stack_depth > depth_before)
         oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }
@@ -800,7 +800,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       const char* name = oak_token_text(ident->token);
       const usize name_len = oak_token_length(ident->token);
       oak_compiler_add_local(
-          c, name, name_len, c->stack_depth - 1, is_mutable, rhs_ty);
+          c, name, name_len, c->scope.stack_depth - 1, is_mutable, rhs_ty);
 
       break;
     }
@@ -914,12 +914,12 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     {
       const int is_break = node->kind == OAK_NODE_STMT_BREAK;
       const char* keyword = is_break ? "break" : "continue";
-      if (!c->current_loop)
+      if (!c->scope.current_loop)
       {
         oak_compiler_error_at(c, null, "'%s' used outside of a loop", keyword);
         return;
       }
-      struct oak_loop_frame_t* loop = c->current_loop;
+      struct oak_loop_frame_t* loop = c->scope.current_loop;
       oak_compiler_emit_loop_control_jump(
           c,
           is_break ? loop->break_jumps : loop->continue_jumps,
