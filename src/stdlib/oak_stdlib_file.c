@@ -7,41 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32)
-#include <direct.h>
-#else
-#include <unistd.h>
-#endif
-
 typedef struct oak_file_handle_t
 {
   FILE* fp;
 } oak_file_handle_t;
 
 static const struct oak_native_type_t* s_file_type;
-
-/* Returns the process current working directory (no trailing separator). */
-static enum oak_fn_call_result_t builtin_pwd(void* vm,
-                                             const struct oak_value_t* args,
-                                             int argc,
-                                             struct oak_value_t* out)
-{
-  (void)vm;
-  if (argc != 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  char buf[4096];
-#if defined(_WIN32)
-  if (_getcwd(buf, (int)sizeof buf) == null)
-    return OAK_FN_CALL_RUNTIME_ERROR;
-#else
-  if (getcwd(buf, sizeof buf) == null)
-    return OAK_FN_CALL_RUNTIME_ERROR;
-#endif
-  const usize n = strlen(buf);
-  struct oak_obj_string_t* s = oak_string_new(buf, n);
-  *out = OAK_VALUE_OBJ(&s->obj);
-  return OAK_FN_CALL_OK;
-}
 
 static enum oak_fn_call_result_t file_open(void* vm,
                                            const struct oak_value_t* args,
@@ -181,16 +152,6 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
 {
   if (!opts)
     return;
-  oak_bind_fn(opts,
-              &(oak_bind_fn_params_t){
-                  .kind = OAK_BIND_FN_GLOBAL,
-                  .receiver_type_id = OAK_TYPE_VOID,
-                  .name = "pwd",
-                  .impl = builtin_pwd,
-                  .arity = 0,
-                  .return_type_id = OAK_TYPE_STRING,
-                  .return_shape = OAK_BIND_RETURN_SCALAR,
-              });
   struct oak_native_type_t* t = oak_bind_type(opts, OAK_BIND_RECORD, "File");
   if (!t)
     return;

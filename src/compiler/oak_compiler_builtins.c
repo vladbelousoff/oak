@@ -36,19 +36,6 @@ static enum oak_fn_call_result_t builtin_print(void* vm,
   (void)vm;
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_value_print(args[0]);
-  *out_result = OAK_VALUE_I32(0);
-  return OAK_FN_CALL_OK;
-}
-
-static enum oak_fn_call_result_t builtin_println(void* vm,
-                                                 const struct oak_value_t* args,
-                                                 int argc,
-                                                 struct oak_value_t* out_result)
-{
-  (void)vm;
-  if (argc != 1)
-    return OAK_FN_CALL_RUNTIME_ERROR;
   oak_value_println(args[0]);
   *out_result = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
@@ -121,7 +108,6 @@ static enum oak_fn_call_result_t builtin_delete(void* vm,
 
 static const struct oak_native_binding_t native_builtins[] = {
   { "print", builtin_print, 1 },
-  { "println", builtin_println, 1 },
 };
 
 void oak_compiler_register_native_builtins(struct oak_compiler_t* c)
