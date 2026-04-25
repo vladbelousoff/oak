@@ -152,16 +152,16 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
 
 /* ---------- Runtime helpers ---------- */
 
-struct oak_value_t oak_native_struct_new(const struct oak_native_type_t* type,
+struct oak_value_t oak_native_record_new(const struct oak_native_type_t* type,
                                          void* instance)
 {
   oak_assert(type != null);
-  struct oak_obj_native_struct_t* ns =
-      oak_obj_native_struct_new(type, instance);
+  struct oak_obj_native_record_t* ns =
+      oak_obj_native_record_new(type, instance);
   return OAK_VALUE_OBJ(&ns->obj);
 }
 
 void* oak_native_instance(const struct oak_value_t value)
 {
-  return oak_as_native_struct(value)->instance;
+  return oak_as_native_record(value)->instance;
 }

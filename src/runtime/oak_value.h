@@ -20,11 +20,11 @@ enum oak_obj_type_t
   OAK_OBJ_MAP,
   OAK_OBJ_FN,
   OAK_OBJ_NATIVE_FN,
-  OAK_OBJ_STRUCT,
-  /* A native C struct wrapped as an Oak value.  The underlying instance
+  OAK_OBJ_RECORD,
+  /* A native C value wrapped as an Oak value.  The underlying instance
    * pointer is not owned by Oak; the type descriptor pointer is borrowed from
    * the oak_native_type_t that was registered with oak_bind_type(). */
-  OAK_OBJ_NATIVE_STRUCT,
+  OAK_OBJ_NATIVE_RECORD,
 };
 
 struct oak_obj_t
@@ -101,13 +101,13 @@ struct oak_value_t
   } as;
 };
 
-/* User-defined struct instance. Fields are stored densely in declaration
- * order. The struct's compile-time type is not tracked at runtime; field
+/* User-defined record instance. Fields are stored densely in declaration
+ * order. The record's compile-time type is not tracked at runtime; field
  * lookup is resolved to a fixed index by the compiler. */
-struct oak_obj_struct_t
+struct oak_obj_record_t
 {
   struct oak_obj_t obj;
-  /* Borrowed pointer to the struct's name (lives for the lifetime of the
+  /* Borrowed pointer to the record's name (lives for the lifetime of the
    * source buffer); used for diagnostics only. May be null. */
   const char* type_name;
   int field_count;
@@ -117,11 +117,11 @@ struct oak_obj_struct_t
 /* Forward declaration — full definition lives in oak_bind.h. */
 struct oak_native_type_t;
 
-/* A native C struct wrapped as an Oak heap object.  Neither `instance` nor
+/* A native C instance wrapped as an Oak heap object.  Neither `instance` nor
  * `type` are owned: the caller must ensure both outlive any Oak values that
  * wrap them.  When the refcount reaches zero only the wrapper object itself
  * is freed. */
-struct oak_obj_native_struct_t
+struct oak_obj_native_record_t
 {
   struct oak_obj_t obj;
   void* instance; /* raw C pointer; not freed by Oak */
@@ -196,10 +196,10 @@ struct oak_obj_native_fn_t* oak_native_fn_new(oak_native_fn_t fn,
 struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
 
-struct oak_obj_struct_t* oak_struct_new(int field_count, const char* type_name);
+struct oak_obj_record_t* oak_record_new(int field_count, const char* type_name);
 
-struct oak_obj_native_struct_t*
-oak_obj_native_struct_new(const struct oak_native_type_t* type, void* instance);
+struct oak_obj_native_record_t*
+oak_obj_native_record_new(const struct oak_native_type_t* type, void* instance);
 
 struct oak_obj_map_t* oak_map_new(void);
 /* Returns 1 and writes the value into *out if found; 0 otherwise. */
@@ -261,14 +261,14 @@ static inline int oak_is_map(const struct oak_value_t value)
   return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_MAP;
 }
 
-static inline int oak_is_struct(const struct oak_value_t value)
+static inline int oak_is_record(const struct oak_value_t value)
 {
-  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_STRUCT;
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_RECORD;
 }
 
-static inline int oak_is_native_struct(const struct oak_value_t value)
+static inline int oak_is_native_record(const struct oak_value_t value)
 {
-  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_NATIVE_STRUCT;
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_NATIVE_RECORD;
 }
 
 static inline int oak_is_i32(const struct oak_value_t value)
@@ -339,18 +339,18 @@ static inline struct oak_obj_map_t* oak_as_map(const struct oak_value_t value)
   return (struct oak_obj_map_t*)value.as.obj;
 }
 
-static inline struct oak_obj_struct_t*
-oak_as_struct(const struct oak_value_t value)
+static inline struct oak_obj_record_t*
+oak_as_record(const struct oak_value_t value)
 {
-  oak_assert(oak_is_struct(value));
-  return (struct oak_obj_struct_t*)value.as.obj;
+  oak_assert(oak_is_record(value));
+  return (struct oak_obj_record_t*)value.as.obj;
 }
 
-static inline struct oak_obj_native_struct_t*
-oak_as_native_struct(const struct oak_value_t value)
+static inline struct oak_obj_native_record_t*
+oak_as_native_record(const struct oak_value_t value)
 {
-  oak_assert(oak_is_native_struct(value));
-  return (struct oak_obj_native_struct_t*)value.as.obj;
+  oak_assert(oak_is_native_record(value));
+  return (struct oak_obj_native_record_t*)value.as.obj;
 }
 
 static inline char* oak_as_cstring(const struct oak_value_t value)

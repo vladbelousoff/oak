@@ -58,7 +58,7 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
     { "let", OAK_TOKEN_LET },     { "mut", OAK_TOKEN_MUT },
     { "new", OAK_TOKEN_NEW },     { "not", OAK_TOKEN_NOT },
     { "or", OAK_TOKEN_OR },       { "return", OAK_TOKEN_RETURN },
-    { "self", OAK_TOKEN_SELF },   { "struct", OAK_TOKEN_STRUCT },
+    { "self", OAK_TOKEN_SELF },   { "record", OAK_TOKEN_RECORD },
     { "to", OAK_TOKEN_TO },       { "true", OAK_TOKEN_TRUE },
     { "type", OAK_TOKEN_TYPE },   { "while", OAK_TOKEN_WHILE },
   };
@@ -181,8 +181,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "SLASH_ASSIGN";
     case OAK_TOKEN_PERCENT_ASSIGN:
       return "PERCENT_ASSIGN";
-    case OAK_TOKEN_STRUCT:
-      return "STRUCT";
+    case OAK_TOKEN_RECORD:
+      return "RECORD";
     case OAK_TOKEN_ENUM:
       return "ENUM";
     case OAK_TOKEN_FN:

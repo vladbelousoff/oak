@@ -61,7 +61,7 @@ static enum oak_fn_call_result_t file_open(void* vm,
     return OAK_FN_CALL_RUNTIME_ERROR;
   }
   h->fp = fp;
-  *out = oak_native_struct_new(s_file_type, h);
+  *out = oak_native_record_new(s_file_type, h);
   return OAK_FN_CALL_OK;
 }
 
@@ -71,7 +71,7 @@ static enum oak_fn_call_result_t file_read(void* vm,
                                            struct oak_value_t* out)
 {
   (void)vm;
-  if (argc != 1 || !oak_is_native_struct(args[0]))
+  if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
@@ -95,7 +95,7 @@ static enum oak_fn_call_result_t file_read_all(void* vm,
                                                struct oak_value_t* out)
 {
   (void)vm;
-  if (argc != 1 || !oak_is_native_struct(args[0]))
+  if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
@@ -133,7 +133,7 @@ static enum oak_fn_call_result_t file_write(void* vm,
                                             struct oak_value_t* out)
 {
   (void)vm;
-  if (argc != 2 || !oak_is_native_struct(args[0]) || !oak_is_string(args[1]))
+  if (argc != 2 || !oak_is_native_record(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
@@ -150,7 +150,7 @@ static enum oak_fn_call_result_t file_eof(void* vm,
                                           struct oak_value_t* out)
 {
   (void)vm;
-  if (argc != 1 || !oak_is_native_struct(args[0]))
+  if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
@@ -165,7 +165,7 @@ static enum oak_fn_call_result_t file_close(void* vm,
                                             struct oak_value_t* out)
 {
   (void)vm;
-  if (argc != 1 || !oak_is_native_struct(args[0]))
+  if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
@@ -191,7 +191,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                   .return_type_id = OAK_TYPE_STRING,
                   .return_shape = OAK_BIND_RETURN_SCALAR,
               });
-  struct oak_native_type_t* t = oak_bind_type(opts, OAK_BIND_STRUCT, "File");
+  struct oak_native_type_t* t = oak_bind_type(opts, OAK_BIND_RECORD, "File");
   if (!t)
     return;
   s_file_type = t;

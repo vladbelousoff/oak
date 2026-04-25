@@ -145,8 +145,8 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
           c, lhs->token, "field assignment requires 'expr.field = expr'");
       return;
     }
-    const struct oak_registered_struct_t* sd = null;
-    const int idx = oak_compiler_require_struct_field(c, recv, fname, 1, &sd);
+    const struct oak_registered_record_t* sd = null;
+    const int idx = oak_compiler_require_record_field(c, recv, fname, 1, &sd);
     if (idx < 0)
       return;
 
@@ -156,7 +156,7 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
     {
       oak_compiler_error_at(c,
                             rhs->token ? rhs->token : fname->token,
-                            "cannot assign void to a struct field");
+                            "cannot assign void to a record field");
       return;
     }
     if (oak_type_is_known(&val_ty) &&
@@ -472,8 +472,8 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
   oak_compiler_reject_void_value_expr(c, recv);
   if (c->has_error)
     return;
-  const struct oak_registered_struct_t* sd = null;
-  const int idx = oak_compiler_require_struct_field(c, recv, fname, 0, &sd);
+  const struct oak_registered_record_t* sd = null;
+  const int idx = oak_compiler_require_record_field(c, recv, fname, 0, &sd);
   (void)sd;
   if (idx < 0)
     return;
@@ -482,7 +482,7 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
       c, OAK_OP_GET_FIELD, (u8)idx, oak_compiler_loc_from_token(fname->token));
 }
 
-static void compile_expr_struct_literal(struct oak_compiler_t* c,
+static void compile_expr_record_literal(struct oak_compiler_t* c,
                                         const struct oak_ast_node_t* node)
 {
   const struct oak_ast_node_t* name_node = node->lhs;
@@ -490,37 +490,37 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
   if (!name_node || name_node->kind != OAK_NODE_IDENT)
   {
     oak_compiler_error_at(
-        c, node->token, "struct literal: type must be an identifier");
+        c, node->token, "record literal: type must be an identifier");
     return;
   }
-  if (!fields_node || fields_node->kind != OAK_NODE_STRUCT_LITERAL_FIELDS)
+  if (!fields_node || fields_node->kind != OAK_NODE_RECORD_LITERAL_FIELDS)
   {
     oak_compiler_error_at(
-        c, node->token, "struct literal: malformed field list");
+        c, node->token, "record literal: malformed field list");
     return;
   }
   const char* sname = oak_token_text(name_node->token);
   const usize sname_len = oak_token_length(name_node->token);
-  const struct oak_registered_struct_t* sd =
-      oak_compiler_find_struct_by_name(c, sname, sname_len);
+  const struct oak_registered_record_t* sd =
+      oak_compiler_find_record_by_name(c, sname, sname_len);
   if (!sd)
   {
     oak_compiler_error_at(
-        c, name_node->token, "unknown struct type '%s'", sname);
+        c, name_node->token, "unknown record type '%s'", sname);
     return;
   }
 
-  const struct oak_ast_node_t* exprs[OAK_MAX_STRUCT_FIELDS] = { 0 };
+  const struct oak_ast_node_t* exprs[OAK_MAX_RECORD_FIELDS] = { 0 };
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &fields_node->children)
   {
     const struct oak_ast_node_t* entry =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (entry->kind != OAK_NODE_STRUCT_LITERAL_FIELD || !entry->lhs ||
+    if (entry->kind != OAK_NODE_RECORD_LITERAL_FIELD || !entry->lhs ||
         !entry->rhs)
     {
       oak_compiler_error_at(
-          c, entry->token, "malformed struct field initializer");
+          c, entry->token, "malformed record field initializer");
       return;
     }
     const struct oak_ast_node_t* fname = entry->lhs;
@@ -528,18 +528,18 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
     if (fname->kind != OAK_NODE_IDENT)
     {
       oak_compiler_error_at(
-          c, fname->token, "struct field name must be an identifier");
+          c, fname->token, "record field name must be an identifier");
       return;
     }
 
     const usize fname_len = oak_token_length(fname->token);
-    const int idx = oak_compiler_find_struct_field(
+    const int idx = oak_compiler_find_record_field(
         sd, oak_token_text(fname->token), fname_len);
     if (idx < 0)
     {
       oak_compiler_error_at(c,
                             fname->token,
-                            "no such field '%s' on struct '%s'",
+                            "no such field '%s' on record '%s'",
                             oak_token_text(fname->token),
                             sd->name);
       return;
@@ -548,7 +548,7 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
     {
       oak_compiler_error_at(c,
                             fname->token,
-                            "duplicate field '%s' in struct literal",
+                            "duplicate field '%s' in record literal",
                             oak_token_text(fname->token));
       return;
     }
@@ -598,7 +598,7 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
   }
 
   oak_compiler_emit_op_arg(
-      c, OAK_OP_NEW_STRUCT_FROM_STACK, (u8)sd->field_count, OAK_LOC_SYNTHETIC);
+      c, OAK_OP_NEW_RECORD_FROM_STACK, (u8)sd->field_count, OAK_LOC_SYNTHETIC);
   c->scope.stack_depth -= sd->field_count;
 }
 
@@ -927,8 +927,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_MEMBER_ACCESS:
       compile_expr_member_access(c, node);
       break;
-    case OAK_NODE_EXPR_STRUCT_LITERAL:
-      compile_expr_struct_literal(c, node);
+    case OAK_NODE_EXPR_RECORD_LITERAL:
+      compile_expr_record_literal(c, node);
       break;
     case OAK_NODE_STMT_IF:
       oak_compiler_compile_stmt_if(c, node);

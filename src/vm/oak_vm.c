@@ -484,14 +484,14 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           return r;
         break;
       }
-      case OAK_OP_NEW_STRUCT_FROM_STACK:
+      case OAK_OP_NEW_RECORD_FROM_STACK:
       {
         /* Stack on entry: [..., type_name_string, f0, f1, ..., f(N-1)].
-         * Result: [..., struct]. */
+         * Result: [..., record]. */
         const u8 count = (u8)oak_vm_read(vm, 1);
         if ((usize)(vm->sp - vm->stack) < (usize)count + 1u)
         {
-          oak_vm_runtime_error(vm, "stack underflow in struct literal");
+          oak_vm_runtime_error(vm, "stack underflow in record literal");
           return OAK_VM_RUNTIME_ERROR;
         }
         struct oak_value_t* base = vm->sp - (int)count;
@@ -500,7 +500,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         if (oak_is_string(type_name_val))
           type_name = oak_as_string(type_name_val)->chars;
 
-        struct oak_obj_struct_t* s = oak_struct_new((int)count, type_name);
+        struct oak_obj_record_t* s = oak_record_new((int)count, type_name);
         for (int i = 0; i < (int)count; ++i)
         {
           oak_value_incref(base[i]);
@@ -517,14 +517,14 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       {
         const u8 idx = (u8)oak_vm_read(vm, 1);
         const struct oak_value_t recv = oak_vm_pop(vm);
-        if (oak_is_struct(recv))
+        if (oak_is_record(recv))
         {
-          const struct oak_obj_struct_t* s = oak_as_struct(recv);
+          const struct oak_obj_record_t* s = oak_as_record(recv);
           if ((int)idx >= s->field_count)
           {
             oak_vm_runtime_error(
                 vm,
-                "field index %u out of bounds (struct has %d fields)",
+                "field index %u out of bounds (record has %d fields)",
                 (unsigned)idx,
                 s->field_count);
             oak_value_decref(recv);
@@ -533,13 +533,13 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           oak_vm_push(vm, s->fields[idx]);
           oak_value_decref(recv);
         }
-        else if (oak_is_native_struct(recv))
+        else if (oak_is_native_record(recv))
         {
-          const struct oak_obj_native_struct_t* ns = oak_as_native_struct(recv);
+          const struct oak_obj_native_record_t* ns = oak_as_native_record(recv);
           if ((int)idx >= ns->type->field_count)
           {
             oak_vm_runtime_error(vm,
-                                 "field index %u out of bounds (native struct "
+                                 "field index %u out of bounds (native record "
                                  "'%s' has %d fields)",
                                  (unsigned)idx,
                                  ns->type->name,
@@ -555,7 +555,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         else
         {
           oak_vm_runtime_error(vm,
-                               "field access requires a struct, got %s",
+                               "field access requires a record, got %s",
                                oak_vm_value_kind_desc(recv));
           oak_value_decref(recv);
           return OAK_VM_RUNTIME_ERROR;
@@ -573,14 +573,14 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         }
         const struct oak_value_t value = vm->sp[-1];
         const struct oak_value_t recv = vm->sp[-2];
-        if (oak_is_struct(recv))
+        if (oak_is_record(recv))
         {
-          struct oak_obj_struct_t* s = oak_as_struct(recv);
+          struct oak_obj_record_t* s = oak_as_record(recv);
           if ((int)idx >= s->field_count)
           {
             oak_vm_runtime_error(
                 vm,
-                "field index %u out of bounds (struct has %d fields)",
+                "field index %u out of bounds (record has %d fields)",
                 (unsigned)idx,
                 s->field_count);
             return OAK_VM_RUNTIME_ERROR;
@@ -591,13 +591,13 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           oak_value_decref(recv);
           vm->sp[-2] = value;
         }
-        else if (oak_is_native_struct(recv))
+        else if (oak_is_native_record(recv))
         {
-          const struct oak_obj_native_struct_t* ns = oak_as_native_struct(recv);
+          const struct oak_obj_native_record_t* ns = oak_as_native_record(recv);
           if ((int)idx >= ns->type->field_count)
           {
             oak_vm_runtime_error(vm,
-                                 "field index %u out of bounds (native struct "
+                                 "field index %u out of bounds (native record "
                                  "'%s' has %d fields)",
                                  (unsigned)idx,
                                  ns->type->name,
@@ -608,7 +608,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           {
             oak_vm_runtime_error(
                 vm,
-                "field '%s' on native struct '%s' is read-only",
+                "field '%s' on native record '%s' is read-only",
                 ns->type->fields[idx].name,
                 ns->type->name);
             return OAK_VM_RUNTIME_ERROR;
@@ -620,7 +620,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         else
         {
           oak_vm_runtime_error(vm,
-                               "field assignment requires a struct, got %s",
+                               "field assignment requires a record, got %s",
                                oak_vm_value_kind_desc(recv));
           return OAK_VM_RUNTIME_ERROR;
         }

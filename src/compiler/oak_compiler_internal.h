@@ -22,7 +22,7 @@
 
 #define OAK_MAX_ARRAY_METHODS  8
 #define OAK_MAX_MAP_METHODS    8
-#define OAK_MAX_STRUCT_FIELDS  32
+#define OAK_MAX_RECORD_FIELDS  32
 
 /* ---------- Per-fn ephemeral compilation state ---------- */
 
@@ -66,7 +66,7 @@ struct oak_scope_ctx_t
 
 /* decl is null for native (C) functions/methods registered at compile time.
  * receiver_type_id == OAK_TYPE_VOID means global function; any other value
- * means a method on the struct with that type_id.
+ * means a method on the record with that type_id.
  * return_type_id == OAK_TYPE_VOID means void (or inferred from decl). */
 struct oak_registered_fn_t
 {
@@ -133,9 +133,9 @@ struct oak_builtin_methods_t
   int map_count;
 };
 
-/* ---------- Struct registry ---------- */
+/* ---------- Record registry ---------- */
 
-struct oak_struct_field_t
+struct oak_record_field_t
 {
   /* Borrowed pointer into the lexer arena (lives for the compilation). */
   const char* name;
@@ -143,30 +143,30 @@ struct oak_struct_field_t
   struct oak_type_t type;
 };
 
-struct oak_registered_struct_t
+struct oak_registered_record_t
 {
   const char* name;
   usize name_len;
   oak_type_id_t type_id;
   int field_count;
-  struct oak_struct_field_t fields[OAK_MAX_STRUCT_FIELDS];
-  /* Methods: growable array.  Freed by oak_struct_registry_free. */
+  struct oak_record_field_t fields[OAK_MAX_RECORD_FIELDS];
+  /* Methods: growable array.  Freed by oak_record_registry_free. */
   int method_count;
   int method_capacity;
   struct oak_registered_fn_t* methods;
-  /* Static methods: TypeName.method(...).  Freed by oak_struct_registry_free. */
+  /* Static methods: TypeName.method(...).  Freed by oak_record_registry_free. */
   int static_method_count;
   int static_method_capacity;
   struct oak_registered_fn_t* static_methods;
 };
 
-/* Unbounded registry of user struct types.
+/* Unbounded registry of user record types.
  * by_name gives O(1) name lookup; find_by_type_id uses a linear scan
- * (type_id lookups are infrequent and struct counts remain small). */
-struct oak_struct_registry_t
+ * (type_id lookups are infrequent and record counts remain small). */
+struct oak_record_registry_t
 {
   struct oak_hash_table_t by_name;         /* name bytes → index */
-  struct oak_registered_struct_t* entries; /* growable array     */
+  struct oak_registered_record_t* entries; /* growable array     */
   int count;
   int capacity;
 };
@@ -210,7 +210,7 @@ struct oak_compiler_t
   struct oak_fn_registry_t fns;
   struct oak_type_registry_t types;
   struct oak_builtin_methods_t builtin_methods;
-  struct oak_struct_registry_t structs;
+  struct oak_record_registry_t records;
   struct oak_enum_registry_t enums;
 };
 
@@ -219,8 +219,8 @@ struct oak_compiler_t
 void oak_fn_registry_init(struct oak_fn_registry_t* r);
 void oak_fn_registry_free(struct oak_fn_registry_t* r);
 
-void oak_struct_registry_init(struct oak_struct_registry_t* r);
-void oak_struct_registry_free(struct oak_struct_registry_t* r);
+void oak_record_registry_init(struct oak_record_registry_t* r);
+void oak_record_registry_free(struct oak_record_registry_t* r);
 
 void oak_enum_registry_init(struct oak_enum_registry_t* r);
 void oak_enum_registry_free(struct oak_enum_registry_t* r);
@@ -236,19 +236,19 @@ oak_fn_registry_insert(struct oak_fn_registry_t* r,
 const struct oak_registered_fn_t* oak_fn_registry_find(
     const struct oak_fn_registry_t* r, const char* name, usize len);
 
-/* Appends struct and indexes it by name. Returns pointer to the stored entry.
+/* Appends record and indexes it by name. Returns pointer to the stored entry.
  */
-struct oak_registered_struct_t*
-oak_struct_registry_insert(struct oak_struct_registry_t* r,
-                           const struct oak_registered_struct_t* s);
+struct oak_registered_record_t*
+oak_record_registry_insert(struct oak_record_registry_t* r,
+                           const struct oak_registered_record_t* s);
 
 /* O(1) lookup by name. Returns null if not found. */
-const struct oak_registered_struct_t* oak_struct_registry_find_by_name(
-    const struct oak_struct_registry_t* r, const char* name, usize len);
+const struct oak_registered_record_t* oak_record_registry_find_by_name(
+    const struct oak_record_registry_t* r, const char* name, usize len);
 
-/* O(n) lookup by type_id (infrequent; structs stay small). */
-const struct oak_registered_struct_t*
-oak_struct_registry_find_by_type_id(const struct oak_struct_registry_t* r,
+/* O(n) lookup by type_id (infrequent; records stay small). */
+const struct oak_registered_record_t*
+oak_record_registry_find_by_type_id(const struct oak_record_registry_t* r,
                                     oak_type_id_t type_id);
 
 /* Appends variant and indexes it by name and enum name. */
@@ -442,56 +442,56 @@ int oak_compiler_is_enum_name(const struct oak_compiler_t* c,
                               const char* name,
                               usize len);
 
-/* ---------- oak_compiler_structs.c ---------- */
+/* ---------- oak_compiler_records.c ---------- */
 
-const struct oak_registered_struct_t* oak_compiler_find_struct_by_name(
+const struct oak_registered_record_t* oak_compiler_find_record_by_name(
     const struct oak_compiler_t* c, const char* name, usize len);
 
-const struct oak_registered_struct_t*
-oak_compiler_find_struct_by_type_id(const struct oak_compiler_t* c,
+const struct oak_registered_record_t*
+oak_compiler_find_record_by_type_id(const struct oak_compiler_t* c,
                                     oak_type_id_t type_id);
 
-int oak_compiler_find_struct_field(const struct oak_registered_struct_t* s,
+int oak_compiler_find_record_field(const struct oak_registered_record_t* s,
                                    const char* name,
                                    usize len);
 
-const struct oak_registered_fn_t* oak_compiler_find_struct_static_method(
-    const struct oak_registered_struct_t* sd,
+const struct oak_registered_fn_t* oak_compiler_find_record_static_method(
+    const struct oak_registered_record_t* sd,
     const char* name,
     usize len);
 
-/* If `recv_ty` is a known struct, sets `*out_sd` and returns the field index.
- * Returns -1 if the type is not a struct, or the field name is not found
- * (in the latter case `*out_sd` is still the matching struct). */
-int oak_compiler_struct_field_index(
+/* If `recv_ty` is a known record, sets `*out_sd` and returns the field index.
+ * Returns -1 if the type is not a record, or the field name is not found
+ * (in the latter case `*out_sd` is still the matching record). */
+int oak_compiler_record_field_index(
     const struct oak_compiler_t* c,
     struct oak_type_t recv_ty,
     const char* field_name,
     usize field_len,
-    const struct oak_registered_struct_t** out_sd);
+    const struct oak_registered_record_t** out_sd);
 
 /* Resolves a member for codegen; emits errors and returns -1 on failure. */
-int oak_compiler_require_struct_field(
+int oak_compiler_require_record_field(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* recv,
     const struct oak_ast_node_t* fname_ident,
     int is_assignment,
-    const struct oak_registered_struct_t** out_sd);
+    const struct oak_registered_record_t** out_sd);
 
-void oak_compiler_register_program_structs(struct oak_compiler_t* c,
+void oak_compiler_register_program_records(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* prog);
 
-/* Register native types from `opts` into the compiler's struct and type
+/* Register native types from `opts` into the compiler's record and type
  * registries before any source-level passes run.  Must be called before
- * oak_compiler_register_program_structs so that Oak source can reference
+ * oak_compiler_register_program_records so that Oak source can reference
  * native type names (e.g. in function parameter types). */
 void oak_compiler_register_native_types(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
 
 /* Register native functions and methods from `opts`.  Must be called after
  * oak_compiler_register_native_types so that receiver type ids are already
- * in the struct registry.  Global fns go into c->fns; methods are appended
- * to the matching oak_registered_struct_t. */
+ * in the record registry.  Global fns go into c->fns; methods are appended
+ * to the matching oak_registered_record_t. */
 void oak_compiler_register_native_fns(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
 
@@ -550,7 +550,7 @@ void oak_compiler_validate_user_fn_call_arg_types(
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* fn);
 
-void oak_compiler_validate_struct_method_call_arg_types(
+void oak_compiler_validate_record_method_call_arg_types(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* m);

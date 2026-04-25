@@ -69,7 +69,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   const char* mname = oak_token_text(method->token);
   const usize mname_len = oak_token_length(method->token);
 
-  /* TypeName.method(args) — static native method: receiver is a struct type
+  /* TypeName.method(args) — static native method: receiver is a record type
    * name, not a variable. */
   if (receiver->kind == OAK_NODE_IDENT)
   {
@@ -79,12 +79,12 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
     oak_type_clear(&local_ty);
     if (!oak_compiler_local_type_get(c, rname, rlen, &local_ty))
     {
-      const struct oak_registered_struct_t* sd =
-          oak_compiler_find_struct_by_name(c, rname, rlen);
+      const struct oak_registered_record_t* sd =
+          oak_compiler_find_record_by_name(c, rname, rlen);
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oak_compiler_find_struct_static_method(sd, mname, mname_len);
+            oak_compiler_find_record_static_method(sd, mname, mname_len);
         if (sm)
         {
           if ((int)user_argc != sm->arity)
@@ -110,12 +110,12 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   struct oak_type_t recv_ty;
   oak_compiler_infer_expr_static_type(c, receiver, &recv_ty);
 
-  /* Struct method calls dispatch to a regular user fn whose first
+  /* Record method calls dispatch to a regular user fn whose first
    * parameter is the receiver (`self`). */
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
-    const struct oak_registered_struct_t* sd =
-        oak_compiler_find_struct_by_type_id(c, recv_ty.id);
+    const struct oak_registered_record_t* sd =
+        oak_compiler_find_record_by_type_id(c, recv_ty.id);
     if (sd)
     {
       const struct oak_registered_fn_t* sm = null;
@@ -131,7 +131,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
       if (!sm)
       {
         oak_compiler_error_at(
-            c, method->token, "no method '%s' on struct '%s'", mname, sd->name);
+            c, method->token, "no method '%s' on record '%s'", mname, sd->name);
         return;
       }
       const int expected_user = sm->arity - 1;
@@ -146,7 +146,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
         return;
       }
 
-      oak_compiler_validate_struct_method_call_arg_types(c, node, sm);
+      oak_compiler_validate_record_method_call_arg_types(c, node, sm);
       if (c->has_error)
         return;
 

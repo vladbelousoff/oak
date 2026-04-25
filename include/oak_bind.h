@@ -13,7 +13,7 @@
 
 enum oak_bind_type_kind_t
 {
-  OAK_BIND_STRUCT,
+  OAK_BIND_RECORD,
 };
 
 /* Where a native function is bound in Oak (see oak_bind_fn). */
@@ -26,7 +26,7 @@ enum oak_bind_fn_kind_t
 
 /* Return type shape for native bindings.  OAK_BIND_RETURN_ARRAY means the
  * function returns a typed array T[] where the element type T is
- * return_type_id (e.g. native struct id).  Scalar/void return uses
+ * return_type_id (e.g. native record id).  Scalar/void return uses
  * OAK_BIND_RETURN_SCALAR. */
 enum oak_bind_return_shape_t
 {
@@ -36,14 +36,14 @@ enum oak_bind_return_shape_t
 
 /* ---------- Getter / setter callback types ---------- */
 
-/* Returns the field value for the native struct instance `self`.
+/* Returns the field value for the native record instance `self`.
  * The returned value is owned by the caller (the VM): for object values the
  * getter must return a fresh reference (refcount already incremented); for
  * scalar values (number, bool) no refcounting is required.
  * Access the underlying C pointer with oak_native_instance(self). */
 typedef struct oak_value_t (*oak_field_getter_t)(struct oak_value_t self);
 
-/* Writes `value` into the native struct instance `self`.
+/* Writes `value` into the native record instance `self`.
  * A NULL setter makes the field read-only; the VM will emit a runtime error
  * if Oak code attempts to assign to such a field. */
 typedef void (*oak_field_setter_t)(struct oak_value_t self,
@@ -57,7 +57,7 @@ struct oak_native_field_t
   usize name_len;
   /* Compile-time type of this field.  Use OAK_TYPE_NUMBER / OAK_TYPE_STRING /
    * OAK_TYPE_BOOL for primitives, or another oak_native_type_t::type_id for
-   * fields whose type is itself a native struct. */
+   * fields whose type is itself a native record. */
   oak_type_id_t field_type_id;
   oak_field_getter_t getter;
   oak_field_setter_t setter; /* NULL = read-only */
@@ -85,7 +85,7 @@ struct oak_native_fn_binding_t
 {
   enum oak_bind_fn_kind_t kind;
   /* OAK_TYPE_VOID = global (only with OAK_BIND_FN_GLOBAL).  Otherwise the
-   * native struct type_id for instance or static methods on that type. */
+   * native record type_id for instance or static methods on that type. */
   oak_type_id_t receiver_type_id;
   const char* name;
   oak_native_fn_t impl;
@@ -107,7 +107,7 @@ typedef struct oak_native_fn_binding_t oak_bind_fn_params_t;
 
 struct oak_compile_options_t
 {
-  /* Native struct types (owned; populated by oak_bind_type). */
+  /* Native record types (owned; populated by oak_bind_type). */
   struct oak_native_type_t** native_types;
   int native_type_count;
   int native_type_capacity; /* private */
@@ -154,9 +154,9 @@ int oak_bind_field(struct oak_native_type_t* type,
  * arity, return_type_id, and return_shape (see oak_bind_fn_params_t).
  *   OAK_BIND_FN_GLOBAL: receiver_type_id must be OAK_TYPE_VOID; `arity` is the
  *     full VM argument count.
- *   OAK_BIND_FN_INSTANCE_METHOD: receiver_type_id is the struct's type_id;
+ *   OAK_BIND_FN_INSTANCE_METHOD: receiver_type_id is the record's type_id;
  *     `arity` is the user-visible count excluding `self` (VM adds one).
- *   OAK_BIND_FN_STATIC_METHOD: same receiver_type_id as the struct; `arity` is
+ *   OAK_BIND_FN_STATIC_METHOD: same receiver_type_id as the record; `arity` is
  *     the full argument count (no `self`); called as TypeName.name(...).
  *   return_shape: OAK_BIND_RETURN_ARRAY means the function returns
  *     return_type_id[] (return_type_id is the element type).
@@ -171,11 +171,11 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
  * refcount reaches zero the wrapper is freed but `instance` is never freed
  * by Oak — lifetime is the caller's responsibility.
  * `instance` may be NULL for sentinel / placeholder values. */
-struct oak_value_t oak_native_struct_new(const struct oak_native_type_t* type,
+struct oak_value_t oak_native_record_new(const struct oak_native_type_t* type,
                                          void* instance);
 
-/* Extract the raw C instance pointer from a native struct Oak value.
- * Asserts that `value` is actually a native struct (OAK_OBJ_NATIVE_STRUCT).
+/* Extract the raw C instance pointer from a native record Oak value.
+ * Asserts that `value` is actually a native record (OAK_OBJ_NATIVE_RECORD).
  * Intended for use inside getter / setter callbacks:
  *   MyType* p = oak_native_instance(self); */
 void* oak_native_instance(struct oak_value_t value);

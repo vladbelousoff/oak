@@ -49,7 +49,7 @@ y += 5;              // +=  -=  *=  /=  %=  all supported
 | `bool` | `true`, `false` |
 | `array` | `[1, 2, 3]`, `[] as number[]` |
 | `map` | `['a': 1, 'b': 2]`, `[:] as [string:number]` |
-| struct | `new Point { x: 1, y: 2 }` |
+| record | `new Point { x: 1, y: 2 }` |
 
 ### Operators
 
@@ -117,10 +117,10 @@ print(add(1, 2));   // 3
 
 Functions must be declared at the top level.  Recursion and mutual recursion are supported.
 
-### Structs
+### Records
 
 ```oak
-type Point struct {
+type Point record {
   x : number;
   y : number;
 }

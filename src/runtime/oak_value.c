@@ -44,13 +44,13 @@ void oak_obj_decref(struct oak_obj_t* obj)
     if (map->ht)
       oak_free(map->ht, OAK_SRC_LOC);
   }
-  else if (obj->type == OAK_OBJ_STRUCT)
+  else if (obj->type == OAK_OBJ_RECORD)
   {
-    struct oak_obj_struct_t* s = (struct oak_obj_struct_t*)obj;
+    struct oak_obj_record_t* s = (struct oak_obj_record_t*)obj;
     for (int i = 0; i < s->field_count; ++i)
       oak_value_decref(s->fields[i]);
   }
-  /* OAK_OBJ_NATIVE_STRUCT: neither `instance` nor `type` are owned by Oak;
+  /* OAK_OBJ_NATIVE_RECORD: neither `instance` nor `type` are owned by Oak;
    * only the wrapper allocation itself is freed. */
 
   oak_free(obj, OAK_SRC_LOC);
@@ -144,14 +144,14 @@ void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
   arr->items[arr->length++] = value;
 }
 
-struct oak_obj_struct_t* oak_struct_new(const int field_count,
+struct oak_obj_record_t* oak_record_new(const int field_count,
                                         const char* type_name)
 {
   oak_assert(field_count >= 0);
-  const usize size = sizeof(struct oak_obj_struct_t) +
+  const usize size = sizeof(struct oak_obj_record_t) +
                      (usize)field_count * sizeof(struct oak_value_t);
-  struct oak_obj_struct_t* s = oak_alloc(size, OAK_SRC_LOC);
-  s->obj.type = OAK_OBJ_STRUCT;
+  struct oak_obj_record_t* s = oak_alloc(size, OAK_SRC_LOC);
+  s->obj.type = OAK_OBJ_RECORD;
   oak_refcount_init(&s->obj.refcount, 1);
   s->type_name = type_name;
   s->field_count = field_count;
@@ -160,12 +160,12 @@ struct oak_obj_struct_t* oak_struct_new(const int field_count,
   return s;
 }
 
-struct oak_obj_native_struct_t*
-oak_obj_native_struct_new(const struct oak_native_type_t* type, void* instance)
+struct oak_obj_native_record_t*
+oak_obj_native_record_new(const struct oak_native_type_t* type, void* instance)
 {
-  struct oak_obj_native_struct_t* ns =
-      oak_alloc(sizeof(struct oak_obj_native_struct_t), OAK_SRC_LOC);
-  ns->obj.type = OAK_OBJ_NATIVE_STRUCT;
+  struct oak_obj_native_record_t* ns =
+      oak_alloc(sizeof(struct oak_obj_native_record_t), OAK_SRC_LOC);
+  ns->obj.type = OAK_OBJ_NATIVE_RECORD;
   oak_refcount_init(&ns->obj.refcount, 1);
   ns->instance = instance;
   ns->type = type;
@@ -496,22 +496,22 @@ oak_value_format(const struct oak_value_t value, char* buf, const usize size)
       snprintf(buf, size, "<array len=%zu>", oak_as_array(value)->length);
     else if (oak_is_map(value))
       snprintf(buf, size, "<map len=%zu>", oak_as_map(value)->length);
-    else if (oak_is_struct(value))
+    else if (oak_is_record(value))
     {
-      const struct oak_obj_struct_t* s = oak_as_struct(value);
+      const struct oak_obj_record_t* s = oak_as_record(value);
       snprintf(buf,
                size,
                "<%s fields=%d>",
-               s->type_name ? s->type_name : "struct",
+               s->type_name ? s->type_name : "record",
                s->field_count);
     }
-    else if (oak_is_native_struct(value))
+    else if (oak_is_native_record(value))
     {
-      const struct oak_obj_native_struct_t* ns = oak_as_native_struct(value);
+      const struct oak_obj_native_record_t* ns = oak_as_native_record(value);
       snprintf(buf,
                size,
                "<native %s %p>",
-               ns->type ? ns->type->name : "struct",
+               ns->type ? ns->type->name : "record",
                ns->instance);
     }
     else
