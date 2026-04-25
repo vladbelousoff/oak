@@ -3,6 +3,7 @@
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_str.h"
+#include "oak_type.h"
 #include "oak_value.h"
 
 #include <string.h>
