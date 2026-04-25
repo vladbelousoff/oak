@@ -10,7 +10,7 @@
  * oak_type_t structs are valid scalar types without explicit assignment. */
 enum oak_type_kind_t
 {
-  OAK_TYPE_KIND_SCALAR = 0, /* plain value: number, bool, string, user struct */
+  OAK_TYPE_KIND_SCALAR = 0, /* plain value: number, bool, string, user record */
   OAK_TYPE_KIND_ARRAY,      /* typed array; element type is `id` */
   OAK_TYPE_KIND_MAP, /* typed map; key type is `key_id`, value type is `id` */
 };
@@ -20,7 +20,7 @@ enum oak_type_kind_t
  * `id`.
  * - kind == OAK_TYPE_KIND_MAP    → value is a map; value type is `id`, key is
  * `key_id`.
- * - kind == OAK_TYPE_KIND_SCALAR → plain scalar (number, bool, string, struct).
+ * - kind == OAK_TYPE_KIND_SCALAR → plain scalar (number, bool, string, record).
  * Two slots are equal iff `id`, `kind`, and (when MAP) `key_id` all match. */
 struct oak_type_t
 {

@@ -139,7 +139,7 @@ static enum oak_fn_call_result_t oak_lexer_tokenize_impl(void* vm,
       oak_lexer_free(L);
       return OAK_FN_CALL_RUNTIME_ERROR;
     }
-    struct oak_value_t v = oak_native_struct_new(s_token_type, box);
+    struct oak_value_t v = oak_native_record_new(s_token_type, box);
     oak_array_push(arr, v);
     oak_value_decref(v);
   }
@@ -155,7 +155,7 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
     return;
 
   struct oak_native_type_t* tok =
-      oak_bind_type(opts, OAK_BIND_STRUCT, "OakToken");
+      oak_bind_type(opts, OAK_BIND_RECORD, "OakToken");
   if (!tok)
     return;
   s_token_type = tok;
@@ -171,7 +171,7 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
     return;
 
   struct oak_native_type_t* lexer =
-      oak_bind_type(opts, OAK_BIND_STRUCT, "OakLexer");
+      oak_bind_type(opts, OAK_BIND_RECORD, "OakLexer");
   if (!lexer)
     return;
 

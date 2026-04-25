@@ -147,7 +147,7 @@ OAK_TEST_DECL(BindFnMethodRegisters)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_native_type_t* t = oak_bind_type(&opts, OAK_BIND_STRUCT, "MyVec");
+  struct oak_native_type_t* t = oak_bind_type(&opts, OAK_BIND_RECORD, "MyVec");
   OAK_CHECK(t != null);
 
   const int r = oak_bind_fn(
@@ -414,17 +414,17 @@ OAK_TEST_DECL(GlobalNativeFnReturnTypeWrongArgFails)
 }
 
 /* =========================================================================
- * Section 3 — compile-time: native struct method
+ * Section 3 — compile-time: native record method
  * ========================================================================= */
 
-/* A native method can be called on a native struct instance. */
+/* A native method can be called on a native record instance. */
 OAK_TEST_DECL(NativeMethodCallCompiles)
 {
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTVec3");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTVec3");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "x", OAK_TYPE_NUMBER, stub_getter, null) == 0);
 
@@ -454,7 +454,7 @@ OAK_TEST_DECL(NativeMethodWrongArgCountFails)
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTVec4");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTVec4");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "x", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
@@ -482,7 +482,7 @@ OAK_TEST_DECL(NativeMethodReturnTypeInferred)
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTShape");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTShape");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "id", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
@@ -513,7 +513,7 @@ OAK_TEST_DECL(NativeMethodReturnTypeWrongFails)
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTCircle");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTCircle");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "r", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
@@ -536,14 +536,14 @@ OAK_TEST_DECL(NativeMethodReturnTypeWrongFails)
   return s;
 }
 
-/* Calling an undefined method on a native struct is a compile error. */
+/* Calling an undefined method on a native record is a compile error. */
 OAK_TEST_DECL(NativeMethodUnknownFails)
 {
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTWidget2");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTWidget2");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "id", OAK_TYPE_NUMBER, stub_getter, null) == 0);
 
@@ -554,7 +554,7 @@ OAK_TEST_DECL(NativeMethodUnknownFails)
   return s;
 }
 
-/* A native struct can have both a global function and a method registered
+/* A native record can have both a global function and a method registered
  * in the same opts. */
 OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
 {
@@ -562,7 +562,7 @@ OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTRect");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTRect");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "w", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(oak_bind_field(t, "h", OAK_TYPE_NUMBER, stub_getter, null) == 0);
@@ -578,7 +578,7 @@ OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
                                     .arity = 0,
                                     .return_type_id = t->type_id,
                                     .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
-  /* Method on the struct */
+  /* Method on the record */
   OAK_CHECK(
       oak_bind_fn(
           &opts,
@@ -636,7 +636,7 @@ OAK_TEST_DECL(NativeMethodTooManyArgsFails)
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTBox");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTBox");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "v", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   /* scale expects exactly 1 user arg */
@@ -711,7 +711,7 @@ OAK_TEST_DECL(NativeMethodMultiArgCompiles)
   oak_compile_options_init(&opts);
 
   struct oak_native_type_t* t =
-      oak_bind_type(&opts, OAK_BIND_STRUCT, "NTMat2");
+      oak_bind_type(&opts, OAK_BIND_RECORD, "NTMat2");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "v", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
@@ -839,7 +839,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(GlobalNativeFnDuplicateFails),
     OAK_TEST_ENTRY(GlobalNativeFnReturnTypeInferred),
     OAK_TEST_ENTRY(GlobalNativeFnReturnTypeWrongArgFails),
-    /* native struct methods */
+    /* native record methods */
     OAK_TEST_ENTRY(NativeMethodCallCompiles),
     OAK_TEST_ENTRY(NativeMethodWrongArgCountFails),
     OAK_TEST_ENTRY(NativeMethodReturnTypeInferred),

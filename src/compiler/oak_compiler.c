@@ -26,7 +26,7 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
 
   oak_type_registry_init(&c->types);
   oak_fn_registry_init(&c->fns);
-  oak_struct_registry_init(&c->structs);
+  oak_record_registry_init(&c->records);
   oak_enum_registry_init(&c->enums);
 
   return chunk;
@@ -35,7 +35,7 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
 static void compiler_teardown(struct oak_compiler_t* c)
 {
   oak_fn_registry_free(&c->fns);
-  oak_struct_registry_free(&c->structs);
+  oak_record_registry_free(&c->records);
   oak_enum_registry_free(&c->enums);
 }
 
@@ -49,8 +49,8 @@ static void compile_program_items(struct oak_compiler_t* c,
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (item->kind == OAK_NODE_FN_DECL)
       continue;
-    /* Struct and enum declarations are processed in pre-passes; no code. */
-    if (item->kind == OAK_NODE_STRUCT_DECL)
+    /* Record and enum declarations are processed in pre-passes; no code. */
+    if (item->kind == OAK_NODE_RECORD_DECL)
       continue;
     if (item->kind == OAK_NODE_ENUM_DECL)
       continue;
@@ -79,13 +79,13 @@ static void compile_program(struct oak_compiler_t* c,
     return;
   /* Enums are registered early so their variant names are available as
    * constant references in the rest of the program, including function
-   * parameter defaults, struct field initializers, etc. */
+   * parameter defaults, record field initializers, etc. */
   oak_compiler_register_program_enums(c, program);
   if (c->has_error)
     return;
-  /* Structs must be registered before functions so that function parameter
-   * types can refer to user-defined structs. */
-  oak_compiler_register_program_structs(c, program);
+  /* Records must be registered before functions so that function parameter
+   * types can refer to user-defined records. */
+  oak_compiler_register_program_records(c, program);
   if (c->has_error)
     return;
   oak_compiler_register_program_functions(c, program);
@@ -126,7 +126,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
   }
 
   /* Register native types before any source-level passes so Oak source can
-   * reference native type names in function signatures, struct fields, etc. */
+   * reference native type names in function signatures, record fields, etc. */
   if (opts && opts->native_type_count > 0)
   {
     oak_compiler_register_native_types(&compiler, opts);
@@ -139,7 +139,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
   }
 
   /* Register native functions and methods after types (receiver ids need to
-   * be in the struct registry first). */
+   * be in the record registry first). */
   if (opts && opts->native_fn_count > 0)
   {
     oak_compiler_register_native_fns(&compiler, opts);

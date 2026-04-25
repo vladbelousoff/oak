@@ -312,11 +312,11 @@ static void register_method_decl(struct oak_compiler_t* c,
   const char* sname = oak_token_text(recv_ident->token);
   const usize sname_len = oak_token_length(recv_ident->token);
 
-  /* Find the target struct (mutable pointer needed to add a method slot). */
-  struct oak_registered_struct_t* sd = null;
-  for (int i = 0; i < c->structs.count; ++i)
+  /* Find the target record (mutable pointer needed to add a method slot). */
+  struct oak_registered_record_t* sd = null;
+  for (int i = 0; i < c->records.count; ++i)
   {
-    struct oak_registered_struct_t* cand = &c->structs.entries[i];
+    struct oak_registered_record_t* cand = &c->records.entries[i];
     if (oak_name_eq(cand->name, cand->name_len, sname, sname_len))
     {
       sd = cand;
@@ -326,7 +326,7 @@ static void register_method_decl(struct oak_compiler_t* c,
   if (!sd)
   {
     oak_compiler_error_at(
-        c, recv_ident->token, "no such struct '%s' for method receiver", sname);
+        c, recv_ident->token, "no such record '%s' for method receiver", sname);
     return;
   }
 
@@ -337,7 +337,7 @@ static void register_method_decl(struct oak_compiler_t* c,
     {
       oak_compiler_error_at(c,
                             name_node->token,
-                            "duplicate method '%s' on struct '%s'",
+                            "duplicate method '%s' on record '%s'",
                             name,
                             sd->name);
       return;
@@ -470,13 +470,13 @@ void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
   oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 }
 
-/* If `recv_struct` is non-null, the fn is treated as a method: an
+/* If `recv` is non-null, the fn is treated as a method: an
  * implicit `self` local is installed at slot 0 with the receiver's static
  * type, and explicit parameters start at slot 1. */
 void oak_compiler_compile_function_body(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* decl,
-    const struct oak_registered_struct_t* recv)
+    const struct oak_registered_record_t* recv)
 {
   const struct oak_ast_node_t* body = oak_compiler_fn_decl_block(decl);
   if (!body || body->kind != OAK_NODE_BLOCK)
@@ -603,9 +603,9 @@ void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
 
 void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
 {
-  for (int s = 0; s < c->structs.count; ++s)
+  for (int s = 0; s < c->records.count; ++s)
   {
-    const struct oak_registered_struct_t* sd = &c->structs.entries[s];
+    const struct oak_registered_record_t* sd = &c->records.entries[s];
     for (int m = 0; m < sd->method_count; ++m)
     {
       const struct oak_registered_fn_t* me = &sd->methods[m];
@@ -725,7 +725,7 @@ void oak_compiler_validate_user_fn_call_arg_types(
   validate_call_arg_types_for_decl(c, call, fn->decl);
 }
 
-void oak_compiler_validate_struct_method_call_arg_types(
+void oak_compiler_validate_record_method_call_arg_types(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* m)

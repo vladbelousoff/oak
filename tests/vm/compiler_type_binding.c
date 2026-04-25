@@ -53,10 +53,10 @@ static enum oak_test_status_t expect_compile_error(const char* source)
  * Type declaration — basic binding
  * ========================================================================= */
 
-/* A struct type declaration binds the name and can be used immediately. */
+/* A record type declaration binds the name and can be used immediately. */
 OAK_TEST_DECL(SimpleTypeBindingOk)
 {
-  return expect_ok("type Color struct { r : number; g : number; b : number; }\n"
+  return expect_ok("type Color record { r : number; g : number; b : number; }\n"
                    "let c = new Color { r : 255, g : 128, b : 0 };\n"
                    "print(c.r);\n");
 }
@@ -64,15 +64,15 @@ OAK_TEST_DECL(SimpleTypeBindingOk)
 /* Struct with a single field still binds correctly. */
 OAK_TEST_DECL(SingleFieldTypeBindingOk)
 {
-  return expect_ok("type Wrapper struct { value : number; }\n"
+  return expect_ok("type Wrapper record { value : number; }\n"
                    "let w = new Wrapper { value : 42 };\n"
                    "print(w.value);\n");
 }
 
-/* An empty struct (no fields) is a valid type declaration. */
+/* An empty record (no fields) is a valid type declaration. */
 OAK_TEST_DECL(EmptyStructTypeBindingOk)
 {
-  return expect_ok("type Empty struct { }\n"
+  return expect_ok("type Empty record { }\n"
                    "let e = new Empty { };\n");
 }
 
@@ -80,26 +80,26 @@ OAK_TEST_DECL(EmptyStructTypeBindingOk)
  * Type declaration — duplicate name
  * ========================================================================= */
 
-/* Declaring the same struct name twice is a compile error. */
+/* Declaring the same record name twice is a compile error. */
 OAK_TEST_DECL(DuplicateTypeBindingFails)
 {
-  return expect_compile_error("type Point struct { x : number; }\n"
-                              "type Point struct { y : number; }\n");
+  return expect_compile_error("type Point record { x : number; }\n"
+                              "type Point record { y : number; }\n");
 }
 
-/* A struct and a subsequent declaration with the same name also fails. */
+/* A record and a subsequent declaration with the same name also fails. */
 OAK_TEST_DECL(DuplicateTypeBindingWithFieldsFails)
 {
   return expect_compile_error(
-      "type Vec struct { x : number; y : number; }\n"
-      "type Vec struct { x : number; y : number; z : number; }\n");
+      "type Vec record { x : number; y : number; }\n"
+      "type Vec record { x : number; y : number; z : number; }\n");
 }
 
 /* =========================================================================
  * Struct literal — unknown type
  * ========================================================================= */
 
-/* Using a struct name that was never declared is a compile error. */
+/* Using a record name that was never declared is a compile error. */
 OAK_TEST_DECL(UnknownTypeInStructLiteralFails)
 {
   return expect_compile_error("let p = new Ghost { x : 1 };\n");
@@ -108,7 +108,7 @@ OAK_TEST_DECL(UnknownTypeInStructLiteralFails)
 /* A typo in the type name is rejected. */
 OAK_TEST_DECL(MisspelledTypeInStructLiteralFails)
 {
-  return expect_compile_error("type Point struct { x : number; }\n"
+  return expect_compile_error("type Point record { x : number; }\n"
                               "let p = new Ponit { x : 1 };\n");
 }
 
@@ -116,22 +116,22 @@ OAK_TEST_DECL(MisspelledTypeInStructLiteralFails)
  * Type binding in function parameters
  * ========================================================================= */
 
-/* A declared struct type can be used as a function parameter type. */
+/* A declared record type can be used as a function parameter type. */
 OAK_TEST_DECL(TypeBindingInFnParamOk)
 {
-  return expect_ok("type Size struct { w : number; h : number; }\n"
+  return expect_ok("type Size record { w : number; h : number; }\n"
                    "fn area(s : Size) -> number { return s.w * s.h; }\n"
                    "let sz = new Size { w : 4, h : 5 };\n"
                    "print(area(sz));\n");
 }
 
-/* Passing a struct of the wrong type to a typed parameter is a compile
- * error even when both structs have the same field layout. */
+/* Passing a record of the wrong type to a typed parameter is a compile
+ * error even when both records have the same field layout. */
 OAK_TEST_DECL(TypeBindingFnParamWrongTypeFails)
 {
   return expect_compile_error(
-      "type A struct { x : number; }\n"
-      "type B struct { x : number; }\n"
+      "type A record { x : number; }\n"
+      "type B record { x : number; }\n"
       "fn take_a(v : A) -> number { return v.x; }\n"
       "let b = new B { x : 7 };\n"
       "take_a(b);\n");
@@ -141,10 +141,10 @@ OAK_TEST_DECL(TypeBindingFnParamWrongTypeFails)
  * Type binding in return types
  * ========================================================================= */
 
-/* A declared struct type can be used as a function return type. */
+/* A declared record type can be used as a function return type. */
 OAK_TEST_DECL(TypeBindingInReturnTypeOk)
 {
-  return expect_ok("type Pair struct { a : number; b : number; }\n"
+  return expect_ok("type Pair record { a : number; b : number; }\n"
                    "fn make_pair(x : number, y : number) -> Pair {\n"
                    "  return new Pair { a : x, b : y };\n"
                    "}\n"
@@ -153,26 +153,26 @@ OAK_TEST_DECL(TypeBindingInReturnTypeOk)
 }
 
 /* =========================================================================
- * Type binding as field type (nested struct)
+ * Type binding as field type (nested record)
  * ========================================================================= */
 
-/* A struct type may appear as the declared field type of another struct. */
+/* A record type may appear as the declared field type of another record. */
 OAK_TEST_DECL(TypeBindingAsFieldTypeOk)
 {
-  return expect_ok("type Inner struct { z : number; }\n"
-                   "type Outer struct { inner : Inner; }\n"
+  return expect_ok("type Inner record { z : number; }\n"
+                   "type Outer record { inner : Inner; }\n"
                    "let i = new Inner { z : 9 };\n"
                    "let o = new Outer { inner : i };\n"
                    "print(o.inner.z);\n");
 }
 
-/* Providing a struct of the wrong type for a struct-typed field is rejected. */
+/* Providing a record of the wrong type for a record-typed field is rejected. */
 OAK_TEST_DECL(TypeBindingWrongStructFieldTypeFails)
 {
   return expect_compile_error(
-      "type Inner struct { z : number; }\n"
-      "type Other struct { z : number; }\n"
-      "type Outer struct { inner : Inner; }\n"
+      "type Inner record { z : number; }\n"
+      "type Other record { z : number; }\n"
+      "type Outer record { inner : Inner; }\n"
       "let o2 = new Other { z : 1 };\n"
       "let bad = new Outer { inner : o2 };\n");
 }
@@ -180,9 +180,9 @@ OAK_TEST_DECL(TypeBindingWrongStructFieldTypeFails)
 /* Three levels of nesting all bind correctly at compile time. */
 OAK_TEST_DECL(TypeBindingDeepNestingOk)
 {
-  return expect_ok("type A struct { x : number; }\n"
-                   "type B struct { a : A; }\n"
-                   "type C struct { b : B; }\n"
+  return expect_ok("type A record { x : number; }\n"
+                   "type B record { a : A; }\n"
+                   "type C record { b : B; }\n"
                    "let a = new A { x : 1 };\n"
                    "let b = new B { a : a };\n"
                    "let c = new C { b : b };\n"
@@ -196,14 +196,14 @@ OAK_TEST_DECL(TypeBindingDeepNestingOk)
 /* Providing a string where a number field is expected is a compile error. */
 OAK_TEST_DECL(StructLiteralWrongPrimitiveTypeFails)
 {
-  return expect_compile_error("type Point struct { x : number; y : number; }\n"
+  return expect_compile_error("type Point record { x : number; y : number; }\n"
                               "let p = new Point { x : 'bad', y : 1 };\n");
 }
 
 /* Providing a number where a string field is expected is a compile error. */
 OAK_TEST_DECL(StructLiteralNumberForStringFieldFails)
 {
-  return expect_compile_error("type Label struct { text : string; }\n"
+  return expect_compile_error("type Label record { text : string; }\n"
                               "let l = new Label { text : 99 };\n");
 }
 
@@ -211,17 +211,17 @@ OAK_TEST_DECL(StructLiteralNumberForStringFieldFails)
  * Struct literal — unknown / duplicate field in the literal
  * ========================================================================= */
 
-/* Providing a field that is not declared on the struct is a compile error. */
+/* Providing a field that is not declared on the record is a compile error. */
 OAK_TEST_DECL(StructLiteralUnknownFieldFails)
 {
-  return expect_compile_error("type Point struct { x : number; }\n"
+  return expect_compile_error("type Point record { x : number; }\n"
                               "let p = new Point { x : 1, z : 2 };\n");
 }
 
-/* Supplying the same field twice in a struct literal is a compile error. */
+/* Supplying the same field twice in a record literal is a compile error. */
 OAK_TEST_DECL(StructLiteralDuplicateFieldFails)
 {
-  return expect_compile_error("type Point struct { x : number; y : number; }\n"
+  return expect_compile_error("type Point record { x : number; y : number; }\n"
                               "let p = new Point { x : 1, x : 2, y : 3 };\n");
 }
 
@@ -229,11 +229,11 @@ OAK_TEST_DECL(StructLiteralDuplicateFieldFails)
  * Struct declaration — duplicate field name
  * ========================================================================= */
 
-/* Declaring two fields with the same name in a struct is a compile error. */
+/* Declaring two fields with the same name in a record is a compile error. */
 OAK_TEST_DECL(DuplicateFieldDeclFails)
 {
   return expect_compile_error(
-      "type Bad struct { x : number; x : string; }\n");
+      "type Bad record { x : number; x : string; }\n");
 }
 
 int main(const int argc, char* argv[])
@@ -248,7 +248,7 @@ int main(const int argc, char* argv[])
     /* duplicate name */
     OAK_TEST_ENTRY(DuplicateTypeBindingFails),
     OAK_TEST_ENTRY(DuplicateTypeBindingWithFieldsFails),
-    /* unknown type in struct literal */
+    /* unknown type in record literal */
     OAK_TEST_ENTRY(UnknownTypeInStructLiteralFails),
     OAK_TEST_ENTRY(MisspelledTypeInStructLiteralFails),
     /* type binding in fn params / returns */
@@ -259,13 +259,13 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(TypeBindingAsFieldTypeOk),
     OAK_TEST_ENTRY(TypeBindingWrongStructFieldTypeFails),
     OAK_TEST_ENTRY(TypeBindingDeepNestingOk),
-    /* struct literal value type mismatch */
+    /* record literal value type mismatch */
     OAK_TEST_ENTRY(StructLiteralWrongPrimitiveTypeFails),
     OAK_TEST_ENTRY(StructLiteralNumberForStringFieldFails),
-    /* struct literal unknown / duplicate field */
+    /* record literal unknown / duplicate field */
     OAK_TEST_ENTRY(StructLiteralUnknownFieldFails),
     OAK_TEST_ENTRY(StructLiteralDuplicateFieldFails),
-    /* struct decl duplicate field */
+    /* record decl duplicate field */
     OAK_TEST_ENTRY(DuplicateFieldDeclFails),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
