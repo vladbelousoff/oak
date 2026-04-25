@@ -11,11 +11,12 @@ struct oak_builtin_type_t
   const char* name;
 };
 
+/* void is pre-registered at slot 0 (OAK_TYPE_VOID) before the loop.
+ * The remaining builtins start at slot 1 and must appear in sequential order. */
 static const struct oak_builtin_type_t builtin_types[] = {
   { OAK_TYPE_NUMBER, "number" },
   { OAK_TYPE_STRING, "string" },
   { OAK_TYPE_BOOL, "bool" },
-  { OAK_TYPE_VOID, "void" },
 };
 
 #define OAK_BUILTIN_COUNT                                                      \
@@ -29,9 +30,12 @@ void oak_type_registry_init(struct oak_type_registry_t* reg)
     reg->entries[i].len = 0;
   }
 
-  /* Slot 0 is reserved for OAK_TYPE_UNKNOWN; the count starts at 1 so that
-   * the first interned id is OAK_TYPE_FIRST_USER once the built-ins are
-   * placed. */
+  /* Slot 0 is OAK_TYPE_VOID; pre-register it so name lookup finds "void". */
+  reg->entries[OAK_TYPE_VOID].name = "void";
+  reg->entries[OAK_TYPE_VOID].len = 4;
+
+  /* Sequential builtins start at slot 1; count begins at 1 so the first
+   * intern'd id is OAK_TYPE_FIRST_USER once the built-ins are placed. */
   reg->count = 1;
 
   for (int i = 0; i < OAK_BUILTIN_COUNT; ++i)
@@ -50,15 +54,16 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
                                        const usize len)
 {
   if (!name || len == 0)
-    return OAK_TYPE_UNKNOWN;
+    return -1;
 
-  for (int i = 1; i < reg->count; ++i)
+  /* Include slot 0 (void) so that the name "void" is resolvable. */
+  for (int i = 0; i < reg->count; ++i)
   {
     const struct oak_type_entry_t* e = &reg->entries[i];
-    if (oak_name_eq(e->name, e->len, name, len))
+    if (e->name && oak_name_eq(e->name, e->len, name, len))
       return (oak_type_id_t)i;
   }
-  return OAK_TYPE_UNKNOWN;
+  return -1;
 }
 
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
@@ -66,11 +71,11 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
                                        const usize len)
 {
   const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
-  if (existing != OAK_TYPE_UNKNOWN)
+  if (existing >= 0)
     return existing;
 
   if (reg->count >= OAK_MAX_TYPES)
-    return OAK_TYPE_UNKNOWN;
+    return -1;
 
   /* The pointer is borrowed from the source buffer (lexer arena outlives
    * compilation); the registry never frees it. */
@@ -87,18 +92,18 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const oak_type_id_t id)
 {
   if (!name || len == 0)
-    return OAK_TYPE_UNKNOWN;
-  if (id <= OAK_TYPE_UNKNOWN || id >= OAK_MAX_TYPES)
-    return OAK_TYPE_UNKNOWN;
+    return -1;
+  if (id < OAK_TYPE_FIRST_USER || id >= OAK_MAX_TYPES)
+    return -1;
 
   /* If already registered under the same name, return it. */
   const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
-  if (existing != OAK_TYPE_UNKNOWN)
-    return existing == id ? existing : OAK_TYPE_UNKNOWN;
+  if (existing >= 0)
+    return existing == id ? existing : -1;
 
   /* The target slot must be empty. */
   if (reg->entries[id].name != null)
-    return OAK_TYPE_UNKNOWN;
+    return -1;
 
   reg->entries[id].name = name;
   reg->entries[id].len = len;
@@ -114,7 +119,7 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
 const char* oak_type_registry_name(const struct oak_type_registry_t* reg,
                                    const oak_type_id_t id)
 {
-  if (id <= OAK_TYPE_UNKNOWN || id >= reg->count)
+  if (id < 0 || id >= reg->count)
     return "<unknown>";
-  return reg->entries[id].name;
+  return reg->entries[id].name ? reg->entries[id].name : "<unknown>";
 }

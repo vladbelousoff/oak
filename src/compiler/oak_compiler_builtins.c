@@ -4,12 +4,11 @@
  * its index. The chunk takes ownership of the single allocation reference. */
 u16 oak_compiler_intern_native_constant(struct oak_compiler_t* c,
                                         const oak_native_fn_t impl,
-                                        const int arity_min,
-                                        const int arity_max,
+                                        const int arity,
                                         const char* name)
 {
   struct oak_obj_native_fn_t* native =
-      oak_native_fn_new(impl, arity_min, arity_max, name);
+      oak_native_fn_new(impl, arity, name);
   return oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
@@ -17,14 +16,13 @@ static void register_native_fn(struct oak_compiler_t* c,
                                const struct oak_native_binding_t* binding)
 {
   const u16 idx = oak_compiler_intern_native_constant(
-      c, binding->impl, binding->arity_min, binding->arity_max, binding->name);
+      c, binding->impl, binding->arity, binding->name);
 
   struct oak_registered_fn_t entry = {
     .name = binding->name,
     .name_len = strlen(binding->name),
     .const_idx = idx,
-    .arity_min = binding->arity_min,
-    .arity_max = binding->arity_max,
+    .arity = binding->arity,
     .decl = null,
   };
   oak_fn_registry_insert(&c->fns, &entry);
@@ -122,8 +120,8 @@ static enum oak_fn_call_result_t builtin_delete(void* vm,
 }
 
 static const struct oak_native_binding_t native_builtins[] = {
-  { "print", builtin_print, 1, 1 },
-  { "println", builtin_println, 1, 1 },
+  { "print", builtin_print, 1 },
+  { "println", builtin_println, 1 },
 };
 
 void oak_compiler_register_native_builtins(struct oak_compiler_t* c)
@@ -229,7 +227,7 @@ register_method_table_from_defs(struct oak_compiler_t* c,
     }
     const struct oak_builtin_method_def_t* def = &table[i];
     const u16 idx = oak_compiler_intern_native_constant(
-        c, def->impl, def->total_arity, def->total_arity, def->name);
+        c, def->impl, def->total_arity, def->name);
     if (c->has_error)
       return;
     struct oak_method_binding_t* slot = &slots[(*out_count)++];

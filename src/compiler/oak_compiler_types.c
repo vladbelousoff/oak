@@ -136,23 +136,28 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               oak_compiler_find_struct_by_type_id(c, recv_ty.id);
           if (sd)
           {
-            for (int i = 0; i < sd->method_count; ++i)
+          for (int i = 0; i < sd->method_count; ++i)
+          {
+            const struct oak_registered_fn_t* sm = &sd->methods[i];
+            if (oak_name_eq(sm->name, sm->name_len, mn, mn_len))
             {
-              const struct oak_struct_method_t* sm = &sd->methods[i];
-              if (oak_name_eq(sm->name, sm->name_len, mn, mn_len))
+              if (sm->decl)
               {
-                if (sm->decl)
-                {
-                  const struct oak_ast_node_t* retn =
-                      oak_compiler_fn_decl_return_type_node(sm->decl);
-                  if (retn)
-                    oak_compiler_type_node_to_type(c, retn, out);
-                  else
-                    out->id = OAK_TYPE_VOID;
-                }
-                return;
+                const struct oak_ast_node_t* retn =
+                    oak_compiler_fn_decl_return_type_node(sm->decl);
+                if (retn)
+                  oak_compiler_type_node_to_type(c, retn, out);
+                else
+                  out->id = OAK_TYPE_VOID;
               }
+              else
+              {
+                /* Native method: use the pre-declared return type. */
+                out->id = sm->return_type_id;
+              }
+              return;
             }
+          }
           }
           return;
         }
@@ -183,6 +188,8 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           out->id = OAK_TYPE_VOID;
           return;
         }
+        /* General native function: use the pre-declared return type. */
+        out->id = fe->return_type_id;
         return;
       }
       if (!fe)

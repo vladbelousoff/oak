@@ -44,13 +44,13 @@ struct oak_type_registry_t
 /* Initializes the registry and pre-populates the built-in type ids. */
 void oak_type_registry_init(struct oak_type_registry_t* reg);
 
-/* Returns the id of an existing entry, or OAK_TYPE_UNKNOWN if not found. */
+/* Returns the id of an existing entry, or -1 if not found. */
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
                                        const char* name,
                                        usize len);
 
 /* Returns the id of an existing entry, or registers a new one. Returns
- * OAK_TYPE_UNKNOWN if the registry is full. */
+ * -1 if the registry is full or `name` is null/empty. */
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
                                        const char* name,
                                        usize len);
@@ -59,29 +59,31 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
  * assigning the next sequential one.  Use this when native types have been
  * pre-assigned stable ids by oak_bind_type() so that the compiler registry
  * matches those ids exactly.
- * Returns `id` on success, or OAK_TYPE_UNKNOWN if the slot is already
- * occupied by a different name or `id` is out of range. */
+ * `id` must be >= OAK_TYPE_FIRST_USER.
+ * Returns `id` on success, or -1 if the slot is already occupied by a
+ * different name or `id` is out of range. */
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const char* name,
                                                usize len,
                                                oak_type_id_t id);
 
-/* Returns a printable name for `id` (always non-null; "<unknown>" if the id
- * is invalid). The returned string lives as long as the registry. */
+/* Returns a printable name for `id` (always non-null; "<void>" if the id
+ * is OAK_TYPE_VOID, "<unknown>" if the id is otherwise invalid). The
+ * returned string lives as long as the registry. */
 const char* oak_type_registry_name(const struct oak_type_registry_t* reg,
                                    oak_type_id_t id);
 
 /* Convenience helpers for oak_type_t. */
 static inline void oak_type_clear(struct oak_type_t* t)
 {
-  t->id = OAK_TYPE_UNKNOWN;
-  t->key_id = OAK_TYPE_UNKNOWN;
+  t->id = OAK_TYPE_VOID;
+  t->key_id = OAK_TYPE_VOID;
   t->kind = OAK_TYPE_KIND_SCALAR;
 }
 
 static inline int oak_type_is_known(const struct oak_type_t* t)
 {
-  return t->id != OAK_TYPE_UNKNOWN;
+  return t->id != OAK_TYPE_VOID;
 }
 
 static inline int oak_type_is_void(const struct oak_type_t* t)
