@@ -211,11 +211,6 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           out->id = OAK_TYPE_VOID;
           return;
         }
-        if (fe->name_len == 7u && memcmp(fe->name, "println", 7u) == 0)
-        {
-          out->id = OAK_TYPE_VOID;
-          return;
-        }
         /* General native function: use the pre-declared return type. */
         out->id = fe->return_type_id;
         out->kind = fe->return_kind;

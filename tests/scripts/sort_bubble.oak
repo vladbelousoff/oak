@@ -23,19 +23,19 @@ fn bubble_sort(mut arr: number[]) -> number {
 let mut xs = [5, 2, 9, 1, 7, 3, 8, 4, 6, 0];
 bubble_sort(xs);
 for v in xs {
-  println(v);
+  print(v);
 }
 
 let mut empty = [] as number[];
 bubble_sort(empty);
-println(empty.size());
+print(empty.size());
 
 let mut one = [42];
 bubble_sort(one);
-println(one[0]);
+print(one[0]);
 
 let mut dups = [3, 1, 2, 1, 3, 2, 1];
 bubble_sort(dups);
 for v in dups {
-  println(v);
+  print(v);
 }

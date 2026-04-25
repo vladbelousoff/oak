@@ -104,6 +104,6 @@ foreach (script ${OAK_SCRIPT_TESTS})
     set(test_name "script_${script_name}")
 
     add_test(NAME ${test_name} COMMAND oak ${script})
-    # Project root as cwd (e.g. for pwd() in script tests).
+    # Project root as cwd (script tests use paths relative to the repo root).
     set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endforeach ()

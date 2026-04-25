@@ -523,13 +523,6 @@ oak_value_format(const struct oak_value_t value, char* buf, const usize size)
 
 #define OAK_PRINT_BUF_SIZE 4096
 
-void oak_value_print(const struct oak_value_t value)
-{
-  char buf[OAK_PRINT_BUF_SIZE];
-  oak_value_format(value, buf, sizeof(buf));
-  fputs(buf, stdout);
-}
-
 void oak_value_println(const struct oak_value_t value)
 {
   char buf[OAK_PRINT_BUF_SIZE + 1];
