@@ -10,12 +10,12 @@
 static enum oak_test_status_t run_ok(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk != null);
 
@@ -34,12 +34,12 @@ static enum oak_test_status_t run_ok(const char* source)
 static enum oak_test_status_t compile_fails(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk == null);
 
@@ -51,26 +51,23 @@ static enum oak_test_status_t compile_fails(const char* source)
 OAK_TEST_DECL(FnArgArray)
 {
   /* Pass a number[] to a function that indexes into it. */
-  const char* source =
-      "fn first(arr: number[]) -> number { return arr[0]; }\n"
-      "let a = [10, 20, 30];\n"
-      "print(first(a));";
+  const char* source = "fn first(arr: number[]) -> number { return arr[0]; }\n"
+                       "let a = [10, 20, 30];\n"
+                       "print(first(a));";
   OAK_CHECK(run_ok(source) == OAK_TEST_OK);
 
   /* Pass a mutable array and push into it from inside the function. */
-  const char* source_mut =
-      "fn append(mut arr: number[]) -> number {\n"
-      "  arr.push(99);\n"
-      "  return arr.size();\n"
-      "}\n"
-      "let mut b = [1, 2];\n"
-      "print(append(b));";
+  const char* source_mut = "fn append(mut arr: number[]) -> number {\n"
+                           "  arr.push(99);\n"
+                           "  return arr.size();\n"
+                           "}\n"
+                           "let mut b = [1, 2];\n"
+                           "print(append(b));";
   OAK_CHECK(run_ok(source_mut) == OAK_TEST_OK);
 
   /* Passing a plain number where number[] is expected must fail. */
-  const char* bad =
-      "fn first(arr: number[]) -> number { return arr[0]; }\n"
-      "print(first(42));";
+  const char* bad = "fn first(arr: number[]) -> number { return arr[0]; }\n"
+                    "print(first(42));";
   OAK_CHECK(compile_fails(bad) == OAK_TEST_OK);
 
   return OAK_TEST_OK;

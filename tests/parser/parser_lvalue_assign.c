@@ -5,7 +5,7 @@ OAK_TEST_DECL(ParseLvalueAssign)
   struct oak_lexer_result_t* lexer =
       OAK_LEX("obj.x = 1; arr[0] = 2; obj.x += 3; arr[i] -= 4;");
 
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);

@@ -5,14 +5,15 @@ OAK_TEST_DECL(ParseFnParamMut)
   struct oak_lexer_result_t* lexer =
       OAK_LEX("fn foo(mut x : number, y : number) -> number { x = 1; }");
 
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 
   /*
      Expected shape:
-       FN_DECL (binary: FN_PROTO, BLOCK); FN_PROTO carries FN_HEAD + FN_PARAMS_AND_RET
+       FN_DECL (binary: FN_PROTO, BLOCK); FN_PROTO carries FN_HEAD +
+     FN_PARAMS_AND_RET
   */
 
   const struct oak_ast_node_t* decl = oak_test_ast_child(root, 0);

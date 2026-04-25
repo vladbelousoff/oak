@@ -78,7 +78,8 @@ struct oak_token_t
   int line;
   int column;
   int offset;
-  /* Lexeme length in bytes; same unsigned domain as `oak_string` / name lengths. */
+  /* Lexeme length in bytes; same unsigned domain as `oak_string` / name
+   * lengths. */
   usize length;
   char text[0];
 };

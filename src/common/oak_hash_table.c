@@ -18,18 +18,18 @@ static u32 fnv1a(const void* data, usize len)
 
 void oak_hash_table_init(struct oak_hash_table_t* ht)
 {
-  ht->slots    = null;
+  ht->slots = null;
   ht->capacity = 0;
-  ht->count    = 0;
+  ht->count = 0;
 }
 
 void oak_hash_table_free(struct oak_hash_table_t* ht)
 {
   if (ht->slots)
     oak_free(ht->slots, OAK_SRC_LOC);
-  ht->slots    = null;
+  ht->slots = null;
   ht->capacity = 0;
-  ht->count    = 0;
+  ht->count = 0;
 }
 
 static void grow(struct oak_hash_table_t* ht)
@@ -53,14 +53,14 @@ static void grow(struct oak_hash_table_t* ht)
 
   if (ht->slots)
     oak_free(ht->slots, OAK_SRC_LOC);
-  ht->slots    = new_slots;
+  ht->slots = new_slots;
   ht->capacity = new_cap;
 }
 
 void oak_hash_table_insert(struct oak_hash_table_t* ht,
                            const void* key,
-                           usize       key_len,
-                           int         value)
+                           usize key_len,
+                           int value)
 {
   /* Grow before load exceeds 75%. */
   if (ht->count * 4 >= ht->capacity * 3)
@@ -71,16 +71,16 @@ void oak_hash_table_insert(struct oak_hash_table_t* ht,
   while (ht->slots[i].key)
     i = (i + 1) & (ht->capacity - 1);
 
-  ht->slots[i].key     = key;
+  ht->slots[i].key = key;
   ht->slots[i].key_len = key_len;
-  ht->slots[i].hash    = h;
-  ht->slots[i].value   = value;
+  ht->slots[i].hash = h;
+  ht->slots[i].value = value;
   ht->count++;
 }
 
 int oak_hash_table_get(const struct oak_hash_table_t* ht,
                        const void* key,
-                       usize       key_len)
+                       usize key_len)
 {
   if (!ht->capacity)
     return -1;
@@ -89,8 +89,7 @@ int oak_hash_table_get(const struct oak_hash_table_t* ht,
   int i = (int)(h & (u32)(ht->capacity - 1));
   while (ht->slots[i].key)
   {
-    if (ht->slots[i].hash    == h        &&
-        ht->slots[i].key_len == key_len  &&
+    if (ht->slots[i].hash == h && ht->slots[i].key_len == key_len &&
         memcmp(ht->slots[i].key, key, key_len) == 0)
       return ht->slots[i].value;
     i = (i + 1) & (ht->capacity - 1);

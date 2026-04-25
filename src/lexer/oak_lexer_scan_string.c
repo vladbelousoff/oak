@@ -27,8 +27,7 @@ oak_lexer_try_scan_string(const struct oak_lexer_ctx_t* ctx, const char* input)
   if (p < end && *p == '\'')
   {
     oak_lexer_advance_cursor(cur, 1, 1);
-    oak_lexer_save_token(
-        ctx->lexer, &sav_cur, OAK_TOKEN_STRING, tls, 0);
+    oak_lexer_save_token(ctx->lexer, &sav_cur, OAK_TOKEN_STRING, tls, 0);
     return OAK_LEX_OK;
   }
   while (p < end)

@@ -24,7 +24,8 @@ static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
 
   if (!oak_is_array(recv))
   {
-    oak_vm_runtime_error(vm, "indexing requires an array or map, got %s",
+    oak_vm_runtime_error(vm,
+                         "indexing requires an array or map, got %s",
                          oak_vm_value_kind_desc(recv));
     oak_value_decref(subscript);
     oak_value_decref(recv);
@@ -32,7 +33,8 @@ static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
   }
   if (!oak_is_i32(subscript))
   {
-    oak_vm_runtime_error(vm, "array index must be an integer, got %s",
+    oak_vm_runtime_error(vm,
+                         "array index must be an integer, got %s",
                          oak_vm_value_kind_desc(subscript));
     oak_value_decref(subscript);
     oak_value_decref(recv);
@@ -78,16 +80,16 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
 
   if (!oak_is_array(recv))
   {
-    oak_vm_runtime_error(
-        vm, "indexed assignment requires an array or map, got %s",
-        oak_vm_value_kind_desc(recv));
+    oak_vm_runtime_error(vm,
+                         "indexed assignment requires an array or map, got %s",
+                         oak_vm_value_kind_desc(recv));
     return OAK_VM_RUNTIME_ERROR;
   }
   if (!oak_is_i32(subscript))
   {
-    oak_vm_runtime_error(
-        vm, "array index must be an integer, got %s",
-        oak_vm_value_kind_desc(subscript));
+    oak_vm_runtime_error(vm,
+                         "array index must be an integer, got %s",
+                         oak_vm_value_kind_desc(subscript));
     return OAK_VM_RUNTIME_ERROR;
   }
   struct oak_obj_array_t* arr = oak_as_array(recv);
@@ -109,24 +111,25 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
 }
 
 static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
-                                                 const u8 instruction)
+                                                   const u8 instruction)
 {
   const struct oak_value_t iter_index = oak_vm_pop(vm);
   const struct oak_value_t map_val = oak_vm_pop(vm);
 
   if (!oak_is_map(map_val))
   {
-    oak_vm_runtime_error(
-        vm, "map iteration requires a map, got %s", oak_vm_value_kind_desc(map_val));
+    oak_vm_runtime_error(vm,
+                         "map iteration requires a map, got %s",
+                         oak_vm_value_kind_desc(map_val));
     oak_value_decref(iter_index);
     oak_value_decref(map_val);
     return OAK_VM_RUNTIME_ERROR;
   }
   if (!oak_is_i32(iter_index))
   {
-    oak_vm_runtime_error(
-        vm, "map iterator index must be an integer, got %s",
-        oak_vm_value_kind_desc(iter_index));
+    oak_vm_runtime_error(vm,
+                         "map iterator index must be an integer, got %s",
+                         oak_vm_value_kind_desc(iter_index));
     oak_value_decref(iter_index);
     oak_value_decref(map_val);
     return OAK_VM_RUNTIME_ERROR;
@@ -142,8 +145,8 @@ static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
     return OAK_VM_RUNTIME_ERROR;
   }
   const struct oak_value_t v = instruction == OAK_OP_MAP_KEY_AT
-                                    ? oak_map_key_at(map, (usize)i)
-                                    : oak_map_value_at(map, (usize)i);
+                                   ? oak_map_key_at(map, (usize)i)
+                                   : oak_map_value_at(map, (usize)i);
   oak_vm_push(vm, v);
   oak_value_decref(iter_index);
   oak_value_decref(map_val);
@@ -202,9 +205,10 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const u8 idx = oak_vm_read(vm, 1);
         if ((usize)idx >= chunk->const_count)
         {
-          oak_vm_runtime_error(
-              vm, "constant index %u out of range (%zu constants)",
-              (unsigned)idx, chunk->const_count);
+          oak_vm_runtime_error(vm,
+                               "constant index %u out of range (%zu constants)",
+                               (unsigned)idx,
+                               chunk->const_count);
           return OAK_VM_RUNTIME_ERROR;
         }
         oak_vm_push(vm, chunk->constants[idx]);
@@ -215,9 +219,10 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const u16 idx = oak_vm_read_u16(vm);
         if ((usize)idx >= chunk->const_count)
         {
-          oak_vm_runtime_error(
-              vm, "constant index %u out of range (%zu constants)",
-              (unsigned)idx, chunk->const_count);
+          oak_vm_runtime_error(vm,
+                               "constant index %u out of range (%zu constants)",
+                               (unsigned)idx,
+                               chunk->const_count);
           return OAK_VM_RUNTIME_ERROR;
         }
         oak_vm_push(vm, chunk->constants[idx]);
@@ -241,8 +246,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const usize idx = vm->stack_base + (usize)slot;
         if (idx >= OAK_STACK_MAX)
         {
-          oak_vm_runtime_error(
-              vm, "local slot out of range (slot %u)", slot);
+          oak_vm_runtime_error(vm, "local slot out of range (slot %u)", slot);
           return OAK_VM_RUNTIME_ERROR;
         }
         oak_vm_push(vm, vm->stack[idx]);
@@ -254,8 +258,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const usize idx = vm->stack_base + (usize)slot;
         if (idx >= OAK_STACK_MAX)
         {
-          oak_vm_runtime_error(
-              vm, "local slot out of range (slot %u)", slot);
+          oak_vm_runtime_error(vm, "local slot out of range (slot %u)", slot);
           return OAK_VM_RUNTIME_ERROR;
         }
         const struct oak_value_t old_val = vm->stack[idx];
@@ -272,8 +275,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const usize idx = vm->stack_base + (usize)slot;
         if (idx >= OAK_STACK_MAX)
         {
-          oak_vm_runtime_error(
-              vm, "local slot out of range (slot %u)", slot);
+          oak_vm_runtime_error(vm, "local slot out of range (slot %u)", slot);
           return OAK_VM_RUNTIME_ERROR;
         }
         const struct oak_value_t val = vm->stack[idx];
@@ -365,8 +367,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       {
         struct oak_value_t b = oak_vm_pop(vm);
         struct oak_value_t a = oak_vm_pop(vm);
-        enum oak_vm_result_t r =
-            oak_vm_numeric_compare(vm, instruction, a, b);
+        enum oak_vm_result_t r = oak_vm_numeric_compare(vm, instruction, a, b);
         oak_value_decref(a);
         oak_value_decref(b);
         if (r != OAK_VM_OK)
@@ -516,7 +517,42 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       {
         const u8 idx = (u8)oak_vm_read(vm, 1);
         const struct oak_value_t recv = oak_vm_pop(vm);
-        if (!oak_is_struct(recv))
+        if (oak_is_struct(recv))
+        {
+          const struct oak_obj_struct_t* s = oak_as_struct(recv);
+          if ((int)idx >= s->field_count)
+          {
+            oak_vm_runtime_error(
+                vm,
+                "field index %u out of bounds (struct has %d fields)",
+                (unsigned)idx,
+                s->field_count);
+            oak_value_decref(recv);
+            return OAK_VM_RUNTIME_ERROR;
+          }
+          oak_vm_push(vm, s->fields[idx]);
+          oak_value_decref(recv);
+        }
+        else if (oak_is_native_struct(recv))
+        {
+          const struct oak_obj_native_struct_t* ns = oak_as_native_struct(recv);
+          if ((int)idx >= ns->type->field_count)
+          {
+            oak_vm_runtime_error(vm,
+                                 "field index %u out of bounds (native struct "
+                                 "'%s' has %d fields)",
+                                 (unsigned)idx,
+                                 ns->type->name,
+                                 ns->type->field_count);
+            oak_value_decref(recv);
+            return OAK_VM_RUNTIME_ERROR;
+          }
+          /* Getter returns an owned reference; push without extra incref. */
+          const struct oak_value_t result = ns->type->fields[idx].getter(recv);
+          oak_value_decref(recv);
+          oak_vm_push_owned(vm, result);
+        }
+        else
         {
           oak_vm_runtime_error(vm,
                                "field access requires a struct, got %s",
@@ -524,19 +560,6 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           oak_value_decref(recv);
           return OAK_VM_RUNTIME_ERROR;
         }
-        const struct oak_obj_struct_t* s = oak_as_struct(recv);
-        if ((int)idx >= s->field_count)
-        {
-          oak_vm_runtime_error(
-              vm,
-              "field index %u out of bounds (struct has %d fields)",
-              (unsigned)idx,
-              s->field_count);
-          oak_value_decref(recv);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        oak_vm_push(vm, s->fields[idx]);
-        oak_value_decref(recv);
         break;
       }
       case OAK_OP_SET_FIELD:
@@ -550,28 +573,57 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         }
         const struct oak_value_t value = vm->sp[-1];
         const struct oak_value_t recv = vm->sp[-2];
-        if (!oak_is_struct(recv))
+        if (oak_is_struct(recv))
+        {
+          struct oak_obj_struct_t* s = oak_as_struct(recv);
+          if ((int)idx >= s->field_count)
+          {
+            oak_vm_runtime_error(
+                vm,
+                "field index %u out of bounds (struct has %d fields)",
+                (unsigned)idx,
+                s->field_count);
+            return OAK_VM_RUNTIME_ERROR;
+          }
+          oak_value_decref(s->fields[idx]);
+          oak_value_incref(value);
+          s->fields[idx] = value;
+          oak_value_decref(recv);
+          vm->sp[-2] = value;
+        }
+        else if (oak_is_native_struct(recv))
+        {
+          const struct oak_obj_native_struct_t* ns = oak_as_native_struct(recv);
+          if ((int)idx >= ns->type->field_count)
+          {
+            oak_vm_runtime_error(vm,
+                                 "field index %u out of bounds (native struct "
+                                 "'%s' has %d fields)",
+                                 (unsigned)idx,
+                                 ns->type->name,
+                                 ns->type->field_count);
+            return OAK_VM_RUNTIME_ERROR;
+          }
+          if (!ns->type->fields[idx].setter)
+          {
+            oak_vm_runtime_error(
+                vm,
+                "field '%s' on native struct '%s' is read-only",
+                ns->type->fields[idx].name,
+                ns->type->name);
+            return OAK_VM_RUNTIME_ERROR;
+          }
+          ns->type->fields[idx].setter(recv, value);
+          oak_value_decref(recv);
+          vm->sp[-2] = value;
+        }
+        else
         {
           oak_vm_runtime_error(vm,
                                "field assignment requires a struct, got %s",
                                oak_vm_value_kind_desc(recv));
           return OAK_VM_RUNTIME_ERROR;
         }
-        struct oak_obj_struct_t* s = oak_as_struct(recv);
-        if ((int)idx >= s->field_count)
-        {
-          oak_vm_runtime_error(
-              vm,
-              "field index %u out of bounds (struct has %d fields)",
-              (unsigned)idx,
-              s->field_count);
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        oak_value_decref(s->fields[idx]);
-        oak_value_incref(value);
-        s->fields[idx] = value;
-        oak_value_decref(recv);
-        vm->sp[-2] = value;
         vm->sp -= 1;
         break;
       }

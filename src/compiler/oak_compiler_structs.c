@@ -1,17 +1,90 @@
 #include "oak_compiler_internal.h"
 
-static int register_struct_field_decls(
-    struct oak_compiler_t* c, struct oak_registered_struct_t* slot,
-    const struct oak_ast_node_t* fields_wrap, const char* struct_name,
-    const struct oak_token_t* err_ctx_token);
+/* ---------- Native type registration ---------- */
+
+void oak_compiler_register_native_types(
+    struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
+{
+  if (!opts || opts->native_type_count == 0)
+    return;
+
+  for (int i = 0; i < opts->native_type_count; ++i)
+  {
+    const struct oak_native_type_t* nt = opts->native_types[i];
+    if (!nt)
+      continue;
+
+    if (oak_compiler_find_struct_by_name(c, nt->name, nt->name_len))
+    {
+      oak_compiler_error_at(
+          c,
+          null,
+          "native type '%s' conflicts with an already-registered type",
+          nt->name);
+      return;
+    }
+
+    /* Register the pre-assigned stable id into the compiler's type registry.
+     * This ensures that references to this name in Oak source resolve to the
+     * same id that the embedding code holds in nt->type_id. */
+    const oak_type_id_t tid = oak_type_registry_intern_with_id(
+        &c->types, nt->name, nt->name_len, nt->type_id);
+    if (tid == OAK_TYPE_UNKNOWN)
+    {
+      oak_compiler_error_at(c,
+                            null,
+                            "failed to register native type '%s' (type "
+                            "registry full or id conflict)",
+                            nt->name);
+      return;
+    }
+
+    struct oak_registered_struct_t proto = { 0 };
+    proto.name = nt->name;
+    proto.name_len = nt->name_len;
+    proto.type_id = tid;
+    proto.field_count = nt->field_count;
+    proto.method_count = 0;
+
+    if (nt->field_count > OAK_MAX_STRUCT_FIELDS)
+    {
+      oak_compiler_error_at(c,
+                            null,
+                            "native type '%s' has too many fields (max %d)",
+                            nt->name,
+                            OAK_MAX_STRUCT_FIELDS);
+      return;
+    }
+
+    for (int fi = 0; fi < nt->field_count; ++fi)
+    {
+      const struct oak_native_field_t* nf = &nt->fields[fi];
+      struct oak_struct_field_t* sf = &proto.fields[fi];
+      sf->name = nf->name;
+      sf->name_len = nf->name_len;
+      oak_type_clear(&sf->type);
+      sf->type.id = nf->field_type_id;
+    }
+
+    oak_struct_registry_insert(&c->structs, &proto);
+    if (c->has_error)
+      return;
+  }
+}
+
+static int register_struct_field_decls(struct oak_compiler_t* c,
+                                       struct oak_registered_struct_t* slot,
+                                       const struct oak_ast_node_t* fields_wrap,
+                                       const char* struct_name,
+                                       const struct oak_token_t* err_ctx_token);
 
 /* ---------- oak_struct_registry_t lifecycle ---------- */
 
 void oak_struct_registry_init(struct oak_struct_registry_t* r)
 {
   oak_hash_table_init(&r->by_name);
-  r->entries  = null;
-  r->count    = 0;
+  r->entries = null;
+  r->count = 0;
   r->capacity = 0;
 }
 
@@ -20,8 +93,8 @@ void oak_struct_registry_free(struct oak_struct_registry_t* r)
   oak_hash_table_free(&r->by_name);
   if (r->entries)
     oak_free(r->entries, OAK_SRC_LOC);
-  r->entries  = null;
-  r->count    = 0;
+  r->entries = null;
+  r->count = 0;
   r->capacity = 0;
 }
 
@@ -32,23 +105,20 @@ oak_struct_registry_insert(struct oak_struct_registry_t* r,
   if (r->count >= r->capacity)
   {
     const int new_cap = r->capacity < 8 ? 8 : r->capacity * 2;
-    r->entries = oak_realloc(r->entries,
-                             (usize)new_cap * sizeof *r->entries,
-                             OAK_SRC_LOC);
+    r->entries = oak_realloc(
+        r->entries, (usize)new_cap * sizeof *r->entries, OAK_SRC_LOC);
     r->capacity = new_cap;
   }
   const int idx = r->count;
   r->entries[idx] = *s;
   r->count++;
-  oak_hash_table_insert(&r->by_name, r->entries[idx].name,
-                        r->entries[idx].name_len, idx);
+  oak_hash_table_insert(
+      &r->by_name, r->entries[idx].name, r->entries[idx].name_len, idx);
   return &r->entries[idx];
 }
 
-const struct oak_registered_struct_t*
-oak_struct_registry_find_by_name(const struct oak_struct_registry_t* r,
-                                 const char* name,
-                                 usize len)
+const struct oak_registered_struct_t* oak_struct_registry_find_by_name(
+    const struct oak_struct_registry_t* r, const char* name, usize len)
 {
   const int idx = oak_hash_table_get(&r->by_name, name, len);
   if (idx < 0)
@@ -72,10 +142,8 @@ oak_struct_registry_find_by_type_id(const struct oak_struct_registry_t* r,
 
 /* ---------- Compiler-level lookup wrappers ---------- */
 
-const struct oak_registered_struct_t*
-oak_compiler_find_struct_by_name(const struct oak_compiler_t* c,
-                                 const char* name,
-                                 const usize len)
+const struct oak_registered_struct_t* oak_compiler_find_struct_by_name(
+    const struct oak_compiler_t* c, const char* name, const usize len)
 {
   return oak_struct_registry_find_by_name(&c->structs, name, len);
 }
@@ -133,21 +201,19 @@ int oak_compiler_require_struct_field(
   const int idx = oak_compiler_struct_field_index(c, recv_ty, ftext, flen, &sd);
   if (!oak_type_is_known(&recv_ty) || !sd)
   {
-    oak_compiler_error_at(
-        c,
-        fname->token,
-        is_assignment
-            ?         "field assignment '.%s ='" " requires a struct receiver"
-            : "field access '.%s' requires a struct receiver",
-        ftext);
+    oak_compiler_error_at(c,
+                          fname->token,
+                          is_assignment
+                              ? "field assignment '.%s ='"
+                                " requires a struct receiver"
+                              : "field access '.%s' requires a struct receiver",
+                          ftext);
     return -1;
   }
   if (idx < 0)
   {
     oak_compiler_error_at(
-        c,
-        fname->token,
-        "no such field '%s' on struct '%s'", ftext, sd->name);
+        c, fname->token, "no such field '%s' on struct '%s'", ftext, sd->name);
     return -1;
   }
   if (out_sd)
@@ -206,10 +272,9 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
     }
 
     struct oak_registered_struct_t proto = { 0 };
-    proto.name        = name;
-    proto.name_len    = name_len;
-    proto.type_id     =
-        oak_type_registry_intern(&c->types, name, name_len);
+    proto.name = name;
+    proto.name_len = name_len;
+    proto.type_id = oak_type_registry_intern(&c->types, name, name_len);
     proto.field_count = 0;
     proto.method_count = 0;
 
@@ -237,27 +302,30 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
 }
 
 /* Collect field declarations in source order. */
-static int register_struct_field_decls(
-    struct oak_compiler_t* c, struct oak_registered_struct_t* slot,
-    const struct oak_ast_node_t* fields_wrap, const char* struct_name,
-    const struct oak_token_t* err_ctx_token)
+static int register_struct_field_decls(struct oak_compiler_t* c,
+                                       struct oak_registered_struct_t* slot,
+                                       const struct oak_ast_node_t* fields_wrap,
+                                       const char* struct_name,
+                                       const struct oak_token_t* err_ctx_token)
 {
   for (struct oak_list_entry_t* fpos = fields_wrap->children.next;
-       fpos != &fields_wrap->children; fpos = fpos->next)
+       fpos != &fields_wrap->children;
+       fpos = fpos->next)
   {
     const struct oak_ast_node_t* fdecl =
         oak_container_of(fpos, struct oak_ast_node_t, link);
-    if (fdecl->kind != OAK_NODE_STRUCT_FIELD_DECL || !fdecl->lhs
-        || !fdecl->rhs)
+    if (fdecl->kind != OAK_NODE_STRUCT_FIELD_DECL || !fdecl->lhs || !fdecl->rhs)
     {
       oak_compiler_error_at(c, err_ctx_token, "malformed struct field");
       return 0;
     }
     if (slot->field_count >= OAK_MAX_STRUCT_FIELDS)
     {
-        oak_compiler_error_at(
-            c, fdecl->lhs->token, "too many fields in struct '%s' (max %d)",
-            struct_name, OAK_MAX_STRUCT_FIELDS);
+      oak_compiler_error_at(c,
+                            fdecl->lhs->token,
+                            "too many fields in struct '%s' (max %d)",
+                            struct_name,
+                            OAK_MAX_STRUCT_FIELDS);
       return 0;
     }
 
@@ -274,18 +342,20 @@ static int register_struct_field_decls(
     const usize fn_len = oak_token_length(fname->token);
     for (int i = 0; i < slot->field_count; ++i)
     {
-      if (oak_name_eq(slot->fields[i].name, slot->fields[i].name_len,
-                      fn_name, fn_len))
+      if (oak_name_eq(
+              slot->fields[i].name, slot->fields[i].name_len, fn_name, fn_len))
       {
-        oak_compiler_error_at(
-            c, fname->token, "duplicate field '%s' in struct '%s'", fn_name,
-            struct_name);
+        oak_compiler_error_at(c,
+                              fname->token,
+                              "duplicate field '%s' in struct '%s'",
+                              fn_name,
+                              struct_name);
         return 0;
       }
     }
 
     struct oak_struct_field_t* f = &slot->fields[slot->field_count++];
-    f->name     = fn_name;
+    f->name = fn_name;
     f->name_len = fn_len;
     oak_type_clear(&f->type);
     f->type.id = oak_compiler_intern_type_token(c, ftype->token);

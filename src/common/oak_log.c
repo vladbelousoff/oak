@@ -38,7 +38,7 @@ static const char* oak_time_stamp(void)
 
 static const char* oak_log_lvl_to_str(const enum oak_log_level_t lvl)
 {
-  static const char* const s[] = {"INF", "DBG", "WRN", "ERR"};
+  static const char* const s[] = { "INF", "DBG", "WRN", "ERR" };
   return (unsigned)lvl < oak_count_of(s) ? s[lvl] : s[0];
 }
 

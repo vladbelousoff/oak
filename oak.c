@@ -30,8 +30,8 @@ int main(const int argc, const char* argv[])
 
   struct oak_file_map_t source_map;
   struct oak_lexer_result_t* lexer = null;
-  struct oak_parser_result_t result = {0};
-  struct oak_compile_result_t cr = {0};
+  struct oak_parser_result_t result = { 0 };
+  struct oak_compile_result_t cr = { 0 };
   int exit_code = 1;
 
   if (oak_file_map(cli.script_path, &source_map) != 0)

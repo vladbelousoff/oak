@@ -16,17 +16,17 @@
 
 struct oak_hash_table_slot_t
 {
-  const void* key;     /* null = empty slot */
-  usize       key_len;
-  u32         hash;    /* cached FNV-1a hash */
-  int         value;
+  const void* key; /* null = empty slot */
+  usize key_len;
+  u32 hash; /* cached FNV-1a hash */
+  int value;
 };
 
 struct oak_hash_table_t
 {
   struct oak_hash_table_slot_t* slots; /* heap-allocated       */
-  int                           capacity; /* always a power of 2, or 0 */
-  int                           count;
+  int capacity;                        /* always a power of 2, or 0 */
+  int count;
 };
 
 void oak_hash_table_init(struct oak_hash_table_t* ht);
@@ -36,10 +36,10 @@ void oak_hash_table_free(struct oak_hash_table_t* ht);
  * Behaviour is undefined if the key is already present. */
 void oak_hash_table_insert(struct oak_hash_table_t* ht,
                            const void* key,
-                           usize       key_len,
-                           int         value);
+                           usize key_len,
+                           int value);
 
 /* Returns the stored int for the key, or -1 if not found. */
 int oak_hash_table_get(const struct oak_hash_table_t* ht,
                        const void* key,
-                       usize       key_len);
+                       usize key_len);

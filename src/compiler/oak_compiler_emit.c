@@ -34,7 +34,8 @@ u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
 {
   if (c->chunk->const_count >= 65536)
   {
-    oak_compiler_error_at(c, null, "too many constants in one chunk (max 65536)");
+    oak_compiler_error_at(
+        c, null, "too many constants in one chunk (max 65536)");
     return 0;
   }
   /* Deduplicate integer and float constants to conserve pool slots. */
@@ -90,7 +91,7 @@ void oak_compiler_patch_jump(struct oak_compiler_t* c, const usize offset)
 {
   /* Distance from end of the 4-byte operand to the current position. */
   const usize jump = c->chunk->count - offset - 4;
-  c->chunk->bytecode[offset]     = (u8)(jump >> 24);
+  c->chunk->bytecode[offset] = (u8)(jump >> 24);
   c->chunk->bytecode[offset + 1] = (u8)(jump >> 16);
   c->chunk->bytecode[offset + 2] = (u8)(jump >> 8);
   c->chunk->bytecode[offset + 3] = (u8)(jump);
@@ -113,8 +114,8 @@ void oak_compiler_emit_loop(struct oak_compiler_t* c,
   const usize jump = c->chunk->count - loop_start + 4;
   oak_compiler_emit_byte(c, (u8)(jump >> 24), loc);
   oak_compiler_emit_byte(c, (u8)(jump >> 16), loc);
-  oak_compiler_emit_byte(c, (u8)(jump >> 8),  loc);
-  oak_compiler_emit_byte(c, (u8)(jump),        loc);
+  oak_compiler_emit_byte(c, (u8)(jump >> 8), loc);
+  oak_compiler_emit_byte(c, (u8)(jump), loc);
 }
 
 void oak_compiler_emit_pops(struct oak_compiler_t* c,
@@ -132,7 +133,8 @@ void oak_compiler_emit_loop_control_jump(struct oak_compiler_t* c,
                                          const char* keyword)
 {
   const int saved_depth = c->scope.stack_depth;
-  oak_compiler_emit_pops(c, c->scope.stack_depth - target_depth, OAK_LOC_SYNTHETIC);
+  oak_compiler_emit_pops(
+      c, c->scope.stack_depth - target_depth, OAK_LOC_SYNTHETIC);
 
   if (*count >= OAK_MAX_LOOP_BRANCHES)
   {
@@ -144,7 +146,6 @@ void oak_compiler_emit_loop_control_jump(struct oak_compiler_t* c,
     c->scope.stack_depth = saved_depth;
     return;
   }
-  jumps[(*count)++] =
-      oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
+  jumps[(*count)++] = oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
   c->scope.stack_depth = saved_depth;
 }

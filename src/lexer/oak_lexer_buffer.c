@@ -4,7 +4,8 @@
 
 #include <string.h>
 
-void oak_growable_buf_init(struct oak_growable_buf_t* b, char tls[OAK_LEXER_TLS_BUF])
+void oak_growable_buf_init(struct oak_growable_buf_t* b,
+                           char tls[OAK_LEXER_TLS_BUF])
 {
   b->data = tls;
   b->len = 0u;
@@ -23,8 +24,8 @@ void oak_growable_buf_free(struct oak_growable_buf_t* b)
   b->heap = 0;
 }
 
-enum oak_lex_status_t
-oak_growable_buf_reserve(struct oak_growable_buf_t* b, const usize min_cap)
+enum oak_lex_status_t oak_growable_buf_reserve(struct oak_growable_buf_t* b,
+                                               const usize min_cap)
 {
   if (min_cap <= b->cap)
     return OAK_LEX_OK;

@@ -10,14 +10,14 @@ usize oak_compiler_ast_child_count(const struct oak_ast_node_t* node)
 }
 
 int oak_compiler_ast_is_int_literal(const struct oak_ast_node_t* node,
-                              const int value)
+                                    const int value)
 {
   return node && node->kind == OAK_NODE_INT &&
          oak_token_as_i32(node->token) == value;
 }
 
 static void reject_binary_void(struct oak_compiler_t* c,
-                                const struct oak_ast_node_t* node)
+                               const struct oak_ast_node_t* node)
 {
   oak_compiler_reject_void_value_expr(c, node->lhs);
   if (c->has_error)
@@ -78,8 +78,9 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
     oak_compiler_infer_expr_static_type(c, lhs->lhs, &coll_ty);
     if (coll_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&coll_ty))
     {
-      oak_compiler_error_at(
-          c, lhs->lhs->token, "indexed assignment requires a typed array or map");
+      oak_compiler_error_at(c,
+                            lhs->lhs->token,
+                            "indexed assignment requires a typed array or map");
       return;
     }
 
@@ -92,7 +93,8 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
         const struct oak_type_t want_key = { .id = coll_ty.key_id };
         if (!oak_type_equal(&want_key, &key_ty))
         {
-          oak_compiler_error_at(c, lhs->rhs->token,
+          oak_compiler_error_at(c,
+                                lhs->rhs->token,
                                 "map key must be of type '%s', got '%s'",
                                 oak_compiler_type_full_name(c, want_key),
                                 oak_compiler_type_full_name(c, key_ty));
@@ -115,7 +117,8 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
       if (!oak_type_equal(&element_ty, &val_ty))
       {
         oak_compiler_error_at(
-            c, rhs->token,
+            c,
+            rhs->token,
             "cannot assign value of type '%s' to element of '%s' %s",
             oak_compiler_type_full_name(c, val_ty),
             oak_compiler_type_full_name(c, element_ty),
@@ -143,8 +146,7 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
       return;
     }
     const struct oak_registered_struct_t* sd = null;
-    const int idx =
-        oak_compiler_require_struct_field(c, recv, fname, 1, &sd);
+    const int idx = oak_compiler_require_struct_field(c, recv, fname, 1, &sd);
     if (idx < 0)
       return;
 
@@ -152,26 +154,30 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
     oak_compiler_infer_expr_static_type(c, rhs, &val_ty);
     if (oak_type_is_void(&val_ty))
     {
-      oak_compiler_error_at(
-          c, rhs->token ? rhs->token : fname->token,
-          "cannot assign void to a struct field");
+      oak_compiler_error_at(c,
+                            rhs->token ? rhs->token : fname->token,
+                            "cannot assign void to a struct field");
       return;
     }
     if (oak_type_is_known(&val_ty) &&
         !oak_type_equal(&sd->fields[idx].type, &val_ty))
     {
       oak_compiler_error_at(
-          c, rhs->token ? rhs->token : fname->token,
+          c,
+          rhs->token ? rhs->token : fname->token,
           "cannot assign value of type '%s' to field '%s' of type '%s'",
-          oak_compiler_type_full_name(c, val_ty), sd->fields[idx].name,
+          oak_compiler_type_full_name(c, val_ty),
+          sd->fields[idx].name,
           oak_compiler_type_full_name(c, sd->fields[idx].type));
       return;
     }
 
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, rhs);
-    oak_compiler_emit_op_arg(
-        c, OAK_OP_SET_FIELD, (u8)idx, oak_compiler_loc_from_token(fname->token));
+    oak_compiler_emit_op_arg(c,
+                             OAK_OP_SET_FIELD,
+                             (u8)idx,
+                             oak_compiler_loc_from_token(fname->token));
     oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
     return;
   }
@@ -192,7 +198,7 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
 }
 
 static void compile_expr_array_literal(struct oak_compiler_t* c,
-                                      const struct oak_ast_node_t* node)
+                                       const struct oak_ast_node_t* node)
 {
   const usize count = oak_list_length(&node->children);
   if (count == 0)
@@ -213,15 +219,15 @@ static void compile_expr_array_literal(struct oak_compiler_t* c,
       oak_container_of(first, struct oak_ast_node_t, link);
   const struct oak_ast_node_t* first_elem =
       first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
-                                                        : first_wrap;
+                                                         : first_wrap;
 
   struct oak_type_t elem_ty;
   oak_compiler_infer_expr_static_type(c, first_elem, &elem_ty);
   if (!oak_type_is_known(&elem_ty))
   {
-    oak_compiler_error_at(
-        c, first_elem ? first_elem->token : null,
-        "cannot infer array element type from first element");
+    oak_compiler_error_at(c,
+                          first_elem ? first_elem->token : null,
+                          "cannot infer array element type from first element");
     return;
   }
 
@@ -237,12 +243,12 @@ static void compile_expr_array_literal(struct oak_compiler_t* c,
     oak_compiler_infer_expr_static_type(c, elem, &et);
     if (oak_type_is_known(&et) && !oak_type_equal(&elem_ty, &et))
     {
-      oak_compiler_error_at(
-          c, elem ? elem->token : null,
-          "array literal element type mismatch "
-          "(expected '%s', got '%s')",
-          oak_compiler_type_full_name(c, elem_ty),
-          oak_compiler_type_full_name(c, et));
+      oak_compiler_error_at(c,
+                            elem ? elem->token : null,
+                            "array literal element type mismatch "
+                            "(expected '%s', got '%s')",
+                            oak_compiler_type_full_name(c, elem_ty),
+                            oak_compiler_type_full_name(c, et));
       return;
     }
 
@@ -257,7 +263,7 @@ static void compile_expr_array_literal(struct oak_compiler_t* c,
 }
 
 static void compile_expr_map_literal(struct oak_compiler_t* c,
-                                    const struct oak_ast_node_t* node)
+                                     const struct oak_ast_node_t* node)
 {
   const struct oak_ast_node_t* first_entry = node->lhs;
   const struct oak_ast_node_t* more = node->rhs;
@@ -287,14 +293,16 @@ static void compile_expr_map_literal(struct oak_compiler_t* c,
   oak_compiler_infer_expr_static_type(c, first_entry->rhs, &val_ty);
   if (!oak_type_is_known(&key_ty))
   {
-    oak_compiler_error_at(
-        c, first_entry->lhs->token, "cannot infer map key type from first entry");
+    oak_compiler_error_at(c,
+                          first_entry->lhs->token,
+                          "cannot infer map key type from first entry");
     return;
   }
   if (!oak_type_is_known(&val_ty))
   {
-    oak_compiler_error_at(
-        c, first_entry->rhs->token, "cannot infer map value type from first entry");
+    oak_compiler_error_at(c,
+                          first_entry->rhs->token,
+                          "cannot infer map value type from first entry");
     return;
   }
 
@@ -315,22 +323,22 @@ static void compile_expr_map_literal(struct oak_compiler_t* c,
     oak_compiler_infer_expr_static_type(c, entry->rhs, &vt);
     if (oak_type_is_known(&kt) && !oak_type_equal(&key_ty, &kt))
     {
-      oak_compiler_error_at(
-          c, entry->lhs->token,
-          "map literal key type mismatch "
-          "(expected '%s', got '%s')",
-          oak_compiler_type_full_name(c, key_ty),
-          oak_compiler_type_full_name(c, kt));
+      oak_compiler_error_at(c,
+                            entry->lhs->token,
+                            "map literal key type mismatch "
+                            "(expected '%s', got '%s')",
+                            oak_compiler_type_full_name(c, key_ty),
+                            oak_compiler_type_full_name(c, kt));
       return;
     }
     if (oak_type_is_known(&vt) && !oak_type_equal(&val_ty, &vt))
     {
-      oak_compiler_error_at(
-          c, entry->rhs->token,
-          "map literal value type mismatch "
-          "(expected '%s', got '%s')",
-          oak_compiler_type_full_name(c, val_ty),
-          oak_compiler_type_full_name(c, vt));
+      oak_compiler_error_at(c,
+                            entry->rhs->token,
+                            "map literal value type mismatch "
+                            "(expected '%s', got '%s')",
+                            oak_compiler_type_full_name(c, val_ty),
+                            oak_compiler_type_full_name(c, vt));
       return;
     }
   }
@@ -380,9 +388,10 @@ static void compile_expr_cast(struct oak_compiler_t* c,
     }
     if (value->kind != OAK_NODE_EXPR_EMPTY_ARRAY)
     {
-      oak_compiler_error_at(
-          c, null, "only empty array literals can be cast to an "
-                  "array type (e.g. '[] as number[]')");
+      oak_compiler_error_at(c,
+                            null,
+                            "only empty array literals can be cast to an "
+                            "array type (e.g. '[] as number[]')");
       return;
     }
     oak_compiler_emit_op(c, OAK_OP_NEW_ARRAY, OAK_LOC_SYNTHETIC);
@@ -397,28 +406,32 @@ static void compile_expr_cast(struct oak_compiler_t* c,
         val->kind != OAK_NODE_IDENT)
     {
       oak_compiler_error_at(
-          c, null, "map cast requires key and value types (e.g. '[string:number]')");
+          c,
+          null,
+          "map cast requires key and value types (e.g. '[string:number]')");
       return;
     }
     if (value->kind != OAK_NODE_EXPR_EMPTY_MAP)
     {
-      oak_compiler_error_at(
-          c, null, "only empty map literals can be cast to a "
-                  "map type (e.g. '[:] as [string:number]')");
+      oak_compiler_error_at(c,
+                            null,
+                            "only empty map literals can be cast to a "
+                            "map type (e.g. '[:] as [string:number]')");
       return;
     }
     oak_compiler_emit_op(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC);
     return;
   }
 
-  oak_compiler_error_at(
-      c, null, "'as' is currently only supported for typing array "
-              "and map literals (e.g. '[] as number[]', "
-              "'[:] as [string:number]')");
+  oak_compiler_error_at(c,
+                        null,
+                        "'as' is currently only supported for typing array "
+                        "and map literals (e.g. '[] as number[]', "
+                        "'[:] as [string:number]')");
 }
 
 static void compile_expr_member_access(struct oak_compiler_t* c,
-                                      const struct oak_ast_node_t* node)
+                                       const struct oak_ast_node_t* node)
 {
   const struct oak_ast_node_t* recv = node->lhs;
   const struct oak_ast_node_t* fname = node->rhs;
@@ -443,9 +456,11 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
               c, recv_name, recv_len, vname, vlen);
       if (!ev)
       {
-        oak_compiler_error_at(c, fname->token,
+        oak_compiler_error_at(c,
+                              fname->token,
                               "'%s' is not a variant of enum '%s'",
-                              vname, recv_name);
+                              vname,
+                              recv_name);
         return;
       }
       oak_compiler_emit_constant(
@@ -522,27 +537,31 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
         sd, oak_token_text(fname->token), fname_len);
     if (idx < 0)
     {
-      oak_compiler_error_at(
-          c, fname->token, "no such field '%s' on struct '%s'",
-          oak_token_text(fname->token), sd->name);
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "no such field '%s' on struct '%s'",
+                            oak_token_text(fname->token),
+                            sd->name);
       return;
     }
     if (exprs[idx])
     {
-      oak_compiler_error_at(
-          c, fname->token, "duplicate field '%s' in struct literal",
-          oak_token_text(fname->token));
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "duplicate field '%s' in struct literal",
+                            oak_token_text(fname->token));
       return;
     }
 
     struct oak_type_t got;
     oak_compiler_infer_expr_static_type(c, fexpr, &got);
-    if (oak_type_is_known(&got) &&
-        !oak_type_equal(&sd->fields[idx].type, &got))
+    if (oak_type_is_known(&got) && !oak_type_equal(&sd->fields[idx].type, &got))
     {
       oak_compiler_error_at(
-          c, fexpr->token ? fexpr->token : fname->token,
-          "field '%s': expected type '%s', got '%s'", sd->fields[idx].name,
+          c,
+          fexpr->token ? fexpr->token : fname->token,
+          "field '%s': expected type '%s', got '%s'",
+          sd->fields[idx].name,
           oak_compiler_type_full_name(c, sd->fields[idx].type),
           oak_compiler_type_full_name(c, got));
       return;
@@ -555,9 +574,11 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
   {
     if (!exprs[i])
     {
-      oak_compiler_error_at(
-          c, name_node->token, "missing field '%s' in '%s' literal",
-          sd->fields[i].name, sd->name);
+      oak_compiler_error_at(c,
+                            name_node->token,
+                            "missing field '%s' in '%s' literal",
+                            sd->fields[i].name,
+                            sd->name);
       return;
     }
   }
@@ -582,7 +603,7 @@ static void compile_expr_struct_literal(struct oak_compiler_t* c,
 }
 
 void oak_compiler_compile_node(struct oak_compiler_t* c,
-                         const struct oak_ast_node_t* node)
+                               const struct oak_ast_node_t* node)
 {
   if (!node || c->has_error)
     return;
@@ -602,14 +623,16 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     {
       const int value = oak_token_as_i32(node->token);
       const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_I32(value));
-      oak_compiler_emit_constant(c, idx, oak_compiler_loc_from_token(node->token));
+      oak_compiler_emit_constant(
+          c, idx, oak_compiler_loc_from_token(node->token));
       break;
     }
     case OAK_NODE_FLOAT:
     {
       const float value = oak_token_as_f32(node->token);
       const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_F32(value));
-      oak_compiler_emit_constant(c, idx, oak_compiler_loc_from_token(node->token));
+      oak_compiler_emit_constant(
+          c, idx, oak_compiler_loc_from_token(node->token));
       break;
     }
     case OAK_NODE_STRING:
@@ -618,7 +641,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       const usize len = oak_token_length(node->token);
       struct oak_obj_string_t* str = oak_string_new(chars, len);
       const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(str));
-      oak_compiler_emit_constant(c, idx, oak_compiler_loc_from_token(node->token));
+      oak_compiler_emit_constant(
+          c, idx, oak_compiler_loc_from_token(node->token));
       break;
     }
     case OAK_NODE_IDENT:
@@ -628,8 +652,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       const int slot = oak_compiler_find_local(c, name, len, null);
       if (slot >= 0)
       {
-        oak_compiler_emit_op_arg(
-            c, OAK_OP_GET_LOCAL, (u8)slot, oak_compiler_loc_from_token(node->token));
+        oak_compiler_emit_op_arg(c,
+                                 OAK_OP_GET_LOCAL,
+                                 (u8)slot,
+                                 oak_compiler_loc_from_token(node->token));
         break;
       }
       oak_compiler_error_at(c, node->token, "undefined variable '%s'", name);
@@ -644,8 +670,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
             c, node->token, "'self' is only valid inside a method body");
         return;
       }
-      oak_compiler_emit_op_arg(
-          c, OAK_OP_GET_LOCAL, (u8)slot, oak_compiler_loc_from_token(node->token));
+      oak_compiler_emit_op_arg(c,
+                               OAK_OP_GET_LOCAL,
+                               (u8)slot,
+                               oak_compiler_loc_from_token(node->token));
       break;
     }
     case OAK_NODE_BINARY_ADD:
@@ -666,8 +694,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_compile_node(c, node->lhs);
       oak_compiler_compile_node(c, node->rhs);
       oak_compiler_emit_op(c,
-              oak_compiler_opcode_for_node_kind(node->kind),
-              oak_compiler_loc_from_token(node->lhs->token));
+                           oak_compiler_opcode_for_node_kind(node->kind),
+                           oak_compiler_loc_from_token(node->lhs->token));
       break;
     }
     case OAK_NODE_BINARY_AND:
@@ -750,8 +778,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         return;
       oak_compiler_compile_node(c, node->child);
       oak_compiler_emit_op(c,
-              oak_compiler_opcode_for_node_kind(node->kind),
-              oak_compiler_loc_from_token(node->child->token));
+                           oak_compiler_opcode_for_node_kind(node->kind),
+                           oak_compiler_loc_from_token(node->child->token));
       break;
     }
     case OAK_NODE_STMT_EXPR:
@@ -823,18 +851,18 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
           oak_compiler_ast_is_int_literal(node->rhs, 1))
       {
         oak_compiler_emit_op_arg(c,
-                    OAK_OP_INC_LOCAL,
-                    (u8)slot,
-                    oak_compiler_loc_from_token(lhs->token));
+                                 OAK_OP_INC_LOCAL,
+                                 (u8)slot,
+                                 oak_compiler_loc_from_token(lhs->token));
         break;
       }
       if (node->kind == OAK_NODE_STMT_SUB_ASSIGN &&
           oak_compiler_ast_is_int_literal(node->rhs, 1))
       {
         oak_compiler_emit_op_arg(c,
-                    OAK_OP_DEC_LOCAL,
-                    (u8)slot,
-                    oak_compiler_loc_from_token(lhs->token));
+                                 OAK_OP_DEC_LOCAL,
+                                 (u8)slot,
+                                 oak_compiler_loc_from_token(lhs->token));
         break;
       }
 
@@ -842,13 +870,18 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       if (c->has_error)
         return;
 
-      oak_compiler_emit_op_arg(
-          c, OAK_OP_GET_LOCAL, (u8)slot, oak_compiler_loc_from_token(lhs->token));
+      oak_compiler_emit_op_arg(c,
+                               OAK_OP_GET_LOCAL,
+                               (u8)slot,
+                               oak_compiler_loc_from_token(lhs->token));
       oak_compiler_compile_node(c, node->rhs);
-      oak_compiler_emit_op(
-          c, oak_compiler_opcode_for_node_kind(node->kind), oak_compiler_loc_from_token(lhs->token));
-      oak_compiler_emit_op_arg(
-          c, OAK_OP_SET_LOCAL, (u8)slot, oak_compiler_loc_from_token(lhs->token));
+      oak_compiler_emit_op(c,
+                           oak_compiler_opcode_for_node_kind(node->kind),
+                           oak_compiler_loc_from_token(lhs->token));
+      oak_compiler_emit_op_arg(c,
+                               OAK_OP_SET_LOCAL,
+                               (u8)slot,
+                               oak_compiler_loc_from_token(lhs->token));
       oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }
@@ -929,7 +962,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       break;
     }
     default:
-      oak_compiler_error_at(c, null, "unsupported AST node kind (%d)", node->kind);
+      oak_compiler_error_at(
+          c, null, "unsupported AST node kind (%d)", node->kind);
       break;
   }
 }

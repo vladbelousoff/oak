@@ -10,12 +10,12 @@
 static enum oak_test_status_t run_ok(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk != null);
 
@@ -34,12 +34,12 @@ static enum oak_test_status_t run_ok(const char* source)
 static enum oak_test_status_t compile_fails(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk == null);
 
@@ -58,13 +58,12 @@ OAK_TEST_DECL(FnArgMap)
   OAK_CHECK(run_ok(source) == OAK_TEST_OK);
 
   /* Pass a mutable map and insert into it from inside the function. */
-  const char* source_mut =
-      "fn insert(mut m: [string:number]) -> number {\n"
-      "  m['z'] = 100;\n"
-      "  return m['z'];\n"
-      "}\n"
-      "let mut scores = ['a': 1];\n"
-      "print(insert(scores));";
+  const char* source_mut = "fn insert(mut m: [string:number]) -> number {\n"
+                           "  m['z'] = 100;\n"
+                           "  return m['z'];\n"
+                           "}\n"
+                           "let mut scores = ['a': 1];\n"
+                           "print(insert(scores));";
   OAK_CHECK(run_ok(source_mut) == OAK_TEST_OK);
 
   /* Passing a number[] where [string:number] is expected must fail. */

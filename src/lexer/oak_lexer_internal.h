@@ -37,14 +37,13 @@ struct oak_growable_buf_t
   int heap;
 };
 
-void oak_growable_buf_init(struct oak_growable_buf_t* b, char tls[OAK_LEXER_TLS_BUF]);
+void oak_growable_buf_init(struct oak_growable_buf_t* b,
+                           char tls[OAK_LEXER_TLS_BUF]);
 void oak_growable_buf_free(struct oak_growable_buf_t* b);
 enum oak_lex_status_t oak_growable_buf_reserve(struct oak_growable_buf_t* b,
-                                                usize min_cap);
+                                               usize min_cap);
 
-void oak_lexer_advance_cursor(struct oak_lexer_cur_t* cur,
-                              int n,
-                              int bytes);
+void oak_lexer_advance_cursor(struct oak_lexer_cur_t* cur, int n, int bytes);
 
 void oak_lexer_new_line(struct oak_lexer_cur_t* cur);
 

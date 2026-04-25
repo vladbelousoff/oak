@@ -12,7 +12,8 @@ static int memory_tracking_enabled = 0;
 
 static inline struct oak_mem_header_t* header_of(void* ptr)
 {
-  return (struct oak_mem_header_t*)((char*)ptr - sizeof(struct oak_mem_header_t));
+  return (struct oak_mem_header_t*)((char*)ptr -
+                                    sizeof(struct oak_mem_header_t));
 }
 #endif
 
@@ -58,7 +59,9 @@ void* oak_realloc(void* ptr,
     return null;
 
   if (size > old_size)
-    memset(data + sizeof(struct oak_mem_header_t) + old_size, OAK_MEM_SMB, size - old_size);
+    memset(data + sizeof(struct oak_mem_header_t) + old_size,
+           OAK_MEM_SMB,
+           size - old_size);
 
   struct oak_mem_header_t* header = (struct oak_mem_header_t*)data;
   header->signature = OAK_MEM_SIG;

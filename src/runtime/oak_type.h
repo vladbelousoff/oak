@@ -1,21 +1,7 @@
 #pragma once
 
+#include "oak_type_id.h"
 #include "oak_types.h"
-
-/* Stable, monotonically increasing integer identifier for a type. Built-in
- * ids are reserved (see below) so they never need to be looked up at runtime;
- * user-defined names are interned lazily into the per-compilation registry.
- *
- * Id 0 is reserved for "unknown" so that a default-initialized
- * oak_static_type_t represents an unknown type. */
-typedef int oak_type_id_t;
-
-#define OAK_TYPE_UNKNOWN ((oak_type_id_t)0)
-#define OAK_TYPE_NUMBER  ((oak_type_id_t)1)
-#define OAK_TYPE_STRING  ((oak_type_id_t)2)
-#define OAK_TYPE_BOOL    ((oak_type_id_t)3)
-#define OAK_TYPE_VOID    ((oak_type_id_t)4)
-#define OAK_TYPE_FIRST_USER ((oak_type_id_t)5)
 
 #define OAK_MAX_TYPES 64
 
@@ -26,12 +12,14 @@ enum oak_type_kind_t
 {
   OAK_TYPE_KIND_SCALAR = 0, /* plain value: number, bool, string, user struct */
   OAK_TYPE_KIND_ARRAY,      /* typed array; element type is `id` */
-  OAK_TYPE_KIND_MAP,        /* typed map; key type is `key_id`, value type is `id` */
+  OAK_TYPE_KIND_MAP, /* typed map; key type is `key_id`, value type is `id` */
 };
 
 /* A typed slot.
- * - kind == OAK_TYPE_KIND_ARRAY  → value is an array whose element type is `id`.
- * - kind == OAK_TYPE_KIND_MAP    → value is a map; value type is `id`, key is `key_id`.
+ * - kind == OAK_TYPE_KIND_ARRAY  → value is an array whose element type is
+ * `id`.
+ * - kind == OAK_TYPE_KIND_MAP    → value is a map; value type is `id`, key is
+ * `key_id`.
  * - kind == OAK_TYPE_KIND_SCALAR → plain scalar (number, bool, string, struct).
  * Two slots are equal iff `id`, `kind`, and (when MAP) `key_id` all match. */
 struct oak_type_t
@@ -66,6 +54,17 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
                                        const char* name,
                                        usize len);
+
+/* Like oak_type_registry_intern but uses a caller-supplied `id` instead of
+ * assigning the next sequential one.  Use this when native types have been
+ * pre-assigned stable ids by oak_bind_type() so that the compiler registry
+ * matches those ids exactly.
+ * Returns `id` on success, or OAK_TYPE_UNKNOWN if the slot is already
+ * occupied by a different name or `id` is out of range. */
+oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
+                                               const char* name,
+                                               usize len,
+                                               oak_type_id_t id);
 
 /* Returns a printable name for `id` (always non-null; "<unknown>" if the id
  * is invalid). The returned string lives as long as the registry. */

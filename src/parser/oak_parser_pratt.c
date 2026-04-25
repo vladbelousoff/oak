@@ -119,8 +119,7 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
               oak_container_of(p->curr, struct oak_token_t, link);
           if (oak_token_kind(peek) == rule->close_token)
             break;
-          struct oak_ast_node_t* arg =
-              oak_parser_parse_rule(p, rule->arg_rule);
+          struct oak_ast_node_t* arg = oak_parser_parse_rule(p, rule->arg_rule);
           if (!arg)
             return null;
           oak_list_add_tail(&call->children, &arg->link);

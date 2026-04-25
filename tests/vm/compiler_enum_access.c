@@ -11,12 +11,12 @@
 static enum oak_test_status_t expect_ok(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk != null);
 
@@ -35,12 +35,12 @@ static enum oak_test_status_t expect_ok(const char* source)
 static enum oak_test_status_t expect_compile_error(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk == null);
 
@@ -54,7 +54,7 @@ static enum oak_test_status_t expect_compile_error(const char* source)
 static enum oak_test_status_t expect_parse_or_compile_error(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
 
@@ -65,7 +65,7 @@ static enum oak_test_status_t expect_parse_or_compile_error(const char* source)
     return OAK_TEST_OK;
   }
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk == null);
 
@@ -78,9 +78,8 @@ static enum oak_test_status_t expect_parse_or_compile_error(const char* source)
 /* Comma-separated variants (canonical style). */
 OAK_TEST_DECL(QualifiedVariantAccessOk)
 {
-  return expect_ok(
-      "type Color enum { Red, Green, Blue }\n"
-      "let c = Color.Green;\n");
+  return expect_ok("type Color enum { Red, Green, Blue }\n"
+                   "let c = Color.Green;\n");
 }
 
 /* Space-separated variants (no commas) must be rejected. */
@@ -94,53 +93,47 @@ OAK_TEST_DECL(SpaceSeparatedVariantsRejected)
 /* Trailing comma is accepted. */
 OAK_TEST_DECL(TrailingCommaOk)
 {
-  return expect_ok(
-      "type Status enum { Off, On, }\n"
-      "let s = Status.On;\n");
+  return expect_ok("type Status enum { Off, On, }\n"
+                   "let s = Status.On;\n");
 }
 
 /* Enum variant used in an expression. */
 OAK_TEST_DECL(VariantInExpressionOk)
 {
-  return expect_ok(
-      "type Status enum { Off, On }\n"
-      "let s = Status.On;\n"
-      "let x = s + 10;\n");
+  return expect_ok("type Status enum { Off, On }\n"
+                   "let s = Status.On;\n"
+                   "let x = s + 10;\n");
 }
 
 /* Enum variant used as a function argument. */
 OAK_TEST_DECL(VariantAsFnArgOk)
 {
-  return expect_ok(
-      "type Color enum { Red, Green, Blue }\n"
-      "fn use_color(c : number) -> number { return c; }\n"
-      "use_color(Color.Blue);\n");
+  return expect_ok("type Color enum { Red, Green, Blue }\n"
+                   "fn use_color(c : number) -> number { return c; }\n"
+                   "use_color(Color.Blue);\n");
 }
 
 /* Multiple enums with independent ordinals. */
 OAK_TEST_DECL(MultipleEnumsOk)
 {
-  return expect_ok(
-      "type A enum { X, Y }\n"
-      "type B enum { P, Q }\n"
-      "let x = A.X;\n"
-      "let q = B.Q;\n");
+  return expect_ok("type A enum { X, Y }\n"
+                   "type B enum { P, Q }\n"
+                   "let x = A.X;\n"
+                   "let q = B.Q;\n");
 }
 
 /* Bare variant identifier must be rejected. */
 OAK_TEST_DECL(BareVariantRejected)
 {
-  return expect_compile_error(
-      "type Color enum { Red, Green, Blue }\n"
-      "let c = Green;\n");
+  return expect_compile_error("type Color enum { Red, Green, Blue }\n"
+                              "let c = Green;\n");
 }
 
 /* Unknown variant on a valid enum is rejected. */
 OAK_TEST_DECL(UnknownVariantRejected)
 {
-  return expect_compile_error(
-      "type Color enum { Red, Green, Blue }\n"
-      "let c = Color.Purple;\n");
+  return expect_compile_error("type Color enum { Red, Green, Blue }\n"
+                              "let c = Color.Purple;\n");
 }
 
 int main(const int argc, char* argv[])
