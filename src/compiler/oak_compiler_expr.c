@@ -658,6 +658,16 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                                  oak_compiler_loc_from_token(node->token));
         break;
       }
+      if (c->scope.fn_depth > 0 &&
+          oak_compiler_is_module_scope_name(c, name, len))
+      {
+        oak_compiler_error_at(
+            c,
+            node->token,
+            "'%s' is not visible here (module scope only)",
+            name);
+        return;
+      }
       oak_compiler_error_at(c, node->token, "undefined variable '%s'", name);
       return;
     }
