@@ -109,28 +109,24 @@ int oak_bind_field(struct oak_native_type_t* type,
 }
 
 int oak_bind_fn(struct oak_compile_options_t* opts,
-                const enum oak_bind_fn_kind_t kind,
-                const oak_type_id_t receiver_type_id,
-                const char* name,
-                const oak_native_fn_t impl,
-                const int arity,
-                const oak_type_id_t return_type_id,
-                const enum oak_bind_return_shape_t return_shape)
+                const oak_bind_fn_params_t* p)
 {
-  if (!opts || !name || !impl || arity < 0)
+  if (!opts || !p)
     return -1;
-  if (return_shape != OAK_BIND_RETURN_SCALAR &&
-      return_shape != OAK_BIND_RETURN_ARRAY)
+  if (!p->name || !p->impl || p->arity < 0)
     return -1;
-  if (kind == OAK_BIND_FN_GLOBAL)
+  if (p->return_shape != OAK_BIND_RETURN_SCALAR &&
+      p->return_shape != OAK_BIND_RETURN_ARRAY)
+    return -1;
+  if (p->kind == OAK_BIND_FN_GLOBAL)
   {
-    if (receiver_type_id != OAK_TYPE_VOID)
+    if (p->receiver_type_id != OAK_TYPE_VOID)
       return -1;
   }
-  else if (kind == OAK_BIND_FN_INSTANCE_METHOD ||
-           kind == OAK_BIND_FN_STATIC_METHOD)
+  else if (p->kind == OAK_BIND_FN_INSTANCE_METHOD ||
+           p->kind == OAK_BIND_FN_STATIC_METHOD)
   {
-    if (receiver_type_id == OAK_TYPE_VOID)
+    if (p->receiver_type_id == OAK_TYPE_VOID)
       return -1;
   }
   else
@@ -150,13 +146,7 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
   }
 
   struct oak_native_fn_binding_t* b = &opts->native_fns[opts->native_fn_count++];
-  b->kind = kind;
-  b->receiver_type_id = receiver_type_id;
-  b->name = name;
-  b->impl = impl;
-  b->arity = arity;
-  b->return_type_id = return_type_id;
-  b->return_shape = return_shape;
+  *b = *p;
   return 0;
 }
 

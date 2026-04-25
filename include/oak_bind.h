@@ -100,6 +100,9 @@ struct oak_native_fn_binding_t
   enum oak_bind_return_shape_t return_shape;
 };
 
+/* Input for oak_bind_fn(); same fields as the stored binding descriptor. */
+typedef struct oak_native_fn_binding_t oak_bind_fn_params_t;
+
 /* ---------- Compilation options ---------- */
 
 struct oak_compile_options_t
@@ -147,6 +150,8 @@ int oak_bind_field(struct oak_native_type_t* type,
                    oak_field_setter_t setter);
 
 /* Register a native function, instance method, or static method.
+ * `params` must not be NULL; it supplies kind, receiver_type_id, name, impl,
+ * arity, return_type_id, and return_shape (see oak_bind_fn_params_t).
  *   OAK_BIND_FN_GLOBAL: receiver_type_id must be OAK_TYPE_VOID; `arity` is the
  *     full VM argument count.
  *   OAK_BIND_FN_INSTANCE_METHOD: receiver_type_id is the struct's type_id;
@@ -157,13 +162,7 @@ int oak_bind_field(struct oak_native_type_t* type,
  *     return_type_id[] (return_type_id is the element type).
  * Returns 0 on success, -1 on invalid arguments. */
 int oak_bind_fn(struct oak_compile_options_t* opts,
-                enum oak_bind_fn_kind_t kind,
-                oak_type_id_t receiver_type_id,
-                const char* name,
-                oak_native_fn_t impl,
-                int arity,
-                oak_type_id_t return_type_id,
-                enum oak_bind_return_shape_t return_shape);
+                const oak_bind_fn_params_t* params);
 
 /* ---------- Runtime helpers ---------- */
 

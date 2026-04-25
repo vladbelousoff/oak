@@ -175,13 +175,16 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
   if (!lexer)
     return;
 
-  if (oak_bind_fn(opts,
-                  OAK_BIND_FN_STATIC_METHOD,
-                  lexer->type_id,
-                  "tokenize",
-                  oak_lexer_tokenize_impl,
-                  1,
-                  tok->type_id,
-                  OAK_BIND_RETURN_ARRAY) != 0)
+  if (oak_bind_fn(
+          opts,
+          &(oak_bind_fn_params_t){
+              .kind = OAK_BIND_FN_STATIC_METHOD,
+              .receiver_type_id = lexer->type_id,
+              .name = "tokenize",
+              .impl = oak_lexer_tokenize_impl,
+              .arity = 1,
+              .return_type_id = tok->type_id,
+              .return_shape = OAK_BIND_RETURN_ARRAY,
+          }) != 0)
     return;
 }
