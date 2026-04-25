@@ -79,6 +79,8 @@ struct oak_registered_fn_t
   int arity;
   oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
   oak_type_id_t return_type_id;   /* OAK_TYPE_VOID for user-defined (from AST) */
+  /* From native fn binding: array vs scalar return (element type in return_type_id) */
+  enum oak_type_kind_t return_kind; /* SCALAR or ARRAY for native; else SCALAR */
   const struct oak_ast_node_t* decl; /* null for native */
 };
 

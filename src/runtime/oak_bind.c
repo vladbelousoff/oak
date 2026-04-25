@@ -114,9 +114,13 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
                 const char* name,
                 const oak_native_fn_t impl,
                 const int arity,
-                const oak_type_id_t return_type_id)
+                const oak_type_id_t return_type_id,
+                const enum oak_bind_return_shape_t return_shape)
 {
   if (!opts || !name || !impl || arity < 0)
+    return -1;
+  if (return_shape != OAK_BIND_RETURN_SCALAR &&
+      return_shape != OAK_BIND_RETURN_ARRAY)
     return -1;
   if (kind == OAK_BIND_FN_GLOBAL)
   {
@@ -152,6 +156,7 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
   b->impl = impl;
   b->arity = arity;
   b->return_type_id = return_type_id;
+  b->return_shape = return_shape;
   return 0;
 }
 

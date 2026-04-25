@@ -145,6 +145,9 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               if (sm)
               {
                 out->id = sm->return_type_id;
+                out->kind = sm->return_kind;
+                if (out->id == OAK_TYPE_VOID)
+                  out->kind = OAK_TYPE_KIND_SCALAR;
                 return;
               }
             }
@@ -176,6 +179,9 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               {
                 /* Native method: use the pre-declared return type. */
                 out->id = sm->return_type_id;
+                out->kind = sm->return_kind;
+                if (out->id == OAK_TYPE_VOID)
+                  out->kind = OAK_TYPE_KIND_SCALAR;
               }
               return;
             }
@@ -212,6 +218,9 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         }
         /* General native function: use the pre-declared return type. */
         out->id = fe->return_type_id;
+        out->kind = fe->return_kind;
+        if (out->id == OAK_TYPE_VOID)
+          out->kind = OAK_TYPE_KIND_SCALAR;
         return;
       }
       if (!fe)
