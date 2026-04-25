@@ -152,6 +152,10 @@ struct oak_registered_struct_t
   int method_count;
   int method_capacity;
   struct oak_registered_fn_t* methods;
+  /* Static methods: TypeName.method(...).  Freed by oak_struct_registry_free. */
+  int static_method_count;
+  int static_method_capacity;
+  struct oak_registered_fn_t* static_methods;
 };
 
 /* Unbounded registry of user struct types.
@@ -448,6 +452,11 @@ oak_compiler_find_struct_by_type_id(const struct oak_compiler_t* c,
 int oak_compiler_find_struct_field(const struct oak_registered_struct_t* s,
                                    const char* name,
                                    usize len);
+
+const struct oak_registered_fn_t* oak_compiler_find_struct_static_method(
+    const struct oak_registered_struct_t* sd,
+    const char* name,
+    usize len);
 
 /* If `recv_ty` is a known struct, sets `*out_sd` and returns the field index.
  * Returns -1 if the type is not a struct, or the field name is not found

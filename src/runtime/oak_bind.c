@@ -109,6 +109,7 @@ int oak_bind_field(struct oak_native_type_t* type,
 }
 
 int oak_bind_fn(struct oak_compile_options_t* opts,
+                const enum oak_bind_fn_kind_t kind,
                 const oak_type_id_t receiver_type_id,
                 const char* name,
                 const oak_native_fn_t impl,
@@ -116,6 +117,19 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
                 const oak_type_id_t return_type_id)
 {
   if (!opts || !name || !impl || arity < 0)
+    return -1;
+  if (kind == OAK_BIND_FN_GLOBAL)
+  {
+    if (receiver_type_id != OAK_TYPE_VOID)
+      return -1;
+  }
+  else if (kind == OAK_BIND_FN_INSTANCE_METHOD ||
+           kind == OAK_BIND_FN_STATIC_METHOD)
+  {
+    if (receiver_type_id == OAK_TYPE_VOID)
+      return -1;
+  }
+  else
     return -1;
 
   /* Grow the native_fns array if needed. */
@@ -132,6 +146,7 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
   }
 
   struct oak_native_fn_binding_t* b = &opts->native_fns[opts->native_fn_count++];
+  b->kind = kind;
   b->receiver_type_id = receiver_type_id;
   b->name = name;
   b->impl = impl;

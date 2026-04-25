@@ -1,3 +1,4 @@
+#include "oak_bind.h"
 #include "oak_cli.h"
 #include "oak_compiler.h"
 #include "oak_file_map.h"
@@ -5,6 +6,7 @@
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_parser.h"
+#include "oak_stdlib_file.h"
 #include "oak_vm.h"
 
 #include <stdio.h>
@@ -32,6 +34,9 @@ int main(const int argc, const char* argv[])
   struct oak_lexer_result_t* lexer = null;
   struct oak_parser_result_t result = { 0 };
   struct oak_compile_result_t cr = { 0 };
+  struct oak_compile_options_t compile_opts;
+  oak_compile_options_init(&compile_opts);
+  oak_stdlib_register_file(&compile_opts);
   int exit_code = 1;
 
   if (oak_file_map(cli.script_path, &source_map) != 0)
@@ -55,7 +60,7 @@ int main(const int argc, const char* argv[])
   const struct oak_ast_node_t* const root = oak_parser_root(&result);
   if (root)
   {
-    oak_compile(root, &cr);
+    oak_compile_ex(root, &compile_opts, &cr);
 
     for (int i = 0; i < cr.error_count; i++)
     {
@@ -82,6 +87,7 @@ int main(const int argc, const char* argv[])
   }
 
   oak_compile_result_free(&cr);
+  oak_compile_options_free(&compile_opts);
   oak_file_unmap(&source_map);
   oak_parser_free(&result);
   oak_lexer_free(lexer);
