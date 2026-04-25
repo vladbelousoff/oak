@@ -1,0 +1,10 @@
+let s = 'a + 1';
+let toks = OakLexer.tokenize(s);
+let n = toks.size();
+println(n);
+println(toks[0].kind);
+println(toks[0].lexeme);
+println(toks[1].kind);
+println(toks[1].lexeme);
+println(toks[2].kind);
+println(toks[2].lexeme);
