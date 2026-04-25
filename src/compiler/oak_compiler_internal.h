@@ -23,7 +23,6 @@
 #define OAK_MAX_ARRAY_METHODS  8
 #define OAK_MAX_MAP_METHODS    8
 #define OAK_MAX_STRUCT_FIELDS  32
-#define OAK_MAX_STRUCT_METHODS 16
 
 /* ---------- Per-fn ephemeral compilation state ---------- */
 
@@ -65,15 +64,22 @@ struct oak_scope_ctx_t
 
 /* ---------- Fn registry ---------- */
 
-/* decl is null for native (C) builtins registered at compile time. */
+/* decl is null for native (C) functions/methods registered at compile time.
+ * receiver_type_id == OAK_TYPE_VOID means global function; any other value
+ * means a method on the struct with that type_id.
+ * return_type_id == OAK_TYPE_VOID means void (or inferred from decl). */
 struct oak_registered_fn_t
 {
   const char* name;
   usize name_len;
   u16 const_idx;
-  int arity_min;
-  int arity_max;
-  const struct oak_ast_node_t* decl;
+  /* For global fns: user-facing arity.
+   * For methods: total arity including the implicit self receiver
+   * (so user writes N args, stored as N+1). */
+  int arity;
+  oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
+  oak_type_id_t return_type_id;   /* OAK_TYPE_VOID for user-defined (from AST) */
+  const struct oak_ast_node_t* decl; /* null for native */
 };
 
 /* Unbounded registry of user-declared and native fns.
@@ -135,20 +141,6 @@ struct oak_struct_field_t
   struct oak_type_t type;
 };
 
-/* User-defined method bound to a struct type. The method's compiled body is
- * stored in the chunk's constants table at `const_idx`; it is invoked like a
- * regular fn with the receiver passed as the first argument (slot 0
- * inside the body, accessible as `self`). */
-struct oak_struct_method_t
-{
-  const char* name;
-  usize name_len;
-  u16 const_idx;
-  /* Total arity including the implicit `self` receiver. */
-  int arity;
-  const struct oak_ast_node_t* decl;
-};
-
 struct oak_registered_struct_t
 {
   const char* name;
@@ -156,8 +148,10 @@ struct oak_registered_struct_t
   oak_type_id_t type_id;
   int field_count;
   struct oak_struct_field_t fields[OAK_MAX_STRUCT_FIELDS];
+  /* Methods: growable array.  Freed by oak_struct_registry_free. */
   int method_count;
-  struct oak_struct_method_t methods[OAK_MAX_STRUCT_METHODS];
+  int method_capacity;
+  struct oak_registered_fn_t* methods;
 };
 
 /* Unbounded registry of user struct types.
@@ -289,8 +283,7 @@ struct oak_native_binding_t
 {
   const char* name;
   oak_native_fn_t impl;
-  int arity_min;
-  int arity_max;
+  int arity;
 };
 
 /* ---------- oak_compiler_error.c ---------- */
@@ -409,8 +402,7 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
 
 u16 oak_compiler_intern_native_constant(struct oak_compiler_t* c,
                                         oak_native_fn_t impl,
-                                        int arity_min,
-                                        int arity_max,
+                                        int arity,
                                         const char* name);
 
 void oak_compiler_register_native_builtins(struct oak_compiler_t* c);
@@ -485,6 +477,13 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
 void oak_compiler_register_native_types(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
 
+/* Register native functions and methods from `opts`.  Must be called after
+ * oak_compiler_register_native_types so that receiver type ids are already
+ * in the struct registry.  Global fns go into c->fns; methods are appended
+ * to the matching oak_registered_struct_t. */
+void oak_compiler_register_native_fns(
+    struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
+
 /* ---------- oak_compiler_functions.c ---------- */
 
 int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl);
@@ -543,7 +542,7 @@ void oak_compiler_validate_user_fn_call_arg_types(
 void oak_compiler_validate_struct_method_call_arg_types(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
-    const struct oak_struct_method_t* m);
+    const struct oak_registered_fn_t* m);
 
 /* ---------- oak_compiler_stmt.c ---------- */
 

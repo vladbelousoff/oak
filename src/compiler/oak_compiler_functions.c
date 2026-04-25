@@ -272,8 +272,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     .name = name,
     .name_len = name_len,
     .const_idx = idx,
-    .arity_min = explicit_arity,
-    .arity_max = explicit_arity,
+    .arity = explicit_arity,
     .decl = item,
   };
   oak_fn_registry_insert(&c->fns, &entry);
@@ -333,7 +332,7 @@ static void register_method_decl(struct oak_compiler_t* c,
 
   for (int i = 0; i < sd->method_count; ++i)
   {
-    const struct oak_struct_method_t* e = &sd->methods[i];
+    const struct oak_registered_fn_t* e = &sd->methods[i];
     if (oak_name_eq(e->name, e->name_len, name, name_len))
     {
       oak_compiler_error_at(c,
@@ -345,26 +344,30 @@ static void register_method_decl(struct oak_compiler_t* c,
     }
   }
 
-  if (sd->method_count >= OAK_MAX_STRUCT_METHODS)
-  {
-    oak_compiler_error_at(c,
-                          name_node->token,
-                          "too many methods on struct '%s' (max %d)",
-                          sd->name,
-                          OAK_MAX_STRUCT_METHODS);
-    return;
-  }
-
   const int total_arity = explicit_arity + 1;
   struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
-  struct oak_struct_method_t* slot = &sd->methods[sd->method_count++];
-  slot->name = name;
-  slot->name_len = name_len;
-  slot->const_idx = idx;
-  slot->arity = total_arity;
-  slot->decl = item;
+  struct oak_registered_fn_t slot = { 0 };
+  slot.name = name;
+  slot.name_len = name_len;
+  slot.const_idx = idx;
+  slot.arity = total_arity;
+  slot.receiver_type_id = sd->type_id;
+  slot.return_type_id = OAK_TYPE_VOID;
+  slot.decl = item;
+
+  /* Grow the methods array and append the new slot. */
+  if (sd->method_count >= sd->method_capacity)
+  {
+    const int new_cap = sd->method_capacity < 4 ? 4 : sd->method_capacity * 2;
+    sd->methods = oak_realloc(
+        sd->methods,
+        (usize)new_cap * sizeof(struct oak_registered_fn_t),
+        OAK_SRC_LOC);
+    sd->method_capacity = new_cap;
+  }
+  sd->methods[sd->method_count++] = slot;
 }
 
 void oak_compiler_register_program_functions(
@@ -605,7 +608,7 @@ void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
     const struct oak_registered_struct_t* sd = &c->structs.entries[s];
     for (int m = 0; m < sd->method_count; ++m)
     {
-      const struct oak_struct_method_t* me = &sd->methods[m];
+      const struct oak_registered_fn_t* me = &sd->methods[m];
       if (!me->decl)
         continue;
       struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
@@ -725,7 +728,7 @@ void oak_compiler_validate_user_fn_call_arg_types(
 void oak_compiler_validate_struct_method_call_arg_types(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
-    const struct oak_struct_method_t* m)
+    const struct oak_registered_fn_t* m)
 {
   if (!m->decl)
     return;

@@ -138,6 +138,19 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
     }
   }
 
+  /* Register native functions and methods after types (receiver ids need to
+   * be in the struct registry first). */
+  if (opts && opts->native_fn_count > 0)
+  {
+    oak_compiler_register_native_fns(&compiler, opts);
+    if (compiler.has_error)
+    {
+      oak_chunk_free(chunk);
+      compiler_teardown(&compiler);
+      return;
+    }
+  }
+
   compile_program(&compiler, root);
 
   compiler_teardown(&compiler);

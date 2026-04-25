@@ -91,8 +91,7 @@ struct oak_obj_fn_t* oak_fn_new(const usize code_offset, const int arity)
 }
 
 struct oak_obj_native_fn_t* oak_native_fn_new(const oak_native_fn_t fn,
-                                              const int arity_min,
-                                              const int arity_max,
+                                              const int arity,
                                               const char* name)
 {
   struct oak_obj_native_fn_t* native =
@@ -100,8 +99,7 @@ struct oak_obj_native_fn_t* oak_native_fn_new(const oak_native_fn_t fn,
   native->obj.type = OAK_OBJ_NATIVE_FN;
   oak_refcount_init(&native->obj.refcount, 1);
   native->fn = fn;
-  native->arity_min = arity_min;
-  native->arity_max = arity_max;
+  native->arity = arity;
   native->name = name;
   return native;
 }
@@ -112,33 +110,13 @@ int oak_native_fn_format(char* buf,
 {
   const void* fn_ptr = (const void*)(uintptr_t)native->fn;
   if (native->name && native->name[0] != '\0')
-  {
-    if (native->arity_min == native->arity_max)
-    {
-      return snprintf(buf,
-                      size,
-                      "<native %s arity=%d fn=%p>",
-                      native->name,
-                      native->arity_max,
-                      fn_ptr);
-    }
     return snprintf(buf,
                     size,
-                    "<native %s arity=%d..%d fn=%p>",
+                    "<native %s arity=%d fn=%p>",
                     native->name,
-                    native->arity_min,
-                    native->arity_max,
+                    native->arity,
                     fn_ptr);
-  }
-  if (native->arity_min == native->arity_max)
-    return snprintf(
-        buf, size, "<native arity=%d fn=%p>", native->arity_max, fn_ptr);
-  return snprintf(buf,
-                  size,
-                  "<native arity=%d..%d fn=%p>",
-                  native->arity_min,
-                  native->arity_max,
-                  fn_ptr);
+  return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity, fn_ptr);
 }
 
 struct oak_obj_array_t* oak_array_new(void)

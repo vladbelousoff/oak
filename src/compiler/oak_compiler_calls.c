@@ -80,10 +80,10 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
         oak_compiler_find_struct_by_type_id(c, recv_ty.id);
     if (sd)
     {
-      const struct oak_struct_method_t* sm = null;
+      const struct oak_registered_fn_t* sm = null;
       for (int i = 0; i < sd->method_count; ++i)
       {
-        const struct oak_struct_method_t* cand = &sd->methods[i];
+        const struct oak_registered_fn_t* cand = &sd->methods[i];
         if (oak_name_eq(cand->name, cand->name_len, mname, mname_len))
         {
           sm = cand;
@@ -231,27 +231,14 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
     return;
   }
 
-  if ((int)argc < entry->arity_min || (int)argc > entry->arity_max)
+  if ((int)argc != entry->arity)
   {
-    if (entry->arity_min == entry->arity_max)
-    {
-      oak_compiler_error_at(c,
-                            callee->token,
-                            "function '%s' expects %d arguments, got %zu",
-                            callee_name,
-                            entry->arity_min,
-                            argc);
-    }
-    else
-    {
-      oak_compiler_error_at(c,
-                            callee->token,
-                            "function '%s' expects %d to %d arguments, got %zu",
-                            callee_name,
-                            entry->arity_min,
-                            entry->arity_max,
-                            argc);
-    }
+    oak_compiler_error_at(c,
+                          callee->token,
+                          "function '%s' expects %d arguments, got %zu",
+                          callee_name,
+                          entry->arity,
+                          argc);
     return;
   }
 

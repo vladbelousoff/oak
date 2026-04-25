@@ -29,7 +29,7 @@ void oak_compiler_register_native_types(
      * same id that the embedding code holds in nt->type_id. */
     const oak_type_id_t tid = oak_type_registry_intern_with_id(
         &c->types, nt->name, nt->name_len, nt->type_id);
-    if (tid == OAK_TYPE_UNKNOWN)
+    if (tid < 0)
     {
       oak_compiler_error_at(c,
                             null,
@@ -45,6 +45,8 @@ void oak_compiler_register_native_types(
     proto.type_id = tid;
     proto.field_count = nt->field_count;
     proto.method_count = 0;
+    proto.method_capacity = 0;
+    proto.methods = null;
 
     if (nt->field_count > OAK_MAX_STRUCT_FIELDS)
     {
@@ -92,7 +94,14 @@ void oak_struct_registry_free(struct oak_struct_registry_t* r)
 {
   oak_hash_table_free(&r->by_name);
   if (r->entries)
+  {
+    for (int i = 0; i < r->count; ++i)
+    {
+      if (r->entries[i].methods)
+        oak_free(r->entries[i].methods, OAK_SRC_LOC);
+    }
     oak_free(r->entries, OAK_SRC_LOC);
+  }
   r->entries = null;
   r->count = 0;
   r->capacity = 0;
@@ -130,7 +139,7 @@ const struct oak_registered_struct_t*
 oak_struct_registry_find_by_type_id(const struct oak_struct_registry_t* r,
                                     oak_type_id_t type_id)
 {
-  if (type_id == OAK_TYPE_UNKNOWN)
+  if (type_id == OAK_TYPE_VOID)
     return null;
   for (int i = 0; i < r->count; ++i)
   {
@@ -139,6 +148,8 @@ oak_struct_registry_find_by_type_id(const struct oak_struct_registry_t* r,
   }
   return null;
 }
+
+
 
 /* ---------- Compiler-level lookup wrappers ---------- */
 
@@ -278,7 +289,7 @@ void oak_compiler_register_program_structs(struct oak_compiler_t* c,
     proto.field_count = 0;
     proto.method_count = 0;
 
-    if (proto.type_id == OAK_TYPE_UNKNOWN)
+    if (proto.type_id < 0)
     {
       oak_compiler_error_at(
           c, name_ident->token, "type registry full while declaring struct");
@@ -362,3 +373,103 @@ static int register_struct_field_decls(struct oak_compiler_t* c,
   }
   return 1;
 }
+
+/* Append a method entry to a struct's growable methods array. */
+static void struct_append_method(struct oak_registered_struct_t* sd,
+                                 const struct oak_registered_fn_t* m)
+{
+  if (sd->method_count >= sd->method_capacity)
+  {
+    const int new_cap = sd->method_capacity < 4 ? 4 : sd->method_capacity * 2;
+    sd->methods = oak_realloc(
+        sd->methods,
+        (usize)new_cap * sizeof(struct oak_registered_fn_t),
+        OAK_SRC_LOC);
+    sd->method_capacity = new_cap;
+  }
+  sd->methods[sd->method_count++] = *m;
+}
+
+/* ---------- Native function registration ---------- */
+
+void oak_compiler_register_native_fns(
+    struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
+{
+  if (!opts || opts->native_fn_count == 0)
+    return;
+
+  for (int i = 0; i < opts->native_fn_count; ++i)
+  {
+    const struct oak_native_fn_binding_t* b = &opts->native_fns[i];
+    if (!b->name || !b->impl)
+      continue;
+
+    const usize name_len = strlen(b->name);
+
+    /* The arity stored in the constant is for the VM's arity check.
+     * For methods the VM sees the total arity (user args + 1 for self);
+     * for globals it is just the user-specified arity. */
+    const int vm_arity =
+        b->receiver_type_id == OAK_TYPE_VOID ? b->arity : b->arity + 1;
+
+    const u16 idx = oak_compiler_intern_native_constant(
+        c, b->impl, vm_arity, vm_arity, b->name);
+
+    struct oak_registered_fn_t entry = { 0 };
+    entry.name = b->name;
+    entry.name_len = name_len;
+    entry.const_idx = idx;
+    entry.receiver_type_id = b->receiver_type_id;
+    entry.return_type_id = b->return_type_id;
+    entry.decl = null;
+
+    if (b->receiver_type_id == OAK_TYPE_VOID)
+    {
+      /* Global function */
+      entry.arity = b->arity;
+      if (oak_fn_registry_find(&c->fns, b->name, name_len))
+      {
+        oak_compiler_error_at(
+            c, null, "duplicate native function '%s'", b->name);
+        return;
+      }
+      oak_fn_registry_insert(&c->fns, &entry);
+    }
+    else
+    {
+      /* Method on a native struct — arity includes implicit self */
+      entry.arity = vm_arity;
+      struct oak_registered_struct_t* sd =
+          (struct oak_registered_struct_t*)oak_struct_registry_find_by_type_id(
+              &c->structs, b->receiver_type_id);
+      if (!sd)
+      {
+        oak_compiler_error_at(c,
+                              null,
+                              "native method '%s': no struct registered for "
+                              "receiver type id %d",
+                              b->name,
+                              b->receiver_type_id);
+        return;
+      }
+      /* Check for duplicate method name */
+      for (int j = 0; j < sd->method_count; ++j)
+      {
+        if (oak_name_eq(
+                sd->methods[j].name, sd->methods[j].name_len, b->name, name_len))
+        {
+          oak_compiler_error_at(c,
+                                null,
+                                "duplicate native method '%s' on struct '%s'",
+                                b->name,
+                                sd->name);
+          return;
+        }
+      }
+      struct_append_method(sd, &entry);
+    }
+    if (c->has_error)
+      return;
+  }
+}
+
