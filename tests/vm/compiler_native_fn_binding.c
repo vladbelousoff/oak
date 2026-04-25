@@ -113,14 +113,21 @@ static enum oak_test_status_t run_ok(const char* source,
  * Section 1 — oak_bind_fn C API
  * ========================================================================= */
 
-/* oak_bind_fn(..., OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, ...) registers a global. */
+/* oak_bind_fn(&opts, &(oak_bind_fn_params_t){ kind, ... }) registers a global. */
 OAK_TEST_DECL(BindFnGlobalRegisters)
 {
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "my_global", stub_fn, 1,
-                             OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR);
+  const int r = oak_bind_fn(
+      &opts,
+      &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                               .receiver_type_id = OAK_TYPE_VOID,
+                               .name = "my_global",
+                               .impl = stub_fn,
+                               .arity = 1,
+                               .return_type_id = OAK_TYPE_NUMBER,
+                               .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == 0);
   OAK_CHECK(opts.native_fn_count == 1);
   OAK_CHECK(strcmp(opts.native_fns[0].name, "my_global") == 0);
@@ -143,8 +150,15 @@ OAK_TEST_DECL(BindFnMethodRegisters)
   struct oak_native_type_t* t = oak_bind_type(&opts, OAK_BIND_STRUCT, "MyVec");
   OAK_CHECK(t != null);
 
-  const int r = oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "length", stub_fn, 0,
-                            OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR);
+  const int r = oak_bind_fn(
+      &opts,
+      &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                               .receiver_type_id = t->type_id,
+                               .name = "length",
+                               .impl = stub_fn,
+                               .arity = 0,
+                               .return_type_id = OAK_TYPE_NUMBER,
+                               .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == 0);
   OAK_CHECK(opts.native_fn_count == 1);
   OAK_CHECK(opts.native_fns[0].receiver_type_id == t->type_id);
@@ -160,8 +174,15 @@ OAK_TEST_DECL(BindFnNullNameRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, null, stub_fn, 0,
-                             OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR);
+  const int r = oak_bind_fn(
+      &opts,
+      &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                               .receiver_type_id = OAK_TYPE_VOID,
+                               .name = null,
+                               .impl = stub_fn,
+                               .arity = 0,
+                               .return_type_id = OAK_TYPE_NUMBER,
+                               .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == -1);
   OAK_CHECK(opts.native_fn_count == 0);
 
@@ -175,8 +196,15 @@ OAK_TEST_DECL(BindFnNullImplRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "foo", null, 0,
-                             OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR);
+  const int r = oak_bind_fn(
+      &opts,
+      &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                               .receiver_type_id = OAK_TYPE_VOID,
+                               .name = "foo",
+                               .impl = null,
+                               .arity = 0,
+                               .return_type_id = OAK_TYPE_NUMBER,
+                               .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == -1);
   OAK_CHECK(opts.native_fn_count == 0);
 
@@ -190,8 +218,15 @@ OAK_TEST_DECL(BindFnNegativeArityRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "foo", stub_fn, -1,
-                             OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR);
+  const int r = oak_bind_fn(
+      &opts,
+      &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                               .receiver_type_id = OAK_TYPE_VOID,
+                               .name = "foo",
+                               .impl = stub_fn,
+                               .arity = -1,
+                               .return_type_id = OAK_TYPE_NUMBER,
+                               .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == -1);
 
   oak_compile_options_free(&opts);
@@ -204,12 +239,33 @@ OAK_TEST_DECL(BindFnMultipleRegistrations)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "a", stub_fn, 0, OAK_TYPE_VOID,
-                        OAK_BIND_RETURN_SCALAR) == 0);
-  OAK_CHECK(oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "b", stub_fn, 1, OAK_TYPE_NUMBER,
-                        OAK_BIND_RETURN_SCALAR) == 0);
-  OAK_CHECK(oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "c", stub_fn, 2, OAK_TYPE_BOOL,
-                        OAK_BIND_RETURN_SCALAR) == 0);
+  OAK_CHECK(oak_bind_fn(
+                &opts,
+                &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                         .receiver_type_id = OAK_TYPE_VOID,
+                                         .name = "a",
+                                         .impl = stub_fn,
+                                         .arity = 0,
+                                         .return_type_id = OAK_TYPE_VOID,
+                                         .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
+  OAK_CHECK(oak_bind_fn(
+                &opts,
+                &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                         .receiver_type_id = OAK_TYPE_VOID,
+                                         .name = "b",
+                                         .impl = stub_fn,
+                                         .arity = 1,
+                                         .return_type_id = OAK_TYPE_NUMBER,
+                                         .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
+  OAK_CHECK(oak_bind_fn(
+                &opts,
+                &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                         .receiver_type_id = OAK_TYPE_VOID,
+                                         .name = "c",
+                                         .impl = stub_fn,
+                                         .arity = 2,
+                                         .return_type_id = OAK_TYPE_BOOL,
+                                         .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
   OAK_CHECK(opts.native_fn_count == 3);
 
   oak_compile_options_free(&opts);
@@ -227,8 +283,15 @@ OAK_TEST_DECL(GlobalNativeFnCallCompiles)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "native_add", add_fn, 2,
-                  OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "native_add",
+                                    .impl = add_fn,
+                                    .arity = 2,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       compile_ok("let x = native_add(1, 2);", &opts);
@@ -244,8 +307,15 @@ OAK_TEST_DECL(GlobalNativeFnWrongArgCountFails)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "native_add2", add_fn, 2,
-                  OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "native_add2",
+                                    .impl = add_fn,
+                                    .arity = 2,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       compile_fails("let x = native_add2(1);", &opts);
@@ -261,11 +331,25 @@ OAK_TEST_DECL(GlobalNativeFnDuplicateFails)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "dup_fn", stub_fn, 0, OAK_TYPE_VOID,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "dup_fn",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "dup_fn", stub_fn, 0, OAK_TYPE_VOID,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "dup_fn",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   /* Both are in opts; the compiler should detect the duplicate. */
   const enum oak_test_status_t s = compile_fails("let x = 1;", &opts);
@@ -283,8 +367,15 @@ OAK_TEST_DECL(GlobalNativeFnReturnTypeInferred)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "get_num", stub_fn, 0,
-                  OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "get_num",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       compile_ok("fn takes_number(n : number) -> number { return n; }\n"
@@ -303,8 +394,15 @@ OAK_TEST_DECL(GlobalNativeFnReturnTypeWrongArgFails)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "get_num2", stub_fn, 0,
-                  OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "get_num2",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       compile_fails("fn takes_string(s : string) -> string { return s; }\n"
@@ -332,8 +430,15 @@ OAK_TEST_DECL(NativeMethodCallCompiles)
 
   /* Method with no user args, returns a number. */
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "len", stub_fn, 0, OAK_TYPE_NUMBER,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                                    .receiver_type_id = t->type_id,
+                                    .name = "len",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       compile_ok("fn test(v : NTVec3) -> number { return v.len(); }", &opts);
@@ -353,8 +458,15 @@ OAK_TEST_DECL(NativeMethodWrongArgCountFails)
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "x", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "scale", stub_fn, 1, OAK_TYPE_VOID,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                                    .receiver_type_id = t->type_id,
+                                    .name = "scale",
+                                    .impl = stub_fn,
+                                    .arity = 1,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s = compile_fails(
       "fn test(v : NTVec4) { v.scale(1, 2); }", &opts);
@@ -374,8 +486,15 @@ OAK_TEST_DECL(NativeMethodReturnTypeInferred)
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "id", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "area", stub_fn, 0, OAK_TYPE_NUMBER,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                                    .receiver_type_id = t->type_id,
+                                    .name = "area",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   /* area() returns a number; passing it to a fn that expects number is OK. */
   const enum oak_test_status_t s =
@@ -398,8 +517,15 @@ OAK_TEST_DECL(NativeMethodReturnTypeWrongFails)
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "r", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "perimeter", stub_fn, 0,
-                  OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                                    .receiver_type_id = t->type_id,
+                                    .name = "perimeter",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s = compile_fails(
       "fn takes_string(s : string) -> string { return s; }\n"
@@ -443,12 +569,26 @@ OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
 
   /* Global factory function */
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "make_unit_rect", stub_fn, 0,
-                  t->type_id, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "make_unit_rect",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = t->type_id,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
   /* Method on the struct */
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "area", stub_fn, 0, OAK_TYPE_NUMBER,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                                    .receiver_type_id = t->type_id,
+                                    .name = "area",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s = compile_ok(
       "fn test() -> number {\n"
@@ -472,8 +612,15 @@ OAK_TEST_DECL(GlobalNativeFnTooManyArgsFails)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "one_arg", stub_fn, 1,
-                  OAK_TYPE_VOID, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "one_arg",
+                                    .impl = stub_fn,
+                                    .arity = 1,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       compile_fails("one_arg(1, 2);", &opts);
@@ -494,8 +641,15 @@ OAK_TEST_DECL(NativeMethodTooManyArgsFails)
   OAK_CHECK(oak_bind_field(t, "v", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   /* scale expects exactly 1 user arg */
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "scale", stub_fn, 1, OAK_TYPE_VOID,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                                    .receiver_type_id = t->type_id,
+                                    .name = "scale",
+                                    .impl = stub_fn,
+                                    .arity = 1,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s = compile_fails(
       "fn test(b : NTBox) { b.scale(1, 2); }", &opts);
@@ -511,8 +665,15 @@ OAK_TEST_DECL(ZeroArityNativeFnCallOk)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "noop", stub_fn, 0, OAK_TYPE_VOID,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "noop",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s = run_ok("noop();", &opts);
 
@@ -527,8 +688,15 @@ OAK_TEST_DECL(ZeroArityNativeFnWithArgFails)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "noop2", stub_fn, 0, OAK_TYPE_VOID,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "noop2",
+                                    .impl = stub_fn,
+                                    .arity = 0,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s = compile_fails("noop2(1);", &opts);
 
@@ -547,8 +715,15 @@ OAK_TEST_DECL(NativeMethodMultiArgCompiles)
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(t, "v", OAK_TYPE_NUMBER, stub_getter, null) == 0);
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "set", stub_fn, 2, OAK_TYPE_VOID,
-                  OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                                    .receiver_type_id = t->type_id,
+                                    .name = "set",
+                                    .impl = stub_fn,
+                                    .arity = 2,
+                                    .return_type_id = OAK_TYPE_VOID,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       compile_ok("fn test(m : NTMat2) { m.set(1, 2); }", &opts);
@@ -568,8 +743,15 @@ OAK_TEST_DECL(NativeFnRunsOk)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "double_it", add_fn, 1,
-                  OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "double_it",
+                                    .impl = add_fn,
+                                    .arity = 1,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       run_ok("let x = double_it(3);", &opts);
@@ -585,8 +767,15 @@ OAK_TEST_DECL(NativeFnTwoArgsRunsOk)
   oak_compile_options_init(&opts);
 
   OAK_CHECK(
-      oak_bind_fn(&opts, OAK_BIND_FN_GLOBAL, OAK_TYPE_VOID, "native_sum", add_fn, 2,
-                  OAK_TYPE_NUMBER, OAK_BIND_RETURN_SCALAR) == 0);
+      oak_bind_fn(
+          &opts,
+          &(oak_bind_fn_params_t){ .kind = OAK_BIND_FN_GLOBAL,
+                                    .receiver_type_id = OAK_TYPE_VOID,
+                                    .name = "native_sum",
+                                    .impl = add_fn,
+                                    .arity = 2,
+                                    .return_type_id = OAK_TYPE_NUMBER,
+                                    .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
 
   const enum oak_test_status_t s =
       run_ok("let x = native_sum(10, 20);", &opts);
