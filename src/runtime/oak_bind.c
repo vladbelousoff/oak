@@ -80,31 +80,31 @@ struct oak_native_type_t* oak_bind_type(struct oak_compile_options_t* opts,
 }
 
 int oak_bind_field(struct oak_native_type_t* type,
-                   const char* name,
-                   const oak_type_id_t field_type_id,
-                   const oak_field_getter_t getter,
-                   const oak_field_setter_t setter)
+                   const struct oak_native_field_t* p)
 {
-  if (!type || !name || !getter)
+  if (!type || !p)
+    return -1;
+  if (!p->name || !p->getter)
     return -1;
   if (type->field_count >= OAK_MAX_NATIVE_FIELDS)
     return -1;
 
-  const usize len = strlen(name);
+  const usize len = strlen(p->name);
 
   /* Reject duplicate field names. */
   for (int i = 0; i < type->field_count; ++i)
   {
-    if (oak_name_eq(type->fields[i].name, type->fields[i].name_len, name, len))
+    if (oak_name_eq(
+            type->fields[i].name, type->fields[i].name_len, p->name, len))
       return -1;
   }
 
   struct oak_native_field_t* f = &type->fields[type->field_count++];
-  f->name = name;
+  f->name = p->name;
   f->name_len = len;
-  f->field_type_id = field_type_id;
-  f->getter = getter;
-  f->setter = setter;
+  f->field_type_id = p->field_type_id;
+  f->getter = p->getter;
+  f->setter = p->setter;
   return 0;
 }
 

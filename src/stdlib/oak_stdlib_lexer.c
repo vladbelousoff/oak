@@ -159,15 +159,40 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
   if (!tok)
     return;
   s_token_type = tok;
-  if (oak_bind_field(tok, "kind", OAK_TYPE_STRING, oak_token_get_kind, null) < 0)
+  if (oak_bind_field(
+          tok,
+          &(struct oak_native_field_t){ .name = "kind",
+                                     .field_type_id = OAK_TYPE_STRING,
+                                     .getter = oak_token_get_kind,
+                                     .setter = null }) < 0)
     return;
-  if (oak_bind_field(tok, "lexeme", OAK_TYPE_STRING, oak_token_get_lexeme, null) < 0)
+  if (oak_bind_field(
+          tok,
+          &(struct oak_native_field_t){ .name = "lexeme",
+                                     .field_type_id = OAK_TYPE_STRING,
+                                     .getter = oak_token_get_lexeme,
+                                     .setter = null }) < 0)
     return;
-  if (oak_bind_field(tok, "line", OAK_TYPE_NUMBER, oak_token_get_line, null) < 0)
+  if (oak_bind_field(
+          tok,
+          &(struct oak_native_field_t){ .name = "line",
+                                     .field_type_id = OAK_TYPE_NUMBER,
+                                     .getter = oak_token_get_line,
+                                     .setter = null }) < 0)
     return;
-  if (oak_bind_field(tok, "column", OAK_TYPE_NUMBER, oak_token_get_column, null) < 0)
+  if (oak_bind_field(
+          tok,
+          &(struct oak_native_field_t){ .name = "column",
+                                     .field_type_id = OAK_TYPE_NUMBER,
+                                     .getter = oak_token_get_column,
+                                     .setter = null }) < 0)
     return;
-  if (oak_bind_field(tok, "offset", OAK_TYPE_NUMBER, oak_token_get_offset, null) < 0)
+  if (oak_bind_field(
+          tok,
+          &(struct oak_native_field_t){ .name = "offset",
+                                     .field_type_id = OAK_TYPE_NUMBER,
+                                     .getter = oak_token_get_offset,
+                                     .setter = null }) < 0)
     return;
 
   struct oak_native_type_t* lexer =

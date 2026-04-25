@@ -141,13 +141,13 @@ struct oak_native_type_t* oak_bind_type(struct oak_compile_options_t* opts,
 
 /* Register a field on a native type.  Fields are assigned indices in
  * registration order, matching the order the compiler resolves them.
+ * `params` must not be NULL; it supplies name, field_type_id, getter, and
+ * optional setter (same shape as struct oak_native_field_t).  `name_len` in
+ * params is ignored; it is set from `strlen(name)`.
  * Returns 0 on success, -1 if the field limit (OAK_MAX_NATIVE_FIELDS) is
  * reached or if a field with the same name already exists. */
 int oak_bind_field(struct oak_native_type_t* type,
-                   const char* name,
-                   oak_type_id_t field_type_id,
-                   oak_field_getter_t getter,
-                   oak_field_setter_t setter);
+                   const struct oak_native_field_t* params);
 
 /* Register a native function, instance method, or static method.
  * `params` must not be NULL; it supplies kind, receiver_type_id, name, impl,

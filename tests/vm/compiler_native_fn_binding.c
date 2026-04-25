@@ -426,7 +426,11 @@ OAK_TEST_DECL(NativeMethodCallCompiles)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTVec3");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "x", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "x",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
 
   /* Method with no user args, returns a number. */
   OAK_CHECK(
@@ -456,7 +460,11 @@ OAK_TEST_DECL(NativeMethodWrongArgCountFails)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTVec4");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "x", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "x",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
   OAK_CHECK(
       oak_bind_fn(
           &opts,
@@ -484,7 +492,11 @@ OAK_TEST_DECL(NativeMethodReturnTypeInferred)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTShape");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "id", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "id",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
   OAK_CHECK(
       oak_bind_fn(
           &opts,
@@ -515,7 +527,11 @@ OAK_TEST_DECL(NativeMethodReturnTypeWrongFails)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTCircle");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "r", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "r",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
   OAK_CHECK(
       oak_bind_fn(
           &opts,
@@ -545,7 +561,11 @@ OAK_TEST_DECL(NativeMethodUnknownFails)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTWidget2");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "id", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "id",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
 
   const enum oak_test_status_t s =
       compile_fails("fn test(w : NTWidget2) { w.nonexistent(); }", &opts);
@@ -564,8 +584,16 @@ OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTRect");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "w", OAK_TYPE_NUMBER, stub_getter, null) == 0);
-  OAK_CHECK(oak_bind_field(t, "h", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "w",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "h",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
 
   /* Global factory function */
   OAK_CHECK(
@@ -638,7 +666,11 @@ OAK_TEST_DECL(NativeMethodTooManyArgsFails)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTBox");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "v", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "v",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
   /* scale expects exactly 1 user arg */
   OAK_CHECK(
       oak_bind_fn(
@@ -713,7 +745,11 @@ OAK_TEST_DECL(NativeMethodMultiArgCompiles)
   struct oak_native_type_t* t =
       oak_bind_type(&opts, OAK_BIND_RECORD, "NTMat2");
   OAK_CHECK(t != null);
-  OAK_CHECK(oak_bind_field(t, "v", OAK_TYPE_NUMBER, stub_getter, null) == 0);
+  OAK_CHECK(oak_bind_field(
+      t, &(struct oak_native_field_t){ .name = "v",
+                                    .field_type_id = OAK_TYPE_NUMBER,
+                                    .getter = stub_getter,
+                                    .setter = null }) == 0);
   OAK_CHECK(
       oak_bind_fn(
           &opts,
