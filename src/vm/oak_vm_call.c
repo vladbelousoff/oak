@@ -1,14 +1,19 @@
 #include "oak_vm_internal.h"
 
-static enum oak_vm_result_t
-vm_call_native(struct oak_vm_t* vm, const u8 argc, const usize fn_slot,
-               struct oak_value_t* arg_base, const struct oak_value_t fn_val)
+static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
+                                           const u8 argc,
+                                           const usize fn_slot,
+                                           struct oak_value_t* arg_base,
+                                           const struct oak_value_t fn_val)
 {
   struct oak_obj_native_fn_t* native = oak_as_native_fn(fn_val);
   if ((int)argc < native->arity_min || (int)argc > native->arity_max)
   {
-    oak_vm_runtime_error(vm, "function arity mismatch (expected %d..%d, got %u)",
-                         native->arity_min, native->arity_max, (unsigned)argc);
+    oak_vm_runtime_error(vm,
+                         "function arity mismatch (expected %d..%d, got %u)",
+                         native->arity_min,
+                         native->arity_max,
+                         (unsigned)argc);
     return OAK_VM_RUNTIME_ERROR;
   }
 
@@ -17,9 +22,9 @@ vm_call_native(struct oak_vm_t* vm, const u8 argc, const usize fn_slot,
       native->fn(vm, arg_base, (int)argc, &result);
   if (err != OAK_FN_CALL_OK)
   {
-    oak_vm_runtime_error(
-        vm, "native function '%s' failed",
-        native->name ? native->name : "<anonymous>");
+    oak_vm_runtime_error(vm,
+                         "native function '%s' failed",
+                         native->name ? native->name : "<anonymous>");
     return OAK_VM_RUNTIME_ERROR;
   }
 
@@ -32,16 +37,18 @@ vm_call_native(struct oak_vm_t* vm, const u8 argc, const usize fn_slot,
   return OAK_VM_OK;
 }
 
-static enum oak_vm_result_t
-vm_call_bytecode(struct oak_vm_t* vm, const u8 argc, const usize fn_slot,
-                 const struct oak_value_t fn_val)
+static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
+                                             const u8 argc,
+                                             const usize fn_slot,
+                                             const struct oak_value_t fn_val)
 {
   struct oak_obj_fn_t* fn = oak_as_fn(fn_val);
   if (fn->arity != (int)argc)
   {
-    oak_vm_runtime_error(
-        vm, "function arity mismatch (expected %d, got %u)", fn->arity,
-        (unsigned)argc);
+    oak_vm_runtime_error(vm,
+                         "function arity mismatch (expected %d, got %u)",
+                         fn->arity,
+                         (unsigned)argc);
     return OAK_VM_RUNTIME_ERROR;
   }
 

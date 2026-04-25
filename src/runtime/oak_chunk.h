@@ -107,7 +107,7 @@ void oak_chunk_write(struct oak_chunk_t* chunk,
                      struct oak_code_loc_t loc);
 
 usize oak_chunk_add_constant(struct oak_chunk_t* chunk,
-                              struct oak_value_t value);
+                             struct oak_value_t value);
 void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
                                int slot,
                                const char* name,

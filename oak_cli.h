@@ -16,6 +16,8 @@ struct oak_cli_args_t
  *
  * @return 0 on success, -1 on error (see args->error).
  */
-int oak_cli_parse(int argc, const char* const* argv, struct oak_cli_args_t* args);
+int oak_cli_parse(int argc,
+                  const char* const* argv,
+                  struct oak_cli_args_t* args);
 
 void oak_cli_usage(FILE* out);

@@ -44,9 +44,7 @@ const struct oak_op_info_t oak_op_info[] = {
                                     OAK_OP_FMT_ARGC,
                                     1 },
   [OAK_OP_NEW_MAP] = { "OP_NEW_MAP", OAK_OP_FMT_NONE, 1 },
-  [OAK_OP_NEW_MAP_FROM_STACK] = { "OP_NEW_MAP_FROM_STACK",
-                                  OAK_OP_FMT_ARGC,
-                                  1 },
+  [OAK_OP_NEW_MAP_FROM_STACK] = { "OP_NEW_MAP_FROM_STACK", OAK_OP_FMT_ARGC, 1 },
   [OAK_OP_GET_INDEX] = { "OP_GET_INDEX", OAK_OP_FMT_NONE, -1 },
   [OAK_OP_SET_INDEX] = { "OP_SET_INDEX", OAK_OP_FMT_NONE, -2 },
   [OAK_OP_MAP_KEY_AT] = { "OP_MAP_KEY_AT", OAK_OP_FMT_NONE, -1 },
@@ -110,13 +108,13 @@ void oak_chunk_write(struct oak_chunk_t* chunk,
 }
 
 usize oak_chunk_add_constant(struct oak_chunk_t* chunk,
-                              const struct oak_value_t value)
+                             const struct oak_value_t value)
 {
   if (chunk->const_count >= chunk->const_capacity)
   {
     const usize new_cap = chunk->const_capacity == 0
-                               ? CONST_INITIAL_CAPACITY
-                               : chunk->const_capacity * 2;
+                              ? CONST_INITIAL_CAPACITY
+                              : chunk->const_capacity * 2;
     chunk->constants = oak_realloc(
         chunk->constants, new_cap * sizeof(struct oak_value_t), OAK_SRC_LOC);
     chunk->const_capacity = new_cap;
@@ -137,8 +135,8 @@ void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
   if (chunk->debug_count >= chunk->debug_capacity)
   {
     const usize new_cap = chunk->debug_capacity == 0
-                               ? DEBUG_INITIAL_CAPACITY
-                               : chunk->debug_capacity * 2;
+                              ? DEBUG_INITIAL_CAPACITY
+                              : chunk->debug_capacity * 2;
     chunk->debug_locals =
         oak_realloc(chunk->debug_locals,
                     new_cap * sizeof(struct oak_debug_local_t),
@@ -210,8 +208,7 @@ snprint_value(char* buf, const usize size, const struct oak_value_t value)
       return snprintf(
           buf, size, "<array len=%zu>", oak_as_array(value)->length);
     if (oak_is_map(value))
-      return snprintf(
-          buf, size, "<map len=%zu>", oak_as_map(value)->length);
+      return snprintf(buf, size, "<map len=%zu>", oak_as_map(value)->length);
     if (oak_is_struct(value))
     {
       const struct oak_obj_struct_t* s = oak_as_struct(value);
@@ -241,7 +238,7 @@ static const char* debug_local_name(const struct oak_chunk_t* chunk,
 }
 
 static usize disassemble_instruction(const struct oak_chunk_t* chunk,
-                                      const usize offset)
+                                     const usize offset)
 {
   char line[16];
   if (offset > 0 &&
@@ -274,7 +271,7 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     case OAK_OP_FMT_CONSTANT_LONG:
     {
       const u16 idx = (u16)((u16)chunk->bytecode[offset + 1] << 8) |
-                           chunk->bytecode[offset + 2];
+                      chunk->bytecode[offset + 2];
       char val[64];
       snprint_value(val, sizeof(val), chunk->constants[idx]);
       oak_log(OAK_LOG_INFO,
@@ -306,8 +303,8 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     {
       const u32 jump = ((u32)chunk->bytecode[offset + 1] << 24) |
                        ((u32)chunk->bytecode[offset + 2] << 16) |
-                       ((u32)chunk->bytecode[offset + 3] << 8)  |
-                        (u32)chunk->bytecode[offset + 4];
+                       ((u32)chunk->bytecode[offset + 3] << 8) |
+                       (u32)chunk->bytecode[offset + 4];
       oak_log(OAK_LOG_INFO,
               "%04zu %s  %-20s %6u -> %04zu",
               offset,
@@ -321,8 +318,8 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     {
       const u32 jump = ((u32)chunk->bytecode[offset + 1] << 24) |
                        ((u32)chunk->bytecode[offset + 2] << 16) |
-                       ((u32)chunk->bytecode[offset + 3] << 8)  |
-                        (u32)chunk->bytecode[offset + 4];
+                       ((u32)chunk->bytecode[offset + 3] << 8) |
+                       (u32)chunk->bytecode[offset + 4];
       oak_log(OAK_LOG_INFO,
               "%04zu %s  %-20s %6u -> %04zu",
               offset,

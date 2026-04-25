@@ -1,7 +1,7 @@
 #include "oak_compiler_internal.h"
 
 void oak_compiler_compile_fn_call_arg(struct oak_compiler_t* c,
-                                const struct oak_ast_node_t* arg)
+                                      const struct oak_ast_node_t* arg)
 {
   if (arg->kind == OAK_NODE_FN_CALL_ARG)
     oak_compiler_compile_node(c, arg->child);
@@ -51,8 +51,8 @@ oak_compiler_fn_call_arg_expr_at(const struct oak_ast_node_t* call,
  * an implicit first argument, and finally OP_CALL with the full arity
  * is emitted. */
 void oak_compiler_compile_method_call(struct oak_compiler_t* c,
-                                const struct oak_ast_node_t* node,
-                                const struct oak_ast_node_t* callee)
+                                      const struct oak_ast_node_t* node,
+                                      const struct oak_ast_node_t* callee)
 {
   const struct oak_ast_node_t* receiver = callee->lhs;
   const struct oak_ast_node_t* method = callee->rhs;
@@ -63,7 +63,8 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
     return;
   }
 
-  const struct oak_code_loc_t call_loc = oak_compiler_loc_from_token(method->token);
+  const struct oak_code_loc_t call_loc =
+      oak_compiler_loc_from_token(method->token);
   const usize user_argc = oak_compiler_ast_child_count(node) - 1;
   const char* mname = oak_token_text(method->token);
   const usize mname_len = oak_token_length(method->token);
@@ -98,9 +99,12 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
       const int expected_user = sm->arity - 1;
       if ((int)user_argc != expected_user)
       {
-        oak_compiler_error_at(
-            c, method->token, "method '%s' expects %d arguments, got %zu", mname,
-            expected_user, user_argc);
+        oak_compiler_error_at(c,
+                              method->token,
+                              "method '%s' expects %d arguments, got %zu",
+                              mname,
+                              expected_user,
+                              user_argc);
         return;
       }
 
@@ -116,9 +120,9 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
             !oak_compiler_expr_is_mutable_place(c, receiver))
         {
           oak_compiler_error_at(c,
-                            receiver->token,
-                            "cannot call mutable method on an immutable "
-                            "receiver");
+                                receiver->token,
+                                "cannot call mutable method on an immutable "
+                                "receiver");
           return;
         }
       }
@@ -136,8 +140,10 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   if (recv_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&recv_ty))
   {
     oak_compiler_error_at(
-        c, receiver->token ? receiver->token : method->token,
-        "method '.%s' requires a typed array, map, or struct receiver", mname);
+        c,
+        receiver->token ? receiver->token : method->token,
+        "method '.%s' requires a typed array, map, or struct receiver",
+        mname);
     return;
   }
 
@@ -147,19 +153,25 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
           : oak_compiler_find_array_method(c, mname, mname_len);
   if (!m)
   {
-    oak_compiler_error_at(
-        c, method->token, "no method '%s' on %s '%s'", mname,
-        recv_ty.kind == OAK_TYPE_KIND_MAP ? "map" : "array of",
-        oak_compiler_type_full_name(c, recv_ty));
+    oak_compiler_error_at(c,
+                          method->token,
+                          "no method '%s' on %s '%s'",
+                          mname,
+                          recv_ty.kind == OAK_TYPE_KIND_MAP ? "map"
+                                                            : "array of",
+                          oak_compiler_type_full_name(c, recv_ty));
     return;
   }
 
   const int expected_user_argc = m->total_arity - 1;
   if ((int)user_argc != expected_user_argc)
   {
-    oak_compiler_error_at(
-        c, method->token, "method '%s' expects %d arguments, got %zu", mname,
-        expected_user_argc, user_argc);
+    oak_compiler_error_at(c,
+                          method->token,
+                          "method '%s' expects %d arguments, got %zu",
+                          mname,
+                          expected_user_argc,
+                          user_argc);
     return;
   }
 
@@ -179,7 +191,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
 }
 
 void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
-                            const struct oak_ast_node_t* node)
+                                  const struct oak_ast_node_t* node)
 {
   const struct oak_list_entry_t* first = node->children.next;
   if (first == &node->children)
@@ -204,7 +216,8 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
     return;
   }
 
-  const struct oak_code_loc_t call_loc = oak_compiler_loc_from_token(callee->token);
+  const struct oak_code_loc_t call_loc =
+      oak_compiler_loc_from_token(callee->token);
   const usize argc = oak_compiler_ast_child_count(node) - 1;
   const usize callee_len = oak_token_length(callee->token);
   const char* callee_name = oak_token_text(callee->token);
@@ -222,15 +235,22 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
   {
     if (entry->arity_min == entry->arity_max)
     {
-      oak_compiler_error_at(
-          c, callee->token, "function '%s' expects %d arguments, got %zu",
-          callee_name, entry->arity_min, argc);
+      oak_compiler_error_at(c,
+                            callee->token,
+                            "function '%s' expects %d arguments, got %zu",
+                            callee_name,
+                            entry->arity_min,
+                            argc);
     }
     else
     {
-      oak_compiler_error_at(
-          c, callee->token, "function '%s' expects %d to %d arguments, got %zu",
-          callee_name, entry->arity_min, entry->arity_max, argc);
+      oak_compiler_error_at(c,
+                            callee->token,
+                            "function '%s' expects %d to %d arguments, got %zu",
+                            callee_name,
+                            entry->arity_min,
+                            entry->arity_max,
+                            argc);
     }
     return;
   }

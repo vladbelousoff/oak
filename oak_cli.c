@@ -7,7 +7,9 @@ static int is_long_option(const char* s)
   return s && s[0] == '-' && s[1] == '-' && s[2] != '\0';
 }
 
-int oak_cli_parse(int argc, const char* const* argv, struct oak_cli_args_t* args)
+int oak_cli_parse(int argc,
+                  const char* const* argv,
+                  struct oak_cli_args_t* args)
 {
   memset(args, 0, sizeof(*args));
 

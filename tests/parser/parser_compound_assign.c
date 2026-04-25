@@ -5,7 +5,7 @@ OAK_TEST_DECL(ParseCompoundAssign)
   struct oak_lexer_result_t* lexer =
       OAK_LEX("a += 1; b -= 2; c *= 3; d /= 4; e %= 5;");
 
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
@@ -27,10 +27,8 @@ OAK_TEST_DECL(ParseCompoundAssign)
     const char* name;
     int value;
   } cases[] = {
-    { OAK_NODE_STMT_ADD_ASSIGN, "a", 1 },
-    { OAK_NODE_STMT_SUB_ASSIGN, "b", 2 },
-    { OAK_NODE_STMT_MUL_ASSIGN, "c", 3 },
-    { OAK_NODE_STMT_DIV_ASSIGN, "d", 4 },
+    { OAK_NODE_STMT_ADD_ASSIGN, "a", 1 }, { OAK_NODE_STMT_SUB_ASSIGN, "b", 2 },
+    { OAK_NODE_STMT_MUL_ASSIGN, "c", 3 }, { OAK_NODE_STMT_DIV_ASSIGN, "d", 4 },
     { OAK_NODE_STMT_MOD_ASSIGN, "e", 5 },
   };
 

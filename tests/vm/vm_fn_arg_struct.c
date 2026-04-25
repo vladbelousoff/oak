@@ -10,12 +10,12 @@
 static enum oak_test_status_t run_ok(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk != null);
 
@@ -34,12 +34,12 @@ static enum oak_test_status_t run_ok(const char* source)
 static enum oak_test_status_t compile_fails(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk == null);
 
@@ -51,11 +51,10 @@ static enum oak_test_status_t compile_fails(const char* source)
 OAK_TEST_DECL(FnArgStruct)
 {
   /* Pass a struct to a function that reads its fields. */
-  const char* source =
-      "type Vec2 struct { x: number; y: number; }\n"
-      "fn manhattan(v: Vec2) -> number { return v.x + v.y; }\n"
-      "let p = new Vec2 { x: 3, y: 4 };\n"
-      "print(manhattan(p));";
+  const char* source = "type Vec2 struct { x: number; y: number; }\n"
+                       "fn manhattan(v: Vec2) -> number { return v.x + v.y; }\n"
+                       "let p = new Vec2 { x: 3, y: 4 };\n"
+                       "print(manhattan(p));";
   OAK_CHECK(run_ok(source) == OAK_TEST_OK);
 
   /* Multiple struct args. */
@@ -69,12 +68,11 @@ OAK_TEST_DECL(FnArgStruct)
   OAK_CHECK(run_ok(source_two) == OAK_TEST_OK);
 
   /* Passing the wrong struct type must fail at compile time. */
-  const char* bad =
-      "type A struct { x: number; }\n"
-      "type B struct { y: number; }\n"
-      "fn take_a(v: A) -> number { return v.x; }\n"
-      "let b = new B { y: 1 };\n"
-      "print(take_a(b));";
+  const char* bad = "type A struct { x: number; }\n"
+                    "type B struct { y: number; }\n"
+                    "fn take_a(v: A) -> number { return v.x; }\n"
+                    "let b = new B { y: 1 };\n"
+                    "print(take_a(b));";
   OAK_CHECK(compile_fails(bad) == OAK_TEST_OK);
 
   return OAK_TEST_OK;

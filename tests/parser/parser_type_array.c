@@ -4,7 +4,7 @@ OAK_TEST_DECL(ParseTypeArray)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("fn items() -> number[] { }");
 
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
@@ -13,7 +13,8 @@ OAK_TEST_DECL(ParseTypeArray)
      Expected shape:
        PROGRAM
          FN_DECL (binary: FN_PROTO, BLOCK)
-           FN_PROTO -> FN_HEAD, FN_PARAMS_AND_RET( plist, FN_RETURN_TYPE -> TYPE_ARRAY )
+           FN_PROTO -> FN_HEAD, FN_PARAMS_AND_RET( plist, FN_RETURN_TYPE ->
+     TYPE_ARRAY )
   */
 
   const struct oak_ast_node_t* decl = oak_test_ast_child(root, 0);

@@ -36,4 +36,3 @@ void oak_vm_init(struct oak_vm_t* vm);
 void oak_vm_free(struct oak_vm_t* vm);
 
 enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk);
-

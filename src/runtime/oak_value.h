@@ -21,6 +21,10 @@ enum oak_obj_type_t
   OAK_OBJ_FN,
   OAK_OBJ_NATIVE_FN,
   OAK_OBJ_STRUCT,
+  /* A native C struct wrapped as an Oak value.  The underlying instance
+   * pointer is not owned by Oak; the type descriptor pointer is borrowed from
+   * the oak_native_type_t that was registered with oak_bind_type(). */
+  OAK_OBJ_NATIVE_STRUCT,
 };
 
 struct oak_obj_t
@@ -73,17 +77,17 @@ struct oak_map_entry_t;
  * key lookup.  `ht[i]` holds the index into `entries[]` for a live entry,
  * MAP_HT_EMPTY when the slot is unused, or MAP_HT_TOMBSTONE when an entry
  * was deleted.  `ht_capacity` is always a power of two >= 8. */
-#define MAP_HT_EMPTY     ((usize)-1)
-#define MAP_HT_TOMBSTONE ((usize)-2)
+#define MAP_HT_EMPTY     ((usize) - 1)
+#define MAP_HT_TOMBSTONE ((usize) - 2)
 
 struct oak_obj_map_t
 {
   struct oak_obj_t obj;
-  usize length;       /* live entries in entries[] */
-  usize capacity;     /* allocated slots in entries[] */
+  usize length;   /* live entries in entries[] */
+  usize capacity; /* allocated slots in entries[] */
   struct oak_map_entry_t* entries;
-  usize ht_capacity;  /* slots in ht[] (power of 2) */
-  usize* ht;          /* open-addressing hash table */
+  usize ht_capacity; /* slots in ht[] (power of 2) */
+  usize* ht;         /* open-addressing hash table */
 };
 
 struct oak_value_t
@@ -108,6 +112,21 @@ struct oak_obj_struct_t
   const char* type_name;
   int field_count;
   struct oak_value_t fields[];
+};
+
+/* Forward declaration — full definition lives in oak_bind.h. */
+struct oak_native_type_t;
+
+/* A native C struct wrapped as an Oak heap object.  Neither `instance` nor
+ * `type` are owned: the caller must ensure both outlive any Oak values that
+ * wrap them.  When the refcount reaches zero only the wrapper object itself
+ * is freed. */
+struct oak_obj_native_struct_t
+{
+  struct oak_obj_t obj;
+  void* instance; /* raw C pointer; not freed by Oak */
+  const struct oak_native_type_t*
+      type; /* borrowed; lives for binding lifetime */
 };
 
 enum oak_fn_call_result_t
@@ -171,13 +190,18 @@ struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
 
 struct oak_obj_fn_t* oak_fn_new(usize code_offset, int arity);
 
-struct oak_obj_native_fn_t*
-oak_native_fn_new(oak_native_fn_t fn, int arity_min, int arity_max, const char* name);
+struct oak_obj_native_fn_t* oak_native_fn_new(oak_native_fn_t fn,
+                                              int arity_min,
+                                              int arity_max,
+                                              const char* name);
 
 struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
 
 struct oak_obj_struct_t* oak_struct_new(int field_count, const char* type_name);
+
+struct oak_obj_native_struct_t*
+oak_obj_native_struct_new(const struct oak_native_type_t* type, void* instance);
 
 struct oak_obj_map_t* oak_map_new(void);
 /* Returns 1 and writes the value into *out if found; 0 otherwise. */
@@ -244,6 +268,11 @@ static inline int oak_is_struct(const struct oak_value_t value)
   return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_STRUCT;
 }
 
+static inline int oak_is_native_struct(const struct oak_value_t value)
+{
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_NATIVE_STRUCT;
+}
+
 static inline int oak_is_i32(const struct oak_value_t value)
 {
   return oak_is_number(value) &&
@@ -306,8 +335,7 @@ oak_as_array(const struct oak_value_t value)
   return (struct oak_obj_array_t*)value.as.obj;
 }
 
-static inline struct oak_obj_map_t*
-oak_as_map(const struct oak_value_t value)
+static inline struct oak_obj_map_t* oak_as_map(const struct oak_value_t value)
 {
   oak_assert(oak_is_map(value));
   return (struct oak_obj_map_t*)value.as.obj;
@@ -318,6 +346,13 @@ oak_as_struct(const struct oak_value_t value)
 {
   oak_assert(oak_is_struct(value));
   return (struct oak_obj_struct_t*)value.as.obj;
+}
+
+static inline struct oak_obj_native_struct_t*
+oak_as_native_struct(const struct oak_value_t value)
+{
+  oak_assert(oak_is_native_struct(value));
+  return (struct oak_obj_native_struct_t*)value.as.obj;
 }
 
 static inline char* oak_as_cstring(const struct oak_value_t value)

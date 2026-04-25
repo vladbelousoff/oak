@@ -81,6 +81,36 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
   return id;
 }
 
+oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
+                                               const char* name,
+                                               const usize len,
+                                               const oak_type_id_t id)
+{
+  if (!name || len == 0)
+    return OAK_TYPE_UNKNOWN;
+  if (id <= OAK_TYPE_UNKNOWN || id >= OAK_MAX_TYPES)
+    return OAK_TYPE_UNKNOWN;
+
+  /* If already registered under the same name, return it. */
+  const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
+  if (existing != OAK_TYPE_UNKNOWN)
+    return existing == id ? existing : OAK_TYPE_UNKNOWN;
+
+  /* The target slot must be empty. */
+  if (reg->entries[id].name != null)
+    return OAK_TYPE_UNKNOWN;
+
+  reg->entries[id].name = name;
+  reg->entries[id].len = len;
+
+  /* Advance the sequential counter so that subsequent oak_type_registry_intern
+   * calls assign ids strictly after all pre-assigned ones. */
+  if (reg->count <= id)
+    reg->count = id + 1;
+
+  return id;
+}
+
 const char* oak_type_registry_name(const struct oak_type_registry_t* reg,
                                    const oak_type_id_t id)
 {

@@ -14,3 +14,5 @@ struct oak_compile_result_t
 void oak_compile(const struct oak_ast_node_t* root,
                  struct oak_compile_result_t* out);
 void oak_compile_result_free(struct oak_compile_result_t* result);
+
+/* oak_compile_ex is declared in oak_bind.h (requires oak_compile_options_t). */

@@ -1,5 +1,6 @@
 #include "oak_value.h"
 
+#include "oak_bind.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 
@@ -49,6 +50,8 @@ void oak_obj_decref(struct oak_obj_t* obj)
     for (int i = 0; i < s->field_count; ++i)
       oak_value_decref(s->fields[i]);
   }
+  /* OAK_OBJ_NATIVE_STRUCT: neither `instance` nor `type` are owned by Oak;
+   * only the wrapper allocation itself is freed. */
 
   oak_free(obj, OAK_SRC_LOC);
 }
@@ -87,11 +90,10 @@ struct oak_obj_fn_t* oak_fn_new(const usize code_offset, const int arity)
   return fn;
 }
 
-struct oak_obj_native_fn_t*
-oak_native_fn_new(const oak_native_fn_t fn,
-                  const int arity_min,
-                  const int arity_max,
-                  const char* name)
+struct oak_obj_native_fn_t* oak_native_fn_new(const oak_native_fn_t fn,
+                                              const int arity_min,
+                                              const int arity_max,
+                                              const char* name)
 {
   struct oak_obj_native_fn_t* native =
       oak_alloc(sizeof(struct oak_obj_native_fn_t), OAK_SRC_LOC);
@@ -129,7 +131,8 @@ int oak_native_fn_format(char* buf,
                     fn_ptr);
   }
   if (native->arity_min == native->arity_max)
-    return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity_max, fn_ptr);
+    return snprintf(
+        buf, size, "<native arity=%d fn=%p>", native->arity_max, fn_ptr);
   return snprintf(buf,
                   size,
                   "<native arity=%d..%d fn=%p>",
@@ -177,6 +180,18 @@ struct oak_obj_struct_t* oak_struct_new(const int field_count,
   for (int i = 0; i < field_count; ++i)
     s->fields[i] = OAK_VALUE_I32(0);
   return s;
+}
+
+struct oak_obj_native_struct_t*
+oak_obj_native_struct_new(const struct oak_native_type_t* type, void* instance)
+{
+  struct oak_obj_native_struct_t* ns =
+      oak_alloc(sizeof(struct oak_obj_native_struct_t), OAK_SRC_LOC);
+  ns->obj.type = OAK_OBJ_NATIVE_STRUCT;
+  oak_refcount_init(&ns->obj.refcount, 1);
+  ns->instance = instance;
+  ns->type = type;
+  return ns;
 }
 
 struct oak_obj_map_t* oak_map_new(void)
@@ -325,9 +340,11 @@ int oak_map_delete(struct oak_obj_map_t* map, const struct oak_value_t key)
      * now a tombstone so the probe correctly skips it and reaches the original
      * slot that held `last`. */
     usize moved_idx;
-    const usize moved_slot =
-        ht_probe(map->ht, map->ht_capacity, map->entries,
-                 map->entries[entry_idx].key, &moved_idx);
+    const usize moved_slot = ht_probe(map->ht,
+                                      map->ht_capacity,
+                                      map->entries,
+                                      map->entries[entry_idx].key,
+                                      &moved_idx);
     (void)moved_idx;
     map->ht[moved_slot] = entry_idx;
   }
@@ -359,8 +376,7 @@ void oak_map_set(struct oak_obj_map_t* map,
   /* Grow hash table before inserting so the load factor stays below 75 %. */
   if (!map->ht || (map->length + 1u) * 4u > map->ht_capacity * 3u)
   {
-    const usize new_cap =
-        map->ht_capacity < 8u ? 8u : map->ht_capacity * 2u;
+    const usize new_cap = map->ht_capacity < 8u ? 8u : map->ht_capacity * 2u;
     map_ht_rebuild(map, new_cap);
   }
 
@@ -388,7 +404,7 @@ void oak_map_set(struct oak_obj_map_t* map,
 
   oak_value_incref(key);
   oak_value_incref(value);
-  map->entries[map->length].key   = key;
+  map->entries[map->length].key = key;
   map->entries[map->length].value = value;
   map->ht[slot] = map->length;
   map->length++;
@@ -473,11 +489,9 @@ void oak_value_decref(const struct oak_value_t value)
     oak_obj_decref(oak_as_obj(value));
 }
 
-
 /* Renders value into buf (no newline). buf must be at least 1 byte. */
-static void oak_value_format(const struct oak_value_t value,
-                             char* buf,
-                             const usize size)
+static void
+oak_value_format(const struct oak_value_t value, char* buf, const usize size)
 {
   if (oak_is_bool(value))
   {
@@ -507,9 +521,20 @@ static void oak_value_format(const struct oak_value_t value,
     else if (oak_is_struct(value))
     {
       const struct oak_obj_struct_t* s = oak_as_struct(value);
-      snprintf(buf, size, "<%s fields=%d>",
+      snprintf(buf,
+               size,
+               "<%s fields=%d>",
                s->type_name ? s->type_name : "struct",
                s->field_count);
+    }
+    else if (oak_is_native_struct(value))
+    {
+      const struct oak_obj_native_struct_t* ns = oak_as_native_struct(value);
+      snprintf(buf,
+               size,
+               "<native %s %p>",
+               ns->type ? ns->type->name : "struct",
+               ns->instance);
     }
     else
       snprintf(buf, size, "%p", (void*)oak_as_obj(value));
@@ -532,7 +557,7 @@ void oak_value_println(const struct oak_value_t value)
   char buf[OAK_PRINT_BUF_SIZE + 1];
   oak_value_format(value, buf, OAK_PRINT_BUF_SIZE);
   const usize len = strlen(buf);
-  buf[len]     = '\n';
+  buf[len] = '\n';
   buf[len + 1] = '\0';
   fputs(buf, stdout);
 }

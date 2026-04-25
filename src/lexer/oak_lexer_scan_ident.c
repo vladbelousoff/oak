@@ -38,7 +38,8 @@ oak_lexer_try_scan_ident(const struct oak_lexer_ctx_t* ctx, const char* input)
       break;
 
     {
-      const enum oak_lex_status_t st = oak_growable_buf_reserve(&gb, gb.len + (usize)n);
+      const enum oak_lex_status_t st =
+          oak_growable_buf_reserve(&gb, gb.len + (usize)n);
       if (st != OAK_LEX_OK)
       {
         oak_growable_buf_free(&gb);
@@ -60,9 +61,11 @@ oak_lexer_try_scan_ident(const struct oak_lexer_ctx_t* ctx, const char* input)
   }
 
   const enum oak_token_kind_t kind = oak_keyword_lookup(gb.data, gb.len);
-  oak_lexer_save_token(
-      ctx->lexer, &sav_cur, kind, gb.data,
-      kind == OAK_TOKEN_IDENT ? gb.len : 0u);
+  oak_lexer_save_token(ctx->lexer,
+                       &sav_cur,
+                       kind,
+                       gb.data,
+                       kind == OAK_TOKEN_IDENT ? gb.len : 0u);
 
   oak_growable_buf_free(&gb);
   return OAK_LEX_OK;

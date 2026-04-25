@@ -25,7 +25,8 @@ void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* key = type_node->lhs;
     const struct oak_ast_node_t* val = type_node->rhs;
-    if (!key || !val || key->kind != OAK_NODE_IDENT || val->kind != OAK_NODE_IDENT)
+    if (!key || !val || key->kind != OAK_NODE_IDENT ||
+        val->kind != OAK_NODE_IDENT)
       return;
     out->key_id = oak_compiler_intern_type_token(c, key->token);
     out->id = oak_compiler_intern_type_token(c, val->token);
@@ -212,8 +213,8 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       {
         const struct oak_ast_node_t* key = type_node->lhs;
         const struct oak_ast_node_t* val = type_node->rhs;
-        if (!key || !val || key->kind != OAK_NODE_IDENT
-            || val->kind != OAK_NODE_IDENT)
+        if (!key || !val || key->kind != OAK_NODE_IDENT ||
+            val->kind != OAK_NODE_IDENT)
           return;
         out->key_id = oak_compiler_intern_type_token(c, key->token);
         out->id = oak_compiler_intern_type_token(c, val->token);
@@ -232,9 +233,8 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       const struct oak_ast_node_t* first_wrap =
           oak_container_of(first, struct oak_ast_node_t, link);
       const struct oak_ast_node_t* first_elem =
-          first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT
-              ? first_wrap->child
-              : first_wrap;
+          first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
+                                                             : first_wrap;
       struct oak_type_t elem_ty;
       oak_compiler_infer_expr_static_type(c, first_elem, &elem_ty);
       if (!oak_type_is_known(&elem_ty))
@@ -280,9 +280,10 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       const struct oak_ast_node_t* name_node = expr->lhs;
       if (!name_node || name_node->kind != OAK_NODE_IDENT)
         return;
-      const struct oak_registered_struct_t* sd = oak_compiler_find_struct_by_name(
-          c, oak_token_text(name_node->token),
-          oak_token_length(name_node->token));
+      const struct oak_registered_struct_t* sd =
+          oak_compiler_find_struct_by_name(c,
+                                           oak_token_text(name_node->token),
+                                           oak_token_length(name_node->token));
       if (!sd)
         return;
       out->id = sd->type_id;
@@ -308,9 +309,12 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       struct oak_type_t recv_ty;
       oak_compiler_infer_expr_static_type(c, recv, &recv_ty);
       const struct oak_registered_struct_t* sd = null;
-      const int idx = oak_compiler_struct_field_index(
-          c, recv_ty, oak_token_text(fname->token),
-          oak_token_length(fname->token), &sd);
+      const int idx =
+          oak_compiler_struct_field_index(c,
+                                          recv_ty,
+                                          oak_token_text(fname->token),
+                                          oak_token_length(fname->token),
+                                          &sd);
       if (idx < 0)
         return;
       *out = sd->fields[idx].type;
@@ -334,7 +338,7 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
                                         const struct oak_type_t t)
 {
   static _Thread_local char bufs[4][128];
-  static _Thread_local int  slot = 0;
+  static _Thread_local int slot = 0;
   char* buf = bufs[slot % 4];
   ++slot;
   if (t.kind == OAK_TYPE_KIND_MAP)
@@ -355,7 +359,7 @@ const char* oak_compiler_type_full_name(struct oak_compiler_t* c,
 }
 
 void oak_compiler_reject_void_value_expr(struct oak_compiler_t* c,
-                                        const struct oak_ast_node_t* expr)
+                                         const struct oak_ast_node_t* expr)
 {
   if (!expr)
     return;

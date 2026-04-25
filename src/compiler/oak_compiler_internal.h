@@ -1,11 +1,12 @@
 #pragma once
 
+#include "oak_bind.h"
 #include "oak_compiler.h"
 #include "oak_count_of.h"
 #include "oak_hash_table.h"
-#include "oak_str.h"
 #include "oak_log.h"
 #include "oak_mem.h"
+#include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value.h"
 
@@ -13,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define OAK_MAX_LOCALS   256
+#define OAK_MAX_LOCALS 256
 /* Max recorded forward jumps (break or continue) per loop. */
 #define OAK_MAX_LOOP_BRANCHES 64
 
@@ -51,15 +52,15 @@ struct oak_loop_frame_t
 /* State that is reset for every fn body being compiled. */
 struct oak_scope_ctx_t
 {
-  struct oak_local_t       locals[OAK_MAX_LOCALS];
-  int                      local_count;
-  int                      scope_depth;
-  int                      stack_depth;
+  struct oak_local_t locals[OAK_MAX_LOCALS];
+  int local_count;
+  int scope_depth;
+  int stack_depth;
   /* Return type of the fn being compiled: omitted `->` is void
    * (OAK_TYPE_VOID). Cleared to unknown between fns. */
-  struct oak_type_t        declared_return_type;
+  struct oak_type_t declared_return_type;
   struct oak_loop_frame_t* current_loop;
-  int                      fn_depth;
+  int fn_depth;
 };
 
 /* ---------- Fn registry ---------- */
@@ -79,10 +80,10 @@ struct oak_registered_fn_t
  * Lookup is O(1) via the hash table; entries owns the storage. */
 struct oak_fn_registry_t
 {
-  struct oak_hash_table_t     by_name;  /* name bytes → index into entries */
-  struct oak_registered_fn_t* entries;  /* oak_realloc'd growable array    */
-  int                         count;
-  int                         capacity;
+  struct oak_hash_table_t by_name;     /* name bytes → index into entries */
+  struct oak_registered_fn_t* entries; /* oak_realloc'd growable array    */
+  int count;
+  int capacity;
 };
 
 /* ---------- Builtin method tables (fixed, small, static sets) ---------- */
@@ -119,9 +120,9 @@ struct oak_method_binding_t
 struct oak_builtin_methods_t
 {
   struct oak_method_binding_t array[OAK_MAX_ARRAY_METHODS];
-  int                         array_count;
+  int array_count;
   struct oak_method_binding_t map[OAK_MAX_MAP_METHODS];
-  int                         map_count;
+  int map_count;
 };
 
 /* ---------- Struct registry ---------- */
@@ -164,10 +165,10 @@ struct oak_registered_struct_t
  * (type_id lookups are infrequent and struct counts remain small). */
 struct oak_struct_registry_t
 {
-  struct oak_hash_table_t         by_name;  /* name bytes → index */
-  struct oak_registered_struct_t* entries;  /* growable array     */
-  int                             count;
-  int                             capacity;
+  struct oak_hash_table_t by_name;         /* name bytes → index */
+  struct oak_registered_struct_t* entries; /* growable array     */
+  int count;
+  int capacity;
 };
 
 /* ---------- Enum registry ---------- */
@@ -191,26 +192,26 @@ struct oak_enum_variant_t
  * Qualified lookup (EnumName::Variant) uses a linear scan — it is rare. */
 struct oak_enum_registry_t
 {
-  struct oak_hash_table_t    by_name;    /* variant name → index into variants */
-  struct oak_hash_table_t    enum_names; /* enum type name → 1 (set)           */
-  struct oak_enum_variant_t* variants;   /* growable array                     */
-  int                        count;
-  int                        capacity;
+  struct oak_hash_table_t by_name;     /* variant name → index into variants */
+  struct oak_hash_table_t enum_names;  /* enum type name → 1 (set)           */
+  struct oak_enum_variant_t* variants; /* growable array                     */
+  int count;
+  int capacity;
 };
 
 /* ---------- Compiler ---------- */
 
 struct oak_compiler_t
 {
-  struct oak_chunk_t*          chunk;
-  struct oak_compile_result_t* result;  /* errors written directly here */
-  int                          has_error;
-  struct oak_scope_ctx_t       scope;
-  struct oak_fn_registry_t     fns;
-  struct oak_type_registry_t   types;
+  struct oak_chunk_t* chunk;
+  struct oak_compile_result_t* result; /* errors written directly here */
+  int has_error;
+  struct oak_scope_ctx_t scope;
+  struct oak_fn_registry_t fns;
+  struct oak_type_registry_t types;
   struct oak_builtin_methods_t builtin_methods;
   struct oak_struct_registry_t structs;
-  struct oak_enum_registry_t   enums;
+  struct oak_enum_registry_t enums;
 };
 
 /* ---------- Registry lifecycle (called from oak_compiler.c) ---------- */
@@ -232,21 +233,18 @@ oak_fn_registry_insert(struct oak_fn_registry_t* r,
                        const struct oak_registered_fn_t* fn);
 
 /* O(1) lookup by name. Returns null if not found. */
-const struct oak_registered_fn_t*
-oak_fn_registry_find(const struct oak_fn_registry_t* r,
-                     const char* name,
-                     usize len);
+const struct oak_registered_fn_t* oak_fn_registry_find(
+    const struct oak_fn_registry_t* r, const char* name, usize len);
 
-/* Appends struct and indexes it by name. Returns pointer to the stored entry. */
+/* Appends struct and indexes it by name. Returns pointer to the stored entry.
+ */
 struct oak_registered_struct_t*
 oak_struct_registry_insert(struct oak_struct_registry_t* r,
                            const struct oak_registered_struct_t* s);
 
 /* O(1) lookup by name. Returns null if not found. */
-const struct oak_registered_struct_t*
-oak_struct_registry_find_by_name(const struct oak_struct_registry_t* r,
-                                 const char* name,
-                                 usize len);
+const struct oak_registered_struct_t* oak_struct_registry_find_by_name(
+    const struct oak_struct_registry_t* r, const char* name, usize len);
 
 /* O(n) lookup by type_id (infrequent; structs stay small). */
 const struct oak_registered_struct_t*
@@ -259,10 +257,8 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
                          const struct oak_enum_variant_t* v);
 
 /* O(1) lookup by unqualified variant name. Returns null if not found. */
-const struct oak_enum_variant_t*
-oak_enum_registry_find(const struct oak_enum_registry_t* r,
-                       const char* name,
-                       usize len);
+const struct oak_enum_variant_t* oak_enum_registry_find(
+    const struct oak_enum_registry_t* r, const char* name, usize len);
 
 /* O(n) lookup by qualified (enum_name, variant_name). */
 const struct oak_enum_variant_t*
@@ -378,7 +374,7 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
                                        const char* non_ident_msg);
 
 int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
-                                        const struct oak_ast_node_t* expr);
+                                       const struct oak_ast_node_t* expr);
 
 /* ---------- oak_compiler_types.c ---------- */
 
@@ -389,7 +385,7 @@ void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
 /* Fails compilation if the expression is typed as void (e.g. call to a void
  * fn). No-op for null or not-yet-inferrable types. */
 void oak_compiler_reject_void_value_expr(struct oak_compiler_t* c,
-                                        const struct oak_ast_node_t* expr);
+                                         const struct oak_ast_node_t* expr);
 
 oak_type_id_t oak_compiler_intern_type_token(struct oak_compiler_t* c,
                                              const struct oak_token_t* token);
@@ -423,25 +419,19 @@ void oak_compiler_register_array_methods(struct oak_compiler_t* c);
 
 void oak_compiler_register_map_methods(struct oak_compiler_t* c);
 
-const struct oak_method_binding_t*
-oak_compiler_find_array_method(struct oak_compiler_t* c,
-                               const char* name,
-                               usize len);
+const struct oak_method_binding_t* oak_compiler_find_array_method(
+    struct oak_compiler_t* c, const char* name, usize len);
 
-const struct oak_method_binding_t*
-oak_compiler_find_map_method(struct oak_compiler_t* c,
-                             const char* name,
-                             usize len);
+const struct oak_method_binding_t* oak_compiler_find_map_method(
+    struct oak_compiler_t* c, const char* name, usize len);
 
 /* ---------- oak_compiler_enums.c ---------- */
 
 void oak_compiler_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* prog);
 
-const struct oak_enum_variant_t*
-oak_compiler_find_enum_variant(const struct oak_compiler_t* c,
-                               const char* name,
-                               usize len);
+const struct oak_enum_variant_t* oak_compiler_find_enum_variant(
+    const struct oak_compiler_t* c, const char* name, usize len);
 
 const struct oak_enum_variant_t*
 oak_compiler_find_enum_variant_qualified(const struct oak_compiler_t* c,
@@ -456,10 +446,8 @@ int oak_compiler_is_enum_name(const struct oak_compiler_t* c,
 
 /* ---------- oak_compiler_structs.c ---------- */
 
-const struct oak_registered_struct_t*
-oak_compiler_find_struct_by_name(const struct oak_compiler_t* c,
-                                 const char* name,
-                                 usize len);
+const struct oak_registered_struct_t* oak_compiler_find_struct_by_name(
+    const struct oak_compiler_t* c, const char* name, usize len);
 
 const struct oak_registered_struct_t*
 oak_compiler_find_struct_by_type_id(const struct oak_compiler_t* c,
@@ -489,6 +477,13 @@ int oak_compiler_require_struct_field(
 
 void oak_compiler_register_program_structs(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* prog);
+
+/* Register native types from `opts` into the compiler's struct and type
+ * registries before any source-level passes run.  Must be called before
+ * oak_compiler_register_program_structs so that Oak source can reference
+ * native type names (e.g. in function parameter types). */
+void oak_compiler_register_native_types(
+    struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
 
 /* ---------- oak_compiler_functions.c ---------- */
 
@@ -530,10 +525,8 @@ void oak_compiler_register_program_functions(struct oak_compiler_t* c,
 void oak_compiler_register_program_methods(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* prog);
 
-const struct oak_registered_fn_t*
-oak_compiler_find_registered_fn_entry(struct oak_compiler_t* c,
-                                      const char* name,
-                                      usize len);
+const struct oak_registered_fn_t* oak_compiler_find_registered_fn_entry(
+    struct oak_compiler_t* c, const char* name, usize len);
 
 void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node);

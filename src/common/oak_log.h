@@ -64,7 +64,7 @@ void _oak_log_printf(enum oak_log_level_t lvl,
 #define oak_log(lvl, fmt, ...)                                                 \
   do                                                                           \
   {                                                                            \
-    if ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO)                          \
+    if ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO)                       \
     {                                                                          \
       _oak_log_printf(lvl, fmt, ##__VA_ARGS__);                                \
     }                                                                          \
@@ -73,7 +73,7 @@ void _oak_log_printf(enum oak_log_level_t lvl,
 #define oak_log_cond(cond, lvl, fmt, ...)                                      \
   do                                                                           \
   {                                                                            \
-    if ((cond) && ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO))              \
+    if ((cond) && ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO))           \
     {                                                                          \
       _oak_log_printf(lvl, fmt, ##__VA_ARGS__);                                \
     }                                                                          \

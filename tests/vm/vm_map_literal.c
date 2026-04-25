@@ -10,12 +10,12 @@
 static enum oak_test_status_t run_program(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk != null);
 
@@ -35,7 +35,7 @@ static enum oak_test_status_t run_program(const char* source)
 static struct oak_chunk_t* try_compile(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   if (!root)
@@ -44,7 +44,7 @@ static struct oak_chunk_t* try_compile(const char* source)
     oak_lexer_free(lexer);
     return null;
   }
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   oak_parser_free(&result);
   oak_lexer_free(lexer);
@@ -64,21 +64,21 @@ OAK_TEST_DECL(MapLiteral)
   OAK_CHECK(r1 == OAK_TEST_OK);
 
   /* number -> string keys/values inferred from first entry. */
-  const enum oak_test_status_t r2 = run_program(
-      "let by_id = [1: 'alpha', 2: 'beta', 3: 'gamma'];\n"
-      "print(by_id.size());\n"
-      "print(by_id[1]);\n"
-      "print(by_id[3]);\n");
+  const enum oak_test_status_t r2 =
+      run_program("let by_id = [1: 'alpha', 2: 'beta', 3: 'gamma'];\n"
+                  "print(by_id.size());\n"
+                  "print(by_id[1]);\n"
+                  "print(by_id[3]);\n");
   OAK_CHECK(r2 == OAK_TEST_OK);
 
   /* Mutable literal: indexed assign and insert work. */
-  const enum oak_test_status_t r3 = run_program(
-      "let mut m = ['x': 1, 'y': 2];\n"
-      "m['x'] = m['x'] + 10;\n"
-      "m['z'] = 99;\n"
-      "print(m['x']);\n"
-      "print(m['z']);\n"
-      "print(m.size());\n");
+  const enum oak_test_status_t r3 =
+      run_program("let mut m = ['x': 1, 'y': 2];\n"
+                  "m['x'] = m['x'] + 10;\n"
+                  "m['z'] = 99;\n"
+                  "print(m['x']);\n"
+                  "print(m['z']);\n"
+                  "print(m.size());\n");
   OAK_CHECK(r3 == OAK_TEST_OK);
 
   /* Mismatched value type rejected at compile time. */

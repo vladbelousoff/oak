@@ -1,5 +1,44 @@
 #include "oak_compiler_internal.h"
 
+/* ---------- Compiler lifecycle helpers ---------- */
+
+static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
+                                         struct oak_compile_result_t* out)
+{
+  struct oak_chunk_t* chunk =
+      oak_alloc(sizeof(struct oak_chunk_t), OAK_SRC_LOC);
+  oak_chunk_init(chunk);
+
+  struct oak_type_t no_return_type;
+  oak_type_clear(&no_return_type);
+
+  c->chunk = chunk;
+  c->result = out;
+  c->has_error = 0;
+  c->scope = (struct oak_scope_ctx_t){
+    .local_count = 0,
+    .scope_depth = 0,
+    .stack_depth = 0,
+    .declared_return_type = no_return_type,
+    .current_loop = null,
+    .fn_depth = 0,
+  };
+
+  oak_type_registry_init(&c->types);
+  oak_fn_registry_init(&c->fns);
+  oak_struct_registry_init(&c->structs);
+  oak_enum_registry_init(&c->enums);
+
+  return chunk;
+}
+
+static void compiler_teardown(struct oak_compiler_t* c)
+{
+  oak_fn_registry_free(&c->fns);
+  oak_struct_registry_free(&c->structs);
+  oak_enum_registry_free(&c->enums);
+}
+
 static void compile_program_items(struct oak_compiler_t* c,
                                   const struct oak_ast_node_t* program)
 {
@@ -68,46 +107,40 @@ static void compile_program(struct oak_compiler_t* c,
 void oak_compile(const struct oak_ast_node_t* root,
                  struct oak_compile_result_t* out)
 {
-  struct oak_chunk_t* chunk =
-      oak_alloc(sizeof(struct oak_chunk_t), OAK_SRC_LOC);
-  oak_chunk_init(chunk);
+  oak_compile_ex(root, null, out);
+}
 
-  struct oak_type_t no_return_type;
-  oak_type_clear(&no_return_type);
-
-  struct oak_compiler_t compiler = {
-    .chunk     = chunk,
-    .result    = out,
-    .has_error = 0,
-    .scope = {
-      .local_count          = 0,
-      .scope_depth          = 0,
-      .stack_depth          = 0,
-      .declared_return_type = no_return_type,
-      .current_loop         = null,
-      .fn_depth             = 0,
-    },
-  };
-  oak_type_registry_init(&compiler.types);
-  oak_fn_registry_init(&compiler.fns);
-  oak_struct_registry_init(&compiler.structs);
-  oak_enum_registry_init(&compiler.enums);
+void oak_compile_ex(const struct oak_ast_node_t* root,
+                    const struct oak_compile_options_t* opts,
+                    struct oak_compile_result_t* out)
+{
+  struct oak_compiler_t compiler = { 0 };
+  struct oak_chunk_t* chunk = compiler_init(&compiler, out);
 
   if (!root || root->kind != OAK_NODE_PROGRAM)
   {
     oak_compiler_error_at(&compiler, null, "expected a program root");
     oak_chunk_free(chunk);
-    oak_fn_registry_free(&compiler.fns);
-    oak_struct_registry_free(&compiler.structs);
-    oak_enum_registry_free(&compiler.enums);
+    compiler_teardown(&compiler);
     return;
+  }
+
+  /* Register native types before any source-level passes so Oak source can
+   * reference native type names in function signatures, struct fields, etc. */
+  if (opts && opts->native_type_count > 0)
+  {
+    oak_compiler_register_native_types(&compiler, opts);
+    if (compiler.has_error)
+    {
+      oak_chunk_free(chunk);
+      compiler_teardown(&compiler);
+      return;
+    }
   }
 
   compile_program(&compiler, root);
 
-  oak_fn_registry_free(&compiler.fns);
-  oak_struct_registry_free(&compiler.structs);
-  oak_enum_registry_free(&compiler.enums);
+  compiler_teardown(&compiler);
 
   if (out->error_count > 0)
   {

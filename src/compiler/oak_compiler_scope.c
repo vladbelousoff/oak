@@ -51,8 +51,9 @@ void oak_compiler_begin_scope(struct oak_compiler_t* c)
 void oak_compiler_end_scope(struct oak_compiler_t* c)
 {
   int pops = 0;
-  while (c->scope.local_count > 0
-         && c->scope.locals[c->scope.local_count - 1].depth == c->scope.scope_depth)
+  while (c->scope.local_count > 0 &&
+         c->scope.locals[c->scope.local_count - 1].depth ==
+             c->scope.scope_depth)
   {
     pops++;
     c->scope.local_count--;
@@ -89,15 +90,17 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
 }
 
 int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
-                                        const struct oak_ast_node_t* expr)
+                                       const struct oak_ast_node_t* expr)
 {
-  if (!expr) return 1;
+  if (!expr)
+    return 1;
   if (expr->kind == OAK_NODE_IDENT)
   {
     int is_mutable = 0;
-    oak_compiler_find_local(
-        c, oak_token_text(expr->token), oak_token_length(expr->token),
-        &is_mutable);
+    oak_compiler_find_local(c,
+                            oak_token_text(expr->token),
+                            oak_token_length(expr->token),
+                            &is_mutable);
     return is_mutable;
   }
   if (expr->kind == OAK_NODE_SELF)

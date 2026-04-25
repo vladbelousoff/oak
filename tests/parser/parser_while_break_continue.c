@@ -8,7 +8,7 @@ OAK_TEST_DECL(ParseWhileBreakContinue)
                                              "  continue; "
                                              "}");
 
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_STMT, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_STMT_WHILE);

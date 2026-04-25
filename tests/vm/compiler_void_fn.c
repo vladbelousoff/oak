@@ -10,12 +10,12 @@
 static enum oak_test_status_t expect_ok(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk != null);
 
@@ -34,12 +34,12 @@ static enum oak_test_status_t expect_ok(const char* source)
 static enum oak_test_status_t expect_compile_error(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = {0};
+  struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
-  struct oak_compile_result_t cr = {0};
+  struct oak_compile_result_t cr = { 0 };
   oak_compile(root, &cr);
   OAK_CHECK(cr.chunk == null);
 
@@ -51,10 +51,9 @@ static enum oak_test_status_t expect_compile_error(const char* source)
 
 OAK_TEST_DECL(VoidFnOmittedArrowOk)
 {
-  return expect_ok(
-      "fn side() { return; }\n"
-      "fn main() { side(); }\n"
-      "main();\n");
+  return expect_ok("fn side() { return; }\n"
+                   "fn main() { side(); }\n"
+                   "main();\n");
 }
 
 OAK_TEST_DECL(ExplicitVoidReturnTypeRejected)
@@ -64,41 +63,35 @@ OAK_TEST_DECL(ExplicitVoidReturnTypeRejected)
 
 OAK_TEST_DECL(VoidFnImplicitReturnAtEndOk)
 {
-  return expect_ok(
-      "fn noop() { }\n"
-      "noop();\n");
+  return expect_ok("fn noop() { }\n"
+                   "noop();\n");
 }
 
 OAK_TEST_DECL(VoidFnCannotReturnValue)
 {
-  return expect_compile_error(
-      "fn bad() { return 1; }\n");
+  return expect_compile_error("fn bad() { return 1; }\n");
 }
 
 OAK_TEST_DECL(NonVoidFnMustReturnValue)
 {
-  return expect_compile_error(
-      "fn need() -> number { return; }\n");
+  return expect_compile_error("fn need() -> number { return; }\n");
 }
 
 OAK_TEST_DECL(CannotUseVoidInLet)
 {
-  return expect_compile_error(
-      "fn v() { }\n"
-      "let x = v();\n");
+  return expect_compile_error("fn v() { }\n"
+                              "let x = v();\n");
 }
 
 OAK_TEST_DECL(VoidCallAsStmtOk)
 {
-  return expect_ok(
-      "fn v() { }\n"
-      "v();\n");
+  return expect_ok("fn v() { }\n"
+                   "v();\n");
 }
 
 OAK_TEST_DECL(PrintTreatedAsVoid)
 {
-  return expect_compile_error(
-      "let x = print(1);\n");
+  return expect_compile_error("let x = print(1);\n");
 }
 
 int main(const int argc, char* argv[])
@@ -115,6 +108,5 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(VoidCallAsStmtOk),
     OAK_TEST_ENTRY(PrintTreatedAsVoid),
   };
-  return oak_test_run(
-      tests, (int)(sizeof(tests) / sizeof(tests[0])));
+  return oak_test_run(tests, (int)(sizeof(tests) / sizeof(tests[0])));
 }

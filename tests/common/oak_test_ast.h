@@ -70,10 +70,10 @@ oak_test_ast_kind(const struct oak_ast_node_t* node,
   {                                                                            \
     if (oak_test_ast_kind((node), (expected)) != OAK_TEST_OK)                  \
     {                                                                          \
-      oak_log(OAK_LOG_ERROR,                                                     \
+      oak_log(OAK_LOG_ERROR,                                                   \
               "check failed: node kind != %s (%s:%d)",                         \
               #expected,                                                       \
-              oak_path_basename(__FILE__),                                          \
+              oak_path_basename(__FILE__),                                     \
               __LINE__);                                                       \
       return OAK_TEST_AST_KIND;                                                \
     }                                                                          \
@@ -82,14 +82,14 @@ oak_test_ast_kind(const struct oak_ast_node_t* node,
 #define OAK_CHECK_CHILD_COUNT(node, expected)                                  \
   do                                                                           \
   {                                                                            \
-    const usize _count = oak_test_ast_child_count(node);                      \
-    if (_count != (usize)(expected))                                          \
+    const usize _count = oak_test_ast_child_count(node);                       \
+    if (_count != (usize)(expected))                                           \
     {                                                                          \
-      oak_log(OAK_LOG_ERROR,                                                     \
+      oak_log(OAK_LOG_ERROR,                                                   \
               "check failed: child count %zu != %d (%s:%d)",                   \
               _count,                                                          \
               (int)(expected),                                                 \
-              oak_path_basename(__FILE__),                                          \
+              oak_path_basename(__FILE__),                                     \
               __LINE__);                                                       \
       return OAK_TEST_AST_CHILD_COUNT;                                         \
     }                                                                          \
@@ -98,13 +98,13 @@ oak_test_ast_kind(const struct oak_ast_node_t* node,
 #define OAK_CHECK_TOKEN_STR(node, expected)                                    \
   do                                                                           \
   {                                                                            \
-    if (strcmp(oak_token_text((node)->token), (expected)) != 0)                 \
+    if (strcmp(oak_token_text((node)->token), (expected)) != 0)                \
     {                                                                          \
-      oak_log(OAK_LOG_ERROR,                                                     \
+      oak_log(OAK_LOG_ERROR,                                                   \
               "check failed: token \"%s\" != \"%s\" (%s:%d)",                  \
-              oak_token_text((node)->token),                                    \
+              oak_token_text((node)->token),                                   \
               (expected),                                                      \
-              oak_path_basename(__FILE__),                                          \
+              oak_path_basename(__FILE__),                                     \
               __LINE__);                                                       \
       return OAK_TEST_AST_TOKEN_STR;                                           \
     }                                                                          \
@@ -116,11 +116,11 @@ oak_test_ast_kind(const struct oak_ast_node_t* node,
     const int _val = oak_token_as_i32((node)->token);                          \
     if (_val != (expected))                                                    \
     {                                                                          \
-      oak_log(OAK_LOG_ERROR,                                                     \
+      oak_log(OAK_LOG_ERROR,                                                   \
               "check failed: int value %d != %d (%s:%d)",                      \
               _val,                                                            \
               (int)(expected),                                                 \
-              oak_path_basename(__FILE__),                                          \
+              oak_path_basename(__FILE__),                                     \
               __LINE__);                                                       \
       return OAK_TEST_AST_INT_VAL;                                             \
     }                                                                          \

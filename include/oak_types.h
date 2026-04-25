@@ -2,8 +2,9 @@
 
 /*
  * Fixed-width aliases without pulling in system headers.
- * On typical OSes, usize/isize match the width of size_t/ssize_t (same as uintptr/intptr).
- * Include this before <stdint.h> if you use both, to avoid conflicting typedefs.
+ * On typical OSes, usize/isize match the width of size_t/ssize_t (same as
+ * uintptr/intptr). Include this before <stdint.h> if you use both, to avoid
+ * conflicting typedefs.
  */
 
 typedef signed char i8;
@@ -46,27 +47,27 @@ typedef unsigned long long u64;
 #endif
 
 #if defined(__SIZEOF_POINTER__) && (__SIZEOF_POINTER__ == 8)
-#  if defined(__SIZEOF_LONG__) && (__SIZEOF_LONG__ == 8)
+#if defined(__SIZEOF_LONG__) && (__SIZEOF_LONG__ == 8)
 typedef unsigned long uintptr_t;
 typedef long intptr_t;
-#  elif defined(__SIZEOF_LONG_LONG__) && (__SIZEOF_LONG_LONG__ == 8)
+#elif defined(__SIZEOF_LONG_LONG__) && (__SIZEOF_LONG_LONG__ == 8)
 typedef unsigned long long uintptr_t;
 typedef long long intptr_t;
-#  else
+#else
 typedef unsigned long long uintptr_t;
 typedef long long intptr_t;
-#  endif
+#endif
 #elif defined(__SIZEOF_POINTER__) && (__SIZEOF_POINTER__ == 4)
-#  if defined(__SIZEOF_INT__) && (__SIZEOF_INT__ == 4)
+#if defined(__SIZEOF_INT__) && (__SIZEOF_INT__ == 4)
 typedef unsigned int uintptr_t;
 typedef int intptr_t;
-#  elif defined(__SIZEOF_LONG__) && (__SIZEOF_LONG__ == 4)
+#elif defined(__SIZEOF_LONG__) && (__SIZEOF_LONG__ == 4)
 typedef unsigned long uintptr_t;
 typedef long intptr_t;
-#  else
+#else
 typedef unsigned long uintptr_t;
 typedef long intptr_t;
-#  endif
+#endif
 #elif defined(_WIN64)
 typedef unsigned long long uintptr_t;
 typedef long long intptr_t;
