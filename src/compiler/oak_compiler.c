@@ -28,15 +28,41 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
   oak_fn_registry_init(&c->fns);
   oak_record_registry_init(&c->records);
   oak_enum_registry_init(&c->enums);
+  oak_hash_table_init(&c->module_scope_names);
 
   return chunk;
 }
 
 static void compiler_teardown(struct oak_compiler_t* c)
 {
+  oak_hash_table_free(&c->module_scope_names);
   oak_fn_registry_free(&c->fns);
   oak_record_registry_free(&c->records);
   oak_enum_registry_free(&c->enums);
+}
+
+/* Only direct module-scope `let` items (not lets nested in if/while/for). */
+static void collect_module_scope_names(struct oak_compiler_t* c,
+                                       const struct oak_ast_node_t* program)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &program->children)
+  {
+    const struct oak_ast_node_t* item =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (!item || item->kind != OAK_NODE_STMT_LET_ASSIGNMENT)
+      continue;
+    const struct oak_ast_node_t* assign = item->rhs;
+    if (!assign || assign->kind != OAK_NODE_STMT_ASSIGNMENT)
+      continue;
+    const struct oak_ast_node_t* ident = assign->lhs;
+    if (!ident || ident->kind != OAK_NODE_IDENT)
+      continue;
+    const char* name = oak_token_text(ident->token);
+    const usize name_len = oak_token_length(ident->token);
+    if (oak_hash_table_get(&c->module_scope_names, name, name_len) < 0)
+      oak_hash_table_insert(&c->module_scope_names, name, name_len, 1);
+  }
 }
 
 static void compile_program_items(struct oak_compiler_t* c,
@@ -94,6 +120,7 @@ static void compile_program(struct oak_compiler_t* c,
   oak_compiler_register_program_methods(c, program);
   if (c->has_error)
     return;
+  collect_module_scope_names(c, program);
   compile_program_items(c, program);
   if (c->has_error)
     return;

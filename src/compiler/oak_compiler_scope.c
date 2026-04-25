@@ -1,5 +1,12 @@
 #include "oak_compiler_internal.h"
 
+int oak_compiler_is_module_scope_name(const struct oak_compiler_t* c,
+                                      const char* name,
+                                      const usize len)
+{
+  return oak_hash_table_get(&c->module_scope_names, name, len) >= 0;
+}
+
 int oak_compiler_find_local(const struct oak_compiler_t* c,
                             const char* name,
                             const usize length,
@@ -77,6 +84,16 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
   const int slot = oak_compiler_find_local(c, name, name_len, &is_mutable);
   if (slot < 0)
   {
+    if (c->scope.fn_depth > 0 &&
+        oak_compiler_is_module_scope_name(c, name, name_len))
+    {
+      oak_compiler_error_at(
+          c,
+          lhs->token,
+          "cannot assign to '%s': not visible here (module scope only)",
+          name);
+      return -1;
+    }
     oak_compiler_error_at(c, lhs->token, "undefined variable '%s'", name);
     return -1;
   }

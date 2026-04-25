@@ -212,6 +212,9 @@ struct oak_compiler_t
   struct oak_builtin_methods_t builtin_methods;
   struct oak_record_registry_t records;
   struct oak_enum_registry_t enums;
+  /* Names bound at module scope (top-level `let` items only). Used to reject
+   * access from inside user function and method bodies. */
+  struct oak_hash_table_t module_scope_names;
 };
 
 /* ---------- Registry lifecycle (called from oak_compiler.c) ---------- */
@@ -356,6 +359,11 @@ int oak_compiler_find_local(const struct oak_compiler_t* c,
                             const char* name,
                             usize length,
                             int* out_is_mutable);
+
+/* True if `name` is bound at module scope (top-level `let` in this program). */
+int oak_compiler_is_module_scope_name(const struct oak_compiler_t* c,
+                                      const char* name,
+                                      usize len);
 
 void oak_compiler_add_local(struct oak_compiler_t* c,
                             const char* name,
