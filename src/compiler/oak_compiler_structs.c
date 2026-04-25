@@ -99,6 +99,8 @@ void oak_struct_registry_free(struct oak_struct_registry_t* r)
     {
       if (r->entries[i].methods)
         oak_free(r->entries[i].methods, OAK_SRC_LOC);
+      if (r->entries[i].static_methods)
+        oak_free(r->entries[i].static_methods, OAK_SRC_LOC);
     }
     oak_free(r->entries, OAK_SRC_LOC);
   }
@@ -177,6 +179,22 @@ int oak_compiler_find_struct_field(const struct oak_registered_struct_t* s,
       return i;
   }
   return -1;
+}
+
+const struct oak_registered_fn_t* oak_compiler_find_struct_static_method(
+    const struct oak_registered_struct_t* sd,
+    const char* name,
+    const usize len)
+{
+  if (!sd || !sd->static_methods)
+    return null;
+  for (int i = 0; i < sd->static_method_count; ++i)
+  {
+    const struct oak_registered_fn_t* m = &sd->static_methods[i];
+    if (oak_name_eq(m->name, m->name_len, name, len))
+      return m;
+  }
+  return null;
 }
 
 int oak_compiler_struct_field_index(
@@ -390,6 +408,23 @@ static void struct_append_method(struct oak_registered_struct_t* sd,
   sd->methods[sd->method_count++] = *m;
 }
 
+/* Append a static method entry to a struct's growable static_methods array. */
+static void struct_append_static_method(struct oak_registered_struct_t* sd,
+                                       const struct oak_registered_fn_t* m)
+{
+  if (sd->static_method_count >= sd->static_method_capacity)
+  {
+    const int new_cap =
+        sd->static_method_capacity < 4 ? 4 : sd->static_method_capacity * 2;
+    sd->static_methods = oak_realloc(
+        sd->static_methods,
+        (usize)new_cap * sizeof(struct oak_registered_fn_t),
+        OAK_SRC_LOC);
+    sd->static_method_capacity = new_cap;
+  }
+  sd->static_methods[sd->static_method_count++] = *m;
+}
+
 /* ---------- Native function registration ---------- */
 
 void oak_compiler_register_native_fns(
@@ -406,14 +441,24 @@ void oak_compiler_register_native_fns(
 
     const usize name_len = strlen(b->name);
 
-    /* The arity stored in the constant is for the VM's arity check.
-     * For methods the VM sees the total arity (user args + 1 for self);
-     * for globals it is just the user-specified arity. */
-    const int vm_arity =
-        b->receiver_type_id == OAK_TYPE_VOID ? b->arity : b->arity + 1;
+    int vm_arity;
+    switch (b->kind)
+    {
+    case OAK_BIND_FN_GLOBAL:
+      vm_arity = b->arity;
+      break;
+    case OAK_BIND_FN_INSTANCE_METHOD:
+      vm_arity = b->arity + 1;
+      break;
+    case OAK_BIND_FN_STATIC_METHOD:
+      vm_arity = b->arity;
+      break;
+    default:
+      continue;
+    }
 
-    const u16 idx = oak_compiler_intern_native_constant(
-        c, b->impl, vm_arity, vm_arity, b->name);
+    const u16 idx =
+        oak_compiler_intern_native_constant(c, b->impl, vm_arity, b->name);
 
     struct oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
@@ -423,9 +468,8 @@ void oak_compiler_register_native_fns(
     entry.return_type_id = b->return_type_id;
     entry.decl = null;
 
-    if (b->receiver_type_id == OAK_TYPE_VOID)
+    if (b->kind == OAK_BIND_FN_GLOBAL)
     {
-      /* Global function */
       entry.arity = b->arity;
       if (oak_fn_registry_find(&c->fns, b->name, name_len))
       {
@@ -437,8 +481,6 @@ void oak_compiler_register_native_fns(
     }
     else
     {
-      /* Method on a native struct — arity includes implicit self */
-      entry.arity = vm_arity;
       struct oak_registered_struct_t* sd =
           (struct oak_registered_struct_t*)oak_struct_registry_find_by_type_id(
               &c->structs, b->receiver_type_id);
@@ -452,21 +494,46 @@ void oak_compiler_register_native_fns(
                               b->receiver_type_id);
         return;
       }
-      /* Check for duplicate method name */
-      for (int j = 0; j < sd->method_count; ++j)
+      if (b->kind == OAK_BIND_FN_STATIC_METHOD)
       {
-        if (oak_name_eq(
-                sd->methods[j].name, sd->methods[j].name_len, b->name, name_len))
+        entry.arity = vm_arity;
+        for (int j = 0; j < sd->static_method_count; ++j)
         {
-          oak_compiler_error_at(c,
-                                null,
-                                "duplicate native method '%s' on struct '%s'",
-                                b->name,
-                                sd->name);
-          return;
+          if (oak_name_eq(sd->static_methods[j].name,
+                          sd->static_methods[j].name_len,
+                          b->name,
+                          name_len))
+          {
+            oak_compiler_error_at(
+                c,
+                null,
+                "duplicate native static method '%s' on struct '%s'",
+                b->name,
+                sd->name);
+            return;
+          }
         }
+        struct_append_static_method(sd, &entry);
       }
-      struct_append_method(sd, &entry);
+      else
+      {
+        /* OAK_BIND_FN_INSTANCE_METHOD — arity includes implicit self */
+        entry.arity = vm_arity;
+        for (int j = 0; j < sd->method_count; ++j)
+        {
+          if (oak_name_eq(
+                  sd->methods[j].name, sd->methods[j].name_len, b->name, name_len))
+          {
+            oak_compiler_error_at(c,
+                                  null,
+                                  "duplicate native method '%s' on struct '%s'",
+                                  b->name,
+                                  sd->name);
+            return;
+          }
+        }
+        struct_append_method(sd, &entry);
+      }
     }
     if (c->has_error)
       return;

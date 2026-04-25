@@ -1,0 +1,5 @@
+let path = pwd() + '/tests/scripts/read_text_file_data.txt';
+let f = File.open(path, 'r');
+let text = f.read_all();
+f.close();
+print(text);

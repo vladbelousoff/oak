@@ -126,10 +126,32 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         const struct oak_ast_node_t* method = callee->rhs;
         if (!recv || !method || method->kind != OAK_NODE_IDENT)
           return;
-        struct oak_type_t recv_ty;
-        oak_compiler_infer_expr_static_type(c, recv, &recv_ty);
         const char* mn = oak_token_text(method->token);
         const usize mn_len = oak_token_length(method->token);
+        if (recv->kind == OAK_NODE_IDENT)
+        {
+          const char* rname = oak_token_text(recv->token);
+          const usize rlen = oak_token_length(recv->token);
+          struct oak_type_t local_ty;
+          oak_type_clear(&local_ty);
+          if (!oak_compiler_local_type_get(c, rname, rlen, &local_ty))
+          {
+            const struct oak_registered_struct_t* sd =
+                oak_compiler_find_struct_by_name(c, rname, rlen);
+            if (sd)
+            {
+              const struct oak_registered_fn_t* sm =
+                  oak_compiler_find_struct_static_method(sd, mn, mn_len);
+              if (sm)
+              {
+                out->id = sm->return_type_id;
+                return;
+              }
+            }
+          }
+        }
+        struct oak_type_t recv_ty;
+        oak_compiler_infer_expr_static_type(c, recv, &recv_ty);
         if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
         {
           const struct oak_registered_struct_t* sd =

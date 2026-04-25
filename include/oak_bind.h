@@ -16,6 +16,14 @@ enum oak_bind_type_kind_t
   OAK_BIND_STRUCT,
 };
 
+/* Where a native function is bound in Oak (see oak_bind_fn). */
+enum oak_bind_fn_kind_t
+{
+  OAK_BIND_FN_GLOBAL,
+  OAK_BIND_FN_INSTANCE_METHOD,
+  OAK_BIND_FN_STATIC_METHOD,
+};
+
 /* ---------- Getter / setter callback types ---------- */
 
 /* Returns the field value for the native struct instance `self`.
@@ -65,12 +73,14 @@ struct oak_native_type_t
 
 struct oak_native_fn_binding_t
 {
-  /* OAK_TYPE_VOID (0) = global function; any other id = method on that type. */
+  enum oak_bind_fn_kind_t kind;
+  /* OAK_TYPE_VOID = global (only with OAK_BIND_FN_GLOBAL).  Otherwise the
+   * native struct type_id for instance or static methods on that type. */
   oak_type_id_t receiver_type_id;
   const char* name;
   oak_native_fn_t impl;
-  /* User-visible arity.  For methods, does NOT include the implicit self
-   * receiver; the compiler adds 1 automatically. */
+  /* User-visible arity: for GLOBAL and STATIC_METHOD, full argument count;
+   * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM). */
   int arity;
   /* Return type: OAK_TYPE_VOID, OAK_TYPE_NUMBER, OAK_TYPE_STRING,
    * OAK_TYPE_BOOL, or a native type's type_id. */
@@ -123,12 +133,16 @@ int oak_bind_field(struct oak_native_type_t* type,
                    oak_field_getter_t getter,
                    oak_field_setter_t setter);
 
-/* Register a native function or method.
- *   receiver_type_id == OAK_TYPE_VOID  → global function callable by name.
- *   receiver_type_id == some_type->type_id → method on that native struct.
- * `arity` is the user-visible argument count (excludes implicit self for
- * methods).  Returns 0 on success, -1 on invalid arguments. */
+/* Register a native function, instance method, or static method.
+ *   OAK_BIND_FN_GLOBAL: receiver_type_id must be OAK_TYPE_VOID; `arity` is the
+ *     full VM argument count.
+ *   OAK_BIND_FN_INSTANCE_METHOD: receiver_type_id is the struct's type_id;
+ *     `arity` is the user-visible count excluding `self` (VM adds one).
+ *   OAK_BIND_FN_STATIC_METHOD: same receiver_type_id as the struct; `arity` is
+ *     the full argument count (no `self`); called as TypeName.name(...).
+ * Returns 0 on success, -1 on invalid arguments. */
 int oak_bind_fn(struct oak_compile_options_t* opts,
+                enum oak_bind_fn_kind_t kind,
                 oak_type_id_t receiver_type_id,
                 const char* name,
                 oak_native_fn_t impl,

@@ -69,6 +69,44 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   const char* mname = oak_token_text(method->token);
   const usize mname_len = oak_token_length(method->token);
 
+  /* TypeName.method(args) — static native method: receiver is a struct type
+   * name, not a variable. */
+  if (receiver->kind == OAK_NODE_IDENT)
+  {
+    const char* rname = oak_token_text(receiver->token);
+    const usize rlen = oak_token_length(receiver->token);
+    struct oak_type_t local_ty;
+    oak_type_clear(&local_ty);
+    if (!oak_compiler_local_type_get(c, rname, rlen, &local_ty))
+    {
+      const struct oak_registered_struct_t* sd =
+          oak_compiler_find_struct_by_name(c, rname, rlen);
+      if (sd)
+      {
+        const struct oak_registered_fn_t* sm =
+            oak_compiler_find_struct_static_method(sd, mname, mname_len);
+        if (sm)
+        {
+          if ((int)user_argc != sm->arity)
+          {
+            oak_compiler_error_at(c,
+                                  method->token,
+                                  "method '%s' expects %d arguments, got %zu",
+                                  mname,
+                                  sm->arity,
+                                  user_argc);
+            return;
+          }
+          oak_compiler_emit_constant(c, sm->const_idx, call_loc);
+          compile_call_args_after_callee(c, node);
+          oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)sm->arity, call_loc);
+          c->scope.stack_depth -= sm->arity;
+          return;
+        }
+      }
+    }
+  }
+
   struct oak_type_t recv_ty;
   oak_compiler_infer_expr_static_type(c, receiver, &recv_ty);
 
