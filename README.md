@@ -19,10 +19,12 @@ cmake --build build
 ctest --test-dir build -C Debug
 ```
 
-All output is compared against golden `.expected` files next to the test sources.  A passing run looks like:
+`ctest` runs two kinds of tests: **C harnesses** under `tests/*/` (each is its own small executable) and **script tests** by invoking `oak` on every `tests/scripts/*.oak` file (the working directory is the project root). Script tests pass when `oak` exits with status 0. Golden `tests/scripts/*.expected` files list the expected printed output for reference or manual diffing; they are not read automatically by `ctest`.
+
+A typical full run:
 
 ```
-100% tests passed, 0 tests failed out of 83
+100% tests passed, 0 tests failed out of 92
 ```
 
 ---
@@ -43,7 +45,7 @@ y += 5;              // +=  -=  *=  /=  %=  all supported
 | Type | Literals |
 |------|----------|
 | `number` (int or float) | `42`, `3.14`, `1e-3` |
-| `string` | `'hello'` |
+| `string` | `'hello'` (single-quoted; double quotes are not string delimiters) |
 | `bool` | `true`, `false` |
 | `array` | `[1, 2, 3]`, `[] as number[]` |
 | `map` | `['a': 1, 'b': 2]`, `[:] as [string:number]` |
@@ -191,6 +193,15 @@ let scores = ['alice': 95, 'bob': 87];
 | `.push(v)` | array | Append `v`; returns new size |
 | `.has(k)` | map | `true` if key `k` exists |
 | `.delete(k)` | map | Remove key `k`; returns `true` if it existed |
+
+### Standard library (native bindings)
+
+The `oak` driver registers a small set of **native** types and functions in addition to the table above. There is no `import` mechanism yet; these bindings are always registered when running a program through `oak`:
+
+| Name | Role |
+|------|------|
+| File I/O (see `oak_stdlib_file.h`) | Path-based `read` / `write` helpers |
+| `OakToken` / `OakLexer` (see `oak_stdlib_lexer.h`) | `OakLexer.tokenize(s)` takes a `string` and returns an `OakToken[]` (each token exposes `kind`, `lexeme`, `line`, `column`, `offset` as fields). Handy for tooling and the sample script `tests/scripts/tokenize.oak`. |
 
 ---
 

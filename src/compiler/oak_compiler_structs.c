@@ -466,6 +466,9 @@ void oak_compiler_register_native_fns(
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type_id;
     entry.return_type_id = b->return_type_id;
+    entry.return_kind = (b->return_shape == OAK_BIND_RETURN_ARRAY)
+                            ? OAK_TYPE_KIND_ARRAY
+                            : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
 
     if (b->kind == OAK_BIND_FN_GLOBAL)

@@ -7,6 +7,7 @@
 #include "oak_mem.h"
 #include "oak_parser.h"
 #include "oak_stdlib_file.h"
+#include "oak_stdlib_lexer.h"
 #include "oak_vm.h"
 
 #include <stdio.h>
@@ -37,6 +38,7 @@ int main(const int argc, const char* argv[])
   struct oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts);
   oak_stdlib_register_file(&compile_opts);
+  oak_stdlib_register_lexer(&compile_opts);
   int exit_code = 1;
 
   if (oak_file_map(cli.script_path, &source_map) != 0)

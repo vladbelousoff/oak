@@ -88,4 +88,5 @@ void _oak_log_printf(const enum oak_log_level_t lvl,
   buf[pos + 1] = '\0';
 
   fputs(buf, stdout);
+  fflush(stdout);
 }

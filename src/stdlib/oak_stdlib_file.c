@@ -187,7 +187,8 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
               "pwd",
               builtin_pwd,
               0,
-              OAK_TYPE_STRING);
+              OAK_TYPE_STRING,
+              OAK_BIND_RETURN_SCALAR);
   struct oak_native_type_t* t = oak_bind_type(opts, OAK_BIND_STRUCT, "File");
   if (!t)
     return;
@@ -199,35 +200,46 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
               "open",
               file_open,
               2,
-              t->type_id);
+              t->type_id,
+              OAK_BIND_RETURN_SCALAR);
   oak_bind_fn(opts,
               OAK_BIND_FN_INSTANCE_METHOD,
               t->type_id,
               "read",
               file_read,
               0,
-              OAK_TYPE_STRING);
+              OAK_TYPE_STRING,
+              OAK_BIND_RETURN_SCALAR);
   oak_bind_fn(opts,
               OAK_BIND_FN_INSTANCE_METHOD,
               t->type_id,
               "read_all",
               file_read_all,
               0,
-              OAK_TYPE_STRING);
+              OAK_TYPE_STRING,
+              OAK_BIND_RETURN_SCALAR);
   oak_bind_fn(opts,
               OAK_BIND_FN_INSTANCE_METHOD,
               t->type_id,
               "write",
               file_write,
               1,
-              OAK_TYPE_VOID);
-  oak_bind_fn(
-      opts, OAK_BIND_FN_INSTANCE_METHOD, t->type_id, "eof", file_eof, 0, OAK_TYPE_BOOL);
+              OAK_TYPE_VOID,
+              OAK_BIND_RETURN_SCALAR);
+  oak_bind_fn(opts,
+              OAK_BIND_FN_INSTANCE_METHOD,
+              t->type_id,
+              "eof",
+              file_eof,
+              0,
+              OAK_TYPE_BOOL,
+              OAK_BIND_RETURN_SCALAR);
   oak_bind_fn(opts,
               OAK_BIND_FN_INSTANCE_METHOD,
               t->type_id,
               "close",
               file_close,
               0,
-              OAK_TYPE_VOID);
+              OAK_TYPE_VOID,
+              OAK_BIND_RETURN_SCALAR);
 }

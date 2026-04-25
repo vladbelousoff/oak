@@ -24,6 +24,16 @@ enum oak_bind_fn_kind_t
   OAK_BIND_FN_STATIC_METHOD,
 };
 
+/* Return type shape for native bindings.  OAK_BIND_RETURN_ARRAY means the
+ * function returns a typed array T[] where the element type T is
+ * return_type_id (e.g. native struct id).  Scalar/void return uses
+ * OAK_BIND_RETURN_SCALAR. */
+enum oak_bind_return_shape_t
+{
+  OAK_BIND_RETURN_SCALAR = 0,
+  OAK_BIND_RETURN_ARRAY,
+};
+
 /* ---------- Getter / setter callback types ---------- */
 
 /* Returns the field value for the native struct instance `self`.
@@ -85,6 +95,9 @@ struct oak_native_fn_binding_t
   /* Return type: OAK_TYPE_VOID, OAK_TYPE_NUMBER, OAK_TYPE_STRING,
    * OAK_TYPE_BOOL, or a native type's type_id. */
   oak_type_id_t return_type_id;
+  /* If OAK_BIND_RETURN_ARRAY, the return is return_type_id[]; otherwise void
+   * and scalar returns use OAK_BIND_RETURN_SCALAR. */
+  enum oak_bind_return_shape_t return_shape;
 };
 
 /* ---------- Compilation options ---------- */
@@ -140,6 +153,8 @@ int oak_bind_field(struct oak_native_type_t* type,
  *     `arity` is the user-visible count excluding `self` (VM adds one).
  *   OAK_BIND_FN_STATIC_METHOD: same receiver_type_id as the struct; `arity` is
  *     the full argument count (no `self`); called as TypeName.name(...).
+ *   return_shape: OAK_BIND_RETURN_ARRAY means the function returns
+ *     return_type_id[] (return_type_id is the element type).
  * Returns 0 on success, -1 on invalid arguments. */
 int oak_bind_fn(struct oak_compile_options_t* opts,
                 enum oak_bind_fn_kind_t kind,
@@ -147,7 +162,8 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
                 const char* name,
                 oak_native_fn_t impl,
                 int arity,
-                oak_type_id_t return_type_id);
+                oak_type_id_t return_type_id,
+                enum oak_bind_return_shape_t return_shape);
 
 /* ---------- Runtime helpers ---------- */
 
