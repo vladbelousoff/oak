@@ -1,9 +1,9 @@
-type Point struct {
+type Point record {
   x : number;
   y : number;
 }
 
-type Person struct {
+type Person record {
   name : string;
   age  : number;
 }
