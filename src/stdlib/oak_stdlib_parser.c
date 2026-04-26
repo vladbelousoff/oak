@@ -174,6 +174,34 @@ static struct oak_value_t ast_get_is_terminal(const struct oak_value_t self)
   return OAK_VALUE_BOOL(oak_node_is_token_terminal(n->kind));
 }
 
+static struct oak_value_t ast_get_children(const struct oak_value_t self)
+{
+  struct oak_obj_array_t* const arr = oak_array_new();
+  if (!arr)
+  {
+    static struct oak_obj_array_t* s_empty;
+    if (!s_empty)
+      s_empty = oak_array_new();
+    if (!s_empty)
+      return empty_string_value();
+    oak_obj_incref(&s_empty->obj);
+    return OAK_VALUE_OBJ(&s_empty->obj);
+  }
+  const struct oak_ast_node_t* n = oak_native_instance(self);
+  if (n)
+  {
+    const usize nch = oak_ast_node_child_count(n);
+    for (usize i = 0; i < nch; ++i)
+    {
+      struct oak_ast_node_t* ch = oak_ast_node_child_at(n, i);
+      struct oak_value_t v = oak_native_record_new(s_ast_type, ch);
+      oak_array_push(arr, v);
+      oak_value_decref(v);
+    }
+  }
+  return OAK_VALUE_OBJ(&arr->obj);
+}
+
 static enum oak_fn_call_result_t ast_child_impl(struct oak_native_ctx_t* ctx,
                                                 const struct oak_value_t* args,
                                                 int argc,
@@ -537,6 +565,15 @@ void oak_stdlib_register_parser(struct oak_compile_options_t* opts)
                                      .field_type_id = OAK_TYPE_BOOL,
                                      .getter = ast_get_is_terminal,
                                      .setter = null }) < 0)
+    return;
+  if (oak_bind_field(
+          ast,
+          &(struct oak_native_field_t){
+              .name = "children",
+              .field_type_id = ast->type_id,
+              .shape = OAK_NATIVE_FIELD_SHAPE_ARRAY,
+              .getter = ast_get_children,
+              .setter = null }) < 0)
     return;
   if (oak_bind_fn(
           opts,

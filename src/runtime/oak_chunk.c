@@ -53,7 +53,7 @@ const struct oak_op_info_t oak_op_info[] = {
    * pushes a fresh record. Stack effect counts only the name (consumed) and
    * the produced record; <count> is variable and adjusted at compile time. */
   [OAK_OP_NEW_RECORD_FROM_STACK] = { "OP_NEW_RECORD_FROM_STACK",
-                                     OAK_OP_FMT_ARGC,
+                                     OAK_OP_FMT_U8_U16,
                                      0 },
   [OAK_OP_GET_FIELD] = { "OP_GET_FIELD", OAK_OP_FMT_SLOT, 0 },
   /* Stack: [..., record, value] -> [..., value]; sets record.fields[idx]. */
@@ -82,6 +82,63 @@ void oak_chunk_init(struct oak_chunk_t* chunk)
   chunk->debug_count = 0;
   chunk->debug_capacity = 0;
   chunk->debug_locals = null;
+  chunk->field_layouts = null;
+  chunk->field_layout_count = 0;
+  chunk->field_layout_capacity = 0;
+}
+
+int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
+                               const int n,
+                               const char* const* const names,
+                               const usize* const name_len)
+{
+  if (n < 0 || n > OAK_CHUNK_MAX_RECORD_FIELDS)
+    return -1;
+  for (int k = 0; k < c->field_layout_count; ++k)
+  {
+    const struct oak_chunk_field_layout* e = &c->field_layouts[k];
+    if (e->field_count != n)
+      continue;
+    int j;
+    for (j = 0; j < n; ++j)
+    {
+      const usize a = name_len ? name_len[j] : strlen(names[j]);
+      if (a != (usize)strlen(e->name[j]) || memcmp(names[j], e->name[j], a) != 0)
+        break;
+    }
+    if (j == n)
+      return k;
+  }
+  if (c->field_layout_count >= c->field_layout_capacity)
+  {
+    const int nc = c->field_layout_capacity < 4 ? 4 : c->field_layout_capacity * 2;
+    c->field_layouts = oak_realloc(
+        c->field_layouts, (usize)nc * sizeof *c->field_layouts, OAK_SRC_LOC);
+    c->field_layout_capacity = nc;
+  }
+  struct oak_chunk_field_layout* const d = &c->field_layouts[c->field_layout_count];
+  d->field_count = n;
+  d->name_blob = null;
+  usize tot = 0u;
+  for (int i = 0; i < n; ++i)
+  {
+    const usize a = name_len ? name_len[i] : strlen(names[i]);
+    tot += a + 1u;
+  }
+  char* const blob = oak_alloc(tot, OAK_SRC_LOC);
+  d->name_blob = blob;
+  {
+    char* p = blob;
+    for (int i = 0; i < n; ++i)
+    {
+      const usize a = name_len ? name_len[i] : strlen(names[i]);
+      memcpy(p, names[i], a);
+      p[a] = '\0';
+      d->name[i] = p;
+      p += a + 1u;
+    }
+  }
+  return c->field_layout_count++;
 }
 
 static void ensure_code_capacity(struct oak_chunk_t* chunk)
@@ -176,6 +233,16 @@ void oak_chunk_free(struct oak_chunk_t* chunk)
     oak_free(chunk->locations, OAK_SRC_LOC);
   if (chunk->constants)
     oak_free(chunk->constants, OAK_SRC_LOC);
+
+  if (chunk->field_layouts)
+  {
+    for (int i = 0; i < chunk->field_layout_count; ++i)
+    {
+      if (chunk->field_layouts[i].name_blob)
+        oak_free(chunk->field_layouts[i].name_blob, OAK_SRC_LOC);
+    }
+    oak_free(chunk->field_layouts, OAK_SRC_LOC);
+  }
 
   oak_free(chunk, OAK_SRC_LOC);
 }
@@ -335,6 +402,20 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
       const u8 argc = chunk->bytecode[offset + 1];
       oak_log(OAK_LOG_INFO, "%04zu %s  %-20s %4d", offset, line, name, argc);
       return offset + 2;
+    }
+    case OAK_OP_FMT_U8_U16:
+    {
+      const u8 a = chunk->bytecode[offset + 1];
+      const u16 b = (u16)((u16)chunk->bytecode[offset + 2] << 8) |
+                    chunk->bytecode[offset + 3];
+      oak_log(OAK_LOG_INFO,
+              "%04zu %s  %-20s  %3u, layout %4u",
+              offset,
+              line,
+              name,
+              (unsigned)a,
+              (unsigned)b);
+      return offset + 4;
     }
     default:
       oak_log(OAK_LOG_INFO, "%04zu %s  %s", offset, line, name);

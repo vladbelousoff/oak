@@ -105,6 +105,7 @@ int oak_bind_field(struct oak_native_type_t* type,
   f->name = p->name;
   f->name_len = len;
   f->field_type_id = p->field_type_id;
+  f->shape = p->shape;
   f->getter = p->getter;
   f->setter = p->setter;
   return 0;

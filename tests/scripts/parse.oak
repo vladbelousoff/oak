@@ -1,21 +1,3 @@
-fn walk_ast(n : OakAstNode, k : number) {
-  if k <= 0 {
-    return;
-  }
-
-  let lvl = 5000 - k;
-  let mut pad = '';
-  for j from 0 to lvl {
-    pad = pad + '  ';
-  }
-
-  print(pad + n.describe());
-
-  for child_index from 0 to n.child_count {
-    walk_ast(n.child(child_index), k - 1);
-  }
-}
-
 let src =
     'fn add(a : number, b : number) -> number { return a + b; }\n' +
     'let x = add(1, 2);\n' +
@@ -24,7 +6,7 @@ let toks = OakLexer.tokenize(src);
 let r = OakParser.parse(toks);
 
 if r.error_count == 0 {
-  walk_ast(r.root, 5000);
+  print(r.root);
 }
 
 r.dispose();

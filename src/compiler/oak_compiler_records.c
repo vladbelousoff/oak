@@ -65,7 +65,13 @@ void oak_compiler_register_native_types(
       sf->name = nf->name;
       sf->name_len = nf->name_len;
       oak_type_clear(&sf->type);
-      sf->type.id = nf->field_type_id;
+      if (nf->shape == OAK_NATIVE_FIELD_SHAPE_ARRAY)
+      {
+        sf->type.kind = OAK_TYPE_KIND_ARRAY;
+        sf->type.id = nf->field_type_id;
+      }
+      else
+        sf->type.id = nf->field_type_id;
     }
 
     oak_record_registry_insert(&c->records, &proto);
