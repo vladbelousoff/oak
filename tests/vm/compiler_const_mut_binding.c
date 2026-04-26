@@ -59,7 +59,7 @@ static enum oak_test_status_t expect_compile_error(const char* source)
 /* Binding a mutable variable to an immutable struct ident is rejected. */
 OAK_TEST_DECL(ConstStructIdentMutBindingFails)
 {
-  return expect_compile_error("type Point record { x : number; y : number; }\n"
+  return expect_compile_error("record Point { x : number; y : number; }\n"
                               "let p = new Point { x : 1, y : 2 };\n"
                               "let mut copy = p;\n");
 }
@@ -67,8 +67,8 @@ OAK_TEST_DECL(ConstStructIdentMutBindingFails)
 /* Accessing a struct-typed field of an immutable receiver is rejected. */
 OAK_TEST_DECL(ConstStructFieldMutBindingFails)
 {
-  return expect_compile_error("type Inner record { z : number; }\n"
-                              "type Outer record { inner : Inner; }\n"
+  return expect_compile_error("record Inner { z : number; }\n"
+                              "record Outer { inner : Inner; }\n"
                               "let inner = new Inner { z : 7 };\n"
                               "let outer = new Outer { inner : inner };\n"
                               "let mut copy = outer.inner;\n");
@@ -78,9 +78,9 @@ OAK_TEST_DECL(ConstStructFieldMutBindingFails)
  * when the final type is a record (refcounted). */
 OAK_TEST_DECL(ConstNestedFieldMutBindingFails)
 {
-  return expect_compile_error("type A record { x : number; }\n"
-                              "type B record { a : A; }\n"
-                              "type C record { b : B; }\n"
+  return expect_compile_error("record A { x : number; }\n"
+                              "record B { a : A; }\n"
+                              "record C { b : B; }\n"
                               "let a = new A { x : 1 };\n"
                               "let b = new B { a : a };\n"
                               "let c = new C { b : b };\n"
@@ -94,7 +94,7 @@ OAK_TEST_DECL(ConstNestedFieldMutBindingFails)
 /* Number is a value type (no refcount): let mut from immutable source is OK. */
 OAK_TEST_DECL(ConstNumberFieldMutBindingOk)
 {
-  return expect_ok("type Point record { x : number; y : number; }\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
                    "let p = new Point { x : 3, y : 4 };\n"
                    "let mut x = p.x;\n"
                    "x = 99;\n");
@@ -126,7 +126,7 @@ OAK_TEST_DECL(FnCallMutBindingOk)
 /* Source is mutable: always allowed. */
 OAK_TEST_DECL(MutStructIdentMutBindingOk)
 {
-  return expect_ok("type Point record { x : number; y : number; }\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
                    "let mut p = new Point { x : 1, y : 2 };\n"
                    "let mut copy = p;\n");
 }
@@ -134,8 +134,8 @@ OAK_TEST_DECL(MutStructIdentMutBindingOk)
 /* Field of mutable struct: allowed. */
 OAK_TEST_DECL(MutStructFieldMutBindingOk)
 {
-  return expect_ok("type Inner record { z : number; }\n"
-                   "type Outer record { inner : Inner; }\n"
+  return expect_ok("record Inner { z : number; }\n"
+                   "record Outer { inner : Inner; }\n"
                    "let inner = new Inner { z : 7 };\n"
                    "let mut outer = new Outer { inner : inner };\n"
                    "let mut copy = outer.inner;\n");
@@ -144,7 +144,7 @@ OAK_TEST_DECL(MutStructFieldMutBindingOk)
 /* Immutable binding from immutable source is always fine. */
 OAK_TEST_DECL(ConstFieldConstBindingOk)
 {
-  return expect_ok("type Point record { x : number; y : number; }\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
                    "let p = new Point { x : 3, y : 4 };\n"
                    "let x = p.x;\n");
 }
@@ -157,7 +157,7 @@ OAK_TEST_DECL(ConstFieldConstBindingOk)
 OAK_TEST_DECL(MutRefParamFromImmutableFails)
 {
   return expect_compile_error(
-      "type Point record { x : number; y : number; }\n"
+      "record Point { x : number; y : number; }\n"
       "fn move_point(mut p : Point) -> number { return p.x; }\n"
       "let p = new Point { x : 1, y : 2 };\n"
       "move_point(p);\n");
@@ -166,7 +166,7 @@ OAK_TEST_DECL(MutRefParamFromImmutableFails)
 /* Passing a mutable struct to a mut struct param is fine. */
 OAK_TEST_DECL(MutRefParamFromMutableOk)
 {
-  return expect_ok("type Point record { x : number; y : number; }\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
                    "fn move_point(mut p : Point) -> number { return p.x; }\n"
                    "let mut p = new Point { x : 1, y : 2 };\n"
                    "move_point(p);\n");
@@ -189,7 +189,7 @@ OAK_TEST_DECL(MutValueParamFromImmutableOk)
 OAK_TEST_DECL(MutSelfImmutableReceiverFails)
 {
   return expect_compile_error(
-      "type Point record { x : number; y : number;\n"
+      "record Point { x : number; y : number;\n"
       "  fn shift(mut self, dx : number, dy : number) -> number {\n"
       "    self.x = self.x + dx;\n"
       "    self.y = self.y + dy;\n"
@@ -204,7 +204,7 @@ OAK_TEST_DECL(MutSelfImmutableReceiverFails)
 OAK_TEST_DECL(MutSelfMutableReceiverOk)
 {
   return expect_ok(
-      "type Point record { x : number; y : number;\n"
+      "record Point { x : number; y : number;\n"
       "  fn shift(mut self, dx : number, dy : number) -> number {\n"
       "    self.x = self.x + dx;\n"
       "    self.y = self.y + dy;\n"
@@ -219,7 +219,7 @@ OAK_TEST_DECL(MutSelfMutableReceiverOk)
 OAK_TEST_DECL(ConstSelfImmutableReceiverOk)
 {
   return expect_ok(
-      "type Point record { x : number; y : number;\n"
+      "record Point { x : number; y : number;\n"
       "  fn sum(self) -> number { return self.x + self.y; }\n"
       "}\n"
       "let p = new Point { x : 3, y : 4 };\n"

@@ -1,4 +1,4 @@
-type Point record {
+record Point {
   x : number;
   y : number;
 
@@ -19,7 +19,7 @@ type Point record {
   }
 }
 
-type Person record {
+record Person {
   name : string;
   age  : number;
 

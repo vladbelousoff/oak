@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseRecordWithInstanceMethod)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX(
-      "type Point record {\n"
+      "record Point {\n"
       "  x : number;\n"
       "  fn dist(self) -> number { return self.x; }\n"
       "}");

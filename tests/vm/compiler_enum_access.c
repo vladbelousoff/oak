@@ -78,7 +78,7 @@ static enum oak_test_status_t expect_parse_or_compile_error(const char* source)
 /* Comma-separated variants (canonical style). */
 OAK_TEST_DECL(QualifiedVariantAccessOk)
 {
-  return expect_ok("type Color enum { Red, Green, Blue }\n"
+  return expect_ok("enum Color { Red, Green, Blue }\n"
                    "let c = Color.Green;\n");
 }
 
@@ -86,21 +86,21 @@ OAK_TEST_DECL(QualifiedVariantAccessOk)
 OAK_TEST_DECL(SpaceSeparatedVariantsRejected)
 {
   return expect_parse_or_compile_error(
-      "type Dir enum { North South East West }\n"
+      "enum Dir { North South East West }\n"
       "let a = Dir.North;\n");
 }
 
 /* Trailing comma is accepted. */
 OAK_TEST_DECL(TrailingCommaOk)
 {
-  return expect_ok("type Status enum { Off, On, }\n"
+  return expect_ok("enum Status { Off, On, }\n"
                    "let s = Status.On;\n");
 }
 
 /* Enum variant used in an expression. */
 OAK_TEST_DECL(VariantInExpressionOk)
 {
-  return expect_ok("type Status enum { Off, On }\n"
+  return expect_ok("enum Status { Off, On }\n"
                    "let s = Status.On;\n"
                    "let x = s + 10;\n");
 }
@@ -108,7 +108,7 @@ OAK_TEST_DECL(VariantInExpressionOk)
 /* Enum variant used as a function argument. */
 OAK_TEST_DECL(VariantAsFnArgOk)
 {
-  return expect_ok("type Color enum { Red, Green, Blue }\n"
+  return expect_ok("enum Color { Red, Green, Blue }\n"
                    "fn use_color(c : number) -> number { return c; }\n"
                    "use_color(Color.Blue);\n");
 }
@@ -116,8 +116,8 @@ OAK_TEST_DECL(VariantAsFnArgOk)
 /* Multiple enums with independent ordinals. */
 OAK_TEST_DECL(MultipleEnumsOk)
 {
-  return expect_ok("type A enum { X, Y }\n"
-                   "type B enum { P, Q }\n"
+  return expect_ok("enum A { X, Y }\n"
+                   "enum B { P, Q }\n"
                    "let x = A.X;\n"
                    "let q = B.Q;\n");
 }
@@ -125,14 +125,14 @@ OAK_TEST_DECL(MultipleEnumsOk)
 /* Bare variant identifier must be rejected. */
 OAK_TEST_DECL(BareVariantRejected)
 {
-  return expect_compile_error("type Color enum { Red, Green, Blue }\n"
+  return expect_compile_error("enum Color { Red, Green, Blue }\n"
                               "let c = Green;\n");
 }
 
 /* Unknown variant on a valid enum is rejected. */
 OAK_TEST_DECL(UnknownVariantRejected)
 {
-  return expect_compile_error("type Color enum { Red, Green, Blue }\n"
+  return expect_compile_error("enum Color { Red, Green, Blue }\n"
                               "let c = Color.Purple;\n");
 }
 

@@ -3,7 +3,7 @@
 OAK_TEST_DECL(ParseEnumDecl)
 {
   struct oak_lexer_result_t* lexer =
-      OAK_LEX("type Color enum { Red, Green, Blue }");
+      OAK_LEX("enum Color { Red, Green, Blue }");
 
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);
