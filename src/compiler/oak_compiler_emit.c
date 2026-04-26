@@ -29,6 +29,21 @@ void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
     c->scope.stack_depth += info->stack_effect;
 }
 
+void oak_compiler_emit_op_u8_u16(struct oak_compiler_t* c,
+                                 const u8 op,
+                                 const u8 a,
+                                 const u16 b,
+                                 const struct oak_code_loc_t loc)
+{
+  oak_compiler_emit_byte(c, op, loc);
+  oak_compiler_emit_byte(c, a, loc);
+  oak_compiler_emit_byte(c, (u8)(b >> 8u), loc);
+  oak_compiler_emit_byte(c, (u8)(b & 0xffu), loc);
+  const struct oak_op_info_t* info = oak_op_get_info(op);
+  if (info)
+    c->scope.stack_depth += info->stack_effect;
+}
+
 u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
                                  const struct oak_value_t value)
 {

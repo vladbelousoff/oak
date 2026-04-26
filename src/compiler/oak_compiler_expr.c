@@ -583,23 +583,45 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
     }
   }
 
-  struct oak_obj_string_t* type_name_obj =
-      oak_string_new(sd->name, sd->name_len);
-  const u16 name_idx =
-      oak_compiler_intern_constant(c, OAK_VALUE_OBJ(type_name_obj));
-  oak_compiler_emit_constant(
-      c, name_idx, oak_compiler_loc_from_token(name_node->token));
-
-  for (int i = 0; i < sd->field_count; ++i)
   {
-    oak_compiler_compile_node(c, exprs[i]);
-    if (c->has_error)
+    const char* fptr[OAK_MAX_RECORD_FIELDS];
+    usize flen[OAK_MAX_RECORD_FIELDS];
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      fptr[i] = sd->fields[i].name;
+      flen[i] = sd->fields[i].name_len;
+    }
+    const int layout_id = oak_chunk_add_field_layout(
+        c->chunk, sd->field_count, fptr, flen);
+    if (layout_id < 0)
+    {
+      oak_compiler_error_at(
+          c, name_node->token, "internal error: could not add record layout");
       return;
-  }
+    }
 
-  oak_compiler_emit_op_arg(
-      c, OAK_OP_NEW_RECORD_FROM_STACK, (u8)sd->field_count, OAK_LOC_SYNTHETIC);
-  c->scope.stack_depth -= sd->field_count;
+    struct oak_obj_string_t* type_name_obj =
+        oak_string_new(sd->name, sd->name_len);
+    const u16 name_idx =
+        oak_compiler_intern_constant(c, OAK_VALUE_OBJ(type_name_obj));
+    oak_compiler_emit_constant(
+        c, name_idx, oak_compiler_loc_from_token(name_node->token));
+
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      oak_compiler_compile_node(c, exprs[i]);
+      if (c->has_error)
+        return;
+    }
+
+    oak_compiler_emit_op_u8_u16(
+        c,
+        OAK_OP_NEW_RECORD_FROM_STACK,
+        (u8)sd->field_count,
+        (u16)layout_id,
+        OAK_LOC_SYNTHETIC);
+    c->scope.stack_depth -= sd->field_count;
+  }
 }
 
 void oak_compiler_compile_node(struct oak_compiler_t* c,

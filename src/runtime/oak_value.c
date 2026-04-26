@@ -1,10 +1,14 @@
 #include "oak_value.h"
 
 #include "oak_bind.h"
+#include "oak_json_pretty2.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 
+#include "yyjson.h"
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void oak_obj_incref(struct oak_obj_t* obj)
@@ -47,6 +51,8 @@ void oak_obj_decref(struct oak_obj_t* obj)
   else if (obj->type == OAK_OBJ_RECORD)
   {
     struct oak_obj_record_t* s = (struct oak_obj_record_t*)obj;
+    if (s->field_name_storage)
+      oak_free(s->field_name_storage, OAK_SRC_LOC);
     for (int i = 0; i < s->field_count; ++i)
       oak_value_decref(s->fields[i]);
   }
@@ -149,7 +155,9 @@ void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
 }
 
 struct oak_obj_record_t* oak_record_new(const int field_count,
-                                        const char* type_name)
+                                        const char* const type_name,
+                                        const char* const* const field_names,
+                                        const usize* const field_name_len)
 {
   oak_assert(field_count >= 0);
   const usize size = sizeof(struct oak_obj_record_t) +
@@ -159,8 +167,35 @@ struct oak_obj_record_t* oak_record_new(const int field_count,
   oak_refcount_init(&s->obj.refcount, 1);
   s->type_name = type_name;
   s->field_count = field_count;
+  s->field_name_ptrs = null;
+  s->field_name_storage = null;
   for (int i = 0; i < field_count; ++i)
     s->fields[i] = OAK_VALUE_I32(0);
+  if (field_names && field_count > 0)
+  {
+    usize strings_total = 0u;
+    for (int i = 0; i < field_count; ++i)
+    {
+      const usize n =
+          field_name_len ? field_name_len[i] : strlen(field_names[i]);
+      strings_total += n + 1u;
+    }
+    const usize blob = (usize)field_count * sizeof(const char*) + strings_total;
+    char* const raw = oak_alloc(blob, OAK_SRC_LOC);
+    s->field_name_storage = raw;
+    const char** const ptrs = (const char**)raw;
+    s->field_name_ptrs = (const char* const*)ptrs;
+    char* p = raw + (usize)field_count * (usize)sizeof(const char*);
+    for (int i = 0; i < field_count; ++i)
+    {
+      const usize n =
+          field_name_len ? field_name_len[i] : strlen(field_names[i]);
+      memcpy(p, field_names[i], n);
+      p[n] = '\0';
+      ptrs[i] = p;
+      p += n + 1u;
+    }
+  }
   return s;
 }
 
@@ -471,68 +506,256 @@ void oak_value_decref(const struct oak_value_t value)
     oak_obj_decref(oak_as_obj(value));
 }
 
-/* Renders value into buf (no newline). buf must be at least 1 byte. */
-static void
-oak_value_format(const struct oak_value_t value, char* buf, const usize size)
+#define OAK_JSON_MAX_DEPTH 64u
+
+/* JSON is built with yyjson; only Oak value walking lives here. */
+static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* const doc,
+                                           const struct oak_value_t value,
+                                           unsigned depth);
+
+/* Map key as a C string: malloc'd; free after use. */
+static char* oak_map_key_cstr(const struct oak_value_t key, unsigned depth)
 {
-  if (oak_is_bool(value))
+  if (depth > OAK_JSON_MAX_DEPTH)
   {
-    snprintf(buf, size, "%s", oak_as_bool(value) ? "true" : "false");
-    return;
+    char* t = (char*)malloc(5u);
+    if (!t)
+      return null;
+    memcpy(t, "null", 5u);
+    return t;
   }
-  if (oak_is_number(value))
+  if (oak_is_string(key))
   {
-    if (oak_is_f32(value))
-      snprintf(buf, size, "%f", oak_as_f32(value));
-    else
-      snprintf(buf, size, "%d", oak_as_i32(value));
-    return;
+    const struct oak_obj_string_t* s = oak_as_string(key);
+    char* t = (char*)malloc(s->length + 1u);
+    if (!t)
+      return null;
+    memcpy(t, s->chars, s->length);
+    t[s->length] = '\0';
+    return t;
+  }
+  if (oak_is_number(key) && oak_is_i32(key))
+  {
+    char* t = (char*)malloc(32u);
+    if (!t)
+      return null;
+    (void)snprintf(t, 32, "%d", oak_as_i32(key));
+    return t;
+  }
+  if (oak_is_number(key) && oak_is_f32(key))
+  {
+    char* t = (char*)malloc(32u);
+    if (!t)
+      return null;
+    (void)snprintf(t, 32, "%.9g", (double)oak_as_f32(key));
+    return t;
+  }
+  if (oak_is_bool(key))
+  {
+    const char* s = oak_as_bool(key) ? "true" : "false";
+    const usize n = (usize)strlen(s) + 1u;
+    char* t = (char*)malloc(n);
+    if (!t)
+      return null;
+    memcpy(t, s, n);
+    return t;
+  }
+  {
+    yyjson_mut_doc* const tmp = yyjson_mut_doc_new(NULL);
+    if (!tmp)
+      return null;
+    yyjson_mut_val* j = oak_value_to_yyjson(tmp, key, depth + 1u);
+    if (!j)
+    {
+      yyjson_mut_doc_free(tmp);
+      return null;
+    }
+    yyjson_mut_doc_set_root(tmp, j);
+    size_t plen;
+    char* out = yyjson_mut_write(tmp, 0, &plen);
+    yyjson_mut_doc_free(tmp);
+    return out;
+  }
+}
+
+static yyjson_mut_val* oak_yyjson_str_from_oak_string(
+    yyjson_mut_doc* const doc, const struct oak_obj_string_t* s)
+{
+  return yyjson_mut_strncpy(doc, s->chars, s->length);
+}
+
+static yyjson_mut_val* oak_yyjson_unhandled(yyjson_mut_doc* const doc,
+                                            const struct oak_value_t value)
+{
+  if (oak_is_fn(value))
+  {
+    char buf[64];
+    (void)snprintf(
+        buf, sizeof(buf), "<fn @%zu>", (size_t)oak_as_fn(value)->code_offset);
+    return yyjson_mut_strcpy(doc, buf);
+  }
+  if (oak_is_native_fn(value))
+  {
+    char tmp[256];
+    const int n = oak_native_fn_format(
+        tmp, (usize)sizeof(tmp), oak_as_native_fn(value));
+    if (n < 0 || (usize)n >= sizeof(tmp))
+      return yyjson_mut_null(doc);
+    return yyjson_mut_strcpy(doc, tmp);
   }
   if (oak_is_obj(value))
   {
-    if (oak_is_string(value))
-      snprintf(buf, size, "%s", oak_as_cstring(value));
-    else if (oak_is_fn(value))
-      snprintf(buf, size, "<fn @%zu>", oak_as_fn(value)->code_offset);
-    else if (oak_is_native_fn(value))
-      oak_native_fn_format(buf, size, oak_as_native_fn(value));
-    else if (oak_is_array(value))
-      snprintf(buf, size, "<array len=%zu>", oak_as_array(value)->length);
-    else if (oak_is_map(value))
-      snprintf(buf, size, "<map len=%zu>", oak_as_map(value)->length);
-    else if (oak_is_record(value))
-    {
-      const struct oak_obj_record_t* s = oak_as_record(value);
-      snprintf(buf,
-               size,
-               "<%s fields=%d>",
-               s->type_name ? s->type_name : "record",
-               s->field_count);
-    }
-    else if (oak_is_native_record(value))
-    {
-      const struct oak_obj_native_record_t* ns = oak_as_native_record(value);
-      snprintf(buf,
-               size,
-               "<native %s %p>",
-               ns->type ? ns->type->name : "record",
-               ns->instance);
-    }
-    else
-      snprintf(buf, size, "%p", (void*)oak_as_obj(value));
-    return;
+    char buf[64];
+    (void)snprintf(buf, sizeof(buf), "%p", (void*)oak_as_obj(value));
+    return yyjson_mut_strcpy(doc, buf);
   }
-  buf[0] = '\0';
+  return yyjson_mut_null(doc);
 }
 
-#define OAK_PRINT_BUF_SIZE 4096
+static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* const doc,
+                                           const struct oak_value_t value,
+                                           const unsigned depth)
+{
+  if (depth > OAK_JSON_MAX_DEPTH)
+    return yyjson_mut_null(doc);
+  if (oak_is_bool(value))
+    return oak_as_bool(value) ? yyjson_mut_true(doc) : yyjson_mut_false(doc);
+  if (oak_is_number(value))
+  {
+    if (oak_is_f32(value))
+      return yyjson_mut_real(doc, (double)oak_as_f32(value));
+    return yyjson_mut_sint(doc, (int64_t)oak_as_i32(value));
+  }
+  if (oak_is_string(value))
+    return oak_yyjson_str_from_oak_string(doc, oak_as_string(value));
+  if (oak_is_array(value))
+  {
+    yyjson_mut_val* a = yyjson_mut_arr(doc);
+    if (!a)
+      return null;
+    const struct oak_obj_array_t* ar = oak_as_array(value);
+    for (usize i = 0; i < ar->length; ++i)
+    {
+      yyjson_mut_val* e = oak_value_to_yyjson(doc, ar->items[i], depth + 1u);
+      if (!e)
+        return null;
+      if (!yyjson_mut_arr_add_val(a, e))
+        return null;
+    }
+    return a;
+  }
+  if (oak_is_map(value))
+  {
+    yyjson_mut_val* o = yyjson_mut_obj(doc);
+    if (!o)
+      return null;
+    const struct oak_obj_map_t* m = oak_as_map(value);
+    for (usize i = 0; i < m->length; ++i)
+    {
+      char* kc = oak_map_key_cstr(m->entries[i].key, depth);
+      if (!kc)
+        return null;
+      yyjson_mut_val* const kj = yyjson_mut_strcpy(doc, kc);
+      free(kc);
+      if (!kj)
+        return null;
+      yyjson_mut_val* vj =
+          oak_value_to_yyjson(doc, m->entries[i].value, depth + 1u);
+      if (!vj)
+        return null;
+      if (!yyjson_mut_obj_add(o, kj, vj))
+        return null;
+    }
+    return o;
+  }
+  if (oak_is_record(value))
+  {
+    yyjson_mut_val* o = yyjson_mut_obj(doc);
+    if (!o)
+      return null;
+    const struct oak_obj_record_t* s = oak_as_record(value);
+    for (int i = 0; i < s->field_count; ++i)
+    {
+      const char* key;
+      char keybuf[48];
+      if (s->field_name_ptrs)
+        key = s->field_name_ptrs[i];
+      else
+      {
+        (void)snprintf(keybuf, sizeof keybuf, "%d", i);
+        key = keybuf;
+      }
+      yyjson_mut_val* fj =
+          oak_value_to_yyjson(doc, s->fields[i], depth + 1u);
+      if (!fj)
+        return null;
+      yyjson_mut_val* kjv = yyjson_mut_strcpy(doc, key);
+      if (!kjv)
+        return null;
+      if (!yyjson_mut_obj_add(o, kjv, fj))
+        return null;
+    }
+    return o;
+  }
+  if (oak_is_native_record(value))
+  {
+    const struct oak_obj_native_record_t* ns = oak_as_native_record(value);
+    const struct oak_native_type_t* t = ns->type;
+    if (!t || !ns->instance)
+      return yyjson_mut_null(doc);
+    yyjson_mut_val* o = yyjson_mut_obj(doc);
+    if (!o)
+      return null;
+    {
+      const struct oak_value_t self = value;
+      for (int i = 0; i < t->field_count; ++i)
+      {
+        const struct oak_native_field_t* f = &t->fields[i];
+        struct oak_value_t fv = f->getter(self);
+        yyjson_mut_val* fj = oak_value_to_yyjson(doc, fv, depth + 1u);
+        if (oak_is_obj(fv))
+          oak_value_decref(fv);
+        if (!fj)
+          return null;
+        if (!yyjson_mut_obj_add_val(doc, o, f->name, fj))
+          return null;
+      }
+    }
+    return o;
+  }
+  return oak_yyjson_unhandled(doc, value);
+}
 
 void oak_value_println(const struct oak_value_t value)
 {
-  char buf[OAK_PRINT_BUF_SIZE + 1];
-  oak_value_format(value, buf, OAK_PRINT_BUF_SIZE);
-  const usize len = strlen(buf);
-  buf[len] = '\n';
-  buf[len + 1] = '\0';
-  fputs(buf, stdout);
+  if (oak_is_string(value))
+  {
+    fputs(oak_as_cstring(value), stdout);
+    fputc('\n', stdout);
+    return;
+  }
+  yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
+  if (!doc)
+  {
+    fputs("<out of memory for JSON print>\n", stdout);
+    return;
+  }
+  yyjson_mut_val* const root = oak_value_to_yyjson(doc, value, 0u);
+  if (!root)
+  {
+    yyjson_mut_doc_free(doc);
+    fputs("<value unprintable as JSON>\n", stdout);
+    return;
+  }
+  yyjson_mut_doc_set_root(doc, root);
+  char* p = oak_json_pretty2_write(doc);
+  yyjson_mut_doc_free(doc);
+  if (!p)
+  {
+    fputs("<JSON write failed>\n", stdout);
+    return;
+  }
+  fputs(p, stdout);
+  fputc('\n', stdout);
+  free(p);
 }

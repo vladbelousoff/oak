@@ -53,6 +53,14 @@ typedef void (*oak_field_setter_t)(struct oak_value_t self,
  * refcount reaches zero. If NULL, only the wrapper object is freed (legacy). */
 typedef void (*oak_native_destroy_instance_t)(void* instance);
 
+/* Scalar field, or (when `shape` is OAK_NATIVE_FIELD_SHAPE_ARRAY) a typed
+ * array whose *element* type is `field_type_id` (e.g. another native id). */
+enum oak_native_field_shape_t
+{
+  OAK_NATIVE_FIELD_SHAPE_SCALAR = 0,
+  OAK_NATIVE_FIELD_SHAPE_ARRAY,
+};
+
 /* ---------- Native field descriptor ---------- */
 
 struct oak_native_field_t
@@ -61,8 +69,9 @@ struct oak_native_field_t
   usize name_len;
   /* Compile-time type of this field.  Use OAK_TYPE_NUMBER / OAK_TYPE_STRING /
    * OAK_TYPE_BOOL for primitives, or another oak_native_type_t::type_id for
-   * fields whose type is itself a native record. */
+   * scalar native records, or the *element* type id when `shape` is ARRAY. */
   oak_type_id_t field_type_id;
+  enum oak_native_field_shape_t shape; /* 0 = SCALAR */
   oak_field_getter_t getter;
   oak_field_setter_t setter; /* NULL = read-only */
 };

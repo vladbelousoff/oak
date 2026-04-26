@@ -9,6 +9,7 @@
 #include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value.h"
+#include "oak_chunk.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -321,6 +322,12 @@ void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
                               u8 op,
                               u8 arg,
                               struct oak_code_loc_t loc);
+
+void oak_compiler_emit_op_u8_u16(struct oak_compiler_t* c,
+                                 u8 op,
+                                 u8 a,
+                                 u16 b,
+                                 struct oak_code_loc_t loc);
 
 u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
                                  struct oak_value_t value);

@@ -103,7 +103,9 @@ struct oak_value_t
 
 /* User-defined record instance. Fields are stored densely in declaration
  * order. The record's compile-time type is not tracked at runtime; field
- * lookup is resolved to a fixed index by the compiler. */
+ * lookup is resolved to a fixed index by the compiler.
+ * When `field_name_ptrs` is set, it points at `field_count` C strings in
+ * `field_name_storage` (JSON uses these as keys; otherwise keys are "0", …). */
 struct oak_obj_record_t
 {
   struct oak_obj_t obj;
@@ -111,6 +113,8 @@ struct oak_obj_record_t
    * source buffer); used for diagnostics only. May be null. */
   const char* type_name;
   int field_count;
+  const char* const* field_name_ptrs;
+  void* field_name_storage; /* if non-NULL, freed when the record is freed */
   struct oak_value_t fields[];
 };
 
@@ -203,7 +207,11 @@ struct oak_obj_native_fn_t* oak_native_fn_new(oak_native_fn_t fn,
 struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
 
-struct oak_obj_record_t* oak_record_new(int field_count, const char* type_name);
+struct oak_obj_record_t* oak_record_new(
+    int field_count,
+    const char* type_name,
+    const char* const* field_names, /* if NULL, JSON keys are "0", "1", … */
+    const usize* field_name_len);  /* if NULL, strlen(field_names[i]) */
 
 struct oak_obj_native_record_t*
 oak_obj_native_record_new(const struct oak_native_type_t* type, void* instance);

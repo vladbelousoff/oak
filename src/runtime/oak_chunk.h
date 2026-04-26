@@ -56,6 +56,19 @@ enum oak_op_format_t
   OAK_OP_FMT_JUMP_FWD,
   OAK_OP_FMT_JUMP_BACK,
   OAK_OP_FMT_ARGC,
+  /* 8-bit count + 16-bit (big-endian) id; e.g. user record + field layout. */
+  OAK_OP_FMT_U8_U16,
+};
+
+#define OAK_CHUNK_MAX_RECORD_FIELDS 32
+
+/* Deduplicated per-chunk: declaration-order field names for a user record
+ * type, referenced when constructing record instances. */
+struct oak_chunk_field_layout
+{
+  int field_count;
+  const char* name[OAK_CHUNK_MAX_RECORD_FIELDS];
+  char* name_blob;
 };
 
 struct oak_op_info_t
@@ -99,10 +112,21 @@ struct oak_chunk_t
   usize debug_count;
   usize debug_capacity;
   struct oak_debug_local_t* debug_locals;
+  struct oak_chunk_field_layout* field_layouts;
+  int field_layout_count;
+  int field_layout_capacity;
 };
 
 void oak_chunk_init(struct oak_chunk_t* chunk);
 void oak_chunk_free(struct oak_chunk_t* chunk);
+
+/* Intern a field-name layout. Returns a stable id >= 0, or -1 on failure.
+ * `names[i]` is `name_len[i]` bytes if `name_len` is non-NULL, else
+ * `names[i]` is a C string. */
+int oak_chunk_add_field_layout(struct oak_chunk_t* chunk,
+                               int field_count,
+                               const char* const* names,
+                               const usize* name_len);
 
 void oak_chunk_write(struct oak_chunk_t* chunk,
                      u8 byte,

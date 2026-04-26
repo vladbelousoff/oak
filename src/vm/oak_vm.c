@@ -489,6 +489,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         /* Stack on entry: [..., type_name_string, f0, f1, ..., f(N-1)].
          * Result: [..., record]. */
         const u8 count = (u8)oak_vm_read(vm, 1);
+        const u16 layout_id = oak_vm_read_u16(vm);
         if ((usize)(vm->sp - vm->stack) < (usize)count + 1u)
         {
           oak_vm_runtime_error(vm, "stack underflow in record literal");
@@ -500,7 +501,27 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         if (oak_is_string(type_name_val))
           type_name = oak_as_string(type_name_val)->chars;
 
-        struct oak_obj_record_t* s = oak_record_new((int)count, type_name);
+        const char* const* name_ptrs = null;
+        if (chunk->field_layouts && (usize)layout_id < (usize)chunk->field_layout_count)
+        {
+          const struct oak_chunk_field_layout* const lay =
+              &chunk->field_layouts[layout_id];
+          if (lay->field_count == (int)count)
+            name_ptrs = (const char* const*)lay->name;
+        }
+        if (name_ptrs == null)
+        {
+          oak_vm_runtime_error(
+              vm,
+              "internal error: record field layout %u (count %u) missing or "
+              "mismatched",
+              (unsigned)layout_id,
+              (unsigned)count);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+
+        struct oak_obj_record_t* s = oak_record_new(
+            (int)count, type_name, name_ptrs, null);
         for (int i = 0; i < (int)count; ++i)
         {
           oak_value_incref(base[i]);

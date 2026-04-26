@@ -1,6 +1,18 @@
 cmake_minimum_required(VERSION 3.20)
 project(oak VERSION 1.0.0 LANGUAGES C)
 
+include(FetchContent)
+# Upstream add_library(yyjson) is STATIC when BUILD_SHARED_LIBS is OFF (CMake
+# default). Tests are off so FetchContent only builds the library.
+set(YYJSON_BUILD_TESTS OFF CACHE BOOL "yyjson: skip tests" FORCE)
+FetchContent_Declare(
+        yyjson
+        GIT_REPOSITORY https://github.com/ibireme/yyjson.git
+        GIT_TAG 0.10.0
+        GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(yyjson)
+
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -51,6 +63,7 @@ target_include_directories(liboak
 )
 
 target_compile_definitions(liboak PRIVATE ${OAK_DEBUG_DEFINES})
+target_link_libraries(liboak PUBLIC yyjson)
 
 # Executable
 add_executable(oak ${OAK_APP_SOURCES})

@@ -17,7 +17,7 @@ OAK_TEST_DECL(StdlibParserTokenizeThenParse)
       "let r = OakParser.parse(toks);\n"
       "print(r.error_count);\n"
       "print(r.root.kind);\n"
-      "print(r.root.describe());\n"
+      "print(r.root);\n"
       "r.dispose();\n";
 
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
