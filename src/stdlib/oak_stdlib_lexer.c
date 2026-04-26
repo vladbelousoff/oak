@@ -10,38 +10,54 @@
 #include <stdio.h>
 #include <string.h>
 
-typedef struct oak_token_box_t
+typedef struct oak_token_value_box_t
 {
   enum oak_token_kind_t kind;
+  union {
+    int i32;
+    float f32;
+    struct oak_obj_string_t* text;
+  } u;
+} oak_token_value_box_t;
+
+typedef struct oak_token_box_t
+{
   int line;
   int column;
   int offset;
-  struct oak_obj_string_t* lexeme;
+  oak_token_value_box_t value;
 } oak_token_box_t;
 
+static const struct oak_native_type_t* s_token_value_type;
 static const struct oak_native_type_t* s_token_type;
 
-static struct oak_obj_string_t* make_lexeme_str(const struct oak_token_t* t)
+static oak_token_value_box_t s_token_value_sentinel;
+
+static struct oak_obj_string_t* format_token_value_as_string(
+    const oak_token_value_box_t* v)
 {
-  if (t->kind == OAK_TOKEN_INT)
+  if (!v)
+    return oak_string_new("", 0);
+  if (v->kind == OAK_TOKEN_INT)
   {
     char b[32];
-    const int n = snprintf(
-        b, sizeof b, "%d", oak_token_as_i32(t));
+    const int n = snprintf(b, sizeof b, "%d", v->u.i32);
     if (n < 0)
       return null;
     return oak_string_new(b, (usize)n);
   }
-  if (t->kind == OAK_TOKEN_FLOAT)
+  if (v->kind == OAK_TOKEN_FLOAT)
   {
     char b[64];
-    const int n = snprintf(
-        b, sizeof b, "%.9g", (double)oak_token_as_f32(t));
+    const int n = snprintf(b, sizeof b, "%f", v->u.f32);
     if (n < 0)
       return null;
     return oak_string_new(b, (usize)n);
   }
-  return oak_string_new(oak_token_text(t), oak_token_length(t));
+  if (!v->u.text)
+    return oak_string_new("", 0);
+  oak_obj_incref(&v->u.text->obj);
+  return v->u.text;
 }
 
 static struct oak_value_t empty_string_value(void)
@@ -55,19 +71,18 @@ static struct oak_value_t oak_token_get_kind(const struct oak_value_t self)
   const oak_token_box_t* b = oak_native_instance(self);
   if (!b)
     return empty_string_value();
-  const char* s = oak_token_name(b->kind);
+  const char* s = oak_token_name(b->value.kind);
   const usize len = strlen(s);
   struct oak_obj_string_t* str = oak_string_new(s, len);
   return OAK_VALUE_OBJ(&str->obj);
 }
 
-static struct oak_value_t oak_token_get_lexeme(const struct oak_value_t self)
+static struct oak_value_t oak_token_get_value(const struct oak_value_t self)
 {
   const oak_token_box_t* b = oak_native_instance(self);
-  if (!b || !b->lexeme)
-    return empty_string_value();
-  oak_obj_incref(&b->lexeme->obj);
-  return OAK_VALUE_OBJ(&b->lexeme->obj);
+  if (!b)
+    return oak_native_record_new(s_token_value_type, &s_token_value_sentinel);
+  return oak_native_record_new(s_token_value_type, (void*)&b->value);
 }
 
 static struct oak_value_t oak_token_get_line(const struct oak_value_t self)
@@ -94,8 +109,44 @@ static struct oak_value_t oak_token_get_offset(const struct oak_value_t self)
   return OAK_VALUE_I32(b->offset);
 }
 
+static enum oak_fn_call_result_t oak_token_value_to_string_impl(
+    struct oak_native_ctx_t* ctx,
+    const struct oak_value_t* args,
+    int argc,
+    struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc < 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const oak_token_value_box_t* v = oak_native_instance(args[0]);
+  struct oak_obj_string_t* s = format_token_value_as_string(v);
+  if (!s)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_OBJ(&s->obj);
+  return OAK_FN_CALL_OK;
+}
+
 /* Native struct wrappers are not freed by the VM; per-token heap is a known
    limitation for v1. */
+
+static int fill_token_value(
+    oak_token_value_box_t* out, const struct oak_token_t* tok)
+{
+  out->kind = tok->kind;
+  if (tok->kind == OAK_TOKEN_INT)
+  {
+    out->u.i32 = oak_token_as_i32(tok);
+    return 0;
+  }
+  if (tok->kind == OAK_TOKEN_FLOAT)
+  {
+    out->u.f32 = oak_token_as_f32(tok);
+    return 0;
+  }
+  out->u.text =
+      oak_string_new(oak_token_text(tok), oak_token_length(tok));
+  return out->u.text ? 0 : -1;
+}
 
 static enum oak_fn_call_result_t oak_lexer_tokenize_impl(
     struct oak_native_ctx_t* ctx,
@@ -129,12 +180,10 @@ static enum oak_fn_call_result_t oak_lexer_tokenize_impl(
       oak_lexer_free(L);
       return OAK_FN_CALL_RUNTIME_ERROR;
     }
-    box->kind = tok->kind;
     box->line = oak_token_line(tok);
     box->column = oak_token_column(tok);
     box->offset = oak_token_offset(tok);
-    box->lexeme = make_lexeme_str(tok);
-    if (!box->lexeme)
+    if (fill_token_value(&box->value, tok) < 0)
     {
       oak_free(box, OAK_SRC_LOC);
       oak_lexer_free(L);
@@ -155,6 +204,24 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
   if (!opts)
     return;
 
+  struct oak_native_type_t* tval =
+      oak_bind_type(opts, OAK_BIND_RECORD, "OakTokenValue");
+  if (!tval)
+    return;
+  s_token_value_type = tval;
+  if (oak_bind_fn(
+          opts,
+          &(oak_bind_fn_params_t){
+              .kind = OAK_BIND_FN_INSTANCE_METHOD,
+              .receiver_type_id = tval->type_id,
+              .name = "to_string",
+              .impl = oak_token_value_to_string_impl,
+              .arity = 0,
+              .return_type_id = OAK_TYPE_STRING,
+              .return_shape = OAK_BIND_RETURN_SCALAR,
+          }) != 0)
+    return;
+
   struct oak_native_type_t* tok =
       oak_bind_type(opts, OAK_BIND_RECORD, "OakToken");
   if (!tok)
@@ -169,9 +236,9 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
     return;
   if (oak_bind_field(
           tok,
-          &(struct oak_native_field_t){ .name = "lexeme",
-                                     .field_type_id = OAK_TYPE_STRING,
-                                     .getter = oak_token_get_lexeme,
+          &(struct oak_native_field_t){ .name = "value",
+                                     .field_type_id = tval->type_id,
+                                     .getter = oak_token_get_value,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
