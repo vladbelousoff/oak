@@ -50,8 +50,12 @@ void oak_obj_decref(struct oak_obj_t* obj)
     for (int i = 0; i < s->field_count; ++i)
       oak_value_decref(s->fields[i]);
   }
-  /* OAK_OBJ_NATIVE_RECORD: neither `instance` nor `type` are owned by Oak;
-   * only the wrapper allocation itself is freed. */
+  else if (obj->type == OAK_OBJ_NATIVE_RECORD)
+  {
+    struct oak_obj_native_record_t* ns = (struct oak_obj_native_record_t*)obj;
+    if (ns->instance && ns->type && ns->type->destroy_instance)
+      ns->type->destroy_instance(ns->instance);
+  }
 
   oak_free(obj, OAK_SRC_LOC);
 }

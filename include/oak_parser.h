@@ -4,6 +4,7 @@
 #include "oak_diagnostic.h"
 #include "oak_lexer.h"
 #include "oak_token.h"
+#include "oak_types.h"
 
 enum oak_node_kind_t
 {
@@ -127,3 +128,10 @@ void oak_parser_free(struct oak_parser_result_t* result);
 
 int oak_node_is_unary_op(enum oak_node_kind_t kind);
 int oak_node_is_binary_op(enum oak_node_kind_t kind);
+int oak_node_is_token_terminal(enum oak_node_kind_t kind);
+
+usize oak_ast_node_child_count(const struct oak_ast_node_t* node);
+struct oak_ast_node_t*
+oak_ast_node_child_at(const struct oak_ast_node_t* node, usize index);
+
+const char* oak_ast_node_kind_name(enum oak_node_kind_t kind);

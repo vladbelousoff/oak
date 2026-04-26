@@ -75,6 +75,7 @@ struct oak_native_type_t* oak_bind_type(struct oak_compile_options_t* opts,
   t->name_len = strlen(name);
   t->type_id = opts->next_type_id++;
   t->field_count = 0;
+  t->destroy_instance = null;
 
   opts->native_types[opts->native_type_count++] = t;
   return t;

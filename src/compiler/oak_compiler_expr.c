@@ -797,7 +797,11 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       const int depth_before = c->scope.stack_depth;
       struct oak_ast_node_t* expr = node->child;
       oak_compiler_compile_node(c, expr);
-      if (c->scope.stack_depth > depth_before)
+      /* Expression statements must not leave any temporary values on the VM
+       * stack. A single OP_POP was insufficient for some call shapes (e.g.
+       * nested native + user calls inside a for-body), leaving garbage above
+       * locals so OP_RETURN decref'd the wrong slots and crashed. */
+      while (c->scope.stack_depth > depth_before)
         oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }

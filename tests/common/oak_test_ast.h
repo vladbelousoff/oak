@@ -11,47 +11,12 @@
 static struct oak_ast_node_t*
 oak_test_ast_child(const struct oak_ast_node_t* node, const usize index)
 {
-  if (oak_node_is_unary_op(node->kind))
-    return (index == 0 && node->child) ? node->child : null;
-
-  if (oak_node_is_binary_op(node->kind))
-  {
-    /* Compact null slots so callers can use sequential indices that match
-     * the value returned by oak_test_ast_child_count(). */
-    usize i = 0;
-    if (node->lhs)
-    {
-      if (i == index)
-        return node->lhs;
-      ++i;
-    }
-    if (node->rhs)
-    {
-      if (i == index)
-        return node->rhs;
-    }
-    return null;
-  }
-
-  usize i;
-  struct oak_list_entry_t* pos;
-  oak_list_for_each_indexed(i, pos, &node->children)
-  {
-    if (i == index)
-      return oak_container_of(pos, struct oak_ast_node_t, link);
-  }
-  return null;
+  return oak_ast_node_child_at(node, index);
 }
 
 static usize oak_test_ast_child_count(const struct oak_ast_node_t* node)
 {
-  if (oak_node_is_unary_op(node->kind))
-    return node->child ? 1 : 0;
-
-  if (oak_node_is_binary_op(node->kind))
-    return (node->lhs ? 1 : 0) + (node->rhs ? 1 : 0);
-
-  return oak_list_length(&node->children);
+  return oak_ast_node_child_count(node);
 }
 
 static enum oak_test_status_t
