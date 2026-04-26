@@ -115,12 +115,12 @@ fn add(a : number, b : number) -> number {
 print(add(1, 2));   // 3
 ```
 
-User functions are declared at module top level, or as instance methods inside a `type name record { }` block.  Recursion and mutual recursion are supported.
+User functions are declared at module top level, or as instance methods inside a `record TypeName { }` block.  Recursion and mutual recursion are supported.
 
 ### Records
 
 ```oak
-type Point record {
+record Point {
   x : number;
   y : number;
   fn dist_sq(self, other : Point) -> number {
@@ -149,7 +149,7 @@ You can also declare a method at module scope with the `fn TypeName.method_name(
 Enum variants are lowered to named integer constants and are accessed with the `EnumName.Variant` syntax.
 
 ```oak
-type Color enum { Red, Green, Blue }
+enum Color { Red, Green, Blue }
 
 let c = Color.Green;  // c == 1
 ```

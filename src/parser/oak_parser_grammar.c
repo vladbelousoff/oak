@@ -161,14 +161,13 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT,
     },
   },
-  // RECORD_DECL -> 'type' TYPE_NAME 'record' '{' RECORD_FIELDS '}'
+  // RECORD_DECL -> 'record' TYPE_NAME '{' RECORD_FIELDS '}'
   //   (binary: lhs = TYPE_NAME, rhs = RECORD_FIELDS)
   [OAK_NODE_RECORD_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_TOKEN_TYPE | OAK_RULE_TOKEN,
-      OAK_NODE_TYPE_NAME,
       OAK_TOKEN_RECORD | OAK_RULE_TOKEN,
+      OAK_NODE_TYPE_NAME,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
       OAK_NODE_RECORD_FIELDS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
@@ -198,14 +197,13 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // ENUM_DECL -> 'type' IDENT 'enum' '{' ENUM_VARIANTS '}'
+  // ENUM_DECL -> 'enum' IDENT '{' ENUM_VARIANTS '}'
   //   (binary: lhs = IDENT, rhs = ENUM_VARIANTS)
   [OAK_NODE_ENUM_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_TOKEN_TYPE | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT,
       OAK_TOKEN_ENUM | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
       OAK_NODE_ENUM_VARIANTS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
