@@ -5,6 +5,7 @@
 struct oak_src_loc_t
 {
 #ifdef OAK_TRACK_MEMORY
+  /* C __FILE__ or Oak program path (borrowed); line is __LINE__ or Oak line. */
   const char* file;
   int line;
 #else

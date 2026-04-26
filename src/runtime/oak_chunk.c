@@ -71,6 +71,7 @@ const struct oak_op_info_t* oak_op_get_info(const u8 op)
 
 void oak_chunk_init(struct oak_chunk_t* chunk)
 {
+  chunk->source_name = null;
   chunk->count = 0;
   chunk->capacity = 0;
   chunk->bytecode = null;

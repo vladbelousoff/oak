@@ -87,6 +87,8 @@ struct oak_debug_local_t
 
 struct oak_chunk_t
 {
+  /* Optional: path/label for the Oak source (borrowed). Not owned by chunk. */
+  const char* source_name;
   usize count;
   usize capacity;
   u8* bytecode;
