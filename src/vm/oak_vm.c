@@ -644,13 +644,13 @@ oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
 #else
   if (!vm || !vm->chunk || !vm->chunk->bytecode || !vm->chunk->locations)
     return (struct oak_src_loc_t){
-      .file = "<oak>",
+      .file = null,
       .line = 0,
     };
   if (vm->ip < vm->chunk->bytecode)
   {
     return (struct oak_src_loc_t){
-      .file = "<oak>",
+      .file = null,
       .line = 0,
     };
   }
@@ -658,7 +658,7 @@ oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
   if (ip_off < 2u)
   {
     return (struct oak_src_loc_t){
-      .file = "<oak>",
+      .file = null,
       .line = 0,
     };
   }
@@ -666,14 +666,13 @@ oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
   if (call_off >= vm->chunk->count)
   {
     return (struct oak_src_loc_t){
-      .file = "<oak>",
+      .file = null,
       .line = 0,
     };
   }
   const struct oak_code_loc_t cloc = vm->chunk->locations[call_off];
-  const char* f = vm->chunk->source_name;
   return (struct oak_src_loc_t){
-    .file = f ? f : "<oak>",
+    .file = vm->chunk->source_name,
     .line = cloc.line,
   };
 #endif
