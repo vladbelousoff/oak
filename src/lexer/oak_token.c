@@ -60,7 +60,7 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
     { "or", OAK_TOKEN_OR },       { "return", OAK_TOKEN_RETURN },
     { "self", OAK_TOKEN_SELF },   { "record", OAK_TOKEN_RECORD },
     { "to", OAK_TOKEN_TO },       { "true", OAK_TOKEN_TRUE },
-    { "type", OAK_TOKEN_TYPE },   { "while", OAK_TOKEN_WHILE },
+    { "while", OAK_TOKEN_WHILE },
   };
 
   for (int i = 0; i < (int)oak_count_of(keywords); ++i)
@@ -79,8 +79,6 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
   {
     case OAK_TOKEN_IDENT:
       return "IDENT";
-    case OAK_TOKEN_TYPE:
-      return "TYPE";
     case OAK_TOKEN_LPAREN:
       return "LPAREN";
     case OAK_TOKEN_RPAREN:

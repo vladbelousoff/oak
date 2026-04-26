@@ -274,7 +274,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
         c,
         first_child->token,
         "'self' is only valid on instance methods: put `fn %s(self, ...)` "
-        "inside the corresponding `type ... record { }` block, or at module"
+        "inside the corresponding `record ... { }` block, or at module"
         " scope as `fn TypeName.%s(self, ...)`",
         name,
         name);
@@ -470,7 +470,7 @@ static void register_record_body_methods(struct oak_compiler_t* c,
           oak_compiler_error_at(
               c,
               recv_ident->token,
-              "method receiver must match the enclosing 'type %s record'",
+              "method receiver must match the enclosing 'record %s'",
               sd->name);
           return;
         }

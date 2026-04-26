@@ -6,7 +6,6 @@
 enum oak_token_kind_t
 {
   OAK_TOKEN_IDENT,
-  OAK_TOKEN_TYPE,
   OAK_TOKEN_LPAREN,
   OAK_TOKEN_RPAREN,
   OAK_TOKEN_LBRACE,
