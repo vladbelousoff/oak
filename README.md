@@ -199,7 +199,7 @@ The `oak` driver registers a small set of **native** types and functions in addi
 | Name | Role |
 |------|------|
 | File I/O (see `oak_stdlib_file.h`) | Path-based `read` / `write` helpers |
-| `OakToken` / `OakLexer` (see `oak_stdlib_lexer.h`) | `OakLexer.tokenize(s)` takes a `string` and returns an `OakToken[]` (each token exposes `kind`, `lexeme`, `line`, `column`, `offset` as fields). Handy for tooling and the sample script `tests/scripts/tokenize.oak`. |
+| `OakToken` / `OakLexer` (see `oak_stdlib_lexer.h`) | `OakLexer.tokenize(s)` takes a `string` and returns an `OakToken[]` (each token exposes `kind`, `value` (`OakTokenValue` with `to_string()`), `line`, `column`, `offset`). Handy for tooling and the sample script `tests/scripts/tokenize.oak`. |
 
 ---
 
