@@ -1,11 +1,36 @@
 type Point record {
   x : number;
   y : number;
+
+  fn sum(self) -> number {
+    return self.x + self.y;
+  }
+
+  fn shift(mut self, dx : number, dy : number) -> number {
+    self.x = self.x + dx;
+    self.y = self.y + dy;
+    return self.x + self.y;
+  }
+
+  fn dist_sq(self, other : Point) -> number {
+    let ddx = self.x - other.x;
+    let ddy = self.y - other.y;
+    return ddx * ddx + ddy * ddy;
+  }
 }
 
 type Person record {
   name : string;
   age  : number;
+
+  fn greet(self) -> string {
+    return self.name;
+  }
+
+  fn older_by(mut self, years : number) -> number {
+    self.age = self.age + years;
+    return self.age;
+  }
 }
 
 let p = new Point { x : 3, y : 4 };
@@ -35,22 +60,6 @@ let dx = q.x - p.x;
 let dy = q.y - p.y;
 print(dx * dx + dy * dy);
 
-fn Point.sum(self) -> number {
-  return self.x + self.y;
-}
-
-fn Point.shift(mut self, dx : number, dy : number) -> number {
-  self.x = self.x + dx;
-  self.y = self.y + dy;
-  return self.x + self.y;
-}
-
-fn Point.dist_sq(self, other : Point) -> number {
-  let ddx = self.x - other.x;
-  let ddy = self.y - other.y;
-  return ddx * ddx + ddy * ddy;
-}
-
 print(p.sum());
 print(q.sum());
 
@@ -60,15 +69,6 @@ print(r.x);
 print(r.y);
 
 print(r.dist_sq(p));
-
-fn Person.greet(self) -> string {
-  return self.name;
-}
-
-fn Person.older_by(mut self, years : number) -> number {
-  self.age = self.age + years;
-  return self.age;
-}
 
 print(alice.greet());
 print(bob.older_by(4));

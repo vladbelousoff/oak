@@ -237,6 +237,25 @@ int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl)
 
 /* ---------- Registration ---------- */
 
+/* lhs of RECORD_DECL: plain IDENT, or TYPE_NAME wrapping IDENT for arrays/maps. */
+static const struct oak_ast_node_t*
+record_decl_type_ident(const struct oak_ast_node_t* record_decl)
+{
+  if (!record_decl->lhs)
+    return null;
+  const struct oak_ast_node_t* name_ident = record_decl->lhs;
+  if (name_ident->kind == OAK_NODE_TYPE_NAME)
+  {
+    const struct oak_list_entry_t* tn_first = name_ident->children.next;
+    if (tn_first == &name_ident->children)
+      return null;
+    name_ident = oak_container_of(tn_first, struct oak_ast_node_t, link);
+  }
+  if (name_ident->kind != OAK_NODE_IDENT)
+    return null;
+  return name_ident;
+}
+
 static void register_regular_fn_decl(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* item)
 {
@@ -251,11 +270,14 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* first_child =
         self_param->lhs ? self_param->lhs : self_param->rhs;
-    oak_compiler_error_at(c,
-                          first_child->token,
-                          "'self' parameter is only valid on methods (use"
-                          " 'fn TypeName.%s(self, ...)' instead)",
-                          name);
+    oak_compiler_error_at(
+        c,
+        first_child->token,
+        "'self' is only valid on instance methods: put `fn %s(self, ...)` "
+        "inside the corresponding `type ... record { }` block, or at module"
+        " scope as `fn TypeName.%s(self, ...)`",
+        name,
+        name);
     return;
   }
 
@@ -278,8 +300,9 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
-static void register_method_decl(struct oak_compiler_t* c,
-                                 const struct oak_ast_node_t* item)
+static void register_method_on_record(struct oak_compiler_t* c,
+                                      const struct oak_ast_node_t* item,
+                                      struct oak_registered_record_t* sd)
 {
   const struct oak_ast_node_t* name_node = oak_compiler_fn_decl_name_node(item);
   const char* name = oak_token_text(name_node->token);
@@ -287,16 +310,6 @@ static void register_method_decl(struct oak_compiler_t* c,
   const int explicit_arity = oak_compiler_count_fn_params(item);
   const struct oak_ast_node_t* self_param =
       oak_compiler_fn_decl_self_param(item);
-
-  const struct oak_ast_node_t* recv_node = oak_fn_decl_prefix(item)->child;
-  oak_assert(recv_node != null);
-  const struct oak_ast_node_t* recv_ident = recv_node->child;
-  if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
-  {
-    oak_compiler_error_at(
-        c, recv_node->token, "method receiver must be a type name");
-    return;
-  }
 
   if (!self_param)
   {
@@ -306,27 +319,6 @@ static void register_method_decl(struct oak_compiler_t* c,
         "method '%s' must declare 'self' or 'mut self' as its first"
         " parameter",
         name);
-    return;
-  }
-
-  const char* sname = oak_token_text(recv_ident->token);
-  const usize sname_len = oak_token_length(recv_ident->token);
-
-  /* Find the target record (mutable pointer needed to add a method slot). */
-  struct oak_registered_record_t* sd = null;
-  for (int i = 0; i < c->records.count; ++i)
-  {
-    struct oak_registered_record_t* cand = &c->records.entries[i];
-    if (oak_name_eq(cand->name, cand->name_len, sname, sname_len))
-    {
-      sd = cand;
-      break;
-    }
-  }
-  if (!sd)
-  {
-    oak_compiler_error_at(
-        c, recv_ident->token, "no such record '%s' for method receiver", sname);
     return;
   }
 
@@ -370,6 +362,126 @@ static void register_method_decl(struct oak_compiler_t* c,
   sd->methods[sd->method_count++] = slot;
 }
 
+static void register_method_decl(struct oak_compiler_t* c,
+                                 const struct oak_ast_node_t* item)
+{
+  const struct oak_ast_node_t* recv_node = oak_fn_decl_prefix(item)->child;
+  oak_assert(recv_node != null);
+  const struct oak_ast_node_t* recv_ident = recv_node->child;
+  if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
+  {
+    oak_compiler_error_at(
+        c, recv_node->token, "method receiver must be a type name");
+    return;
+  }
+
+  const char* sname = oak_token_text(recv_ident->token);
+  const usize sname_len = oak_token_length(recv_ident->token);
+
+  /* Find the target record (mutable pointer needed to add a method slot). */
+  struct oak_registered_record_t* sd = null;
+  for (int i = 0; i < c->records.count; ++i)
+  {
+    struct oak_registered_record_t* cand = &c->records.entries[i];
+    if (oak_name_eq(cand->name, cand->name_len, sname, sname_len))
+    {
+      sd = cand;
+      break;
+    }
+  }
+  if (!sd)
+  {
+    oak_compiler_error_at(
+        c, recv_ident->token, "no such record '%s' for method receiver", sname);
+    return;
+  }
+
+  register_method_on_record(c, item, sd);
+}
+
+static void register_record_body_methods(struct oak_compiler_t* c,
+                                         const struct oak_ast_node_t* program)
+{
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &program->children)
+  {
+    const struct oak_ast_node_t* item =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (item->kind != OAK_NODE_RECORD_DECL)
+      continue;
+    if (!item->rhs || item->rhs->kind != OAK_NODE_RECORD_FIELDS)
+      continue;
+
+    const struct oak_ast_node_t* name_ident = record_decl_type_ident(item);
+    if (!name_ident)
+    {
+      oak_compiler_error_at(c, item->token, "malformed record declaration");
+      return;
+    }
+    const char* rname = oak_token_text(name_ident->token);
+    const usize rlen = oak_token_length(name_ident->token);
+    struct oak_registered_record_t* sd = null;
+    for (int i = 0; i < c->records.count; ++i)
+    {
+      if (oak_name_eq(
+              c->records.entries[i].name, c->records.entries[i].name_len, rname, rlen))
+      {
+        sd = &c->records.entries[i];
+        break;
+      }
+    }
+    if (!sd)
+    {
+      oak_compiler_error_at(
+          c, name_ident->token, "internal error: record not registered");
+      return;
+    }
+
+    for (struct oak_list_entry_t* fpos = item->rhs->children.next;
+         fpos != &item->rhs->children;
+         fpos = fpos->next)
+    {
+      const struct oak_ast_node_t* mdecl =
+          oak_container_of(fpos, struct oak_ast_node_t, link);
+      if (mdecl->kind != OAK_NODE_FN_DECL)
+        continue;
+      if (oak_compiler_fn_decl_has_receiver(mdecl))
+      {
+        const struct oak_ast_node_t* recv_node =
+            oak_fn_decl_prefix(mdecl)->child;
+        if (!recv_node)
+        {
+          oak_compiler_error_at(
+              c, mdecl->token, "malformed method (missing receiver type)");
+          return;
+        }
+        const struct oak_ast_node_t* recv_ident = recv_node->child;
+        if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
+        {
+          oak_compiler_error_at(
+              c, recv_node->token, "method receiver must be a type name");
+          return;
+        }
+        if (!oak_name_eq(sd->name,
+                          sd->name_len,
+                          oak_token_text(recv_ident->token),
+                          oak_token_length(recv_ident->token)))
+        {
+          oak_compiler_error_at(
+              c,
+              recv_ident->token,
+              "method receiver must match the enclosing 'type %s record'",
+              sd->name);
+          return;
+        }
+      }
+      register_method_on_record(c, mdecl, sd);
+      if (c->has_error)
+        return;
+    }
+  }
+}
+
 void oak_compiler_register_program_functions(
     struct oak_compiler_t* c, const struct oak_ast_node_t* program)
 {
@@ -404,6 +516,7 @@ void oak_compiler_register_program_methods(struct oak_compiler_t* c,
     if (c->has_error)
       return;
   }
+  register_record_body_methods(c, program);
 }
 
 const struct oak_registered_fn_t* oak_compiler_find_registered_fn_entry(
