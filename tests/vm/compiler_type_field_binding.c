@@ -56,7 +56,7 @@ static enum oak_test_status_t expect_compile_error(const char* source)
 /* Reading a number field from a record compiles and runs. */
 OAK_TEST_DECL(FieldAccessNumberOk)
 {
-  return expect_ok("type Point record { x : number; y : number; }\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
                    "let p = new Point { x : 3, y : 4 };\n"
                    "print(p.x);\n"
                    "print(p.y);\n");
@@ -65,7 +65,7 @@ OAK_TEST_DECL(FieldAccessNumberOk)
 /* Reading a string field from a record compiles and runs. */
 OAK_TEST_DECL(FieldAccessStringOk)
 {
-  return expect_ok("type Named record { label : string; }\n"
+  return expect_ok("record Named { label : string; }\n"
                    "let n = new Named { label : 'hello' };\n"
                    "print(n.label);\n");
 }
@@ -74,8 +74,8 @@ OAK_TEST_DECL(FieldAccessStringOk)
  * can be read in a chained expression. */
 OAK_TEST_DECL(FieldAccessChainedOk)
 {
-  return expect_ok("type Inner record { v : number; }\n"
-                   "type Outer record { inner : Inner; }\n"
+  return expect_ok("record Inner { v : number; }\n"
+                   "record Outer { inner : Inner; }\n"
                    "let i = new Inner { v : 7 };\n"
                    "let o = new Outer { inner : i };\n"
                    "print(o.inner.v);\n");
@@ -88,7 +88,7 @@ OAK_TEST_DECL(FieldAccessChainedOk)
 /* Accessing a field that does not exist on the record is a compile error. */
 OAK_TEST_DECL(FieldAccessUnknownFieldFails)
 {
-  return expect_compile_error("type Point record { x : number; }\n"
+  return expect_compile_error("record Point { x : number; }\n"
                               "let p = new Point { x : 1 };\n"
                               "print(p.z);\n");
 }
@@ -96,7 +96,7 @@ OAK_TEST_DECL(FieldAccessUnknownFieldFails)
 /* Accessing a field with a misspelled name is a compile error. */
 OAK_TEST_DECL(FieldAccessMisspelledFieldFails)
 {
-  return expect_compile_error("type Point record { x : number; y : number; }\n"
+  return expect_compile_error("record Point { x : number; y : number; }\n"
                               "let p = new Point { x : 1, y : 2 };\n"
                               "print(p.X);\n");
 }
@@ -109,7 +109,7 @@ OAK_TEST_DECL(FieldAccessMisspelledFieldFails)
  * a function that expects a number. */
 OAK_TEST_DECL(FieldTypeFlowsToNumberParamOk)
 {
-  return expect_ok("type Point record { x : number; y : number; }\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
                    "fn double(n : number) -> number { return n * 2; }\n"
                    "let p = new Point { x : 5, y : 6 };\n"
                    "print(double(p.x));\n");
@@ -120,7 +120,7 @@ OAK_TEST_DECL(FieldTypeFlowsToNumberParamOk)
 OAK_TEST_DECL(FieldTypeFlowsToWrongParamFails)
 {
   return expect_compile_error(
-      "type Point record { x : number; }\n"
+      "record Point { x : number; }\n"
       "fn greet(s : string) -> number { return 0; }\n"
       "let p = new Point { x : 1 };\n"
       "greet(p.x);\n");
@@ -131,7 +131,7 @@ OAK_TEST_DECL(FieldTypeFlowsToWrongParamFails)
 OAK_TEST_DECL(StringFieldTypeToNumberParamFails)
 {
   return expect_compile_error(
-      "type Tag record { name : string; }\n"
+      "record Tag { name : string; }\n"
       "fn add(a : number, b : number) -> number { return a + b; }\n"
       "let t = new Tag { name : 'x' };\n"
       "add(t.name, 1);\n");
@@ -141,8 +141,8 @@ OAK_TEST_DECL(StringFieldTypeToNumberParamFails)
  * it can be passed to a function expecting that record type. */
 OAK_TEST_DECL(StructFieldTypeFlowsToFnParamOk)
 {
-  return expect_ok("type Inner record { v : number; }\n"
-                   "type Outer record { inner : Inner; }\n"
+  return expect_ok("record Inner { v : number; }\n"
+                   "record Outer { inner : Inner; }\n"
                    "fn read(i : Inner) -> number { return i.v; }\n"
                    "let i = new Inner { v : 3 };\n"
                    "let o = new Outer { inner : i };\n"
@@ -154,9 +154,9 @@ OAK_TEST_DECL(StructFieldTypeFlowsToFnParamOk)
 OAK_TEST_DECL(StructFieldTypeToWrongFnParamFails)
 {
   return expect_compile_error(
-      "type A record { v : number; }\n"
-      "type B record { v : number; }\n"
-      "type Outer record { a : A; }\n"
+      "record A { v : number; }\n"
+      "record B { v : number; }\n"
+      "record Outer { a : A; }\n"
       "fn take_b(x : B) -> number { return x.v; }\n"
       "let a = new A { v : 1 };\n"
       "let o = new Outer { a : a };\n"
@@ -171,7 +171,7 @@ OAK_TEST_DECL(StructFieldTypeToWrongFnParamFails)
  * runs. */
 OAK_TEST_DECL(FieldAssignNumberOk)
 {
-  return expect_ok("type Point record { x : number; y : number; }\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
                    "let mut p = new Point { x : 1, y : 2 };\n"
                    "p.x = 10;\n"
                    "print(p.x);\n");
@@ -181,7 +181,7 @@ OAK_TEST_DECL(FieldAssignNumberOk)
  * runs. */
 OAK_TEST_DECL(FieldAssignStringOk)
 {
-  return expect_ok("type Named record { label : string; }\n"
+  return expect_ok("record Named { label : string; }\n"
                    "let mut n = new Named { label : 'old' };\n"
                    "n.label = 'new';\n"
                    "print(n.label);\n");
@@ -190,8 +190,8 @@ OAK_TEST_DECL(FieldAssignStringOk)
 /* Chained field assignment through a mutable record compiles and runs. */
 OAK_TEST_DECL(FieldAssignChainedOk)
 {
-  return expect_ok("type Inner record { v : number; }\n"
-                   "type Outer record { inner : Inner; }\n"
+  return expect_ok("record Inner { v : number; }\n"
+                   "record Outer { inner : Inner; }\n"
                    "let i = new Inner { v : 0 };\n"
                    "let mut o = new Outer { inner : i };\n"
                    "o.inner.v = 99;\n"
@@ -205,7 +205,7 @@ OAK_TEST_DECL(FieldAssignChainedOk)
 /* Assigning a string to a number field is a compile error. */
 OAK_TEST_DECL(FieldAssignStringToNumberFails)
 {
-  return expect_compile_error("type Point record { x : number; }\n"
+  return expect_compile_error("record Point { x : number; }\n"
                               "let mut p = new Point { x : 1 };\n"
                               "p.x = 'bad';\n");
 }
@@ -213,7 +213,7 @@ OAK_TEST_DECL(FieldAssignStringToNumberFails)
 /* Assigning a number to a string field is a compile error. */
 OAK_TEST_DECL(FieldAssignNumberToStringFails)
 {
-  return expect_compile_error("type Named record { label : string; }\n"
+  return expect_compile_error("record Named { label : string; }\n"
                               "let mut n = new Named { label : 'ok' };\n"
                               "n.label = 42;\n");
 }
@@ -223,9 +223,9 @@ OAK_TEST_DECL(FieldAssignNumberToStringFails)
 OAK_TEST_DECL(FieldAssignWrongStructTypeFails)
 {
   return expect_compile_error(
-      "type A record { v : number; }\n"
-      "type B record { v : number; }\n"
-      "type Container record { item : A; }\n"
+      "record A { v : number; }\n"
+      "record B { v : number; }\n"
+      "record Container { item : A; }\n"
       "let b = new B { v : 1 };\n"
       "let a = new A { v : 2 };\n"
       "let mut c = new Container { item : a };\n"

@@ -350,7 +350,7 @@ OAK_TEST_DECL(NativeTypeAsOakStructFieldCompiles)
                                     .setter = null }) == 0);
 
   const enum oak_test_status_t s = compile_ex_ok(
-      "type Entity record { name : string; transform : NTTransform; }\n"
+      "record Entity { name : string; transform : NTTransform; }\n"
       "fn get_scale(e : Entity) -> number { return e.transform.scale; }",
       &opts);
 
@@ -426,7 +426,7 @@ OAK_TEST_DECL(NativeTypeVsOakStructTypeFails)
                                     .setter = null }) == 0);
 
   const enum oak_test_status_t s = compile_ex_fails(
-      "type OakWidget record { id : number; }\n"
+      "record OakWidget { id : number; }\n"
       "fn take_native(w : NTWidget) -> number { return w.id; }\n"
       "fn test(ow : OakWidget) -> number { return take_native(ow); }",
       &opts);
@@ -446,7 +446,7 @@ OAK_TEST_DECL(NativeTypeConflictsWithUserTypeFails)
   OAK_CHECK(t != null);
 
   const enum oak_test_status_t s =
-      compile_ex_fails("type Shared record { x : number; }", &opts);
+      compile_ex_fails("record Shared { x : number; }", &opts);
 
   oak_compile_options_free(&opts);
   return s;
