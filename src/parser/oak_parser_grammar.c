@@ -174,10 +174,18 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // RECORD_FIELDS -> RECORD_FIELD_DECL*
+  // RECORD_MEMBER -> RECORD_FIELD_DECL | FN_DECL
+  [OAK_NODE_RECORD_MEMBER] = {
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_RECORD_FIELD_DECL,
+      OAK_NODE_FN_DECL,
+    },
+  },
+  // RECORD_FIELDS -> RECORD_MEMBER*
   [OAK_NODE_RECORD_FIELDS] = {
     .rules = {
-      OAK_NODE_RECORD_FIELD_DECL | OAK_RULE_REPEAT,
+      OAK_NODE_RECORD_MEMBER | OAK_RULE_REPEAT,
     },
   },
   // RECORD_FIELD_DECL -> IDENT ':' IDENT ';'

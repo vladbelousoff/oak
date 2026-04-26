@@ -343,6 +343,8 @@ static int register_record_field_decls(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* fdecl =
         oak_container_of(fpos, struct oak_ast_node_t, link);
+    if (fdecl->kind == OAK_NODE_FN_DECL)
+      continue;
     if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs || !fdecl->rhs)
     {
       oak_compiler_error_at(c, err_ctx_token, "malformed record field");

@@ -115,7 +115,7 @@ fn add(a : number, b : number) -> number {
 print(add(1, 2));   // 3
 ```
 
-Functions must be declared at the top level.  Recursion and mutual recursion are supported.
+User functions are declared at module top level, or as instance methods inside a `type name record { }` block.  Recursion and mutual recursion are supported.
 
 ### Records
 
@@ -123,27 +123,26 @@ Functions must be declared at the top level.  Recursion and mutual recursion are
 type Point record {
   x : number;
   y : number;
+  fn dist_sq(self, other : Point) -> number {
+    let dx = self.x - other.x;
+    let dy = self.y - other.y;
+    return dx * dx + dy * dy;
+  }
+  fn translate(mut self, dx : number, dy : number) {
+    self.x = self.x + dx;
+    self.y = self.y + dy;
+  }
 }
 
 let p = new Point { x: 3, y: 4 };
 print(p.x);
-
-fn Point.dist_sq(self, other : Point) -> number {
-  let dx = self.x - other.x;
-  let dy = self.y - other.y;
-  return dx * dx + dy * dy;
-}
-
 print(p.dist_sq(new Point { x: 0, y: 0 }));
-
-fn Point.translate(mut self, dx : number, dy : number) {
-  self.x = self.x + dx;
-  self.y = self.y + dy;
-}
 
 let mut q = new Point { x: 1, y: 1 };
 q.translate(2, 3);
 ```
+
+You can also declare a method at module scope with the `fn TypeName.method_name(self, ...)` form; the two styles are equivalent.
 
 ### Enums
 
