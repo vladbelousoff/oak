@@ -54,24 +54,24 @@ static enum oak_test_status_t compile_fails(const char* source,
 }
 
 /* Stub native implementations — just return 0/void. */
-static enum oak_fn_call_result_t stub_fn(void* vm,
+static enum oak_fn_call_result_t stub_fn(struct oak_native_ctx_t* ctx,
                                           const struct oak_value_t* args,
                                           int argc,
                                           struct oak_value_t* out_result)
 {
-  (void)vm;
+  (void)ctx;
   (void)args;
   (void)argc;
   *out_result = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t add_fn(void* vm,
+static enum oak_fn_call_result_t add_fn(struct oak_native_ctx_t* ctx,
                                          const struct oak_value_t* args,
                                          int argc,
                                          struct oak_value_t* out_result)
 {
-  (void)vm;
+  (void)ctx;
   (void)args;
   (void)argc;
   *out_result = OAK_VALUE_I32(0);

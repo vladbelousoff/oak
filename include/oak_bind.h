@@ -107,6 +107,8 @@ typedef struct oak_native_fn_binding_t oak_bind_fn_params_t;
 
 struct oak_compile_options_t
 {
+  /* Optional: path or label for the Oak source (borrowed). Set on the chunk. */
+  const char* source_name;
   /* Native record types (owned; populated by oak_bind_type). */
   struct oak_native_type_t** native_types;
   int native_type_count;

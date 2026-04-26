@@ -97,12 +97,13 @@ static struct oak_value_t oak_token_get_offset(const struct oak_value_t self)
 /* Native struct wrappers are not freed by the VM; per-token heap is a known
    limitation for v1. */
 
-static enum oak_fn_call_result_t oak_lexer_tokenize_impl(void* vm,
-                                                         const struct oak_value_t* args,
-                                                         int argc,
-                                                         struct oak_value_t* out)
+static enum oak_fn_call_result_t oak_lexer_tokenize_impl(
+    struct oak_native_ctx_t* ctx,
+    const struct oak_value_t* args,
+    int argc,
+    struct oak_value_t* out)
 {
-  (void)vm;
+  (void)ctx;
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const struct oak_obj_string_t* sv = oak_as_string(args[0]);

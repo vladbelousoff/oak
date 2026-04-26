@@ -14,6 +14,7 @@ void oak_compile_options_init(struct oak_compile_options_t* opts)
 {
   if (!opts)
     return;
+  opts->source_name = null;
   opts->native_types = null;
   opts->native_type_count = 0;
   opts->native_type_capacity = 0;

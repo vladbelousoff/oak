@@ -28,12 +28,12 @@ static void register_native_fn(struct oak_compiler_t* c,
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
-static enum oak_fn_call_result_t builtin_print(void* vm,
+static enum oak_fn_call_result_t builtin_print(struct oak_native_ctx_t* ctx,
                                                const struct oak_value_t* args,
                                                int argc,
                                                struct oak_value_t* out_result)
 {
-  (void)vm;
+  (void)ctx;
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_value_println(args[0]);
@@ -41,12 +41,12 @@ static enum oak_fn_call_result_t builtin_print(void* vm,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t builtin_size(void* vm,
+static enum oak_fn_call_result_t builtin_size(struct oak_native_ctx_t* ctx,
                                               const struct oak_value_t* args,
                                               int argc,
                                               struct oak_value_t* out_result)
 {
-  (void)vm;
+  (void)ctx;
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
   if (oak_is_array(args[0]))
@@ -67,12 +67,12 @@ static enum oak_fn_call_result_t builtin_size(void* vm,
   return OAK_FN_CALL_RUNTIME_ERROR;
 }
 
-static enum oak_fn_call_result_t builtin_push(void* vm,
+static enum oak_fn_call_result_t builtin_push(struct oak_native_ctx_t* ctx,
                                               const struct oak_value_t* args,
                                               int argc,
                                               struct oak_value_t* out_result)
 {
-  (void)vm;
+  (void)ctx;
   if (argc != 2 || !oak_is_array(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_array_push(oak_as_array(args[0]), args[1]);
@@ -80,12 +80,12 @@ static enum oak_fn_call_result_t builtin_push(void* vm,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t builtin_has(void* vm,
+static enum oak_fn_call_result_t builtin_has(struct oak_native_ctx_t* ctx,
                                              const struct oak_value_t* args,
                                              int argc,
                                              struct oak_value_t* out_result)
 {
-  (void)vm;
+  (void)ctx;
   if (argc != 2 || !oak_is_map(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const int found = oak_map_has(oak_as_map(args[0]), args[1]);
@@ -93,12 +93,12 @@ static enum oak_fn_call_result_t builtin_has(void* vm,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t builtin_delete(void* vm,
+static enum oak_fn_call_result_t builtin_delete(struct oak_native_ctx_t* ctx,
                                                 const struct oak_value_t* args,
                                                 int argc,
                                                 struct oak_value_t* out_result)
 {
-  (void)vm;
+  (void)ctx;
   if (argc != 2 || !oak_is_map(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const int removed = oak_map_delete(oak_as_map(args[0]), args[1]);

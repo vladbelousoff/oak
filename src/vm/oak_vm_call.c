@@ -16,9 +16,10 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
     return OAK_VM_RUNTIME_ERROR;
   }
 
+  struct oak_native_ctx_t nctx = { .vm = vm };
   struct oak_value_t result;
   const enum oak_fn_call_result_t err =
-      native->fn(vm, arg_base, (int)argc, &result);
+      native->fn(&nctx, arg_base, (int)argc, &result);
   if (err != OAK_FN_CALL_OK)
   {
     oak_vm_runtime_error(vm,

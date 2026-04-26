@@ -634,3 +634,47 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
     }
   }
 }
+
+struct oak_src_loc_t
+oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
+{
+#ifndef OAK_TRACK_MEMORY
+  (void)vm;
+  return (struct oak_src_loc_t){ 0 };
+#else
+  if (!vm || !vm->chunk || !vm->chunk->bytecode || !vm->chunk->locations)
+    return (struct oak_src_loc_t){
+      .file = "<oak>",
+      .line = 0,
+    };
+  if (vm->ip < vm->chunk->bytecode)
+  {
+    return (struct oak_src_loc_t){
+      .file = "<oak>",
+      .line = 0,
+    };
+  }
+  const usize ip_off = (usize)(vm->ip - vm->chunk->bytecode);
+  if (ip_off < 2u)
+  {
+    return (struct oak_src_loc_t){
+      .file = "<oak>",
+      .line = 0,
+    };
+  }
+  const usize call_off = ip_off - 2u;
+  if (call_off >= vm->chunk->count)
+  {
+    return (struct oak_src_loc_t){
+      .file = "<oak>",
+      .line = 0,
+    };
+  }
+  const struct oak_code_loc_t cloc = vm->chunk->locations[call_off];
+  const char* f = vm->chunk->source_name;
+  return (struct oak_src_loc_t){
+    .file = f ? f : "<oak>",
+    .line = cloc.line,
+  };
+#endif
+}

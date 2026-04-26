@@ -135,9 +135,17 @@ enum oak_fn_call_result_t
   OAK_FN_CALL_RUNTIME_ERROR,
 };
 
+struct oak_vm_t;
+
+/* Passed to every native (C) callback: VM handle for runtime helpers. */
+struct oak_native_ctx_t
+{
+  struct oak_vm_t* vm;
+};
+
 /* Native (C) callable: returns OAK_FN_CALL_OK on success. */
 typedef enum oak_fn_call_result_t (*oak_native_fn_t)(
-    void* vm,
+    struct oak_native_ctx_t* ctx,
     const struct oak_value_t* args,
     int argc,
     struct oak_value_t* out_result);
