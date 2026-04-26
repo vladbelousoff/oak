@@ -34,6 +34,7 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
 
   vm->stack[fn_slot] = result;
   vm->sp = vm->stack + fn_slot + 1u;
+
   return OAK_VM_OK;
 }
 

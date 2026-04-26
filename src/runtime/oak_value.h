@@ -117,14 +117,13 @@ struct oak_obj_record_t
 /* Forward declaration — full definition lives in oak_bind.h. */
 struct oak_native_type_t;
 
-/* A native C instance wrapped as an Oak heap object.  Neither `instance` nor
- * `type` are owned: the caller must ensure both outlive any Oak values that
- * wrap them.  When the refcount reaches zero only the wrapper object itself
- * is freed. */
+/* A native C instance wrapped as an Oak heap object.  `type` is borrowed for
+ * the binding lifetime.  When the refcount reaches zero, `type->destroy_instance`
+ * runs on non-NULL `instance` if registered; then the wrapper is freed. */
 struct oak_obj_native_record_t
 {
   struct oak_obj_t obj;
-  void* instance; /* raw C pointer; not freed by Oak */
+  void* instance;
   const struct oak_native_type_t*
       type; /* borrowed; lives for binding lifetime */
 };

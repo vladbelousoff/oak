@@ -50,7 +50,14 @@ void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
   const usize then_jump =
       oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
 
+  /* After the condition + JUMP_IF_FALSE, only parameter/locals slots remain on
+   * the stack model. The then/else branches must not leave extra stack slots
+   * in the compiler's depth tracking (e.g. void `return` pushes a dummy 0),
+   * or subsequent statements assign wrong local slots. */
+  const int merge_stack_depth = c->scope.stack_depth;
+
   oak_compiler_compile_block(c, body);
+  c->scope.stack_depth = merge_stack_depth;
 
   if (else_node)
   {
@@ -58,6 +65,7 @@ void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
         oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
     oak_compiler_patch_jump(c, then_jump);
     oak_compiler_compile_block(c, else_node->child);
+    c->scope.stack_depth = merge_stack_depth;
     oak_compiler_patch_jump(c, else_jump);
   }
   else
@@ -184,7 +192,10 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
     const usize exit_jump =
         oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, ident_loc);
 
+    const int merge_stack_depth = c->scope.stack_depth;
+
     oak_compiler_compile_block(c, body);
+    c->scope.stack_depth = merge_stack_depth;
 
     oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
 

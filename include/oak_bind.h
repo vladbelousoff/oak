@@ -49,6 +49,10 @@ typedef struct oak_value_t (*oak_field_getter_t)(struct oak_value_t self);
 typedef void (*oak_field_setter_t)(struct oak_value_t self,
                                    struct oak_value_t value);
 
+/* Optional: frees heap data owned by `instance` when the native record's
+ * refcount reaches zero. If NULL, only the wrapper object is freed (legacy). */
+typedef void (*oak_native_destroy_instance_t)(void* instance);
+
 /* ---------- Native field descriptor ---------- */
 
 struct oak_native_field_t
@@ -77,6 +81,7 @@ struct oak_native_type_t
   oak_type_id_t type_id;
   struct oak_native_field_t fields[OAK_MAX_NATIVE_FIELDS];
   int field_count;
+  oak_native_destroy_instance_t destroy_instance;
 };
 
 /* ---------- Native function binding descriptor ---------- */
@@ -169,9 +174,10 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
 /* ---------- Runtime helpers ---------- */
 
 /* Wrap a C instance pointer in an Oak value typed as the given native type.
- * The resulting Oak value participates in normal refcounting; when its
- * refcount reaches zero the wrapper is freed but `instance` is never freed
- * by Oak — lifetime is the caller's responsibility.
+ * The resulting Oak value participates in normal refcounting. When its
+ * refcount reaches zero, `type->destroy_instance` runs on non-NULL `instance`
+ * (if registered), then the wrapper is freed. If `destroy_instance` is NULL,
+ * `instance` is not freed — lifetime is the embedder's responsibility.
  * `instance` may be NULL for sentinel / placeholder values. */
 struct oak_value_t oak_native_record_new(const struct oak_native_type_t* type,
                                          void* instance);

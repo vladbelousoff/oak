@@ -126,8 +126,16 @@ static enum oak_fn_call_result_t oak_token_value_to_string_impl(
   return OAK_FN_CALL_OK;
 }
 
-/* Native struct wrappers are not freed by the VM; per-token heap is a known
-   limitation for v1. */
+static void oak_token_box_destroy(void* instance)
+{
+  oak_token_box_t* b = instance;
+  if (!b)
+    return;
+  if (b->value.kind != OAK_TOKEN_INT && b->value.kind != OAK_TOKEN_FLOAT &&
+      b->value.u.text)
+    oak_obj_decref(&b->value.u.text->obj);
+  oak_free(b, OAK_SRC_LOC);
+}
 
 static int fill_token_value(
     oak_token_value_box_t* out, const struct oak_token_t* tok)
@@ -146,6 +154,36 @@ static int fill_token_value(
   out->u.text =
       oak_string_new(oak_token_text(tok), oak_token_length(tok));
   return out->u.text ? 0 : -1;
+}
+
+int oak_stdlib_oak_token_inspect(const struct oak_value_t v,
+                                 struct oak_stdlib_token_view_t* out)
+{
+  if (!s_token_type || !out)
+    return -1;
+  if (!oak_is_native_record(v))
+    return -1;
+  const struct oak_obj_native_record_t* nr = oak_as_native_record(v);
+  if (nr->type != s_token_type)
+    return -1;
+  const oak_token_box_t* b = nr->instance;
+  if (!b)
+    return -1;
+  memset(out, 0, sizeof *out);
+  out->line = b->line;
+  out->column = b->column;
+  out->offset = b->offset;
+  out->kind = b->value.kind;
+  if (b->value.kind == OAK_TOKEN_INT)
+    out->i32 = b->value.u.i32;
+  else if (b->value.kind == OAK_TOKEN_FLOAT)
+    out->f32 = b->value.u.f32;
+  else if (b->value.u.text)
+  {
+    out->text_ptr = b->value.u.text->chars;
+    out->text_len = b->value.u.text->length;
+  }
+  return 0;
 }
 
 static enum oak_fn_call_result_t oak_lexer_tokenize_impl(
@@ -226,6 +264,7 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
       oak_bind_type(opts, OAK_BIND_RECORD, "OakToken");
   if (!tok)
     return;
+  tok->destroy_instance = oak_token_box_destroy;
   s_token_type = tok;
   if (oak_bind_field(
           tok,
