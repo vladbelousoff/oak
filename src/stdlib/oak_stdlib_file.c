@@ -1,10 +1,10 @@
 #include "oak_stdlib_file.h"
 
 #include "oak_bind.h"
+#include "oak_mem.h"
 #include "oak_value.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 typedef struct oak_file_handle_t
@@ -25,7 +25,7 @@ static enum oak_fn_call_result_t file_open(void* vm,
   FILE* fp = fopen(oak_as_cstring(args[0]), oak_as_cstring(args[1]));
   if (!fp)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_file_handle_t* h = malloc(sizeof *h);
+  oak_file_handle_t* h = oak_alloc(sizeof *h, OAK_SRC_LOC);
   if (!h)
   {
     fclose(fp);
@@ -87,13 +87,13 @@ static enum oak_fn_call_result_t file_read_all(void* vm,
     *out = OAK_VALUE_OBJ(&s->obj);
     return OAK_FN_CALL_OK;
   }
-  char* buf = malloc(n + 1u);
+  char* buf = oak_alloc(n + 1u, OAK_SRC_LOC);
   if (!buf)
     return OAK_FN_CALL_RUNTIME_ERROR;
   const size_t got = fread(buf, 1u, n, f);
   buf[got] = '\0';
   struct oak_obj_string_t* s = oak_string_new(buf, got);
-  free(buf);
+  oak_free(buf, OAK_SRC_LOC);
   *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
@@ -143,7 +143,7 @@ static enum oak_fn_call_result_t file_close(void* vm,
     return OAK_FN_CALL_RUNTIME_ERROR;
   fclose(h->fp);
   h->fp = null;
-  free(h);
+  oak_free(h, OAK_SRC_LOC);
   *out = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
