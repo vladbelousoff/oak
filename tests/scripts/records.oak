@@ -17,6 +17,10 @@ record Point {
     let ddy = self.y - other.y;
     return ddx * ddx + ddy * ddy;
   }
+
+  fn origin() -> Point {
+    return new Point { x : 0, y : 0 };
+  }
 }
 
 record Person {
@@ -69,6 +73,10 @@ print(r.x);
 print(r.y);
 
 print(r.dist_sq(p));
+
+let z = Point.origin();
+print(z.x);
+print(z.y);
 
 print(alice.greet());
 print(bob.older_by(4));

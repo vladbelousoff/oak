@@ -144,10 +144,22 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
                   oak_compiler_find_record_static_method(sd, mn, mn_len);
               if (sm)
               {
-                out->id = sm->return_type_id;
-                out->kind = sm->return_kind;
-                if (out->id == OAK_TYPE_VOID)
-                  out->kind = OAK_TYPE_KIND_SCALAR;
+                if (sm->decl)
+                {
+                  const struct oak_ast_node_t* retn =
+                      oak_compiler_fn_decl_return_type_node(sm->decl);
+                  if (retn)
+                    oak_compiler_type_node_to_type(c, retn, out);
+                  else
+                    out->id = OAK_TYPE_VOID;
+                }
+                else
+                {
+                  out->id = sm->return_type_id;
+                  out->kind = sm->return_kind;
+                  if (out->id == OAK_TYPE_VOID)
+                    out->kind = OAK_TYPE_KIND_SCALAR;
+                }
                 return;
               }
             }

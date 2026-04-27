@@ -311,17 +311,6 @@ static void register_method_on_record(struct oak_compiler_t* c,
   const struct oak_ast_node_t* self_param =
       oak_compiler_fn_decl_self_param(item);
 
-  if (!self_param)
-  {
-    oak_compiler_error_at(
-        c,
-        name_node->token,
-        "method '%s' must declare 'self' or 'mut self' as its first"
-        " parameter",
-        name);
-    return;
-  }
-
   for (int i = 0; i < sd->method_count; ++i)
   {
     const struct oak_registered_fn_t* e = &sd->methods[i];
@@ -335,31 +324,63 @@ static void register_method_on_record(struct oak_compiler_t* c,
       return;
     }
   }
-
-  const int total_arity = explicit_arity + 1;
-  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
-  const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
+  for (int i = 0; i < sd->static_method_count; ++i)
+  {
+    const struct oak_registered_fn_t* e = &sd->static_methods[i];
+    if (oak_name_eq(e->name, e->name_len, name, name_len))
+    {
+      oak_compiler_error_at(c,
+                            name_node->token,
+                            "duplicate method '%s' on record '%s'",
+                            name,
+                            sd->name);
+      return;
+    }
+  }
 
   struct oak_registered_fn_t slot = { 0 };
   slot.name = name;
   slot.name_len = name_len;
-  slot.const_idx = idx;
-  slot.arity = total_arity;
   slot.receiver_type_id = sd->type_id;
   slot.return_type_id = OAK_TYPE_VOID;
   slot.decl = item;
 
-  /* Grow the methods array and append the new slot. */
-  if (sd->method_count >= sd->method_capacity)
+  if (self_param)
   {
-    const int new_cap = sd->method_capacity < 4 ? 4 : sd->method_capacity * 2;
-    sd->methods = oak_realloc(
-        sd->methods,
-        (usize)new_cap * sizeof(struct oak_registered_fn_t),
-        OAK_SRC_LOC);
-    sd->method_capacity = new_cap;
+    const int total_arity = explicit_arity + 1;
+    struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
+    slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
+    slot.arity = total_arity;
+
+    if (sd->method_count >= sd->method_capacity)
+    {
+      const int new_cap = sd->method_capacity < 4 ? 4 : sd->method_capacity * 2;
+      sd->methods = oak_realloc(
+          sd->methods,
+          (usize)new_cap * sizeof(struct oak_registered_fn_t),
+          OAK_SRC_LOC);
+      sd->method_capacity = new_cap;
+    }
+    sd->methods[sd->method_count++] = slot;
   }
-  sd->methods[sd->method_count++] = slot;
+  else
+  {
+    struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity);
+    slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
+    slot.arity = explicit_arity;
+
+    if (sd->static_method_count >= sd->static_method_capacity)
+    {
+      const int new_cap =
+          sd->static_method_capacity < 4 ? 4 : sd->static_method_capacity * 2;
+      sd->static_methods = oak_realloc(
+          sd->static_methods,
+          (usize)new_cap * sizeof(struct oak_registered_fn_t),
+          OAK_SRC_LOC);
+      sd->static_method_capacity = new_cap;
+    }
+    sd->static_methods[sd->static_method_count++] = slot;
+  }
 }
 
 static void register_method_decl(struct oak_compiler_t* c,
@@ -728,6 +749,18 @@ void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
       struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
       fn_obj->code_offset = c->chunk->count;
       oak_compiler_compile_function_body(c, me->decl, sd);
+      if (c->has_error)
+        return;
+    }
+    for (int m = 0; m < sd->static_method_count; ++m)
+    {
+      const struct oak_registered_fn_t* me = &sd->static_methods[m];
+      if (!me->decl)
+        continue;
+      struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
+      struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
+      fn_obj->code_offset = c->chunk->count;
+      oak_compiler_compile_function_body(c, me->decl, null);
       if (c->has_error)
         return;
     }

@@ -261,6 +261,44 @@ OAK_TEST_DECL(FieldAssignOnNonStructFails)
                               "n.x = 1;\n");
 }
 
+/* =========================================================================
+ * Record static methods (no self)
+ * ========================================================================= */
+
+/* Static method defined in the record body is called as TypeName.method(...). */
+OAK_TEST_DECL(RecordStaticMethodInBodyOk)
+{
+  return expect_ok("record Point { x : number; y : number;\n"
+                   "  fn origin() -> Point {\n"
+                   "    return new Point { x : 0, y : 0 };\n"
+                   "  }\n"
+                   "}\n"
+                   "let p = Point.origin();\n"
+                   "print(p.x);\n"
+                   "print(p.y);\n");
+}
+
+/* Module-scoped `fn TypeName.name` without self is a static method. */
+OAK_TEST_DECL(RecordStaticMethodModuleScopedOk)
+{
+  return expect_ok("record Point { x : number; y : number; }\n"
+                   "fn Point.unit() -> Point {\n"
+                   "  return new Point { x : 1, y : 1 };\n"
+                   "}\n"
+                   "let p = Point.unit();\n"
+                   "print(p.x);\n");
+}
+
+/* Instance and static methods on the same record cannot share a name. */
+OAK_TEST_DECL(RecordStaticMethodDuplicateNameFails)
+{
+  return expect_compile_error(
+      "record Point { x : number; y : number;\n"
+      "  fn dup(self) -> number { return self.x; }\n"
+      "  fn dup() -> Point { return new Point { x : 0, y : 0 }; }\n"
+      "}\n");
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -291,6 +329,10 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(FieldAccessOnNumberFails),
     OAK_TEST_ENTRY(FieldAccessOnStringFails),
     OAK_TEST_ENTRY(FieldAssignOnNonStructFails),
+    /* record static methods */
+    OAK_TEST_ENTRY(RecordStaticMethodInBodyOk),
+    OAK_TEST_ENTRY(RecordStaticMethodModuleScopedOk),
+    OAK_TEST_ENTRY(RecordStaticMethodDuplicateNameFails),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
 }
