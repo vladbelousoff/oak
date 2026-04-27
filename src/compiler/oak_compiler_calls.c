@@ -97,6 +97,9 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
                                   user_argc);
             return;
           }
+          oak_compiler_validate_record_method_call_arg_types(c, node, sm);
+          if (c->has_error)
+            return;
           oak_compiler_emit_constant(c, sm->const_idx, call_loc);
           compile_call_args_after_callee(c, node);
           oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)sm->arity, call_loc);
