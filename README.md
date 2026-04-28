@@ -220,4 +220,3 @@ Key limits:
 - Call frames: 64 (`OAK_FRAMES_MAX`)
 - Constants per chunk: 65 536 (16-bit index via `OP_CONSTANT_LONG`)
 - Jump offsets: 32-bit (≈ 4 GiB bytecode)
-- Functions per program: 64 (`OAK_MAX_USER_FNS`)
