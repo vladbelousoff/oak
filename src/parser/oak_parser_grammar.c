@@ -444,7 +444,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_FN_PARAMS_AND_RET,
     },
   },
-  // FN_HEAD -> FN_PREFIX IDENT (binary: lhs = 'fn' receiver?, rhs = function name)
+  // FN_HEAD -> FN_PREFIX IDENT (binary: lhs = 'fn' keyword, rhs = function name)
   [OAK_NODE_FN_HEAD] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
@@ -452,14 +452,10 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // FN_PREFIX -> 'fn' FN_RECEIVER?
-  //   (unary: child = FN_RECEIVER? for easy receiver lookup)
+  // FN_PREFIX -> 'fn' (token leaf, same pattern as IDENT)
   [OAK_NODE_FN_PREFIX] = {
-    .op = OAK_GRAMMAR_UNARY,
-    .rules = {
-      OAK_TOKEN_FN | OAK_RULE_TOKEN,
-      OAK_NODE_FN_RECEIVER | OAK_RULE_OPTIONAL,
-    },
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_FN,
   },
   // FN_PARAMS_AND_RET -> FN_PARAM_LIST FN_RETURN_TYPE?
   //   (binary: lhs = FN_PARAM_LIST, rhs = FN_RETURN_TYPE?)
@@ -493,14 +489,6 @@ struct oak_grammar_entry_t oak_grammar[] = {
     .rules = {
       OAK_TOKEN_ARROW | OAK_RULE_TOKEN,
       OAK_NODE_TYPE_NAME,
-    },
-  },
-  // FN_RECEIVER -> IDENT '.'
-  [OAK_NODE_FN_RECEIVER] = {
-    .op = OAK_GRAMMAR_UNARY,
-    .rules = {
-      OAK_NODE_IDENT,
-      OAK_TOKEN_DOT | OAK_RULE_TOKEN,
     },
   },
   // FN_PARAM -> MUT_KEYWORD? IDENT ':' TYPE_NAME ','?

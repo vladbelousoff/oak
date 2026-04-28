@@ -81,12 +81,6 @@ oak_fn_param_list_regular_params(const struct oak_ast_node_t* plist)
   return plist->rhs;
 }
 
-int oak_compiler_fn_decl_has_receiver(const struct oak_ast_node_t* decl)
-{
-  /* FN_PREFIX is UNARY: child = FN_RECEIVER? (null when absent). */
-  return oak_fn_decl_prefix(decl)->child != null;
-}
-
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_param_list(const struct oak_ast_node_t* decl)
 {
@@ -274,9 +268,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
         c,
         first_child->token,
         "'self' is only valid on instance methods: put `fn %s(self, ...)` "
-        "inside the corresponding `record ... { }` block, or at module"
-        " scope as `fn TypeName.%s(self, ...)`",
-        name,
+        "inside the corresponding `record ... { }` block",
         name);
     return;
   }
@@ -383,43 +375,6 @@ static void register_method_on_record(struct oak_compiler_t* c,
   }
 }
 
-static void register_method_decl(struct oak_compiler_t* c,
-                                 const struct oak_ast_node_t* item)
-{
-  const struct oak_ast_node_t* recv_node = oak_fn_decl_prefix(item)->child;
-  oak_assert(recv_node != null);
-  const struct oak_ast_node_t* recv_ident = recv_node->child;
-  if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
-  {
-    oak_compiler_error_at(
-        c, recv_node->token, "method receiver must be a type name");
-    return;
-  }
-
-  const char* sname = oak_token_text(recv_ident->token);
-  const usize sname_len = oak_token_length(recv_ident->token);
-
-  /* Find the target record (mutable pointer needed to add a method slot). */
-  struct oak_registered_record_t* sd = null;
-  for (int i = 0; i < c->records.count; ++i)
-  {
-    struct oak_registered_record_t* cand = &c->records.entries[i];
-    if (oak_name_eq(cand->name, cand->name_len, sname, sname_len))
-    {
-      sd = cand;
-      break;
-    }
-  }
-  if (!sd)
-  {
-    oak_compiler_error_at(
-        c, recv_ident->token, "no such record '%s' for method receiver", sname);
-    return;
-  }
-
-  register_method_on_record(c, item, sd);
-}
-
 static void register_record_body_methods(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* program)
 {
@@ -466,36 +421,6 @@ static void register_record_body_methods(struct oak_compiler_t* c,
           oak_container_of(fpos, struct oak_ast_node_t, link);
       if (mdecl->kind != OAK_NODE_FN_DECL)
         continue;
-      if (oak_compiler_fn_decl_has_receiver(mdecl))
-      {
-        const struct oak_ast_node_t* recv_node =
-            oak_fn_decl_prefix(mdecl)->child;
-        if (!recv_node)
-        {
-          oak_compiler_error_at(
-              c, mdecl->token, "malformed method (missing receiver type)");
-          return;
-        }
-        const struct oak_ast_node_t* recv_ident = recv_node->child;
-        if (!recv_ident || recv_ident->kind != OAK_NODE_IDENT)
-        {
-          oak_compiler_error_at(
-              c, recv_node->token, "method receiver must be a type name");
-          return;
-        }
-        if (!oak_name_eq(sd->name,
-                          sd->name_len,
-                          oak_token_text(recv_ident->token),
-                          oak_token_length(recv_ident->token)))
-        {
-          oak_compiler_error_at(
-              c,
-              recv_ident->token,
-              "method receiver must match the enclosing 'record %s'",
-              sd->name);
-          return;
-        }
-      }
       register_method_on_record(c, mdecl, sd);
       if (c->has_error)
         return;
@@ -513,8 +438,6 @@ void oak_compiler_register_program_functions(
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (item->kind != OAK_NODE_FN_DECL)
       continue;
-    if (oak_compiler_fn_decl_has_receiver(item))
-      continue;
     register_regular_fn_decl(c, item);
     if (c->has_error)
       return;
@@ -524,19 +447,6 @@ void oak_compiler_register_program_functions(
 void oak_compiler_register_program_methods(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* program)
 {
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
-  {
-    const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_FN_DECL)
-      continue;
-    if (!oak_compiler_fn_decl_has_receiver(item))
-      continue;
-    register_method_decl(c, item);
-    if (c->has_error)
-      return;
-  }
   register_record_body_methods(c, program);
 }
 

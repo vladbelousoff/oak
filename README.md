@@ -142,8 +142,6 @@ let mut q = new Point { x: 1, y: 1 };
 q.translate(2, 3);
 ```
 
-You can also declare a method at module scope with the `fn TypeName.method_name(self, ...)` form; the two styles are equivalent.
-
 ### Enums
 
 Enum variants are lowered to named integer constants and are accessed with the `EnumName.Variant` syntax.

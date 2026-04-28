@@ -161,8 +161,6 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
     return "FN_PARAMS";
   case OAK_NODE_FN_RETURN_TYPE:
     return "FN_RETURN_TYPE";
-  case OAK_NODE_FN_RECEIVER:
-    return "FN_RECEIVER";
   case OAK_NODE_FN_PARAM:
     return "FN_PARAM";
   case OAK_NODE_FN_PARAM_SELF:
