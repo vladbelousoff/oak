@@ -178,12 +178,51 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
     }
   }
 
+  if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR &&
+      recv_ty.id == OAK_TYPE_STRING)
+  {
+    const struct oak_method_binding_t* sm =
+        oak_compiler_find_string_method(c, mname, mname_len);
+    if (!sm)
+    {
+      oak_compiler_error_at(
+          c, method->token, "no method '%s' on string", mname);
+      return;
+    }
+    const int expected_user_argc = sm->total_arity - 1;
+    if ((int)user_argc != expected_user_argc)
+    {
+      oak_compiler_error_at(c,
+                            method->token,
+                            "method '%s' expects %d arguments, got %zu",
+                            mname,
+                            expected_user_argc,
+                            user_argc);
+      return;
+    }
+
+    if (sm->validate_args)
+    {
+      sm->validate_args(c, node, recv_ty, method->token);
+      if (c->has_error)
+        return;
+    }
+
+    oak_compiler_emit_constant(c, sm->const_idx, call_loc);
+    oak_compiler_compile_node(c, receiver);
+    compile_call_args_after_callee(c, node);
+
+    oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)sm->total_arity, call_loc);
+    c->scope.stack_depth -= sm->total_arity;
+    return;
+  }
+
   if (recv_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&recv_ty))
   {
     oak_compiler_error_at(
         c,
         receiver->token ? receiver->token : method->token,
-        "method '.%s' requires a typed array, map, or struct receiver",
+        "method '.%s' requires a typed array, map, string, or struct receiver",
         mname);
     return;
   }

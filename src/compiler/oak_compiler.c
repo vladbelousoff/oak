@@ -103,6 +103,9 @@ static void compile_program(struct oak_compiler_t* c,
   oak_compiler_register_map_methods(c);
   if (c->has_error)
     return;
+  oak_compiler_register_string_methods(c);
+  if (c->has_error)
+    return;
   /* Enums are registered early so their variant names are available as
    * constant references in the rest of the program, including function
    * parameter defaults, record field initializers, etc. */

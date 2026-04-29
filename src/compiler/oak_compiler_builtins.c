@@ -195,6 +195,124 @@ static const struct oak_builtin_method_def_t map_method_table[] = {
   { "delete", builtin_delete, 2, OAK_TYPE_BOOL, validate_map_key_arg },
 };
 
+static enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
+                                                     const struct oak_value_t* args,
+                                                     int argc,
+                                                     struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_array(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+
+  const struct oak_obj_string_t* tmpl = oak_as_string(args[0]);
+  const struct oak_obj_array_t* subs = oak_as_array(args[1]);
+
+  struct oak_obj_string_t* acc = oak_string_new("", 0);
+  const char* s = tmpl->chars;
+  const usize len = tmpl->length;
+  usize i = 0;
+  usize implicit = 0;
+
+  while (i < len)
+  {
+    if (s[i] == '{')
+    {
+      if (i + 1 < len && s[i + 1] == '{')
+      {
+        struct oak_obj_string_t* lit = oak_string_new("{", 1);
+        struct oak_obj_string_t* next = oak_string_concat(acc, lit);
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        oak_value_decref(OAK_VALUE_OBJ(lit));
+        acc = next;
+        i += 2;
+        continue;
+      }
+
+      ++i;
+      usize idx;
+      if (i < len && s[i] == '}')
+      {
+        idx = implicit++;
+        ++i;
+      }
+      else if (i < len && s[i] >= '0' && s[i] <= '9')
+      {
+        idx = 0;
+        while (i < len && s[i] >= '0' && s[i] <= '9')
+        {
+          idx = idx * 10u + (usize)(s[i] - '0');
+          ++i;
+        }
+        if (i >= len || s[i] != '}')
+        {
+          oak_value_decref(OAK_VALUE_OBJ(acc));
+          return OAK_FN_CALL_RUNTIME_ERROR;
+        }
+        ++i;
+      }
+      else
+      {
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        return OAK_FN_CALL_RUNTIME_ERROR;
+      }
+
+      if (idx >= subs->length)
+      {
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        return OAK_FN_CALL_RUNTIME_ERROR;
+      }
+
+      struct oak_obj_string_t* piece =
+          oak_string_from_value_repr(subs->items[idx]);
+      if (!piece)
+      {
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        return OAK_FN_CALL_RUNTIME_ERROR;
+      }
+      struct oak_obj_string_t* next = oak_string_concat(acc, piece);
+      oak_value_decref(OAK_VALUE_OBJ(acc));
+      oak_value_decref(OAK_VALUE_OBJ(piece));
+      acc = next;
+      continue;
+    }
+
+    if (i + 1 < len && s[i] == '}' && s[i + 1] == '}')
+    {
+      struct oak_obj_string_t* lit = oak_string_new("}", 1);
+      struct oak_obj_string_t* next = oak_string_concat(acc, lit);
+      oak_value_decref(OAK_VALUE_OBJ(acc));
+      oak_value_decref(OAK_VALUE_OBJ(lit));
+      acc = next;
+      i += 2;
+      continue;
+    }
+
+    {
+      const usize start = i;
+      while (i < len)
+      {
+        if (s[i] == '{')
+          break;
+        if (s[i] == '}' && i + 1 < len && s[i + 1] == '}')
+          break;
+        ++i;
+      }
+      struct oak_obj_string_t* lit = oak_string_new(s + start, i - start);
+      struct oak_obj_string_t* next = oak_string_concat(acc, lit);
+      oak_value_decref(OAK_VALUE_OBJ(acc));
+      oak_value_decref(OAK_VALUE_OBJ(lit));
+      acc = next;
+    }
+  }
+
+  *out_result = OAK_VALUE_OBJ(acc);
+  return OAK_FN_CALL_OK;
+}
+
+static const struct oak_builtin_method_def_t string_method_table[] = {
+    { "format", builtin_string_format, 2, OAK_TYPE_STRING, null },
+};
+
 static void
 register_method_table_from_defs(struct oak_compiler_t* c,
                                 struct oak_method_binding_t* slots,
@@ -275,4 +393,24 @@ const struct oak_method_binding_t* oak_compiler_find_map_method(
 {
   return method_binding_find(
       c->builtin_methods.map, c->builtin_methods.map_count, name, len);
+}
+
+void oak_compiler_register_string_methods(struct oak_compiler_t* c)
+{
+  register_method_table_from_defs(c,
+                                  c->builtin_methods.string,
+                                  &c->builtin_methods.string_count,
+                                  OAK_MAX_STRING_METHODS,
+                                  "string",
+                                  string_method_table,
+                                  oak_count_of(string_method_table));
+}
+
+const struct oak_method_binding_t* oak_compiler_find_string_method(
+    struct oak_compiler_t* c, const char* name, const usize len)
+{
+  return method_binding_find(c->builtin_methods.string,
+                             c->builtin_methods.string_count,
+                             name,
+                             len);
 }

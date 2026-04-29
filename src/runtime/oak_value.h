@@ -383,3 +383,9 @@ void oak_value_incref(struct oak_value_t value);
 void oak_value_decref(struct oak_value_t value);
 
 void oak_value_println(struct oak_value_t value);
+
+/* Writes a short human-readable representation (not JSON). Returns bytes
+ * written (excluding NUL), or negative on failure. Never writes past size. */
+int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value);
+
+struct oak_obj_string_t* oak_string_from_value_repr(struct oak_value_t value);

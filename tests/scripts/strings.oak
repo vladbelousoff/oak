@@ -13,3 +13,12 @@ print(border);
 
 let escaped = 'line1\nline2';
 print(escaped);
+
+let subsNum = [2, 3, 5];
+print('{0}+{1}={2}'.format(subsNum));
+
+let subsStr = ['a', 'b'];
+print('{}{}'.format(subsStr));
+
+let emptyNum = [] as number[];
+print('{{brace}}'.format(emptyNum));

@@ -23,6 +23,7 @@
 
 #define OAK_MAX_ARRAY_METHODS  8
 #define OAK_MAX_MAP_METHODS    8
+#define OAK_MAX_STRING_METHODS 8
 #define OAK_MAX_RECORD_FIELDS  32
 
 /* ---------- Per-fn ephemeral compilation state ---------- */
@@ -124,14 +125,17 @@ struct oak_method_binding_t
   oak_method_validate_args_fn validate_args;
 };
 
-/* Array and map built-in method tables.  These are fixed, fully-static sets
- * registered once at startup, so plain fixed arrays suffice. */
+/* Array, map, and string built-in method tables.  These are fixed,
+ * fully-static sets registered once at startup, so plain fixed arrays suffice.
+ */
 struct oak_builtin_methods_t
 {
   struct oak_method_binding_t array[OAK_MAX_ARRAY_METHODS];
   int array_count;
   struct oak_method_binding_t map[OAK_MAX_MAP_METHODS];
   int map_count;
+  struct oak_method_binding_t string[OAK_MAX_STRING_METHODS];
+  int string_count;
 };
 
 /* ---------- Record registry ---------- */
@@ -432,10 +436,15 @@ void oak_compiler_register_array_methods(struct oak_compiler_t* c);
 
 void oak_compiler_register_map_methods(struct oak_compiler_t* c);
 
+void oak_compiler_register_string_methods(struct oak_compiler_t* c);
+
 const struct oak_method_binding_t* oak_compiler_find_array_method(
     struct oak_compiler_t* c, const char* name, usize len);
 
 const struct oak_method_binding_t* oak_compiler_find_map_method(
+    struct oak_compiler_t* c, const char* name, usize len);
+
+const struct oak_method_binding_t* oak_compiler_find_string_method(
     struct oak_compiler_t* c, const char* name, usize len);
 
 /* ---------- oak_compiler_enums.c ---------- */

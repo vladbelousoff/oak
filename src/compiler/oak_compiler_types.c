@@ -218,6 +218,14 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
             }
           }
           }
+          if (recv_ty.id == OAK_TYPE_STRING)
+          {
+            const struct oak_method_binding_t* sm =
+                oak_compiler_find_string_method(c, mn, mn_len);
+            if (sm)
+              out->id = sm->return_type_id;
+            return;
+          }
           return;
         }
         const struct oak_method_binding_t* m = null;
