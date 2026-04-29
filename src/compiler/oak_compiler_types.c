@@ -69,10 +69,29 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
 
   switch (expr->kind)
   {
+    case OAK_NODE_BINARY_ADD:
+    {
+      struct oak_type_t lt;
+      struct oak_type_t rt;
+      oak_compiler_infer_expr_static_type(c, expr->lhs, &lt);
+      oak_compiler_infer_expr_static_type(c, expr->rhs, &rt);
+      const int lk = oak_type_is_known(&lt);
+      const int rk = oak_type_is_known(&rt);
+      const int ls =
+          lk && lt.kind == OAK_TYPE_KIND_SCALAR && lt.id == OAK_TYPE_STRING;
+      const int rs =
+          rk && rt.kind == OAK_TYPE_KIND_SCALAR && rt.id == OAK_TYPE_STRING;
+      if (ls && rs)
+      {
+        out->id = OAK_TYPE_STRING;
+        return;
+      }
+      out->id = OAK_TYPE_NUMBER;
+      return;
+    }
     case OAK_NODE_INT:
     case OAK_NODE_FLOAT:
     case OAK_NODE_UNARY_NEG:
-    case OAK_NODE_BINARY_ADD:
     case OAK_NODE_BINARY_SUB:
     case OAK_NODE_BINARY_MUL:
     case OAK_NODE_BINARY_DIV:
