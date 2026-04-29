@@ -7,6 +7,8 @@ struct oak_cli_args_t
   int disassemble;
   int help;
   const char* script_path;
+  const char* const* script_argv;
+  int script_argc;
   const char* error;
 };
 

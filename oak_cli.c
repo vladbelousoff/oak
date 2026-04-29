@@ -13,27 +13,17 @@ int oak_cli_parse(int argc,
 {
   memset(args, 0, sizeof(*args));
 
-  int after_dd = 0;
+  int i = 1;
 
-  for (int i = 1; i < argc; ++i)
+  /* Parse oak flags before the script name */
+  for (; i < argc; ++i)
   {
     const char* a = argv[i];
 
-    if (after_dd)
-    {
-      if (args->script_path)
-      {
-        args->error = "multiple script paths";
-        return -1;
-      }
-      args->script_path = a;
-      continue;
-    }
-
     if (strcmp(a, "--") == 0)
     {
-      after_dd = 1;
-      continue;
+      ++i;
+      break;
     }
 
     if (a[0] == '-' && a[1] != '\0' && a[1] != '-')
@@ -63,12 +53,17 @@ int oak_cli_parse(int argc,
       return -1;
     }
 
-    if (args->script_path)
-    {
-      args->error = "multiple script paths";
-      return -1;
-    }
+    /* First non-option is the script path */
     args->script_path = a;
+    ++i;
+    break;
+  }
+
+  /* Everything after the script name is passed to the script */
+  if (args->script_path && i < argc)
+  {
+    args->script_argv = argv + i;
+    args->script_argc = argc - i;
   }
 
   if (args->help)
@@ -85,7 +80,5 @@ int oak_cli_parse(int argc,
 
 void oak_cli_usage(FILE* out)
 {
-  fprintf(out,
-          "usage: oak [--disassemble] [--help] <script>\n"
-          "       oak <script> [--disassemble]\n");
+  fprintf(out, "usage: oak [--disassemble] [--help] <script> [script args...]\n");
 }
