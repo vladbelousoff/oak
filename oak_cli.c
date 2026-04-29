@@ -49,6 +49,11 @@ int oak_cli_parse(int argc,
         args->disassemble = 1;
         continue;
       }
+      if (strcmp(a, "--no-debug") == 0)
+      {
+        args->no_debug = 1;
+        continue;
+      }
       args->error = "unknown option";
       return -1;
     }
@@ -80,5 +85,7 @@ int oak_cli_parse(int argc,
 
 void oak_cli_usage(FILE* out)
 {
-  fprintf(out, "usage: oak [--disassemble] [--help] <script> [script args...]\n");
+  fprintf(
+      out,
+      "usage: oak [--disassemble] [--no-debug] [--help] <script> [script args...]\n");
 }

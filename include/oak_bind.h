@@ -136,6 +136,11 @@ struct oak_compile_options_t
   /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
    * oak_compile_options_init and incremented by each oak_bind_type call. */
   oak_type_id_t next_type_id; /* private */
+
+  /* When non-zero (default), the compiler attaches a debug section to the
+   * chunk: per-byte source line/column and local-variable names. Set to 0 to
+   * skip these allocations and produce a minimal runtime-only chunk. */
+  int emit_debug_info;
 };
 
 /* ---------- Compile-options lifecycle ---------- */

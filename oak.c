@@ -37,6 +37,7 @@ int main(const int argc, const char* argv[])
   struct oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts);
   compile_opts.source_name = cli.script_path;
+  compile_opts.emit_debug_info = !cli.no_debug;
   oak_stdlib_register(&compile_opts);
   int exit_code = 1;
 

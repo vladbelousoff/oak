@@ -32,9 +32,14 @@ void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+  if (!vm->chunk->debug || !vm->chunk->debug->locations)
+  {
+    oak_log(OAK_LOG_ERROR, "error: %s", buf);
+    return;
+  }
+
   const usize offset = (usize)(vm->ip - vm->chunk->bytecode - 1);
-  oak_assert(vm->chunk->locations != null);
-  const struct oak_code_loc_t loc = vm->chunk->locations[offset];
+  const struct oak_code_loc_t loc = vm->chunk->debug->locations[offset];
   int col = loc.column;
   if (col < 1)
     col = 1;

@@ -22,6 +22,7 @@ void oak_compile_options_init(struct oak_compile_options_t* opts)
   opts->native_fn_count = 0;
   opts->native_fn_capacity = 0;
   opts->next_type_id = OAK_TYPE_FIRST_USER;
+  opts->emit_debug_info = 1;
 }
 
 void oak_compile_options_free(struct oak_compile_options_t* opts)

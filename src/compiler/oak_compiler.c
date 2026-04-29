@@ -146,8 +146,9 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
 {
   struct oak_compiler_t compiler = { 0 };
   struct oak_chunk_t* chunk = compiler_init(&compiler, out);
-  if (opts && opts->source_name)
-    chunk->source_name = opts->source_name;
+  const int want_debug = !opts || opts->emit_debug_info;
+  if (want_debug)
+    oak_chunk_enable_debug(chunk, opts ? opts->source_name : null);
 
   if (!root || root->kind != OAK_NODE_PROGRAM)
   {

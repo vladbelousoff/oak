@@ -663,7 +663,8 @@ oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
   (void)vm;
   return (struct oak_src_loc_t){ 0 };
 #else
-  if (!vm || !vm->chunk || !vm->chunk->bytecode || !vm->chunk->locations)
+  if (!vm || !vm->chunk || !vm->chunk->bytecode || !vm->chunk->debug ||
+      !vm->chunk->debug->locations)
     return (struct oak_src_loc_t){
       .file = null,
       .line = 0,
@@ -691,9 +692,9 @@ oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
       .line = 0,
     };
   }
-  const struct oak_code_loc_t cloc = vm->chunk->locations[call_off];
+  const struct oak_code_loc_t cloc = vm->chunk->debug->locations[call_off];
   return (struct oak_src_loc_t){
-    .file = vm->chunk->source_name,
+    .file = vm->chunk->debug->source_name,
     .line = cloc.line,
   };
 #endif

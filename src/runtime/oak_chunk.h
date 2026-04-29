@@ -98,27 +98,40 @@ struct oak_debug_local_t
   char* name;
 };
 
-struct oak_chunk_t
+/* Debug-only state of a chunk. Optional: when null, the VM still executes
+ * normally but produces error messages without source line/column and the
+ * disassembler prints a sparse listing. */
+struct oak_chunk_debug_t
 {
   /* Optional: path/label for the Oak source (borrowed). Not owned by chunk. */
   const char* source_name;
-  usize count;
-  usize capacity;
-  u8* bytecode;
+  /* One entry per byte in chunk->bytecode. */
   struct oak_code_loc_t* locations;
-  usize const_count;
-  usize const_capacity;
-  struct oak_value_t* constants;
   usize debug_count;
   usize debug_capacity;
   struct oak_debug_local_t* debug_locals;
+};
+
+struct oak_chunk_t
+{
+  usize count;
+  usize capacity;
+  u8* bytecode;
+  usize const_count;
+  usize const_capacity;
+  struct oak_value_t* constants;
   struct oak_chunk_field_layout* field_layouts;
   int field_layout_count;
   int field_layout_capacity;
+  /* Optional debug section; null when stripped. */
+  struct oak_chunk_debug_t* debug;
 };
 
 void oak_chunk_init(struct oak_chunk_t* chunk);
 void oak_chunk_free(struct oak_chunk_t* chunk);
+
+/* Allocate and attach an empty debug section to the chunk. Idempotent. */
+void oak_chunk_enable_debug(struct oak_chunk_t* chunk, const char* source_name);
 
 /* Intern a field-name layout. Returns a stable id >= 0, or -1 on failure.
  * `names[i]` is `name_len[i]` bytes if `name_len` is non-NULL, else
