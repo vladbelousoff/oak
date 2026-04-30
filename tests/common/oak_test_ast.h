@@ -14,7 +14,7 @@ oak_test_ast_child(const struct oak_ast_node_t* node, const usize index)
   return oak_ast_node_child_at(node, index);
 }
 
-static usize oak_test_ast_child_count(const struct oak_ast_node_t* node)
+OAK_UNUSED static usize oak_test_ast_child_count(const struct oak_ast_node_t* node)
 {
   return oak_ast_node_child_count(node);
 }

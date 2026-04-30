@@ -20,7 +20,7 @@ const char* oak_path_basename(const char* path)
   return p ? p + 1 : path;
 }
 
-static const char* oak_time_stamp(void)
+OAK_UNUSED static const char* oak_time_stamp(void)
 {
   static _Thread_local char buf[16];
   time_t now = time(null);
@@ -36,7 +36,7 @@ static const char* oak_time_stamp(void)
   return buf;
 }
 
-static const char* oak_log_lvl_to_str(const enum oak_log_level_t lvl)
+OAK_UNUSED static const char* oak_log_lvl_to_str(const enum oak_log_level_t lvl)
 {
   static const char* const s[] = { "INF", "DBG", "WRN", "ERR" };
   return (unsigned)lvl < oak_count_of(s) ? s[lvl] : s[0];
@@ -87,6 +87,7 @@ void _oak_log_printf(const enum oak_log_level_t lvl,
   buf[pos] = '\n';
   buf[pos + 1] = '\0';
 
-  fputs(buf, stdout);
-  fflush(stdout);
+  FILE* const stream = (lvl == OAK_LOG_ERROR) ? stderr : stdout;
+  fputs(buf, stream);
+  fflush(stream);
 }

@@ -25,7 +25,7 @@
  *       p += n;
  *   }
  */
-static int oak_utf8_next(const char* s, u32* out)
+OAK_UNUSED static int oak_utf8_next(const char* s, u32* out)
 {
   const unsigned char* p = (const unsigned char*)s;
   u32 cp;
@@ -229,8 +229,8 @@ static int oak_utf8_encode(const u32 cp, char* out)
   if (cp <= 0x7FF)
   {
     // 2-byte sequence: 110xxxxx 10xxxxxx
-    out[0] = (char)(0xC0 | cp >> 6 & 0x1F);
-    out[1] = (char)(0x80 | cp & 0x3F);
+    out[0] = (char)(0xC0 | ((cp >> 6) & 0x1F));
+    out[1] = (char)(0x80 | (cp & 0x3F));
     return 2;
   }
 
@@ -240,19 +240,19 @@ static int oak_utf8_encode(const u32 cp, char* out)
     if (cp >= 0xD800 && cp <= 0xDFFF)
       return 0;
     // 3-byte sequence: 1110xxxx 10xxxxxx 10xxxxxx
-    out[0] = (char)(0xE0 | cp >> 12 & 0x0F);
-    out[1] = (char)(0x80 | cp >> 6 & 0x3F);
-    out[2] = (char)(0x80 | cp & 0x3F);
+    out[0] = (char)(0xE0 | ((cp >> 12) & 0x0F));
+    out[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+    out[2] = (char)(0x80 | (cp & 0x3F));
     return 3;
   }
 
   if (cp <= 0x10FFFF)
   {
     // 4-byte sequence: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-    out[0] = (char)(0xF0 | cp >> 18 & 0x07);
-    out[1] = (char)(0x80 | cp >> 12 & 0x3F);
-    out[2] = (char)(0x80 | cp >> 6 & 0x3F);
-    out[3] = (char)(0x80 | cp & 0x3F);
+    out[0] = (char)(0xF0 | ((cp >> 18) & 0x07));
+    out[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+    out[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+    out[3] = (char)(0x80 | (cp & 0x3F));
     return 4;
   }
 

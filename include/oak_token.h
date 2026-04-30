@@ -80,7 +80,7 @@ struct oak_token_t
   /* Lexeme length in bytes; same unsigned domain as `oak_string` / name
    * lengths. */
   usize length;
-  char text[0];
+  char text[];
 };
 
 enum oak_token_kind_t oak_token_kind(const struct oak_token_t* token);

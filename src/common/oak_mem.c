@@ -94,11 +94,12 @@ void oak_free(void* ptr, const struct oak_src_loc_t src_loc)
     free(header);
   }
 #else
+  (void)src_loc;
   free(ptr);
 #endif
 }
 
-void oak_mem_init()
+void oak_mem_init(void)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_list_init(&memory_allocations);
@@ -106,7 +107,7 @@ void oak_mem_init()
 #endif
 }
 
-void oak_mem_shutdown()
+void oak_mem_shutdown(void)
 {
 #ifdef OAK_TRACK_MEMORY
   oak_assert(memory_tracking_enabled);

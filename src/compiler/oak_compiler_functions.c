@@ -49,12 +49,6 @@ oak_fn_decl_head(const struct oak_ast_node_t* decl)
 }
 
 static const struct oak_ast_node_t*
-oak_fn_decl_prefix(const struct oak_ast_node_t* decl)
-{
-  return oak_fn_decl_head(decl)->lhs;
-}
-
-static const struct oak_ast_node_t*
 oak_fn_decl_params_tail(const struct oak_ast_node_t* decl)
 {
   return oak_fn_decl_proto(decl)->rhs;

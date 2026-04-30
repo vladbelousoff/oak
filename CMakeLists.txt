@@ -6,19 +6,22 @@ include(FetchContent)
 # default). Tests are off so FetchContent only builds the library.
 set(YYJSON_BUILD_TESTS OFF CACHE BOOL "yyjson: skip tests" FORCE)
 FetchContent_Declare(
-        yyjson
-        GIT_REPOSITORY https://github.com/ibireme/yyjson.git
-        GIT_TAG 0.10.0
-        GIT_SHALLOW TRUE
+    yyjson
+    GIT_REPOSITORY https://github.com/ibireme/yyjson.git
+    GIT_TAG 0.10.0
+    GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(yyjson)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-if (MSVC)
+if(MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-endif ()
+    set(OAK_WARN_FLAGS /W4)
+else()
+    set(OAK_WARN_FLAGS -Wall -Wextra)
+endif()
 
 # Directories
 set(OAK_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -29,94 +32,107 @@ set(OAK_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 file(GLOB_RECURSE OAK_CORE_SOURCES ${OAK_SRC_DIR}/*.c)
 
 set(OAK_SRC_INCLUDE_DIRS
-        ${OAK_SRC_DIR}
-        ${OAK_SRC_DIR}/common
-        ${OAK_SRC_DIR}/runtime
-        ${OAK_SRC_DIR}/lexer
-        ${OAK_SRC_DIR}/parser
-        ${OAK_SRC_DIR}/compiler
-        ${OAK_SRC_DIR}/vm
+    ${OAK_SRC_DIR}
+    ${OAK_SRC_DIR}/common
+    ${OAK_SRC_DIR}/runtime
+    ${OAK_SRC_DIR}/lexer
+    ${OAK_SRC_DIR}/parser
+    ${OAK_SRC_DIR}/compiler
+    ${OAK_SRC_DIR}/vm
 )
 
 # Tests
 file(GLOB_RECURSE OAK_TEST_SOURCES ${OAK_TESTS_DIR}/*/*.c)
 
 set(OAK_APP_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/oak.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/oak_cli.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/oak.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/oak_cli.c
 )
 
 # Shared debug-only compile definitions
 set(OAK_DEBUG_DEFINES
-        $<$<CONFIG:Debug>:OAK_TRACK_MEMORY>
-        $<$<CONFIG:Debug>:OAK_DEBUG_LOGGING>
+    $<$<CONFIG:Debug>:OAK_TRACK_MEMORY>
+    $<$<CONFIG:Debug>:OAK_DEBUG_LOGGING>
 )
 
 # Library
 add_library(liboak STATIC ${OAK_CORE_SOURCES})
 
 target_include_directories(liboak
-        PUBLIC
-        ${OAK_INCLUDE_DIR}
-        PRIVATE
-        ${OAK_SRC_INCLUDE_DIRS}
+    PUBLIC
+    ${OAK_INCLUDE_DIR}
+    PRIVATE
+    ${OAK_SRC_INCLUDE_DIRS}
 )
 
+target_compile_options(liboak PRIVATE ${OAK_WARN_FLAGS})
 target_compile_definitions(liboak PRIVATE ${OAK_DEBUG_DEFINES})
 target_link_libraries(liboak PUBLIC yyjson)
 
-# Executable
-add_executable(oak ${OAK_APP_SOURCES})
-target_link_libraries(oak PRIVATE liboak)
+if(EMSCRIPTEN)
+    add_executable(oak_wasm wasm/oak_wasm_entry.c)
 
-target_include_directories(oak
+    target_link_libraries(oak_wasm PRIVATE liboak)
+
+    target_link_options(oak_wasm PRIVATE
+        "-sWASM=1"
+        "-sMODULARIZE=1"
+        "-sEXPORT_NAME=OakModule"
+        "-sSTACK_SIZE=1048576"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sEXPORTED_FUNCTIONS=['_oak_run_wrapper']"
+        "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']"
+    )
+
+    set_target_properties(oak_wasm PROPERTIES SUFFIX ".js")
+else()
+    # Executable
+    add_executable(oak ${OAK_APP_SOURCES})
+
+    target_link_libraries(oak PRIVATE liboak)
+
+    target_include_directories(oak
         PUBLIC
         ${OAK_INCLUDE_DIR}
         PRIVATE
         ${OAK_SRC_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_compile_definitions(oak
-        PRIVATE
-        ${OAK_DEBUG_DEFINES}
-)
-
-enable_testing()
-
-foreach (test_src ${OAK_TEST_SOURCES})
-    get_filename_component(test_name ${test_src} NAME_WE)
-
-    add_executable(${test_name} ${test_src})
-
-    target_link_libraries(${test_name}
-            PRIVATE
-            liboak
     )
 
-    target_include_directories(${test_name}
+    target_compile_options(oak PRIVATE ${OAK_WARN_FLAGS})
+    target_compile_definitions(oak PRIVATE ${OAK_DEBUG_DEFINES})
+
+    enable_testing()
+
+    foreach(test_src ${OAK_TEST_SOURCES})
+        get_filename_component(test_name ${test_src} NAME_WE)
+
+        add_executable(${test_name} ${test_src})
+
+        target_link_libraries(${test_name} PRIVATE liboak)
+
+        target_include_directories(${test_name}
             PRIVATE
             ${OAK_INCLUDE_DIR}
             ${OAK_SRC_INCLUDE_DIRS}
             ${OAK_TESTS_DIR}/common
-    )
+        )
 
-    target_compile_definitions(${test_name}
-            PRIVATE
-            ${OAK_DEBUG_DEFINES}
-    )
+        target_compile_options(${test_name} PRIVATE ${OAK_WARN_FLAGS})
+        target_compile_definitions(${test_name} PRIVATE ${OAK_DEBUG_DEFINES})
 
-    add_test(NAME ${test_name} COMMAND ${test_name})
-endforeach ()
+        add_test(NAME ${test_name} COMMAND ${test_name})
+    endforeach()
 
-# Script tests
-file(GLOB OAK_SCRIPT_TESTS ${OAK_TESTS_DIR}/scripts/*.oak)
+    # Script tests
+    file(GLOB OAK_SCRIPT_TESTS ${OAK_TESTS_DIR}/scripts/*.oak)
 
-foreach (script ${OAK_SCRIPT_TESTS})
-    get_filename_component(script_name ${script} NAME_WE)
-    set(test_name "script_${script_name}")
+    foreach(script ${OAK_SCRIPT_TESTS})
+        get_filename_component(script_name ${script} NAME_WE)
+        set(test_name "script_${script_name}")
 
-    add_test(NAME ${test_name} COMMAND oak ${script})
-    # Project root as cwd (script tests use paths relative to the repo root).
-    set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-endforeach ()
+        add_test(NAME ${test_name} COMMAND oak ${script})
+        # Project root as cwd (script tests use paths relative to the repo root).
+        set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    endforeach()
+endif()

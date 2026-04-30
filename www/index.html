@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oak Playground</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+      font-size: 14px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #181825;
+      border-bottom: 1px solid #313244;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #cba6f7;
+      letter-spacing: 0.5px;
+    }
+
+    #run-btn {
+      margin-left: auto;
+      padding: 5px 16px;
+      background: #cba6f7;
+      color: #1e1e2e;
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #run-btn:hover { background: #d0bcff; }
+    #run-btn:disabled { background: #585b70; color: #6c7086; cursor: default; }
+
+    #status {
+      font-size: 12px;
+      color: #6c7086;
+    }
+
+    .panels {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .panel + .panel {
+      border-left: 1px solid #313244;
+    }
+
+    .panel-label {
+      padding: 6px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6c7086;
+      background: #181825;
+      border-bottom: 1px solid #313244;
+      flex-shrink: 0;
+    }
+
+    #editor {
+      flex: 1;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 16px;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.6;
+      tab-size: 2;
+    }
+
+    #output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+    }
+
+    .out-line { color: #cdd6f4; }
+    .err-line { color: #f38ba8; }
+    .placeholder { color: #45475a; font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Oak Playground</h1>
+    <span id="status">Loading...</span>
+    <button id="run-btn" disabled>Run</button>
+  </header>
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-label">Input</div>
+      <textarea id="editor" spellcheck="false" placeholder="Write Oak code here..."></textarea>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Output</div>
+      <div id="output"><span class="placeholder">Output will appear here.</span></div>
+    </div>
+  </div>
+
+  <script src="../build_wasm/oak_wasm.js"></script>
+  <script>
+    const editor = document.getElementById('editor');
+    const output = document.getElementById('output');
+    const runBtn = document.getElementById('run-btn');
+    const status = document.getElementById('status');
+
+    let oakRun = null;
+    let captured = [];
+
+    function appendOutput(text, isErr) {
+      const line = document.createElement('span');
+      line.className = isErr ? 'err-line' : 'out-line';
+      line.textContent = text + '\n';
+      output.appendChild(line);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    OakModule({
+      print:    (text) => { if (oakRun) captured.push({ text, err: false }); },
+      printErr: (text) => { if (oakRun) captured.push({ text, err: true }); },
+    }).then(module => {
+      oakRun = module.cwrap('oak_run_wrapper', 'number', ['string']);
+      runBtn.disabled = false;
+      status.textContent = 'Ready';
+    }).catch(err => {
+      status.textContent = 'Failed to load';
+      appendOutput('Failed to load WASM module: ' + err, true);
+    });
+
+    function run() {
+      if (!oakRun) return;
+
+      output.innerHTML = '';
+      captured = [];
+
+      const code = editor.value;
+      let exitCode;
+      try {
+        exitCode = oakRun(code);
+      } catch (e) {
+        appendOutput('Runtime exception: ' + e, true);
+        return;
+      }
+
+      for (const { text, err } of captured) {
+        appendOutput(text, err);
+      }
+
+      if (output.children.length === 0) {
+        const ph = document.createElement('span');
+        ph.className = 'placeholder';
+        ph.textContent = exitCode === 0 ? 'Finished with no output.' : `Exited with code ${exitCode}.`;
+        output.appendChild(ph);
+      }
+    }
+
+    runBtn.addEventListener('click', run);
+
+    editor.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        run();
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const { selectionStart: s, selectionEnd: e2, value: v } = editor;
+        editor.value = v.slice(0, s) + '  ' + v.slice(e2);
+        editor.selectionStart = editor.selectionEnd = s + 2;
+      }
+    });
+  </script>
+</body>
+</html>
