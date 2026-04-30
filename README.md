@@ -115,7 +115,7 @@ fn add(a : number, b : number) -> number {
 print(add(1, 2));   // 3
 ```
 
-User functions are declared at module top level, or as instance methods inside a `record TypeName { }` block.  Recursion and mutual recursion are supported.
+User functions are declared as instance methods inside a `record TypeName { }` block.  Recursion and mutual recursion are supported.
 
 ### Records
 
@@ -197,8 +197,6 @@ The `oak` driver registers a small set of **native** types and functions in addi
 | Name | Role |
 |------|------|
 | File I/O (see `oak_stdlib_file.h`) | Path-based `read` / `write` helpers |
-| `OakToken` / `OakLexer` (see `oak_stdlib_lexer.h`) | `OakLexer.tokenize(s)` takes a `string` and returns an `OakToken[]` (each token exposes `kind`, `value` (`OakTokenValue` with `to_string()`), `line`, `column`, `offset`). Handy for tooling and the sample script `tests/scripts/tokenize.oak`. |
-| `OakParser` / `OakAstNode` / `OakParseResult` / `OakDiagnostic` (see `oak_stdlib_parser.h`) | `OakParser.parse(toks)` accepts `OakToken[]` from `tokenize`, returns `OakParseResult` with `root` (`OakAstNode`: `kind`, `child_count`, `token_value`, `is_terminal`, `child(i)`), `error_count`, and `errors()` (`OakDiagnostic[]` with `line`, `column`, `message`). Call `dispose()` when finished to release native parser state. Sample: `tests/scripts/parse.oak`. |
 
 ---
 
