@@ -79,32 +79,6 @@ int oak_enum_registry_is_enum_name(const struct oak_enum_registry_t* r,
   return oak_hash_table_get(&r->enum_names, name, len) >= 0;
 }
 
-/* ---------- Compiler-level wrappers ---------- */
-
-const struct oak_enum_variant_t* oak_compiler_find_enum_variant(
-    const struct oak_compiler_t* c, const char* name, const usize len)
-{
-  return oak_enum_registry_find(&c->enums, name, len);
-}
-
-const struct oak_enum_variant_t*
-oak_compiler_find_enum_variant_qualified(const struct oak_compiler_t* c,
-                                         const char* enum_name,
-                                         const usize enum_name_len,
-                                         const char* variant_name,
-                                         const usize variant_name_len)
-{
-  return oak_enum_registry_find_qualified(
-      &c->enums, enum_name, enum_name_len, variant_name, variant_name_len);
-}
-
-int oak_compiler_is_enum_name(const struct oak_compiler_t* c,
-                              const char* name,
-                              const usize len)
-{
-  return oak_enum_registry_is_enum_name(&c->enums, name, len);
-}
-
 void oak_compiler_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* program)
 {
@@ -138,7 +112,7 @@ void oak_compiler_register_program_enums(struct oak_compiler_t* c,
       const usize vname_len = oak_token_length(variant->token);
 
       /* Duplicate variant name check (across all enums). */
-      if (oak_compiler_find_enum_variant(c, vname, vname_len))
+      if (oak_enum_registry_find(&c->enums, vname, vname_len))
       {
         oak_compiler_error_at(
             c, variant->token, "duplicate enum variant '%s'", vname);

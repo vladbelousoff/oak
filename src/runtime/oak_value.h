@@ -14,7 +14,6 @@ enum oak_value_type_t
 
 enum oak_obj_type_t
 {
-  OAK_OBJ_CUSTOM,
   OAK_OBJ_STRING,
   OAK_OBJ_ARRAY,
   OAK_OBJ_MAP,

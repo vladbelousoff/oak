@@ -1,7 +1,6 @@
 #include "oak_value.h"
 
 #include "oak_bind.h"
-#include "oak_json_pretty2.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 
@@ -806,7 +805,8 @@ void oak_value_println(const struct oak_value_t value)
     return;
   }
   yyjson_mut_doc_set_root(doc, root);
-  char* p = oak_json_pretty2_write(doc);
+  size_t json_len;
+  char* p = yyjson_mut_write(doc, YYJSON_WRITE_PRETTY_TWO_SPACES, &json_len);
   yyjson_mut_doc_free(doc);
   if (!p)
   {

@@ -447,13 +447,13 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
   {
     const char* recv_name = oak_token_text(recv->token);
     const usize recv_len = oak_token_length(recv->token);
-    if (oak_compiler_is_enum_name(c, recv_name, recv_len))
+    if (oak_enum_registry_is_enum_name(&c->enums, recv_name, recv_len))
     {
       const char* vname = oak_token_text(fname->token);
       const usize vlen = oak_token_length(fname->token);
       const struct oak_enum_variant_t* ev =
-          oak_compiler_find_enum_variant_qualified(
-              c, recv_name, recv_len, vname, vlen);
+          oak_enum_registry_find_qualified(
+              &c->enums, recv_name, recv_len, vname, vlen);
       if (!ev)
       {
         oak_compiler_error_at(c,
@@ -502,7 +502,7 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
   const char* sname = oak_token_text(name_node->token);
   const usize sname_len = oak_token_length(name_node->token);
   const struct oak_registered_record_t* sd =
-      oak_compiler_find_record_by_name(c, sname, sname_len);
+      oak_record_registry_find_by_name(&c->records, sname, sname_len);
   if (!sd)
   {
     oak_compiler_error_at(

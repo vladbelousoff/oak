@@ -52,18 +52,3 @@ void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
                           enum oak_token_kind_t token_kind,
                           const char* buffer,
                           usize buffer_size);
-
-enum oak_lex_status_t oak_lexer_try_scan_ws(const struct oak_lexer_ctx_t* ctx,
-                                            const char* input);
-
-enum oak_lex_status_t oak_lexer_try_scan_op(const struct oak_lexer_ctx_t* ctx,
-                                            const char* input);
-
-enum oak_lex_status_t
-oak_lexer_try_scan_string(const struct oak_lexer_ctx_t* ctx, const char* input);
-
-enum oak_lex_status_t
-oak_lexer_try_scan_number(const struct oak_lexer_ctx_t* ctx, const char* input);
-
-enum oak_lex_status_t
-oak_lexer_try_scan_ident(const struct oak_lexer_ctx_t* ctx, const char* input);

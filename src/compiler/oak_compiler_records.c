@@ -14,7 +14,7 @@ void oak_compiler_register_native_types(
     if (!nt)
       continue;
 
-    if (oak_compiler_find_record_by_name(c, nt->name, nt->name_len))
+    if (oak_record_registry_find_by_name(&c->records, nt->name, nt->name_len))
     {
       oak_compiler_error_at(
           c,
@@ -138,21 +138,6 @@ oak_record_registry_find_by_type_id(const struct oak_record_registry_t* r,
 
 
 
-/* ---------- Compiler-level lookup wrappers ---------- */
-
-const struct oak_registered_record_t* oak_compiler_find_record_by_name(
-    const struct oak_compiler_t* c, const char* name, const usize len)
-{
-  return oak_record_registry_find_by_name(&c->records, name, len);
-}
-
-const struct oak_registered_record_t*
-oak_compiler_find_record_by_type_id(const struct oak_compiler_t* c,
-                                    const oak_type_id_t type_id)
-{
-  return oak_record_registry_find_by_type_id(&c->records, type_id);
-}
-
 int oak_compiler_find_record_field(const struct oak_registered_record_t* s,
                                    const char* name,
                                    const usize len)
@@ -192,7 +177,7 @@ int oak_compiler_record_field_index(
   if (!oak_type_is_known(&recv_ty))
     return -1;
   const struct oak_registered_record_t* sd =
-      oak_compiler_find_record_by_type_id(c, recv_ty.id);
+      oak_record_registry_find_by_type_id(&c->records, recv_ty.id);
   if (!sd)
     return -1;
   if (out_sd)
@@ -278,7 +263,7 @@ void oak_compiler_register_program_records(struct oak_compiler_t* c,
     const char* name = oak_token_text(name_ident->token);
     const usize name_len = oak_token_length(name_ident->token);
 
-    if (oak_compiler_find_record_by_name(c, name, name_len))
+    if (oak_record_registry_find_by_name(&c->records, name, name_len))
     {
       oak_compiler_error_at(
           c, name_ident->token, "duplicate record '%s'", name);

@@ -156,7 +156,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           if (!oak_compiler_local_type_get(c, rname, rlen, &local_ty))
           {
             const struct oak_registered_record_t* sd =
-                oak_compiler_find_record_by_name(c, rname, rlen);
+                oak_record_registry_find_by_name(&c->records, rname, rlen);
             if (sd)
             {
               const struct oak_registered_fn_t* sm =
@@ -189,7 +189,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
         {
           const struct oak_registered_record_t* sd =
-              oak_compiler_find_record_by_type_id(c, recv_ty.id);
+              oak_record_registry_find_by_type_id(&c->records, recv_ty.id);
           if (sd)
           {
           for (int i = 0; i < sd->methods.count; ++i)
@@ -353,7 +353,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       if (!name_node || name_node->kind != OAK_NODE_IDENT)
         return;
       const struct oak_registered_record_t* sd =
-          oak_compiler_find_record_by_name(c,
+          oak_record_registry_find_by_name(&c->records,
                                            oak_token_text(name_node->token),
                                            oak_token_length(name_node->token));
       if (!sd)
@@ -372,7 +372,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       {
         const char* recv_name = oak_token_text(recv->token);
         const usize recv_len = oak_token_length(recv->token);
-        if (oak_compiler_is_enum_name(c, recv_name, recv_len))
+        if (oak_enum_registry_is_enum_name(&c->enums, recv_name, recv_len))
         {
           out->id = OAK_TYPE_NUMBER;
           return;

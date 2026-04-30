@@ -442,28 +442,7 @@ const struct oak_method_binding_t* oak_compiler_find_string_method(
 void oak_compiler_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* prog);
 
-const struct oak_enum_variant_t* oak_compiler_find_enum_variant(
-    const struct oak_compiler_t* c, const char* name, usize len);
-
-const struct oak_enum_variant_t*
-oak_compiler_find_enum_variant_qualified(const struct oak_compiler_t* c,
-                                         const char* enum_name,
-                                         usize enum_name_len,
-                                         const char* variant_name,
-                                         usize variant_name_len);
-
-int oak_compiler_is_enum_name(const struct oak_compiler_t* c,
-                              const char* name,
-                              usize len);
-
 /* ---------- oak_compiler_records.c ---------- */
-
-const struct oak_registered_record_t* oak_compiler_find_record_by_name(
-    const struct oak_compiler_t* c, const char* name, usize len);
-
-const struct oak_registered_record_t*
-oak_compiler_find_record_by_type_id(const struct oak_compiler_t* c,
-                                    oak_type_id_t type_id);
 
 int oak_compiler_find_record_field(const struct oak_registered_record_t* s,
                                    const char* name,

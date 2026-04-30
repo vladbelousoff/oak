@@ -80,7 +80,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
     if (!oak_compiler_local_type_get(c, rname, rlen, &local_ty))
     {
       const struct oak_registered_record_t* sd =
-          oak_compiler_find_record_by_name(c, rname, rlen);
+          oak_record_registry_find_by_name(&c->records, rname, rlen);
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
@@ -118,7 +118,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
     const struct oak_registered_record_t* sd =
-        oak_compiler_find_record_by_type_id(c, recv_ty.id);
+        oak_record_registry_find_by_type_id(&c->records, recv_ty.id);
     if (sd)
     {
       const struct oak_registered_fn_t* sm = null;

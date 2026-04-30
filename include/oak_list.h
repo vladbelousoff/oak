@@ -67,23 +67,6 @@ static inline void oak_list_remove(const struct oak_list_entry_t* entry)
   _oak_list_remove(entry->prev, entry->next);
 }
 
-static inline struct oak_list_entry_t*
-oak_list_first(const struct oak_list_entry_t* head)
-{
-  if (oak_list_empty(head))
-    return null;
-  return head->next;
-}
-
-static inline struct oak_list_entry_t*
-oak_list_next(const struct oak_list_entry_t* current,
-              const struct oak_list_entry_t* head)
-{
-  if (current == null || current->next == head)
-    return null;
-  return current->next;
-}
-
 static inline void oak_list_move(const struct oak_list_entry_t* from,
                                  struct oak_list_entry_t* to)
 {
