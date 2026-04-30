@@ -13,7 +13,7 @@ typedef struct oak_file_handle_t
   FILE* fp;
 } oak_file_handle_t;
 
-static const struct oak_native_type_t* s_file_type;
+static const struct oak_bind_type_t* s_file_type;
 
 static enum oak_fn_call_result_t file_open(struct oak_native_ctx_t* ctx,
                                            const struct oak_value_t* args,
@@ -154,69 +154,69 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
 {
   if (!opts)
     return;
-  struct oak_native_type_t* t = oak_bind_type(opts, OAK_BIND_RECORD, "File");
+  struct oak_bind_type_t* t = oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "File");
   if (!t)
     return;
   s_file_type = t;
 
   oak_bind_fn(opts,
-              &(oak_bind_fn_params_t){
+              &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_STATIC_METHOD,
                   .receiver_type_id = t->type_id,
                   .name = "open",
                   .impl = file_open,
                   .arity = 2,
                   .return_type_id = t->type_id,
-                  .return_shape = OAK_BIND_RETURN_SCALAR,
+                  .return_shape = OAK_BIND_SHAPE_SCALAR,
               });
   oak_bind_fn(opts,
-              &(oak_bind_fn_params_t){
+              &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
                   .receiver_type_id = t->type_id,
                   .name = "read",
                   .impl = file_read,
                   .arity = 0,
                   .return_type_id = OAK_TYPE_STRING,
-                  .return_shape = OAK_BIND_RETURN_SCALAR,
+                  .return_shape = OAK_BIND_SHAPE_SCALAR,
               });
   oak_bind_fn(opts,
-              &(oak_bind_fn_params_t){
+              &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
                   .receiver_type_id = t->type_id,
                   .name = "read_all",
                   .impl = file_read_all,
                   .arity = 0,
                   .return_type_id = OAK_TYPE_STRING,
-                  .return_shape = OAK_BIND_RETURN_SCALAR,
+                  .return_shape = OAK_BIND_SHAPE_SCALAR,
               });
   oak_bind_fn(opts,
-              &(oak_bind_fn_params_t){
+              &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
                   .receiver_type_id = t->type_id,
                   .name = "write",
                   .impl = file_write,
                   .arity = 1,
                   .return_type_id = OAK_TYPE_VOID,
-                  .return_shape = OAK_BIND_RETURN_SCALAR,
+                  .return_shape = OAK_BIND_SHAPE_SCALAR,
               });
   oak_bind_fn(opts,
-              &(oak_bind_fn_params_t){
+              &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
                   .receiver_type_id = t->type_id,
                   .name = "eof",
                   .impl = file_eof,
                   .arity = 0,
                   .return_type_id = OAK_TYPE_BOOL,
-                  .return_shape = OAK_BIND_RETURN_SCALAR,
+                  .return_shape = OAK_BIND_SHAPE_SCALAR,
               });
   oak_bind_fn(opts,
-              &(oak_bind_fn_params_t){
+              &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
                   .receiver_type_id = t->type_id,
                   .name = "close",
                   .impl = file_close,
                   .arity = 0,
                   .return_type_id = OAK_TYPE_VOID,
-                  .return_shape = OAK_BIND_RETURN_SCALAR,
+                  .return_shape = OAK_BIND_SHAPE_SCALAR,
               });
 }

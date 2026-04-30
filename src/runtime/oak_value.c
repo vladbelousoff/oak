@@ -59,8 +59,8 @@ void oak_obj_decref(struct oak_obj_t* obj)
   else if (obj->type == OAK_OBJ_NATIVE_RECORD)
   {
     struct oak_obj_native_record_t* ns = (struct oak_obj_native_record_t*)obj;
-    if (ns->instance && ns->type && ns->type->destroy_instance)
-      ns->type->destroy_instance(ns->instance);
+    if (ns->instance && ns->type && ns->type->destructor)
+      ns->type->destructor(ns->instance);
   }
 
   oak_free(obj, OAK_SRC_LOC);
@@ -200,7 +200,7 @@ struct oak_obj_record_t* oak_record_new(const int field_count,
 }
 
 struct oak_obj_native_record_t*
-oak_obj_native_record_new(const struct oak_native_type_t* type, void* instance)
+oak_obj_native_record_new(const struct oak_bind_type_t* type, void* instance)
 {
   struct oak_obj_native_record_t* ns =
       oak_alloc(sizeof(struct oak_obj_native_record_t), OAK_SRC_LOC);
@@ -700,7 +700,7 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* const doc,
   if (oak_is_native_record(value))
   {
     const struct oak_obj_native_record_t* ns = oak_as_native_record(value);
-    const struct oak_native_type_t* t = ns->type;
+    const struct oak_bind_type_t* t = ns->type;
     if (!t || !ns->instance)
       return yyjson_mut_null(doc);
     yyjson_mut_val* o = yyjson_mut_obj(doc);
@@ -710,7 +710,7 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* const doc,
       const struct oak_value_t self = value;
       for (int i = 0; i < t->field_count; ++i)
       {
-        const struct oak_native_field_t* f = &t->fields[i];
+        const struct oak_bind_field_t* f = &t->fields[i];
         struct oak_value_t fv = f->getter(self);
         yyjson_mut_val* fj = oak_value_to_yyjson(doc, fv, depth + 1u);
         if (oak_is_obj(fv))
@@ -761,7 +761,7 @@ int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
     if (oak_is_native_record(value))
     {
       const struct oak_obj_native_record_t* ns = oak_as_native_record(value);
-      const struct oak_native_type_t* t = ns->type;
+      const struct oak_bind_type_t* t = ns->type;
       const char* nm = (t && t->name) ? t->name : "native";
       return snprintf(buf, size, "<%s>", nm);
     }

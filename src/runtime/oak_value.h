@@ -23,7 +23,7 @@ enum oak_obj_type_t
   OAK_OBJ_RECORD,
   /* A native C value wrapped as an Oak value.  The underlying instance
    * pointer is not owned by Oak; the type descriptor pointer is borrowed from
-   * the oak_native_type_t that was registered with oak_bind_type(). */
+   * the oak_bind_type_t that was registered with oak_bind_type(). */
   OAK_OBJ_NATIVE_RECORD,
 };
 
@@ -119,16 +119,16 @@ struct oak_obj_record_t
 };
 
 /* Forward declaration — full definition lives in oak_bind.h. */
-struct oak_native_type_t;
+struct oak_bind_type_t;
 
 /* A native C instance wrapped as an Oak heap object.  `type` is borrowed for
- * the binding lifetime.  When the refcount reaches zero, `type->destroy_instance`
+ * the binding lifetime.  When the refcount reaches zero, `type->destructor`
  * runs on non-NULL `instance` if registered; then the wrapper is freed. */
 struct oak_obj_native_record_t
 {
   struct oak_obj_t obj;
   void* instance;
-  const struct oak_native_type_t*
+  const struct oak_bind_type_t*
       type; /* borrowed; lives for binding lifetime */
 };
 
@@ -214,7 +214,7 @@ struct oak_obj_record_t* oak_record_new(
     const usize* field_name_len);  /* if NULL, strlen(field_names[i]) */
 
 struct oak_obj_native_record_t*
-oak_obj_native_record_new(const struct oak_native_type_t* type, void* instance);
+oak_obj_native_record_new(const struct oak_bind_type_t* type, void* instance);
 
 struct oak_obj_map_t* oak_map_new(void);
 /* Returns 1 and writes the value into *out if found; 0 otherwise. */

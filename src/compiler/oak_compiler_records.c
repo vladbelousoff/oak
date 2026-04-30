@@ -10,7 +10,7 @@ void oak_compiler_register_native_types(
 
   for (int i = 0; i < opts->native_types.count; ++i)
   {
-    const struct oak_native_type_t* nt = opts->native_types.items[i];
+    const struct oak_bind_type_t* nt = opts->native_types.items[i];
     if (!nt)
       continue;
 
@@ -57,12 +57,12 @@ void oak_compiler_register_native_types(
 
     for (int fi = 0; fi < nt->field_count; ++fi)
     {
-      const struct oak_native_field_t* nf = &nt->fields[fi];
+      const struct oak_bind_field_t* nf = &nt->fields[fi];
       struct oak_record_field_t* sf = &proto.fields[fi];
       sf->name = nf->name;
       sf->name_len = nf->name_len;
       oak_type_clear(&sf->type);
-      if (nf->shape == OAK_NATIVE_FIELD_SHAPE_ARRAY)
+      if (nf->shape == OAK_BIND_SHAPE_ARRAY)
       {
         sf->type.kind = OAK_TYPE_KIND_ARRAY;
         sf->type.id = nf->field_type_id;
@@ -402,7 +402,7 @@ void oak_compiler_register_native_fns(
 
   for (int i = 0; i < opts->native_fns.count; ++i)
   {
-    const struct oak_native_fn_binding_t* b = &opts->native_fns.items[i];
+    const struct oak_bind_fn_t* b = &opts->native_fns.items[i];
     if (!b->name || !b->impl)
       continue;
 
@@ -433,7 +433,7 @@ void oak_compiler_register_native_fns(
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type_id;
     entry.return_type_id = b->return_type_id;
-    entry.return_kind = (b->return_shape == OAK_BIND_RETURN_ARRAY)
+    entry.return_kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
                             ? OAK_TYPE_KIND_ARRAY
                             : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;

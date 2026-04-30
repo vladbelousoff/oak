@@ -27,9 +27,9 @@ typedef struct oak_parse_box_t
   int disposed;
 } oak_parse_box_t;
 
-static const struct oak_native_type_t* s_diag_type;
-static const struct oak_native_type_t* s_ast_type;
-static const struct oak_native_type_t* s_parse_result_type;
+static const struct oak_bind_type_t* s_diag_type;
+static const struct oak_bind_type_t* s_ast_type;
+static const struct oak_bind_type_t* s_parse_result_type;
 
 static struct oak_obj_string_t* empty_str_obj(void)
 {
@@ -506,160 +506,160 @@ void oak_stdlib_register_parser(struct oak_compile_options_t* opts)
   if (!opts)
     return;
 
-  struct oak_native_type_t* diag =
-      oak_bind_type(opts, OAK_BIND_RECORD, "OakDiagnostic");
+  struct oak_bind_type_t* diag =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "OakDiagnostic");
   if (!diag)
     return;
   s_diag_type = diag;
   if (oak_bind_field(
           diag,
-          &(struct oak_native_field_t){ .name = "line",
+          &(struct oak_bind_field_t){ .name = "line",
                                      .field_type_id = OAK_TYPE_NUMBER,
                                      .getter = diag_get_line,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           diag,
-          &(struct oak_native_field_t){ .name = "column",
+          &(struct oak_bind_field_t){ .name = "column",
                                      .field_type_id = OAK_TYPE_NUMBER,
                                      .getter = diag_get_column,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           diag,
-          &(struct oak_native_field_t){ .name = "message",
+          &(struct oak_bind_field_t){ .name = "message",
                                      .field_type_id = OAK_TYPE_STRING,
                                      .getter = diag_get_message,
                                      .setter = null }) < 0)
     return;
 
-  struct oak_native_type_t* ast =
-      oak_bind_type(opts, OAK_BIND_RECORD, "OakAstNode");
+  struct oak_bind_type_t* ast =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "OakAstNode");
   if (!ast)
     return;
   s_ast_type = ast;
   if (oak_bind_field(
           ast,
-          &(struct oak_native_field_t){ .name = "kind",
+          &(struct oak_bind_field_t){ .name = "kind",
                                      .field_type_id = OAK_TYPE_STRING,
                                      .getter = ast_get_kind,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           ast,
-          &(struct oak_native_field_t){ .name = "child_count",
+          &(struct oak_bind_field_t){ .name = "child_count",
                                      .field_type_id = OAK_TYPE_NUMBER,
                                      .getter = ast_get_child_count,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           ast,
-          &(struct oak_native_field_t){ .name = "token_value",
+          &(struct oak_bind_field_t){ .name = "token_value",
                                      .field_type_id = OAK_TYPE_STRING,
                                      .getter = ast_get_token_value,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           ast,
-          &(struct oak_native_field_t){ .name = "is_terminal",
+          &(struct oak_bind_field_t){ .name = "is_terminal",
                                      .field_type_id = OAK_TYPE_BOOL,
                                      .getter = ast_get_is_terminal,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           ast,
-          &(struct oak_native_field_t){
+          &(struct oak_bind_field_t){
               .name = "children",
               .field_type_id = ast->type_id,
-              .shape = OAK_NATIVE_FIELD_SHAPE_ARRAY,
+              .shape = OAK_BIND_SHAPE_ARRAY,
               .getter = ast_get_children,
               .setter = null }) < 0)
     return;
   if (oak_bind_fn(
           opts,
-          &(oak_bind_fn_params_t){
+          &(struct oak_bind_fn_t){
               .kind = OAK_BIND_FN_INSTANCE_METHOD,
               .receiver_type_id = ast->type_id,
               .name = "child",
               .impl = ast_child_impl,
               .arity = 1,
               .return_type_id = ast->type_id,
-              .return_shape = OAK_BIND_RETURN_SCALAR,
+              .return_shape = OAK_BIND_SHAPE_SCALAR,
           }) != 0)
     return;
   if (oak_bind_fn(
           opts,
-          &(oak_bind_fn_params_t){
+          &(struct oak_bind_fn_t){
               .kind = OAK_BIND_FN_INSTANCE_METHOD,
               .receiver_type_id = ast->type_id,
               .name = "describe",
               .impl = ast_describe_impl,
               .arity = 0,
               .return_type_id = OAK_TYPE_STRING,
-              .return_shape = OAK_BIND_RETURN_SCALAR,
+              .return_shape = OAK_BIND_SHAPE_SCALAR,
           }) != 0)
     return;
 
-  struct oak_native_type_t* pres =
-      oak_bind_type(opts, OAK_BIND_RECORD, "OakParseResult");
+  struct oak_bind_type_t* pres =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "OakParseResult");
   if (!pres)
     return;
-  pres->destroy_instance = parse_box_destroy;
+  pres->destructor = parse_box_destroy;
   s_parse_result_type = pres;
   if (oak_bind_field(
           pres,
-          &(struct oak_native_field_t){ .name = "root",
+          &(struct oak_bind_field_t){ .name = "root",
                                      .field_type_id = ast->type_id,
                                      .getter = parse_get_root,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           pres,
-          &(struct oak_native_field_t){ .name = "error_count",
+          &(struct oak_bind_field_t){ .name = "error_count",
                                      .field_type_id = OAK_TYPE_NUMBER,
                                      .getter = parse_get_error_count,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_fn(
           opts,
-          &(oak_bind_fn_params_t){
+          &(struct oak_bind_fn_t){
               .kind = OAK_BIND_FN_INSTANCE_METHOD,
               .receiver_type_id = pres->type_id,
               .name = "errors",
               .impl = parse_errors_impl,
               .arity = 0,
               .return_type_id = diag->type_id,
-              .return_shape = OAK_BIND_RETURN_ARRAY,
+              .return_shape = OAK_BIND_SHAPE_ARRAY,
           }) != 0)
     return;
   if (oak_bind_fn(
           opts,
-          &(oak_bind_fn_params_t){
+          &(struct oak_bind_fn_t){
               .kind = OAK_BIND_FN_INSTANCE_METHOD,
               .receiver_type_id = pres->type_id,
               .name = "dispose",
               .impl = parse_dispose_impl,
               .arity = 0,
               .return_type_id = OAK_TYPE_VOID,
-              .return_shape = OAK_BIND_RETURN_SCALAR,
+              .return_shape = OAK_BIND_SHAPE_SCALAR,
           }) != 0)
     return;
 
-  struct oak_native_type_t* parser =
-      oak_bind_type(opts, OAK_BIND_RECORD, "OakParser");
+  struct oak_bind_type_t* parser =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "OakParser");
   if (!parser)
     return;
 
   if (oak_bind_fn(
           opts,
-          &(oak_bind_fn_params_t){
+          &(struct oak_bind_fn_t){
               .kind = OAK_BIND_FN_STATIC_METHOD,
               .receiver_type_id = parser->type_id,
               .name = "parse",
               .impl = oak_parser_parse_impl,
               .arity = 1,
               .return_type_id = pres->type_id,
-              .return_shape = OAK_BIND_RETURN_SCALAR,
+              .return_shape = OAK_BIND_SHAPE_SCALAR,
           }) != 0)
     return;
 }

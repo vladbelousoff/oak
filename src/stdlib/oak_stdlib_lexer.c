@@ -28,8 +28,8 @@ typedef struct oak_token_box_t
   oak_token_value_box_t value;
 } oak_token_box_t;
 
-static const struct oak_native_type_t* s_token_value_type;
-static const struct oak_native_type_t* s_token_type;
+static const struct oak_bind_type_t* s_token_value_type;
+static const struct oak_bind_type_t* s_token_type;
 
 static oak_token_value_box_t s_token_value_sentinel;
 
@@ -242,81 +242,81 @@ void oak_stdlib_register_lexer(struct oak_compile_options_t* opts)
   if (!opts)
     return;
 
-  struct oak_native_type_t* tval =
-      oak_bind_type(opts, OAK_BIND_RECORD, "OakTokenValue");
+  struct oak_bind_type_t* tval =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "OakTokenValue");
   if (!tval)
     return;
   s_token_value_type = tval;
   if (oak_bind_fn(
           opts,
-          &(oak_bind_fn_params_t){
+          &(struct oak_bind_fn_t){
               .kind = OAK_BIND_FN_INSTANCE_METHOD,
               .receiver_type_id = tval->type_id,
               .name = "to_string",
               .impl = oak_token_value_to_string_impl,
               .arity = 0,
               .return_type_id = OAK_TYPE_STRING,
-              .return_shape = OAK_BIND_RETURN_SCALAR,
+              .return_shape = OAK_BIND_SHAPE_SCALAR,
           }) != 0)
     return;
 
-  struct oak_native_type_t* tok =
-      oak_bind_type(opts, OAK_BIND_RECORD, "OakToken");
+  struct oak_bind_type_t* tok =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "OakToken");
   if (!tok)
     return;
-  tok->destroy_instance = oak_token_box_destroy;
+  tok->destructor = oak_token_box_destroy;
   s_token_type = tok;
   if (oak_bind_field(
           tok,
-          &(struct oak_native_field_t){ .name = "kind",
+          &(struct oak_bind_field_t){ .name = "kind",
                                      .field_type_id = OAK_TYPE_STRING,
                                      .getter = oak_token_get_kind,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           tok,
-          &(struct oak_native_field_t){ .name = "value",
+          &(struct oak_bind_field_t){ .name = "value",
                                      .field_type_id = tval->type_id,
                                      .getter = oak_token_get_value,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           tok,
-          &(struct oak_native_field_t){ .name = "line",
+          &(struct oak_bind_field_t){ .name = "line",
                                      .field_type_id = OAK_TYPE_NUMBER,
                                      .getter = oak_token_get_line,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           tok,
-          &(struct oak_native_field_t){ .name = "column",
+          &(struct oak_bind_field_t){ .name = "column",
                                      .field_type_id = OAK_TYPE_NUMBER,
                                      .getter = oak_token_get_column,
                                      .setter = null }) < 0)
     return;
   if (oak_bind_field(
           tok,
-          &(struct oak_native_field_t){ .name = "offset",
+          &(struct oak_bind_field_t){ .name = "offset",
                                      .field_type_id = OAK_TYPE_NUMBER,
                                      .getter = oak_token_get_offset,
                                      .setter = null }) < 0)
     return;
 
-  struct oak_native_type_t* lexer =
-      oak_bind_type(opts, OAK_BIND_RECORD, "OakLexer");
+  struct oak_bind_type_t* lexer =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "OakLexer");
   if (!lexer)
     return;
 
   if (oak_bind_fn(
           opts,
-          &(oak_bind_fn_params_t){
+          &(struct oak_bind_fn_t){
               .kind = OAK_BIND_FN_STATIC_METHOD,
               .receiver_type_id = lexer->type_id,
               .name = "tokenize",
               .impl = oak_lexer_tokenize_impl,
               .arity = 1,
               .return_type_id = tok->type_id,
-              .return_shape = OAK_BIND_RETURN_ARRAY,
+              .return_shape = OAK_BIND_SHAPE_ARRAY,
           }) != 0)
     return;
 }

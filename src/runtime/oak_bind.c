@@ -35,9 +35,9 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
 
 /* ---------- Binding API ---------- */
 
-struct oak_native_type_t* oak_bind_type(struct oak_compile_options_t* opts,
-                                        const enum oak_bind_type_kind_t kind,
-                                        const char* name)
+struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
+                                      const enum oak_bind_type_kind_t kind,
+                                      const char* name)
 {
   if (!opts || !name)
     return null;
@@ -45,27 +45,27 @@ struct oak_native_type_t* oak_bind_type(struct oak_compile_options_t* opts,
   if (opts->next_type_id >= OAK_MAX_TYPES)
     return null;
 
-  struct oak_native_type_t* t =
-      oak_alloc(sizeof(struct oak_native_type_t), OAK_SRC_LOC);
+  struct oak_bind_type_t* t =
+      oak_alloc(sizeof(struct oak_bind_type_t), OAK_SRC_LOC);
   t->kind = kind;
   t->name = name;
   t->name_len = strlen(name);
   t->type_id = opts->next_type_id++;
   t->field_count = 0;
-  t->destroy_instance = null;
+  t->destructor = null;
 
   OAK_DYNARR_PUSH(opts->native_types, t);
   return t;
 }
 
-int oak_bind_field(struct oak_native_type_t* type,
-                   const struct oak_native_field_t* p)
+int oak_bind_field(struct oak_bind_type_t* type,
+                   const struct oak_bind_field_t* p)
 {
   if (!type || !p)
     return -1;
   if (!p->name || !p->getter)
     return -1;
-  if (type->field_count >= OAK_MAX_NATIVE_FIELDS)
+  if (type->field_count >= OAK_BIND_MAX_FIELDS)
     return -1;
 
   const usize len = strlen(p->name);
@@ -78,7 +78,7 @@ int oak_bind_field(struct oak_native_type_t* type,
       return -1;
   }
 
-  struct oak_native_field_t* f = &type->fields[type->field_count++];
+  struct oak_bind_field_t* f = &type->fields[type->field_count++];
   f->name = p->name;
   f->name_len = len;
   f->field_type_id = p->field_type_id;
@@ -89,14 +89,14 @@ int oak_bind_field(struct oak_native_type_t* type,
 }
 
 int oak_bind_fn(struct oak_compile_options_t* opts,
-                const oak_bind_fn_params_t* p)
+                const struct oak_bind_fn_t* p)
 {
   if (!opts || !p)
     return -1;
   if (!p->name || !p->impl || p->arity < 0)
     return -1;
-  if (p->return_shape != OAK_BIND_RETURN_SCALAR &&
-      p->return_shape != OAK_BIND_RETURN_ARRAY)
+  if (p->return_shape != OAK_BIND_SHAPE_SCALAR &&
+      p->return_shape != OAK_BIND_SHAPE_ARRAY)
     return -1;
   if (p->kind == OAK_BIND_FN_GLOBAL)
   {
@@ -118,7 +118,7 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
 
 /* ---------- Runtime helpers ---------- */
 
-struct oak_value_t oak_native_record_new(const struct oak_native_type_t* type,
+struct oak_value_t oak_native_record_new(const struct oak_bind_type_t* type,
                                          void* instance)
 {
   oak_assert(type != null);
