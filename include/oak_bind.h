@@ -1,6 +1,7 @@
 #pragma once
 
 #include "oak_compiler.h"
+#include "oak_dynarr.h"
 #include "oak_parser.h"
 #include "oak_type_id.h"
 #include "oak_types.h"
@@ -123,15 +124,12 @@ struct oak_compile_options_t
 {
   /* Optional: path or label for the Oak source (borrowed). Set on the chunk. */
   const char* source_name;
+
   /* Native record types (owned; populated by oak_bind_type). */
-  struct oak_native_type_t** native_types;
-  int native_type_count;
-  int native_type_capacity; /* private */
+  OAK_DYNARR(struct oak_native_type_t*) native_types;
 
   /* Native function / method bindings (owned; populated by oak_bind_fn). */
-  struct oak_native_fn_binding_t* native_fns;
-  int native_fn_count;
-  int native_fn_capacity; /* private */
+  OAK_DYNARR(struct oak_native_fn_binding_t) native_fns;
 
   /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
    * oak_compile_options_init and incremented by each oak_bind_type call. */

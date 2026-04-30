@@ -8,54 +8,40 @@ void oak_enum_registry_init(struct oak_enum_registry_t* r)
 {
   oak_hash_table_init(&r->by_name);
   oak_hash_table_init(&r->enum_names);
-  r->variants = null;
-  r->count = 0;
-  r->capacity = 0;
+  OAK_DYNARR_INIT(r->variants);
 }
 
 void oak_enum_registry_free(struct oak_enum_registry_t* r)
 {
   oak_hash_table_free(&r->by_name);
   oak_hash_table_free(&r->enum_names);
-  if (r->variants)
-    oak_free(r->variants, OAK_SRC_LOC);
-  r->variants = null;
-  r->count = 0;
-  r->capacity = 0;
+  OAK_DYNARR_FREE(r->variants);
 }
 
 struct oak_enum_variant_t*
 oak_enum_registry_insert(struct oak_enum_registry_t* r,
                          const struct oak_enum_variant_t* v)
 {
-  if (r->count >= r->capacity)
-  {
-    const int new_cap = r->capacity < 8 ? 8 : r->capacity * 2;
-    r->variants = oak_realloc(
-        r->variants, (usize)new_cap * sizeof *r->variants, OAK_SRC_LOC);
-    r->capacity = new_cap;
-  }
-  const int idx = r->count;
-  r->variants[idx] = *v;
-  r->count++;
+  OAK_DYNARR_PUSH(r->variants, *v);
+  const int idx = r->variants.count - 1;
 
   /* Index by unqualified variant name. */
   oak_hash_table_insert(
-      &r->by_name, r->variants[idx].name, r->variants[idx].name_len, idx);
+      &r->by_name, r->variants.items[idx].name, r->variants.items[idx].name_len, idx);
 
   /* Index the enum type name as a set entry (value 1) if not already present.
    */
   if (oak_hash_table_get(&r->enum_names,
-                         r->variants[idx].enum_name,
-                         r->variants[idx].enum_name_len) < 0)
+                         r->variants.items[idx].enum_name,
+                         r->variants.items[idx].enum_name_len) < 0)
   {
     oak_hash_table_insert(&r->enum_names,
-                          r->variants[idx].enum_name,
-                          r->variants[idx].enum_name_len,
+                          r->variants.items[idx].enum_name,
+                          r->variants.items[idx].enum_name_len,
                           1);
   }
 
-  return &r->variants[idx];
+  return &r->variants.items[idx];
 }
 
 const struct oak_enum_variant_t* oak_enum_registry_find(
@@ -64,7 +50,7 @@ const struct oak_enum_variant_t* oak_enum_registry_find(
   const int idx = oak_hash_table_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
-  return &r->variants[idx];
+  return &r->variants.items[idx];
 }
 
 const struct oak_enum_variant_t*
@@ -76,9 +62,9 @@ oak_enum_registry_find_qualified(const struct oak_enum_registry_t* r,
 {
   /* Linear scan: qualified lookup is rare (only EnumName.Variant expressions).
    */
-  for (int i = 0; i < r->count; ++i)
+  for (int i = 0; i < r->variants.count; ++i)
   {
-    const struct oak_enum_variant_t* v = &r->variants[i];
+    const struct oak_enum_variant_t* v = &r->variants.items[i];
     if (oak_name_eq(v->enum_name, v->enum_name_len, enum_name, enum_name_len) &&
         oak_name_eq(v->name, v->name_len, variant_name, variant_name_len))
       return v;

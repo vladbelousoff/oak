@@ -1,15 +1,16 @@
 #pragma once
 
 #include "oak_bind.h"
+#include "oak_chunk.h"
 #include "oak_compiler.h"
 #include "oak_count_of.h"
+#include "oak_dynarr.h"
 #include "oak_hash_table.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value.h"
-#include "oak_chunk.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -90,10 +91,8 @@ struct oak_registered_fn_t
  * Lookup is O(1) via the hash table; entries owns the storage. */
 struct oak_fn_registry_t
 {
-  struct oak_hash_table_t by_name;     /* name bytes → index into entries */
-  struct oak_registered_fn_t* entries; /* oak_realloc'd growable array    */
-  int count;
-  int capacity;
+  struct oak_hash_table_t by_name; /* name bytes → index into entries */
+  OAK_DYNARR(struct oak_registered_fn_t) entries;
 };
 
 /* ---------- Builtin method tables (fixed, small, static sets) ---------- */
@@ -155,14 +154,9 @@ struct oak_registered_record_t
   oak_type_id_t type_id;
   int field_count;
   struct oak_record_field_t fields[OAK_MAX_RECORD_FIELDS];
-  /* Methods: growable array.  Freed by oak_record_registry_free. */
-  int method_count;
-  int method_capacity;
-  struct oak_registered_fn_t* methods;
-  /* Static methods: TypeName.method(...).  Freed by oak_record_registry_free. */
-  int static_method_count;
-  int static_method_capacity;
-  struct oak_registered_fn_t* static_methods;
+  /* Methods/static methods: growable arrays freed by oak_record_registry_free. */
+  OAK_DYNARR(struct oak_registered_fn_t) methods;
+  OAK_DYNARR(struct oak_registered_fn_t) static_methods;
 };
 
 /* Unbounded registry of user record types.
@@ -170,10 +164,8 @@ struct oak_registered_record_t
  * (type_id lookups are infrequent and record counts remain small). */
 struct oak_record_registry_t
 {
-  struct oak_hash_table_t by_name;         /* name bytes → index */
-  struct oak_registered_record_t* entries; /* growable array     */
-  int count;
-  int capacity;
+  struct oak_hash_table_t by_name; /* name bytes → index */
+  OAK_DYNARR(struct oak_registered_record_t) entries;
 };
 
 /* ---------- Enum registry ---------- */
@@ -197,11 +189,9 @@ struct oak_enum_variant_t
  * Qualified lookup (EnumName::Variant) uses a linear scan — it is rare. */
 struct oak_enum_registry_t
 {
-  struct oak_hash_table_t by_name;     /* variant name → index into variants */
-  struct oak_hash_table_t enum_names;  /* enum type name → 1 (set)           */
-  struct oak_enum_variant_t* variants; /* growable array                     */
-  int count;
-  int capacity;
+  struct oak_hash_table_t by_name;    /* variant name → index into variants */
+  struct oak_hash_table_t enum_names; /* enum type name → 1 (set)           */
+  OAK_DYNARR(struct oak_enum_variant_t) variants;
 };
 
 /* ---------- Compiler ---------- */

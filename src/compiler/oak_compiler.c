@@ -160,7 +160,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
 
   /* Register native types before any source-level passes so Oak source can
    * reference native type names in function signatures, record fields, etc. */
-  if (opts && opts->native_type_count > 0)
+  if (opts && opts->native_types.count > 0)
   {
     oak_compiler_register_native_types(&compiler, opts);
     if (compiler.has_error)
@@ -173,7 +173,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
 
   /* Register native functions and methods after types (receiver ids need to
    * be in the record registry first). */
-  if (opts && opts->native_fn_count > 0)
+  if (opts && opts->native_fns.count > 0)
   {
     oak_compiler_register_native_fns(&compiler, opts);
     if (compiler.has_error)

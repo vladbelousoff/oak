@@ -129,13 +129,13 @@ OAK_TEST_DECL(BindFnGlobalRegisters)
                                .return_type_id = OAK_TYPE_NUMBER,
                                .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == 0);
-  OAK_CHECK(opts.native_fn_count == 1);
-  OAK_CHECK(strcmp(opts.native_fns[0].name, "my_global") == 0);
-  OAK_CHECK(opts.native_fns[0].receiver_type_id == OAK_TYPE_VOID);
-  OAK_CHECK(opts.native_fns[0].arity == 1);
-  OAK_CHECK(opts.native_fns[0].return_type_id == OAK_TYPE_NUMBER);
-  OAK_CHECK(opts.native_fns[0].return_shape == OAK_BIND_RETURN_SCALAR);
-  OAK_CHECK(opts.native_fns[0].impl == stub_fn);
+  OAK_CHECK(opts.native_fns.count == 1);
+  OAK_CHECK(strcmp(opts.native_fns.items[0].name, "my_global") == 0);
+  OAK_CHECK(opts.native_fns.items[0].receiver_type_id == OAK_TYPE_VOID);
+  OAK_CHECK(opts.native_fns.items[0].arity == 1);
+  OAK_CHECK(opts.native_fns.items[0].return_type_id == OAK_TYPE_NUMBER);
+  OAK_CHECK(opts.native_fns.items[0].return_shape == OAK_BIND_RETURN_SCALAR);
+  OAK_CHECK(opts.native_fns.items[0].impl == stub_fn);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -160,9 +160,9 @@ OAK_TEST_DECL(BindFnMethodRegisters)
                                .return_type_id = OAK_TYPE_NUMBER,
                                .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == 0);
-  OAK_CHECK(opts.native_fn_count == 1);
-  OAK_CHECK(opts.native_fns[0].receiver_type_id == t->type_id);
-  OAK_CHECK(opts.native_fns[0].arity == 0);
+  OAK_CHECK(opts.native_fns.count == 1);
+  OAK_CHECK(opts.native_fns.items[0].receiver_type_id == t->type_id);
+  OAK_CHECK(opts.native_fns.items[0].arity == 0);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -184,7 +184,7 @@ OAK_TEST_DECL(BindFnNullNameRejected)
                                .return_type_id = OAK_TYPE_NUMBER,
                                .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == -1);
-  OAK_CHECK(opts.native_fn_count == 0);
+  OAK_CHECK(opts.native_fns.count == 0);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -206,7 +206,7 @@ OAK_TEST_DECL(BindFnNullImplRejected)
                                .return_type_id = OAK_TYPE_NUMBER,
                                .return_shape = OAK_BIND_RETURN_SCALAR });
   OAK_CHECK(r == -1);
-  OAK_CHECK(opts.native_fn_count == 0);
+  OAK_CHECK(opts.native_fns.count == 0);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -266,7 +266,7 @@ OAK_TEST_DECL(BindFnMultipleRegistrations)
                                          .arity = 2,
                                          .return_type_id = OAK_TYPE_BOOL,
                                          .return_shape = OAK_BIND_RETURN_SCALAR }) == 0);
-  OAK_CHECK(opts.native_fn_count == 3);
+  OAK_CHECK(opts.native_fns.count == 3);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;

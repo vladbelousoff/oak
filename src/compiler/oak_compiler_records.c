@@ -5,12 +5,12 @@
 void oak_compiler_register_native_types(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
-  if (!opts || opts->native_type_count == 0)
+  if (!opts || opts->native_types.count == 0)
     return;
 
-  for (int i = 0; i < opts->native_type_count; ++i)
+  for (int i = 0; i < opts->native_types.count; ++i)
   {
-    const struct oak_native_type_t* nt = opts->native_types[i];
+    const struct oak_native_type_t* nt = opts->native_types.items[i];
     if (!nt)
       continue;
 
@@ -44,9 +44,6 @@ void oak_compiler_register_native_types(
     proto.name_len = nt->name_len;
     proto.type_id = tid;
     proto.field_count = nt->field_count;
-    proto.method_count = 0;
-    proto.method_capacity = 0;
-    proto.methods = null;
 
     if (nt->field_count > OAK_MAX_RECORD_FIELDS)
     {
@@ -91,47 +88,29 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 void oak_record_registry_init(struct oak_record_registry_t* r)
 {
   oak_hash_table_init(&r->by_name);
-  r->entries = null;
-  r->count = 0;
-  r->capacity = 0;
+  OAK_DYNARR_INIT(r->entries);
 }
 
 void oak_record_registry_free(struct oak_record_registry_t* r)
 {
   oak_hash_table_free(&r->by_name);
-  if (r->entries)
+  for (int i = 0; i < r->entries.count; ++i)
   {
-    for (int i = 0; i < r->count; ++i)
-    {
-      if (r->entries[i].methods)
-        oak_free(r->entries[i].methods, OAK_SRC_LOC);
-      if (r->entries[i].static_methods)
-        oak_free(r->entries[i].static_methods, OAK_SRC_LOC);
-    }
-    oak_free(r->entries, OAK_SRC_LOC);
+    OAK_DYNARR_FREE(r->entries.items[i].methods);
+    OAK_DYNARR_FREE(r->entries.items[i].static_methods);
   }
-  r->entries = null;
-  r->count = 0;
-  r->capacity = 0;
+  OAK_DYNARR_FREE(r->entries);
 }
 
 struct oak_registered_record_t*
 oak_record_registry_insert(struct oak_record_registry_t* r,
                            const struct oak_registered_record_t* s)
 {
-  if (r->count >= r->capacity)
-  {
-    const int new_cap = r->capacity < 8 ? 8 : r->capacity * 2;
-    r->entries = oak_realloc(
-        r->entries, (usize)new_cap * sizeof *r->entries, OAK_SRC_LOC);
-    r->capacity = new_cap;
-  }
-  const int idx = r->count;
-  r->entries[idx] = *s;
-  r->count++;
+  OAK_DYNARR_PUSH(r->entries, *s);
+  const int idx = r->entries.count - 1;
   oak_hash_table_insert(
-      &r->by_name, r->entries[idx].name, r->entries[idx].name_len, idx);
-  return &r->entries[idx];
+      &r->by_name, r->entries.items[idx].name, r->entries.items[idx].name_len, idx);
+  return &r->entries.items[idx];
 }
 
 const struct oak_registered_record_t* oak_record_registry_find_by_name(
@@ -140,7 +119,7 @@ const struct oak_registered_record_t* oak_record_registry_find_by_name(
   const int idx = oak_hash_table_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
-  return &r->entries[idx];
+  return &r->entries.items[idx];
 }
 
 const struct oak_registered_record_t*
@@ -149,10 +128,10 @@ oak_record_registry_find_by_type_id(const struct oak_record_registry_t* r,
 {
   if (type_id == OAK_TYPE_VOID)
     return null;
-  for (int i = 0; i < r->count; ++i)
+  for (int i = 0; i < r->entries.count; ++i)
   {
-    if (r->entries[i].type_id == type_id)
-      return &r->entries[i];
+    if (r->entries.items[i].type_id == type_id)
+      return &r->entries.items[i];
   }
   return null;
 }
@@ -192,11 +171,11 @@ const struct oak_registered_fn_t* oak_compiler_find_record_static_method(
     const char* name,
     const usize len)
 {
-  if (!sd || !sd->static_methods)
+  if (!sd)
     return null;
-  for (int i = 0; i < sd->static_method_count; ++i)
+  for (int i = 0; i < sd->static_methods.count; ++i)
   {
-    const struct oak_registered_fn_t* m = &sd->static_methods[i];
+    const struct oak_registered_fn_t* m = &sd->static_methods.items[i];
     if (oak_name_eq(m->name, m->name_len, name, len))
       return m;
   }
@@ -311,7 +290,6 @@ void oak_compiler_register_program_records(struct oak_compiler_t* c,
     proto.name_len = name_len;
     proto.type_id = oak_type_registry_intern(&c->types, name, name_len);
     proto.field_count = 0;
-    proto.method_count = 0;
 
     if (proto.type_id < 0)
     {
@@ -404,33 +382,14 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 static void record_append_method(struct oak_registered_record_t* sd,
                                  const struct oak_registered_fn_t* m)
 {
-  if (sd->method_count >= sd->method_capacity)
-  {
-    const int new_cap = sd->method_capacity < 4 ? 4 : sd->method_capacity * 2;
-    sd->methods = oak_realloc(
-        sd->methods,
-        (usize)new_cap * sizeof(struct oak_registered_fn_t),
-        OAK_SRC_LOC);
-    sd->method_capacity = new_cap;
-  }
-  sd->methods[sd->method_count++] = *m;
+  OAK_DYNARR_PUSH(sd->methods, *m);
 }
 
 /* Append a static method entry to a record's growable static_methods array. */
 static void record_append_static_method(struct oak_registered_record_t* sd,
-                                       const struct oak_registered_fn_t* m)
+                                        const struct oak_registered_fn_t* m)
 {
-  if (sd->static_method_count >= sd->static_method_capacity)
-  {
-    const int new_cap =
-        sd->static_method_capacity < 4 ? 4 : sd->static_method_capacity * 2;
-    sd->static_methods = oak_realloc(
-        sd->static_methods,
-        (usize)new_cap * sizeof(struct oak_registered_fn_t),
-        OAK_SRC_LOC);
-    sd->static_method_capacity = new_cap;
-  }
-  sd->static_methods[sd->static_method_count++] = *m;
+  OAK_DYNARR_PUSH(sd->static_methods, *m);
 }
 
 /* ---------- Native function registration ---------- */
@@ -438,12 +397,12 @@ static void record_append_static_method(struct oak_registered_record_t* sd,
 void oak_compiler_register_native_fns(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
-  if (!opts || opts->native_fn_count == 0)
+  if (!opts || opts->native_fns.count == 0)
     return;
 
-  for (int i = 0; i < opts->native_fn_count; ++i)
+  for (int i = 0; i < opts->native_fns.count; ++i)
   {
-    const struct oak_native_fn_binding_t* b = &opts->native_fns[i];
+    const struct oak_native_fn_binding_t* b = &opts->native_fns.items[i];
     if (!b->name || !b->impl)
       continue;
 
@@ -508,10 +467,10 @@ void oak_compiler_register_native_fns(
       if (b->kind == OAK_BIND_FN_STATIC_METHOD)
       {
         entry.arity = vm_arity;
-        for (int j = 0; j < sd->static_method_count; ++j)
+        for (int j = 0; j < sd->static_methods.count; ++j)
         {
-          if (oak_name_eq(sd->static_methods[j].name,
-                          sd->static_methods[j].name_len,
+          if (oak_name_eq(sd->static_methods.items[j].name,
+                          sd->static_methods.items[j].name_len,
                           b->name,
                           name_len))
           {
@@ -530,10 +489,10 @@ void oak_compiler_register_native_fns(
       {
         /* OAK_BIND_FN_INSTANCE_METHOD — arity includes implicit self */
         entry.arity = vm_arity;
-        for (int j = 0; j < sd->method_count; ++j)
+        for (int j = 0; j < sd->methods.count; ++j)
         {
           if (oak_name_eq(
-                  sd->methods[j].name, sd->methods[j].name_len, b->name, name_len))
+                  sd->methods.items[j].name, sd->methods.items[j].name_len, b->name, name_len))
           {
             oak_compiler_error_at(c,
                                   null,

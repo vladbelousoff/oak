@@ -5,38 +5,24 @@
 void oak_fn_registry_init(struct oak_fn_registry_t* r)
 {
   oak_hash_table_init(&r->by_name);
-  r->entries = null;
-  r->count = 0;
-  r->capacity = 0;
+  OAK_DYNARR_INIT(r->entries);
 }
 
 void oak_fn_registry_free(struct oak_fn_registry_t* r)
 {
   oak_hash_table_free(&r->by_name);
-  if (r->entries)
-    oak_free(r->entries, OAK_SRC_LOC);
-  r->entries = null;
-  r->count = 0;
-  r->capacity = 0;
+  OAK_DYNARR_FREE(r->entries);
 }
 
 struct oak_registered_fn_t*
 oak_fn_registry_insert(struct oak_fn_registry_t* r,
                        const struct oak_registered_fn_t* fn)
 {
-  if (r->count >= r->capacity)
-  {
-    const int new_cap = r->capacity < 8 ? 8 : r->capacity * 2;
-    r->entries = oak_realloc(
-        r->entries, (usize)new_cap * sizeof *r->entries, OAK_SRC_LOC);
-    r->capacity = new_cap;
-  }
-  const int idx = r->count;
-  r->entries[idx] = *fn;
-  r->count++;
+  OAK_DYNARR_PUSH(r->entries, *fn);
+  const int idx = r->entries.count - 1;
   oak_hash_table_insert(
-      &r->by_name, r->entries[idx].name, r->entries[idx].name_len, idx);
-  return &r->entries[idx];
+      &r->by_name, r->entries.items[idx].name, r->entries.items[idx].name_len, idx);
+  return &r->entries.items[idx];
 }
 
 const struct oak_registered_fn_t* oak_fn_registry_find(
@@ -45,7 +31,7 @@ const struct oak_registered_fn_t* oak_fn_registry_find(
   const int idx = oak_hash_table_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
-  return &r->entries[idx];
+  return &r->entries.items[idx];
 }
 
 /* ---------- AST helpers ---------- */
@@ -303,9 +289,9 @@ static void register_method_on_record(struct oak_compiler_t* c,
   const struct oak_ast_node_t* self_param =
       oak_compiler_fn_decl_self_param(item);
 
-  for (int i = 0; i < sd->method_count; ++i)
+  for (int i = 0; i < sd->methods.count; ++i)
   {
-    const struct oak_registered_fn_t* e = &sd->methods[i];
+    const struct oak_registered_fn_t* e = &sd->methods.items[i];
     if (oak_name_eq(e->name, e->name_len, name, name_len))
     {
       oak_compiler_error_at(c,
@@ -316,9 +302,9 @@ static void register_method_on_record(struct oak_compiler_t* c,
       return;
     }
   }
-  for (int i = 0; i < sd->static_method_count; ++i)
+  for (int i = 0; i < sd->static_methods.count; ++i)
   {
-    const struct oak_registered_fn_t* e = &sd->static_methods[i];
+    const struct oak_registered_fn_t* e = &sd->static_methods.items[i];
     if (oak_name_eq(e->name, e->name_len, name, name_len))
     {
       oak_compiler_error_at(c,
@@ -343,35 +329,14 @@ static void register_method_on_record(struct oak_compiler_t* c,
     struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
     slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
     slot.arity = total_arity;
-
-    if (sd->method_count >= sd->method_capacity)
-    {
-      const int new_cap = sd->method_capacity < 4 ? 4 : sd->method_capacity * 2;
-      sd->methods = oak_realloc(
-          sd->methods,
-          (usize)new_cap * sizeof(struct oak_registered_fn_t),
-          OAK_SRC_LOC);
-      sd->method_capacity = new_cap;
-    }
-    sd->methods[sd->method_count++] = slot;
+    OAK_DYNARR_PUSH(sd->methods, slot);
   }
   else
   {
     struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity);
     slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
     slot.arity = explicit_arity;
-
-    if (sd->static_method_count >= sd->static_method_capacity)
-    {
-      const int new_cap =
-          sd->static_method_capacity < 4 ? 4 : sd->static_method_capacity * 2;
-      sd->static_methods = oak_realloc(
-          sd->static_methods,
-          (usize)new_cap * sizeof(struct oak_registered_fn_t),
-          OAK_SRC_LOC);
-      sd->static_method_capacity = new_cap;
-    }
-    sd->static_methods[sd->static_method_count++] = slot;
+    OAK_DYNARR_PUSH(sd->static_methods, slot);
   }
 }
 
@@ -397,12 +362,12 @@ static void register_record_body_methods(struct oak_compiler_t* c,
     const char* rname = oak_token_text(name_ident->token);
     const usize rlen = oak_token_length(name_ident->token);
     struct oak_registered_record_t* sd = null;
-    for (int i = 0; i < c->records.count; ++i)
+    for (int i = 0; i < c->records.entries.count; ++i)
     {
       if (oak_name_eq(
-              c->records.entries[i].name, c->records.entries[i].name_len, rname, rlen))
+              c->records.entries.items[i].name, c->records.entries.items[i].name_len, rname, rlen))
       {
-        sd = &c->records.entries[i];
+        sd = &c->records.entries.items[i];
         break;
       }
     }
@@ -631,9 +596,9 @@ void oak_compiler_compile_function_body(
 
 void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
 {
-  for (int i = 0; i < c->fns.count; ++i)
+  for (int i = 0; i < c->fns.entries.count; ++i)
   {
-    const struct oak_registered_fn_t* e = &c->fns.entries[i];
+    const struct oak_registered_fn_t* e = &c->fns.entries.items[i];
     if (!e->decl)
       continue;
     struct oak_value_t fn_val = c->chunk->constants[e->const_idx];
@@ -647,12 +612,12 @@ void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
 
 void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
 {
-  for (int s = 0; s < c->records.count; ++s)
+  for (int s = 0; s < c->records.entries.count; ++s)
   {
-    const struct oak_registered_record_t* sd = &c->records.entries[s];
-    for (int m = 0; m < sd->method_count; ++m)
+    const struct oak_registered_record_t* sd = &c->records.entries.items[s];
+    for (int m = 0; m < sd->methods.count; ++m)
     {
-      const struct oak_registered_fn_t* me = &sd->methods[m];
+      const struct oak_registered_fn_t* me = &sd->methods.items[m];
       if (!me->decl)
         continue;
       struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
@@ -662,9 +627,9 @@ void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
       if (c->has_error)
         return;
     }
-    for (int m = 0; m < sd->static_method_count; ++m)
+    for (int m = 0; m < sd->static_methods.count; ++m)
     {
-      const struct oak_registered_fn_t* me = &sd->static_methods[m];
+      const struct oak_registered_fn_t* me = &sd->static_methods.items[m];
       if (!me->decl)
         continue;
       struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
