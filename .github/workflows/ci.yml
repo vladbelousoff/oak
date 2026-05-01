@@ -80,9 +80,9 @@ jobs:
 
       - name: Stage WASM into Vite public dir
         run: |
-          mkdir -p public/build_wasm
-          cp build_wasm/oak_wasm.js public/build_wasm/
-          cp build_wasm/oak_wasm.wasm public/build_wasm/
+          mkdir -p www/public/build_wasm
+          cp build_wasm/oak_wasm.js www/public/build_wasm/
+          cp build_wasm/oak_wasm.wasm www/public/build_wasm/
 
       - name: Install JS deps and build
         run: npm ci && npm run build
