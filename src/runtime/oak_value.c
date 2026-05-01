@@ -493,18 +493,6 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
   return 0;
 }
 
-void oak_value_incref(const struct oak_value_t value)
-{
-  if (oak_is_obj(value))
-    oak_obj_incref(oak_as_obj(value));
-}
-
-void oak_value_decref(const struct oak_value_t value)
-{
-  if (oak_is_obj(value))
-    oak_obj_decref(oak_as_obj(value));
-}
-
 #define OAK_JSON_MAX_DEPTH 64u
 
 /* JSON is built with yyjson; only Oak value walking lives here. */

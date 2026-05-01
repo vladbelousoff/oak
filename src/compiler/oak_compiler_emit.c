@@ -12,9 +12,7 @@ void oak_compiler_emit_op(struct oak_compiler_t* c,
                           const struct oak_code_loc_t loc)
 {
   oak_compiler_emit_byte(c, op, loc);
-  const struct oak_op_info_t* info = oak_op_get_info(op);
-  if (info)
-    c->scope.stack_depth += info->stack_effect;
+  c->scope.stack_depth += oak_op_info[op].stack_effect;
 }
 
 void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
@@ -24,9 +22,7 @@ void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
 {
   oak_compiler_emit_byte(c, op, loc);
   oak_compiler_emit_byte(c, arg, loc);
-  const struct oak_op_info_t* info = oak_op_get_info(op);
-  if (info)
-    c->scope.stack_depth += info->stack_effect;
+  c->scope.stack_depth += oak_op_info[op].stack_effect;
 }
 
 void oak_compiler_emit_op_u8_u16(struct oak_compiler_t* c,
@@ -39,9 +35,7 @@ void oak_compiler_emit_op_u8_u16(struct oak_compiler_t* c,
   oak_compiler_emit_byte(c, a, loc);
   oak_compiler_emit_byte(c, (u8)(b >> 8u), loc);
   oak_compiler_emit_byte(c, (u8)(b & 0xffu), loc);
-  const struct oak_op_info_t* info = oak_op_get_info(op);
-  if (info)
-    c->scope.stack_depth += info->stack_effect;
+  c->scope.stack_depth += oak_op_info[op].stack_effect;
 }
 
 u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
@@ -83,9 +77,7 @@ void oak_compiler_emit_constant(struct oak_compiler_t* c,
     oak_compiler_emit_byte(c, OAK_OP_CONSTANT_LONG, loc);
     oak_compiler_emit_byte(c, (u8)(idx >> 8), loc);
     oak_compiler_emit_byte(c, (u8)(idx), loc);
-    const struct oak_op_info_t* info = oak_op_get_info(OAK_OP_CONSTANT_LONG);
-    if (info)
-      c->scope.stack_depth += info->stack_effect;
+    c->scope.stack_depth += oak_op_info[OAK_OP_CONSTANT_LONG].stack_effect;
   }
 }
 
@@ -94,22 +86,24 @@ usize oak_compiler_emit_jump(struct oak_compiler_t* c,
                              const struct oak_code_loc_t loc)
 {
   oak_compiler_emit_op(c, op, loc);
-  /* Reserve 4 bytes for the 32-bit forward jump offset (big-endian). */
+  /* Reserve 2 bytes for the 16-bit forward jump offset (big-endian). */
   oak_compiler_emit_byte(c, 0xff, loc);
   oak_compiler_emit_byte(c, 0xff, loc);
-  oak_compiler_emit_byte(c, 0xff, loc);
-  oak_compiler_emit_byte(c, 0xff, loc);
-  return c->chunk->count - 4;
+  return c->chunk->count - 2;
 }
 
 void oak_compiler_patch_jump(struct oak_compiler_t* c, const usize offset)
 {
-  /* Distance from end of the 4-byte operand to the current position. */
-  const usize jump = c->chunk->count - offset - 4;
-  c->chunk->bytecode[offset] = (u8)(jump >> 24);
-  c->chunk->bytecode[offset + 1] = (u8)(jump >> 16);
-  c->chunk->bytecode[offset + 2] = (u8)(jump >> 8);
-  c->chunk->bytecode[offset + 3] = (u8)(jump);
+  /* Distance from end of the 2-byte operand to the current position. */
+  const usize jump = c->chunk->count - offset - 2;
+  if (jump > 0xFFFFu)
+  {
+    oak_compiler_error_at(
+        c, null, "jump distance %zu exceeds 16-bit limit (max 65535)", jump);
+    return;
+  }
+  c->chunk->bytecode[offset] = (u8)(jump >> 8);
+  c->chunk->bytecode[offset + 1] = (u8)(jump);
 }
 
 void oak_compiler_patch_jumps(struct oak_compiler_t* c,
@@ -125,10 +119,16 @@ void oak_compiler_emit_loop(struct oak_compiler_t* c,
                             const struct oak_code_loc_t loc)
 {
   oak_compiler_emit_op(c, OAK_OP_LOOP, loc);
-  /* The 4-byte operand itself is included in the backward distance. */
-  const usize jump = c->chunk->count - loop_start + 4;
-  oak_compiler_emit_byte(c, (u8)(jump >> 24), loc);
-  oak_compiler_emit_byte(c, (u8)(jump >> 16), loc);
+  /* The 2-byte operand itself is included in the backward distance. */
+  const usize jump = c->chunk->count - loop_start + 2;
+  if (jump > 0xFFFFu)
+  {
+    oak_compiler_error_at(
+        c, null, "loop distance %zu exceeds 16-bit limit (max 65535)", jump);
+    oak_compiler_emit_byte(c, 0, loc);
+    oak_compiler_emit_byte(c, 0, loc);
+    return;
+  }
   oak_compiler_emit_byte(c, (u8)(jump >> 8), loc);
   oak_compiler_emit_byte(c, (u8)(jump), loc);
 }
@@ -137,8 +137,22 @@ void oak_compiler_emit_pops(struct oak_compiler_t* c,
                             int count,
                             const struct oak_code_loc_t loc)
 {
-  while (count-- > 0)
+  if (count <= 0)
+    return;
+  if (count == 1)
+  {
     oak_compiler_emit_op(c, OAK_OP_POP, loc);
+    return;
+  }
+  /* OP_POP_N has variadic stack effect; track it manually here. */
+  while (count > 0)
+  {
+    const int chunk = count > 255 ? 255 : count;
+    oak_compiler_emit_byte(c, OAK_OP_POP_N, loc);
+    oak_compiler_emit_byte(c, (u8)chunk, loc);
+    c->scope.stack_depth -= chunk;
+    count -= chunk;
+  }
 }
 
 void oak_compiler_emit_loop_control_jump(struct oak_compiler_t* c,

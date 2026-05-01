@@ -17,6 +17,8 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_TRUE] = { "OP_TRUE", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_FALSE] = { "OP_FALSE", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_POP] = { "OP_POP", OAK_OP_FMT_NONE, -1 },
+  /* Variadic stack effect: tracked explicitly at the emit site. */
+  [OAK_OP_POP_N] = { "OP_POP_N", OAK_OP_FMT_ARGC, 0 },
   [OAK_OP_GET_LOCAL] = { "OP_GET_LOCAL", OAK_OP_FMT_SLOT, 1 },
   [OAK_OP_SET_LOCAL] = { "OP_SET_LOCAL", OAK_OP_FMT_SLOT, 0 },
   [OAK_OP_INC_LOCAL] = { "OP_INC_LOCAL", OAK_OP_FMT_SLOT, 0 },
@@ -39,11 +41,9 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_LOOP] = { "OP_LOOP", OAK_OP_FMT_JUMP_BACK, 0 },
   [OAK_OP_CALL] = { "OP_CALL", OAK_OP_FMT_ARGC, 0 },
   [OAK_OP_RETURN] = { "OP_RETURN", OAK_OP_FMT_NONE, 0 },
-  [OAK_OP_NEW_ARRAY] = { "OP_NEW_ARRAY", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_NEW_ARRAY_FROM_STACK] = { "OP_NEW_ARRAY_FROM_STACK",
                                     OAK_OP_FMT_ARGC,
                                     1 },
-  [OAK_OP_NEW_MAP] = { "OP_NEW_MAP", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_NEW_MAP_FROM_STACK] = { "OP_NEW_MAP_FROM_STACK", OAK_OP_FMT_ARGC, 1 },
   [OAK_OP_GET_INDEX] = { "OP_GET_INDEX", OAK_OP_FMT_NONE, -1 },
   [OAK_OP_SET_INDEX] = { "OP_SET_INDEX", OAK_OP_FMT_NONE, -2 },
@@ -399,33 +399,29 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     }
     case OAK_OP_FMT_JUMP_FWD:
     {
-      const u32 jump = ((u32)chunk->bytecode[offset + 1] << 24) |
-                       ((u32)chunk->bytecode[offset + 2] << 16) |
-                       ((u32)chunk->bytecode[offset + 3] << 8) |
-                       (u32)chunk->bytecode[offset + 4];
+      const u16 jump = (u16)(((u16)chunk->bytecode[offset + 1] << 8) |
+                             chunk->bytecode[offset + 2]);
       oak_log(OAK_LOG_INFO,
               "%04zu %s  %-20s %6u -> %04zu",
               offset,
               line,
               name,
-              jump,
-              offset + 5 + (usize)jump);
-      return offset + 5;
+              (unsigned)jump,
+              offset + 3 + (usize)jump);
+      return offset + 3;
     }
     case OAK_OP_FMT_JUMP_BACK:
     {
-      const u32 jump = ((u32)chunk->bytecode[offset + 1] << 24) |
-                       ((u32)chunk->bytecode[offset + 2] << 16) |
-                       ((u32)chunk->bytecode[offset + 3] << 8) |
-                       (u32)chunk->bytecode[offset + 4];
+      const u16 jump = (u16)(((u16)chunk->bytecode[offset + 1] << 8) |
+                             chunk->bytecode[offset + 2]);
       oak_log(OAK_LOG_INFO,
               "%04zu %s  %-20s %6u -> %04zu",
               offset,
               line,
               name,
-              jump,
-              offset + 5 - (usize)jump);
-      return offset + 5;
+              (unsigned)jump,
+              offset + 3 - (usize)jump);
+      return offset + 3;
     }
     case OAK_OP_FMT_ARGC:
     {

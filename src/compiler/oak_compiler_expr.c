@@ -394,7 +394,7 @@ static void compile_expr_cast(struct oak_compiler_t* c,
                             "array type (e.g. '[] as number[]')");
       return;
     }
-    oak_compiler_emit_op(c, OAK_OP_NEW_ARRAY, OAK_LOC_SYNTHETIC);
+    oak_compiler_emit_op_arg(c, OAK_OP_NEW_ARRAY_FROM_STACK, 0, OAK_LOC_SYNTHETIC);
     return;
   }
 
@@ -419,7 +419,7 @@ static void compile_expr_cast(struct oak_compiler_t* c,
                             "map type (e.g. '[:] as [string:number]')");
       return;
     }
-    oak_compiler_emit_op(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC);
+    oak_compiler_emit_op_arg(c, OAK_OP_NEW_MAP_FROM_STACK, 0, OAK_LOC_SYNTHETIC);
     return;
   }
 

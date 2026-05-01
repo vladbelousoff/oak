@@ -46,8 +46,7 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
             vm, "internal error: unhandled integer opcode (0x%02x)", op);
         return OAK_VM_RUNTIME_ERROR;
     }
-    oak_vm_push(vm, OAK_VALUE_I32(result));
-    return OAK_VM_OK;
+    return oak_vm_push(vm, OAK_VALUE_I32(result));
   }
 
   if (oak_is_number(a) && oak_is_number(b))
@@ -86,8 +85,7 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
         return OAK_VM_RUNTIME_ERROR;
     }
 
-    oak_vm_push(vm, OAK_VALUE_F32(result));
-    return OAK_VM_OK;
+    return oak_vm_push(vm, OAK_VALUE_F32(result));
   }
 
   oak_vm_runtime_error(
@@ -138,6 +136,5 @@ enum oak_vm_result_t oak_vm_numeric_compare(struct oak_vm_t* vm,
       return OAK_VM_RUNTIME_ERROR;
   }
 
-  oak_vm_push(vm, OAK_VALUE_BOOL(result));
-  return OAK_VM_OK;
+  return oak_vm_push(vm, OAK_VALUE_BOOL(result));
 }

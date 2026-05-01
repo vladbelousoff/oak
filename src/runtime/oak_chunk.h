@@ -12,6 +12,10 @@ enum oak_opcode_t
   OAK_OP_TRUE,
   OAK_OP_FALSE,
   OAK_OP_POP,
+  /* Pops `arg` values from the stack (decref'ing each). The stack-effect entry
+   * in oak_op_info[] is set to 0 because the actual effect varies; callers
+   * (oak_compiler_emit_pops) adjust scope.stack_depth manually. */
+  OAK_OP_POP_N,
   OAK_OP_GET_LOCAL,
   OAK_OP_SET_LOCAL,
   OAK_OP_INC_LOCAL,
@@ -34,9 +38,7 @@ enum oak_opcode_t
   OAK_OP_LOOP,
   OAK_OP_CALL,
   OAK_OP_RETURN,
-  OAK_OP_NEW_ARRAY,
   OAK_OP_NEW_ARRAY_FROM_STACK,
-  OAK_OP_NEW_MAP,
   OAK_OP_NEW_MAP_FROM_STACK,
   OAK_OP_GET_INDEX,
   OAK_OP_SET_INDEX,

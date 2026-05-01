@@ -378,8 +378,17 @@ int oak_value_equal(struct oak_value_t a, struct oak_value_t b);
 void oak_obj_incref(struct oak_obj_t* obj);
 void oak_obj_decref(struct oak_obj_t* obj);
 
-void oak_value_incref(struct oak_value_t value);
-void oak_value_decref(struct oak_value_t value);
+static inline void oak_value_incref(const struct oak_value_t value)
+{
+  if (oak_is_obj(value))
+    oak_obj_incref(value.as.obj);
+}
+
+static inline void oak_value_decref(const struct oak_value_t value)
+{
+  if (oak_is_obj(value))
+    oak_obj_decref(value.as.obj);
+}
 
 void oak_value_println(struct oak_value_t value);
 

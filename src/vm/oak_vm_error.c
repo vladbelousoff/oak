@@ -46,3 +46,8 @@ void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
 
   oak_log(OAK_LOG_ERROR, "%d:%d: error: %s", loc.line, col, buf);
 }
+
+void oak_vm_report_stack_overflow(const struct oak_vm_t* vm)
+{
+  oak_vm_runtime_error(vm, "stack overflow (max %d values)", OAK_STACK_MAX);
+}

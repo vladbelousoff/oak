@@ -71,7 +71,7 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
 
 enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
 {
-  const u8 argc = (u8)oak_vm_read(vm, 1);
+  const u8 argc = oak_vm_read_u8(vm);
   const usize depth = (usize)(vm->sp - vm->stack);
   if (depth < (usize)argc + 1u)
   {

@@ -5,32 +5,46 @@
 #include "oak_value.h"
 #include "oak_vm.h"
 
-static inline void oak_vm_push(struct oak_vm_t* vm,
-                               const struct oak_value_t value)
+void oak_vm_report_stack_overflow(const struct oak_vm_t* vm);
+
+static inline enum oak_vm_result_t oak_vm_push(struct oak_vm_t* vm,
+                                               const struct oak_value_t value)
 {
   if (vm->sp >= vm->stack + OAK_STACK_MAX)
   {
-    vm->had_stack_overflow = 1;
-    return;
+    oak_vm_report_stack_overflow(vm);
+    return OAK_VM_RUNTIME_ERROR;
   }
   oak_value_incref(value);
   *vm->sp++ = value;
+  return OAK_VM_OK;
 }
 
 /* Push a value whose reference count already accounts for the new stack
  * ownership (i.e. take ownership without an extra incref). Use for values
  * just produced by oak_*_new / native fn return / similar fresh allocations
- * whose only outstanding reference is being transferred to the stack. */
-static inline void oak_vm_push_owned(struct oak_vm_t* vm,
-                                     const struct oak_value_t value)
+ * whose only outstanding reference is being transferred to the stack. On
+ * overflow the caller is responsible for releasing `value` (see TRY_PUSH_OWNED
+ * below; otherwise the fresh reference would leak). */
+static inline enum oak_vm_result_t
+oak_vm_push_owned(struct oak_vm_t* vm, const struct oak_value_t value)
 {
   if (vm->sp >= vm->stack + OAK_STACK_MAX)
   {
-    vm->had_stack_overflow = 1;
-    return;
+    oak_vm_report_stack_overflow(vm);
+    return OAK_VM_RUNTIME_ERROR;
   }
   *vm->sp++ = value;
+  return OAK_VM_OK;
 }
+
+#define OAK_VM_TRY(expr)                                                       \
+  do                                                                           \
+  {                                                                            \
+    const enum oak_vm_result_t _r = (expr);                                    \
+    if (_r != OAK_VM_OK)                                                       \
+      return _r;                                                               \
+  } while (0)
 
 static inline struct oak_value_t oak_vm_pop(struct oak_vm_t* vm)
 {
@@ -44,12 +58,9 @@ static inline struct oak_value_t oak_vm_peek(const struct oak_vm_t* vm,
   return vm->sp[-1 - distance];
 }
 
-static inline u16 oak_vm_read(struct oak_vm_t* vm, const int n)
+static inline u8 oak_vm_read_u8(struct oak_vm_t* vm)
 {
-  u16 val = 0;
-  for (int i = 0; i < n; i++)
-    val = (u16)((val << 8) | *vm->ip++);
-  return val;
+  return *vm->ip++;
 }
 
 static inline u16 oak_vm_read_u16(struct oak_vm_t* vm)
@@ -57,15 +68,6 @@ static inline u16 oak_vm_read_u16(struct oak_vm_t* vm)
   const u16 hi = *vm->ip++;
   const u16 lo = *vm->ip++;
   return (u16)((hi << 8) | lo);
-}
-
-static inline u32 oak_vm_read_u32(struct oak_vm_t* vm)
-{
-  const u32 b0 = *vm->ip++;
-  const u32 b1 = *vm->ip++;
-  const u32 b2 = *vm->ip++;
-  const u32 b3 = *vm->ip++;
-  return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
 }
 
 const char* oak_vm_value_kind_desc(struct oak_value_t v);

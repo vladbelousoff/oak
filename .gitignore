@@ -1,3 +1,2 @@
 .idea/
-build/
-build_wasm/
+build*/
