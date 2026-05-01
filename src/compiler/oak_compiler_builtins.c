@@ -311,6 +311,8 @@ static enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* 
 
 static const struct oak_builtin_method_def_t string_method_table[] = {
     { "format", builtin_string_format, 2, OAK_TYPE_STRING, null },
+    /* size(receiver) -> length. */
+    { "size", builtin_size, 1, OAK_TYPE_NUMBER, null },
 };
 
 static void

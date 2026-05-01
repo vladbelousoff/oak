@@ -22,3 +22,7 @@ print('{}{}'.format(subsStr));
 
 let emptyNum = [] as number[];
 print('{{brace}}'.format(emptyNum));
+
+print(greeting.size());
+print(''.size());
+print('abc'.size());
