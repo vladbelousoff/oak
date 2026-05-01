@@ -87,12 +87,6 @@ jobs:
       - name: Install JS deps and build
         run: npm ci && npm run build
 
-      # Optional but VERY useful for debugging
-      - name: Debug dist contents
-        run: |
-          echo "==== DIST FILES ===="
-          find dist -maxdepth 3 -type f
-
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
