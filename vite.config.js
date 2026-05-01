@@ -25,12 +25,13 @@ function wasmDevPlugin() {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: 'www',
+  base: command === 'build' ? '/oak/' : '/',
   plugins: [wasmDevPlugin()],
   server: { open: '/' },
   build: {
     outDir: '../_site',
     emptyOutDir: true,
   },
-});
+}));
