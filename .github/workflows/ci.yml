@@ -78,19 +78,25 @@ jobs:
         with:
           node-version: 20
 
-      - name: Stage WASM for Vite public dir
+      - name: Stage WASM into Vite public dir
         run: |
-          mkdir -p www/public/build_wasm
-          cp build_wasm/oak_wasm.js   www/public/build_wasm/
-          cp build_wasm/oak_wasm.wasm www/public/build_wasm/
+          mkdir -p public/build_wasm
+          cp build_wasm/oak_wasm.js public/build_wasm/
+          cp build_wasm/oak_wasm.wasm public/build_wasm/
 
       - name: Install JS deps and build
         run: npm ci && npm run build
 
+      # Optional but VERY useful for debugging
+      - name: Debug dist contents
+        run: |
+          echo "==== DIST FILES ===="
+          find dist -maxdepth 3 -type f
+
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: dist
 
       - name: Deploy to GitHub Pages
         id: deploy
