@@ -1,0 +1,26 @@
+let t = true;
+let f = false;
+
+print(t);
+print(f);
+
+if true {
+  print(1);
+}
+
+if false {
+  print(0);
+} else {
+  print(2);
+}
+
+print(true and true);
+print(true and false);
+print(false or true);
+print(false or false);
+
+print(!true);
+print(!false);
+
+print(true == true);
+print(true != false);

@@ -109,6 +109,10 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
     return "FLOAT";
   case OAK_NODE_STRING:
     return "STRING";
+  case OAK_NODE_TRUE:
+    return "TRUE";
+  case OAK_NODE_FALSE:
+    return "FALSE";
   case OAK_NODE_EXPR_PRIMARY:
     return "EXPR_PRIMARY";
   case OAK_NODE_STMT_ASSIGNMENT:

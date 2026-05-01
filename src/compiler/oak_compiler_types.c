@@ -101,6 +101,8 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
     case OAK_NODE_STRING:
       out->id = OAK_TYPE_STRING;
       return;
+    case OAK_NODE_TRUE:
+    case OAK_NODE_FALSE:
     case OAK_NODE_UNARY_NOT:
     case OAK_NODE_BINARY_EQ:
     case OAK_NODE_BINARY_NEQ:

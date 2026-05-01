@@ -300,6 +300,8 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_INT,
       OAK_NODE_FLOAT,
       OAK_NODE_STRING,
+      OAK_NODE_TRUE,
+      OAK_NODE_FALSE,
       OAK_NODE_EXPR_EMPTY_ARRAY,
       OAK_NODE_EXPR_EMPTY_MAP,
       OAK_NODE_EXPR_MAP_LITERAL,
@@ -407,6 +409,14 @@ struct oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_STRING] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_STRING,
+  },
+  [OAK_NODE_TRUE] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_TRUE,
+  },
+  [OAK_NODE_FALSE] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_FALSE,
   },
   // STMT_ASSIGNMENT -> EXPR '=' EXPR ';'
   [OAK_NODE_STMT_ASSIGNMENT] = {
