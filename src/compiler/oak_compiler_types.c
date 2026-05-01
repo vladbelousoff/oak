@@ -162,7 +162,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
             if (sd)
             {
               const struct oak_registered_fn_t* sm =
-                  oak_compiler_find_record_static_method(sd, mn, mn_len);
+                  oak_compiler_find_record_method(sd, mn, mn_len, 1);
               if (sm)
               {
                 if (sm->decl)
@@ -194,10 +194,10 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               oak_record_registry_find_by_type_id(&c->records, recv_ty.id);
           if (sd)
           {
-          for (int i = 0; i < sd->methods.count; ++i)
           {
-            const struct oak_registered_fn_t* sm = &sd->methods.items[i];
-            if (oak_name_eq(sm->name, sm->name_len, mn, mn_len))
+            const struct oak_registered_fn_t* sm =
+                oak_compiler_find_record_method(sd, mn, mn_len, 0);
+            if (sm)
             {
               if (sm->decl)
               {

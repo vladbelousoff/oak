@@ -84,7 +84,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oak_compiler_find_record_static_method(sd, mname, mname_len);
+            oak_compiler_find_record_method(sd, mname, mname_len, 1);
         if (sm)
         {
           if ((int)user_argc != sm->arity)
@@ -121,16 +121,8 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
         oak_record_registry_find_by_type_id(&c->records, recv_ty.id);
     if (sd)
     {
-      const struct oak_registered_fn_t* sm = null;
-      for (int i = 0; i < sd->methods.count; ++i)
-      {
-        const struct oak_registered_fn_t* cand = &sd->methods.items[i];
-        if (oak_name_eq(cand->name, cand->name_len, mname, mname_len))
-        {
-          sm = cand;
-          break;
-        }
-      }
+      const struct oak_registered_fn_t* sm =
+          oak_compiler_find_record_method(sd, mname, mname_len, 0);
       if (!sm)
       {
         oak_compiler_error_at(

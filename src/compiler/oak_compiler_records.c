@@ -97,7 +97,6 @@ void oak_record_registry_free(struct oak_record_registry_t* r)
   for (int i = 0; i < r->entries.count; ++i)
   {
     OAK_DYNARR_FREE(r->entries.items[i].methods);
-    OAK_DYNARR_FREE(r->entries.items[i].static_methods);
   }
   OAK_DYNARR_FREE(r->entries);
 }
@@ -151,16 +150,19 @@ int oak_compiler_find_record_field(const struct oak_registered_record_t* s,
   return -1;
 }
 
-const struct oak_registered_fn_t* oak_compiler_find_record_static_method(
+const struct oak_registered_fn_t* oak_compiler_find_record_method(
     const struct oak_registered_record_t* sd,
     const char* name,
-    const usize len)
+    const usize len,
+    const int static_only)
 {
   if (!sd)
     return null;
-  for (int i = 0; i < sd->static_methods.count; ++i)
+  for (int i = 0; i < sd->methods.count; ++i)
   {
-    const struct oak_registered_fn_t* m = &sd->static_methods.items[i];
+    const struct oak_registered_fn_t* m = &sd->methods.items[i];
+    if ((!!m->is_static) != (!!static_only))
+      continue;
     if (oak_name_eq(m->name, m->name_len, name, len))
       return m;
   }
@@ -363,18 +365,11 @@ static int register_record_field_decls(struct oak_compiler_t* c,
   return 1;
 }
 
-/* Append a method entry to a record's growable methods array. */
+/* Append a method entry (instance or static) to a record's methods array. */
 static void record_append_method(struct oak_registered_record_t* sd,
                                  const struct oak_registered_fn_t* m)
 {
   OAK_DYNARR_PUSH(sd->methods, *m);
-}
-
-/* Append a static method entry to a record's growable static_methods array. */
-static void record_append_static_method(struct oak_registered_record_t* sd,
-                                        const struct oak_registered_fn_t* m)
-{
-  OAK_DYNARR_PUSH(sd->static_methods, *m);
 }
 
 /* ---------- Native function registration ---------- */
@@ -449,46 +444,29 @@ void oak_compiler_register_native_fns(
                               b->receiver_type_id);
         return;
       }
-      if (b->kind == OAK_BIND_FN_STATIC_METHOD)
+      const int is_static = (b->kind == OAK_BIND_FN_STATIC_METHOD);
+      entry.arity = vm_arity;
+      entry.is_static = is_static;
+      for (int j = 0; j < sd->methods.count; ++j)
       {
-        entry.arity = vm_arity;
-        for (int j = 0; j < sd->static_methods.count; ++j)
+        if (oak_name_eq(sd->methods.items[j].name,
+                        sd->methods.items[j].name_len,
+                        b->name,
+                        name_len))
         {
-          if (oak_name_eq(sd->static_methods.items[j].name,
-                          sd->static_methods.items[j].name_len,
-                          b->name,
-                          name_len))
-          {
-            oak_compiler_error_at(
-                c,
-                null,
-                "duplicate native static method '%s' on record '%s'",
-                b->name,
-                sd->name);
-            return;
-          }
+          oak_compiler_error_at(c,
+                                null,
+                                is_static
+                                    ? "duplicate native static method '%s' on "
+                                      "record '%s'"
+                                    : "duplicate native method '%s' on record "
+                                      "'%s'",
+                                b->name,
+                                sd->name);
+          return;
         }
-        record_append_static_method(sd, &entry);
       }
-      else
-      {
-        /* OAK_BIND_FN_INSTANCE_METHOD — arity includes implicit self */
-        entry.arity = vm_arity;
-        for (int j = 0; j < sd->methods.count; ++j)
-        {
-          if (oak_name_eq(
-                  sd->methods.items[j].name, sd->methods.items[j].name_len, b->name, name_len))
-          {
-            oak_compiler_error_at(c,
-                                  null,
-                                  "duplicate native method '%s' on record '%s'",
-                                  b->name,
-                                  sd->name);
-            return;
-          }
-        }
-        record_append_method(sd, &entry);
-      }
+      record_append_method(sd, &entry);
     }
     if (c->has_error)
       return;

@@ -70,20 +70,23 @@ struct oak_scope_ctx_t
 /* decl is null for native (C) functions/methods registered at compile time.
  * receiver_type_id == OAK_TYPE_VOID means global function; any other value
  * means a method on the record with that type_id.
- * return_type_id == OAK_TYPE_VOID means void (or inferred from decl). */
+ * return_type_id == OAK_TYPE_VOID means void (or inferred from decl).
+ * is_static distinguishes static methods (no implicit self) from instance
+ * methods (implicit self at slot 0); ignored for global fns. */
 struct oak_registered_fn_t
 {
   const char* name;
   usize name_len;
   u16 const_idx;
-  /* For global fns: user-facing arity.
-   * For methods: total arity including the implicit self receiver
+  /* For global fns and static methods: user-facing arity.
+   * For instance methods: total arity including the implicit self receiver
    * (so user writes N args, stored as N+1). */
   int arity;
   oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
   oak_type_id_t return_type_id;   /* OAK_TYPE_VOID for user-defined (from AST) */
   /* From native fn binding: array vs scalar return (element type in return_type_id) */
   enum oak_type_kind_t return_kind; /* SCALAR or ARRAY for native; else SCALAR */
+  int is_static;                     /* 1 = static method, 0 = instance/global */
   const struct oak_ast_node_t* decl; /* null for native */
 };
 
@@ -154,9 +157,9 @@ struct oak_registered_record_t
   oak_type_id_t type_id;
   int field_count;
   struct oak_record_field_t fields[OAK_MAX_RECORD_FIELDS];
-  /* Methods/static methods: growable arrays freed by oak_record_registry_free. */
+  /* Instance and static methods share one growable array, distinguished by
+   * `is_static` on each entry. Freed by oak_record_registry_free. */
   OAK_DYNARR(struct oak_registered_fn_t) methods;
-  OAK_DYNARR(struct oak_registered_fn_t) static_methods;
 };
 
 /* Unbounded registry of user record types.
@@ -448,10 +451,13 @@ int oak_compiler_find_record_field(const struct oak_registered_record_t* s,
                                    const char* name,
                                    usize len);
 
-const struct oak_registered_fn_t* oak_compiler_find_record_static_method(
+/* Look up a method by name on a record. If `static_only` is non-zero, only
+ * static methods are returned; if zero, only instance methods. */
+const struct oak_registered_fn_t* oak_compiler_find_record_method(
     const struct oak_registered_record_t* sd,
     const char* name,
-    usize len);
+    usize len,
+    int static_only);
 
 /* If `recv_ty` is a known record, sets `*out_sd` and returns the field index.
  * Returns -1 if the type is not a record, or the field name is not found

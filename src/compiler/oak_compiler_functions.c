@@ -296,42 +296,20 @@ static void register_method_on_record(struct oak_compiler_t* c,
       return;
     }
   }
-  for (int i = 0; i < sd->static_methods.count; ++i)
-  {
-    const struct oak_registered_fn_t* e = &sd->static_methods.items[i];
-    if (oak_name_eq(e->name, e->name_len, name, name_len))
-    {
-      oak_compiler_error_at(c,
-                            name_node->token,
-                            "duplicate method '%s' on record '%s'",
-                            name,
-                            sd->name);
-      return;
-    }
-  }
 
   struct oak_registered_fn_t slot = { 0 };
   slot.name = name;
   slot.name_len = name_len;
   slot.receiver_type_id = sd->type_id;
   slot.return_type_id = OAK_TYPE_VOID;
+  slot.is_static = (self_param == null);
   slot.decl = item;
 
-  if (self_param)
-  {
-    const int total_arity = explicit_arity + 1;
-    struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
-    slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
-    slot.arity = total_arity;
-    OAK_DYNARR_PUSH(sd->methods, slot);
-  }
-  else
-  {
-    struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity);
-    slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
-    slot.arity = explicit_arity;
-    OAK_DYNARR_PUSH(sd->static_methods, slot);
-  }
+  const int total_arity = self_param ? explicit_arity + 1 : explicit_arity;
+  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
+  slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
+  slot.arity = total_arity;
+  OAK_DYNARR_PUSH(sd->methods, slot);
 }
 
 static void register_record_body_methods(struct oak_compiler_t* c,
@@ -617,19 +595,7 @@ void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
       struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
       struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
       fn_obj->code_offset = c->chunk->count;
-      oak_compiler_compile_function_body(c, me->decl, sd);
-      if (c->has_error)
-        return;
-    }
-    for (int m = 0; m < sd->static_methods.count; ++m)
-    {
-      const struct oak_registered_fn_t* me = &sd->static_methods.items[m];
-      if (!me->decl)
-        continue;
-      struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
-      struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
-      fn_obj->code_offset = c->chunk->count;
-      oak_compiler_compile_function_body(c, me->decl, null);
+      oak_compiler_compile_function_body(c, me->decl, me->is_static ? null : sd);
       if (c->has_error)
         return;
     }
