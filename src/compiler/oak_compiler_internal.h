@@ -22,10 +22,13 @@
 
 #define OAK_LOC_SYNTHETIC ((struct oak_code_loc_t){ .line = 0, .column = 1 })
 
-#define OAK_MAX_ARRAY_METHODS  8
-#define OAK_MAX_MAP_METHODS    8
-#define OAK_MAX_STRING_METHODS 8
-#define OAK_MAX_RECORD_FIELDS  32
+#define OAK_MAX_ARRAY_METHODS          8
+#define OAK_MAX_MAP_METHODS            8
+#define OAK_MAX_STRING_METHODS         8
+#define OAK_MAX_BOOL_METHODS           4
+#define OAK_MAX_NUMBER_METHODS         4
+#define OAK_MAX_RECORD_BUILTIN_METHODS 4
+#define OAK_MAX_RECORD_FIELDS          32
 
 /* ---------- Per-fn ephemeral compilation state ---------- */
 
@@ -138,6 +141,12 @@ struct oak_builtin_methods_t
   int map_count;
   struct oak_method_binding_t string[OAK_MAX_STRING_METHODS];
   int string_count;
+  struct oak_method_binding_t bool_[OAK_MAX_BOOL_METHODS];
+  int bool_count;
+  struct oak_method_binding_t number[OAK_MAX_NUMBER_METHODS];
+  int number_count;
+  struct oak_method_binding_t record[OAK_MAX_RECORD_BUILTIN_METHODS];
+  int record_count;
 };
 
 /* ---------- Record registry ---------- */
@@ -438,6 +447,19 @@ const struct oak_method_binding_t* oak_compiler_find_map_method(
     struct oak_compiler_t* c, const char* name, usize len);
 
 const struct oak_method_binding_t* oak_compiler_find_string_method(
+    struct oak_compiler_t* c, const char* name, usize len);
+
+void oak_compiler_register_bool_methods(struct oak_compiler_t* c);
+void oak_compiler_register_number_methods(struct oak_compiler_t* c);
+void oak_compiler_register_record_builtin_methods(struct oak_compiler_t* c);
+
+const struct oak_method_binding_t* oak_compiler_find_bool_method(
+    struct oak_compiler_t* c, const char* name, usize len);
+
+const struct oak_method_binding_t* oak_compiler_find_number_method(
+    struct oak_compiler_t* c, const char* name, usize len);
+
+const struct oak_method_binding_t* oak_compiler_find_record_builtin_method(
     struct oak_compiler_t* c, const char* name, usize len);
 
 /* ---------- oak_compiler_enums.c ---------- */

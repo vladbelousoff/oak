@@ -106,6 +106,21 @@ static enum oak_fn_call_result_t builtin_delete(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
+static enum oak_fn_call_result_t builtin_to_string(struct oak_native_ctx_t* ctx,
+                                                   const struct oak_value_t* args,
+                                                   int argc,
+                                                   struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  struct oak_obj_string_t* s = oak_value_to_string(args[0]);
+  if (!s)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_OBJ(s);
+  return OAK_FN_CALL_OK;
+}
+
 static const struct oak_native_binding_t native_builtins[] = {
   { "print", builtin_print, 1 },
 };
@@ -180,19 +195,16 @@ static void validate_map_key_arg(struct oak_compiler_t* c,
 }
 
 static const struct oak_builtin_method_def_t array_method_table[] = {
-  /* push(receiver, value) -> new length. */
   { "push", builtin_push, 2, OAK_TYPE_NUMBER, validate_array_push_args },
-  /* size(receiver) -> length. */
   { "size", builtin_size, 1, OAK_TYPE_NUMBER, null },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, null },
 };
 
 static const struct oak_builtin_method_def_t map_method_table[] = {
-  /* size(receiver) -> length. */
   { "size", builtin_size, 1, OAK_TYPE_NUMBER, null },
-  /* has(receiver, key) -> bool. */
   { "has", builtin_has, 2, OAK_TYPE_BOOL, validate_map_key_arg },
-  /* delete(receiver, key) -> bool (true if removed). */
   { "delete", builtin_delete, 2, OAK_TYPE_BOOL, validate_map_key_arg },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, null },
 };
 
 static enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
@@ -310,9 +322,21 @@ static enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* 
 }
 
 static const struct oak_builtin_method_def_t string_method_table[] = {
-    { "format", builtin_string_format, 2, OAK_TYPE_STRING, null },
-    /* size(receiver) -> length. */
-    { "size", builtin_size, 1, OAK_TYPE_NUMBER, null },
+  { "format", builtin_string_format, 2, OAK_TYPE_STRING, null },
+  { "size", builtin_size, 1, OAK_TYPE_NUMBER, null },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, null },
+};
+
+static const struct oak_builtin_method_def_t bool_method_table[] = {
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, null },
+};
+
+static const struct oak_builtin_method_def_t number_method_table[] = {
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, null },
+};
+
+static const struct oak_builtin_method_def_t record_builtin_method_table[] = {
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, null },
 };
 
 static void
@@ -415,4 +439,58 @@ const struct oak_method_binding_t* oak_compiler_find_string_method(
                              c->builtin_methods.string_count,
                              name,
                              len);
+}
+
+void oak_compiler_register_bool_methods(struct oak_compiler_t* c)
+{
+  register_method_table_from_defs(c,
+                                  c->builtin_methods.bool_,
+                                  &c->builtin_methods.bool_count,
+                                  OAK_MAX_BOOL_METHODS,
+                                  "bool",
+                                  bool_method_table,
+                                  oak_count_of(bool_method_table));
+}
+
+const struct oak_method_binding_t* oak_compiler_find_bool_method(
+    struct oak_compiler_t* c, const char* name, const usize len)
+{
+  return method_binding_find(
+      c->builtin_methods.bool_, c->builtin_methods.bool_count, name, len);
+}
+
+void oak_compiler_register_number_methods(struct oak_compiler_t* c)
+{
+  register_method_table_from_defs(c,
+                                  c->builtin_methods.number,
+                                  &c->builtin_methods.number_count,
+                                  OAK_MAX_NUMBER_METHODS,
+                                  "number",
+                                  number_method_table,
+                                  oak_count_of(number_method_table));
+}
+
+const struct oak_method_binding_t* oak_compiler_find_number_method(
+    struct oak_compiler_t* c, const char* name, const usize len)
+{
+  return method_binding_find(
+      c->builtin_methods.number, c->builtin_methods.number_count, name, len);
+}
+
+void oak_compiler_register_record_builtin_methods(struct oak_compiler_t* c)
+{
+  register_method_table_from_defs(c,
+                                  c->builtin_methods.record,
+                                  &c->builtin_methods.record_count,
+                                  OAK_MAX_RECORD_BUILTIN_METHODS,
+                                  "record",
+                                  record_builtin_method_table,
+                                  oak_count_of(record_builtin_method_table));
+}
+
+const struct oak_method_binding_t* oak_compiler_find_record_builtin_method(
+    struct oak_compiler_t* c, const char* name, const usize len)
+{
+  return method_binding_find(
+      c->builtin_methods.record, c->builtin_methods.record_count, name, len);
 }

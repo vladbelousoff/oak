@@ -390,6 +390,12 @@ static inline void oak_value_decref(const struct oak_value_t value)
     oak_obj_decref(value.as.obj);
 }
 
+/* Returns an Oak string representing the value.
+ * Strings return themselves (incref'd); booleans and numbers return a decimal
+ * string; arrays, maps, and records return a JSON string.
+ * Caller owns the returned reference. Returns null on allocation failure. */
+struct oak_obj_string_t* oak_value_to_string(struct oak_value_t value);
+
 void oak_value_println(struct oak_value_t value);
 
 /* Writes a short human-readable representation (not JSON). Returns bytes

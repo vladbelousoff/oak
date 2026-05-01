@@ -771,37 +771,59 @@ struct oak_obj_string_t* oak_string_from_value_repr(struct oak_value_t value)
   return oak_string_new(buf, len);
 }
 
-void oak_value_println(const struct oak_value_t value)
+struct oak_obj_string_t* oak_value_to_string(const struct oak_value_t value)
 {
+  if (oak_is_bool(value))
+  {
+    const char* s = oak_as_bool(value) ? "true" : "false";
+    return oak_string_new(s, strlen(s));
+  }
+  if (oak_is_number(value))
+  {
+    char buf[64];
+    int n;
+    if (oak_is_f32(value))
+      n = snprintf(buf, sizeof(buf), "%g", (double)oak_as_f32(value));
+    else
+      n = snprintf(buf, sizeof(buf), "%d", oak_as_i32(value));
+    if (n < 0)
+      return null;
+    return oak_string_new(buf, (usize)n);
+  }
   if (oak_is_string(value))
   {
-    fputs(oak_as_cstring(value), stdout);
-    fputc('\n', stdout);
-    return;
+    oak_value_incref(value);
+    return oak_as_string(value);
   }
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
   if (!doc)
-  {
-    fputs("<out of memory for JSON print>\n", stdout);
-    return;
-  }
+    return null;
   yyjson_mut_val* const root = oak_value_to_yyjson(doc, value, 0u);
   if (!root)
   {
     yyjson_mut_doc_free(doc);
-    fputs("<value unprintable as JSON>\n", stdout);
-    return;
+    return null;
   }
   yyjson_mut_doc_set_root(doc, root);
   size_t json_len;
   char* p = yyjson_mut_write(doc, YYJSON_WRITE_PRETTY_TWO_SPACES, &json_len);
   yyjson_mut_doc_free(doc);
   if (!p)
+    return null;
+  struct oak_obj_string_t* s = oak_string_new(p, json_len);
+  free(p);
+  return s;
+}
+
+void oak_value_println(const struct oak_value_t value)
+{
+  struct oak_obj_string_t* s = oak_value_to_string(value);
+  if (!s)
   {
-    fputs("<JSON write failed>\n", stdout);
+    fputs("<value unprintable>\n", stdout);
     return;
   }
-  fputs(p, stdout);
+  fputs(s->chars, stdout);
   fputc('\n', stdout);
-  free(p);
+  oak_obj_decref(&s->obj);
 }
