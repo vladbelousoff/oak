@@ -64,22 +64,28 @@ jobs:
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
 
-      - name: Configure
+      - name: Configure WASM
         run: |
           cmake -B build_wasm \
             -DCMAKE_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
             -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build
+      - name: Build WASM
         run: cmake --build build_wasm --target oak_wasm --parallel
 
-      - name: Prepare site
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Stage WASM for Vite public dir
         run: |
-          mkdir -p _site
-          cp www/index.html _site/
-          cp build_wasm/oak_wasm.js _site/
-          cp build_wasm/oak_wasm.wasm _site/
-          sed -i 's|../build_wasm/||g' _site/index.html
+          mkdir -p www/public/build_wasm
+          cp build_wasm/oak_wasm.js   www/public/build_wasm/
+          cp build_wasm/oak_wasm.wasm www/public/build_wasm/
+
+      - name: Install JS deps and build
+        run: npm ci && npm run build
 
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3

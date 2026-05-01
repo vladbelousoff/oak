@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@codemirror/language": "^6.10.1",
+    "codemirror": "^6.0.1"
+  },
+  "devDependencies": {
+    "vite": "^6.4.2"
+  }
+}
