@@ -526,15 +526,16 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* entry =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (entry->kind != OAK_NODE_RECORD_LITERAL_FIELD || !entry->lhs ||
-        !entry->rhs)
+    if (entry->kind != OAK_NODE_RECORD_LITERAL_FIELD || !entry->lhs)
     {
       oak_compiler_error_at(
           c, entry->token, "malformed record field initializer");
       return;
     }
     const struct oak_ast_node_t* fname = entry->lhs;
-    const struct oak_ast_node_t* fexpr = entry->rhs;
+    /* Shorthand `{ foo }` desugars to `{ foo: foo }` — use the name node as
+     * the value expression so compile_node emits a GET_LOCAL. */
+    const struct oak_ast_node_t* fexpr = entry->rhs ? entry->rhs : fname;
     if (fname->kind != OAK_NODE_IDENT)
     {
       oak_compiler_error_at(
