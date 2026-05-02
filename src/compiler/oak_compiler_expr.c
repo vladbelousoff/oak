@@ -150,6 +150,16 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
     if (idx < 0)
       return;
 
+    if (!oak_compiler_expr_is_mutable_place(c, recv))
+    {
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "cannot assign to field '%.*s' of immutable record",
+                            (int)oak_token_length(fname->token),
+                            oak_token_text(fname->token));
+      return;
+    }
+
     struct oak_type_t val_ty;
     oak_compiler_infer_expr_static_type(c, rhs, &val_ty);
     if (oak_type_is_void(&val_ty))

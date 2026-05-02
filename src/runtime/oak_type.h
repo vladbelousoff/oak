@@ -27,6 +27,7 @@ struct oak_type_t
   oak_type_id_t id;
   oak_type_id_t key_id;
   enum oak_type_kind_t kind;
+  int is_mutable;
 };
 
 struct oak_type_entry_t
@@ -79,6 +80,7 @@ static inline void oak_type_clear(struct oak_type_t* t)
   t->id = OAK_TYPE_VOID;
   t->key_id = OAK_TYPE_VOID;
   t->kind = OAK_TYPE_KIND_SCALAR;
+  t->is_mutable = 0;
 }
 
 static inline int oak_type_is_known(const struct oak_type_t* t)

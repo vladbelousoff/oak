@@ -150,6 +150,26 @@ OAK_TEST_DECL(ConstFieldConstBindingOk)
 }
 
 /* =========================================================================
+ * Field assignment: immutable record receiver
+ * ========================================================================= */
+
+/* Assigning to a field of an immutable record is rejected. */
+OAK_TEST_DECL(ConstRecordFieldAssignFails)
+{
+  return expect_compile_error("record Point { x : number; y : number; }\n"
+                              "let p = new Point { x : 1, y : 2 };\n"
+                              "p.x = 99;\n");
+}
+
+/* Assigning to a field of a mutable record is fine. */
+OAK_TEST_DECL(MutRecordFieldAssignOk)
+{
+  return expect_ok("record Point { x : number; y : number; }\n"
+                   "let mut p = new Point { x : 1, y : 2 };\n"
+                   "p.x = 99;\n");
+}
+
+/* =========================================================================
  * Function parameter: mut with refcounted types
  * ========================================================================= */
 
@@ -243,6 +263,9 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(MutStructIdentMutBindingOk),
     OAK_TEST_ENTRY(MutStructFieldMutBindingOk),
     OAK_TEST_ENTRY(ConstFieldConstBindingOk),
+    /* field assignment — immutable receiver */
+    OAK_TEST_ENTRY(ConstRecordFieldAssignFails),
+    OAK_TEST_ENTRY(MutRecordFieldAssignOk),
     /* function parameter — mut ref */
     OAK_TEST_ENTRY(MutRefParamFromImmutableFails),
     OAK_TEST_ENTRY(MutRefParamFromMutableOk),

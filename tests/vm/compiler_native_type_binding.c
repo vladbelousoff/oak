@@ -594,8 +594,8 @@ OAK_TEST_DECL(NativeReadOnlyFieldAssignFailsAtRuntime)
                                     .getter = stub_getter,
                                     .setter = null }) == 0);
 
-  /* Compile Oak code that ASSIGNS to the native field — must succeed at
-   * compile time (the compiler cannot see read-only enforcement). */
+  /* Immutable parameter: assigning to its field is now rejected at compile
+   * time because `s` is not declared `mut`. */
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
       "fn try_write(s : NTRO) -> number { s.val = 1; return s.val; }",
       strlen("fn try_write(s : NTRO) -> number { s.val = 1; return s.val; }"));
@@ -606,7 +606,7 @@ OAK_TEST_DECL(NativeReadOnlyFieldAssignFailsAtRuntime)
 
   struct oak_compile_result_t cr = { 0 };
   oak_compile_ex(root, &opts, &cr);
-  OAK_CHECK(cr.chunk != null); /* compile-time: OK */
+  OAK_CHECK(cr.chunk == null); /* compile-time: rejected */
 
   oak_compile_result_free(&cr);
   oak_parser_free(&result);
