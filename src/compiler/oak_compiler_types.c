@@ -53,7 +53,6 @@ int oak_compiler_local_type_get(struct oak_compiler_t* c,
     if (oak_name_eq(L->name, L->length, name, len))
     {
       *out = L->type;
-      out->is_mutable = L->is_mutable;
       return 1;
     }
   }
@@ -393,7 +392,6 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       if (idx < 0)
         return;
       *out = sd->fields[idx].type;
-      out->is_mutable = recv_ty.is_mutable;
       return;
     }
     default:

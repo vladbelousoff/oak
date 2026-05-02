@@ -145,6 +145,19 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
           c, lhs->token, "field assignment requires 'expr.field = expr'");
       return;
     }
+    if (recv->kind == OAK_NODE_MEMBER_ACCESS ||
+        recv->kind == OAK_NODE_INDEX_ACCESS)
+    {
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "cannot assign to field '%.*s' through a chained "
+                            "access; bind the intermediate record to a mutable "
+                            "variable first",
+                            (int)oak_token_length(fname->token),
+                            oak_token_text(fname->token));
+      return;
+    }
+
     const struct oak_registered_record_t* sd = null;
     const int idx = oak_compiler_require_record_field(c, recv, fname, 1, &sd);
     if (idx < 0)

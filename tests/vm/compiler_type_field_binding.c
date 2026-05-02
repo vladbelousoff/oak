@@ -187,15 +187,27 @@ OAK_TEST_DECL(FieldAssignStringOk)
                    "print(n.label);\n");
 }
 
-/* Chained field assignment through a mutable record compiles and runs. */
-OAK_TEST_DECL(FieldAssignChainedOk)
+/* Chained field assignment is rejected at compile time to prevent mutation of
+ * potentially shared record references. */
+OAK_TEST_DECL(FieldAssignChainedFails)
 {
-  return expect_ok("record Inner { v : number; }\n"
-                   "record Outer { inner : Inner; }\n"
-                   "let i = new Inner { v : 0 };\n"
-                   "let mut o = new Outer { inner : i };\n"
-                   "o.inner.v = 99;\n"
-                   "print(o.inner.v);\n");
+  return expect_compile_error("record Inner { v : number; }\n"
+                              "record Outer { inner : Inner; }\n"
+                              "let i = new Inner { v : 0 };\n"
+                              "let mut o = new Outer { inner : i };\n"
+                              "o.inner.v = 99;\n");
+}
+
+/* Assigning through a chained field access must not bypass the immutability of
+ * the original const binding that was stored in the outer record's field. */
+OAK_TEST_DECL(FieldAssignChainedBypassesConstFails)
+{
+  return expect_compile_error(
+      "record Foo { abc : number; }\n"
+      "record Bar { foo : Foo; }\n"
+      "let foo = new Foo { abc : 123 };\n"
+      "let mut bar = new Bar { foo : foo };\n"
+      "bar.foo.abc = 100;\n");
 }
 
 /* =========================================================================
@@ -309,7 +321,8 @@ int main(const int argc, char* argv[])
     /* field assignment — basic */
     OAK_TEST_ENTRY(FieldAssignNumberOk),
     OAK_TEST_ENTRY(FieldAssignStringOk),
-    OAK_TEST_ENTRY(FieldAssignChainedOk),
+    OAK_TEST_ENTRY(FieldAssignChainedFails),
+    OAK_TEST_ENTRY(FieldAssignChainedBypassesConstFails),
     /* field assignment — type mismatch */
     OAK_TEST_ENTRY(FieldAssignStringToNumberFails),
     OAK_TEST_ENTRY(FieldAssignNumberToStringFails),
