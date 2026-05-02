@@ -131,12 +131,12 @@ OAK_TEST_DECL(MutStructIdentMutBindingOk)
                    "let mut copy = p;\n");
 }
 
-/* Field of mutable struct: allowed. */
+/* Field of mutable struct is allowed when the source was also mutable. */
 OAK_TEST_DECL(MutStructFieldMutBindingOk)
 {
   return expect_ok("record Inner { z : number; }\n"
                    "record Outer { inner : Inner; }\n"
-                   "let inner = new Inner { z : 7 };\n"
+                   "let mut inner = new Inner { z : 7 };\n"
                    "let mut outer = new Outer { inner : inner };\n"
                    "let mut copy = outer.inner;\n");
 }

@@ -145,19 +145,6 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
           c, lhs->token, "field assignment requires 'expr.field = expr'");
       return;
     }
-    if (recv->kind == OAK_NODE_MEMBER_ACCESS ||
-        recv->kind == OAK_NODE_INDEX_ACCESS)
-    {
-      oak_compiler_error_at(c,
-                            fname->token,
-                            "cannot assign to field '%.*s' through a chained "
-                            "access; bind the intermediate record to a mutable "
-                            "variable first",
-                            (int)oak_token_length(fname->token),
-                            oak_token_text(fname->token));
-      return;
-    }
-
     const struct oak_registered_record_t* sd = null;
     const int idx = oak_compiler_require_record_field(c, recv, fname, 1, &sd);
     if (idx < 0)
@@ -885,6 +872,34 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                               "cannot create a mutable binding from an "
                               "immutable expression");
         return;
+      }
+
+      if (is_mutable && rhs && rhs->kind == OAK_NODE_EXPR_RECORD_LITERAL &&
+          rhs->rhs)
+      {
+        struct oak_list_entry_t* pos;
+        oak_list_for_each(pos, &rhs->rhs->children)
+        {
+          const struct oak_ast_node_t* field =
+              oak_container_of(pos, struct oak_ast_node_t, link);
+          if (field->kind != OAK_NODE_RECORD_LITERAL_FIELD || !field->rhs)
+            continue;
+          struct oak_type_t fty;
+          oak_type_clear(&fty);
+          oak_compiler_infer_expr_static_type(c, field->rhs, &fty);
+          if (oak_type_is_refcounted(&fty) &&
+              !oak_compiler_expr_is_mutable_place(c, field->rhs))
+          {
+            oak_compiler_error_at(
+                c,
+                field->lhs ? field->lhs->token : field->token,
+                "cannot store immutable record reference in field '%.*s' of a "
+                "mutable record; declare the source as 'mut' first",
+                field->lhs ? (int)oak_token_length(field->lhs->token) : 0,
+                field->lhs ? oak_token_text(field->lhs->token) : "");
+            return;
+          }
+        }
       }
 
       oak_compiler_reject_void_value_expr(c, rhs);
