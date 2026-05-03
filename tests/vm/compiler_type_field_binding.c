@@ -210,6 +210,19 @@ OAK_TEST_DECL(FieldAssignChainedBypassesConstFails)
       "bar.foo.abc = 100;\n");
 }
 
+/* Even when intermediate records are constructed inline (no immutable name in
+ * the chain to trigger the literal-time check), a chained field assignment is
+ * still rejected — the assignment itself is the rule, not the source binding. */
+OAK_TEST_DECL(FieldAssignChainedInlineLiteralFails)
+{
+  return expect_compile_error("record A { n : number; }\n"
+                              "record B { a : A; }\n"
+                              "record C { b : B; }\n"
+                              "let a = new A { n : 123 };\n"
+                              "let mut c = new C { b : new B { a } };\n"
+                              "c.b.a.n = 100;\n");
+}
+
 /* =========================================================================
  * Field assignment — type mismatch
  * ========================================================================= */
@@ -323,6 +336,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(FieldAssignStringOk),
     OAK_TEST_ENTRY(FieldAssignChainedFails),
     OAK_TEST_ENTRY(FieldAssignChainedBypassesConstFails),
+    OAK_TEST_ENTRY(FieldAssignChainedInlineLiteralFails),
     /* field assignment — type mismatch */
     OAK_TEST_ENTRY(FieldAssignStringToNumberFails),
     OAK_TEST_ENTRY(FieldAssignNumberToStringFails),
