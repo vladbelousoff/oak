@@ -1,0 +1,35 @@
+record Point { x : number; y : number; }
+
+let mut a = new Point { x : 1, y : 2 };
+let mut b = a;
+b.x = 10;
+b.y = 20;
+print(b.x);
+print(b.y);
+
+let mut p = new Point { x : 100, y : 200 };
+if true {
+  let r = p;
+  print(r.x);
+  print(r.y);
+}
+p.x = 999;
+print(p.x);
+
+let s = new Point { x : 7, y : 8 };
+let s2 = s;
+let s3 = s;
+print(s.x);
+print(s2.y);
+print(s3.x);
+
+record Counter {
+  n : number;
+  fn bump(mut self) { self.n = self.n + 1; }
+  fn get(self) -> number { return self.n; }
+}
+let mut c = new Counter { n : 0 };
+c.bump();
+c.bump();
+c.bump();
+print(c.get());

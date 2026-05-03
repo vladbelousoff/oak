@@ -46,6 +46,8 @@ void oak_compiler_add_local(struct oak_compiler_t* c,
   local->is_mutable = is_mutable;
   local->depth = c->scope.scope_depth;
   local->type = type;
+  local->alive = 1;
+  local->frozen_by_slot = -1;
 
   oak_chunk_add_debug_local(c->chunk, slot, name, length);
 }
@@ -62,11 +64,69 @@ void oak_compiler_end_scope(struct oak_compiler_t* c)
          c->scope.locals[c->scope.local_count - 1].depth ==
              c->scope.scope_depth)
   {
+    /* The departing local may have been freezing some other (still-in-scope)
+     * binding via shared reborrow. Release that freeze so the source becomes
+     * writable again after this scope ends. */
+    const int leaving_slot = c->scope.locals[c->scope.local_count - 1].slot;
+    for (int i = 0; i < c->scope.local_count - 1; ++i)
+    {
+      if (c->scope.locals[i].frozen_by_slot == leaving_slot)
+        c->scope.locals[i].frozen_by_slot = -1;
+    }
     pops++;
     c->scope.local_count--;
   }
   oak_compiler_emit_pops(c, pops, OAK_LOC_SYNTHETIC);
   c->scope.scope_depth--;
+}
+
+int oak_compiler_local_index_for_slot(const struct oak_compiler_t* c, int slot)
+{
+  for (int i = c->scope.local_count - 1; i >= 0; --i)
+  {
+    if (c->scope.locals[i].slot == slot)
+      return i;
+  }
+  return -1;
+}
+
+int oak_compiler_local_index_for_ident_expr(
+    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr)
+{
+  if (!expr)
+    return -1;
+  const char* name = null;
+  usize len = 0;
+  if (expr->kind == OAK_NODE_IDENT)
+  {
+    name = oak_token_text(expr->token);
+    len = oak_token_length(expr->token);
+  }
+  else if (expr->kind == OAK_NODE_SELF)
+  {
+    name = "self";
+    len = 4u;
+  }
+  else
+  {
+    return -1;
+  }
+  for (int i = c->scope.local_count - 1; i >= 0; --i)
+  {
+    const struct oak_local_t* local = &c->scope.locals[i];
+    if (oak_name_eq(local->name, local->length, name, len))
+      return i;
+  }
+  return -1;
+}
+
+int oak_compiler_local_index_for_place_root(
+    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr)
+{
+  while (expr && (expr->kind == OAK_NODE_MEMBER_ACCESS ||
+                  expr->kind == OAK_NODE_INDEX_ACCESS))
+    expr = expr->lhs;
+  return oak_compiler_local_index_for_ident_expr(c, expr);
 }
 
 int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
@@ -103,6 +163,26 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
         c, lhs->token, "cannot assign to immutable variable '%s'", name);
     return -1;
   }
+  const int li = oak_compiler_local_index_for_slot(c, slot);
+  if (li >= 0)
+  {
+    const struct oak_local_t* l = &c->scope.locals[li];
+    if (!l->alive)
+    {
+      oak_compiler_error_at(
+          c, lhs->token, "cannot assign to '%s': value was moved out", name);
+      return -1;
+    }
+    if (l->frozen_by_slot >= 0)
+    {
+      oak_compiler_error_at(
+          c,
+          lhs->token,
+          "cannot assign to '%s': it is currently borrowed (read-only)",
+          name);
+      return -1;
+    }
+  }
   return slot;
 }
 
@@ -111,20 +191,16 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
 {
   if (!expr)
     return 1;
-  if (expr->kind == OAK_NODE_IDENT)
+  if (expr->kind == OAK_NODE_IDENT || expr->kind == OAK_NODE_SELF)
   {
-    int is_mutable = 0;
-    oak_compiler_find_local(c,
-                            oak_token_text(expr->token),
-                            oak_token_length(expr->token),
-                            &is_mutable);
-    return is_mutable;
-  }
-  if (expr->kind == OAK_NODE_SELF)
-  {
-    int is_mutable = 0;
-    oak_compiler_find_local(c, "self", 4u, &is_mutable);
-    return is_mutable;
+    const int idx = oak_compiler_local_index_for_ident_expr(c, expr);
+    if (idx < 0)
+      return 0;
+    const struct oak_local_t* l = &c->scope.locals[idx];
+    /* A binding is usable as a mutable place iff it was declared `mut`,
+     * has not been moved out, and is not currently shared-reborrowed
+     * (a shared reborrow freezes the source for write). */
+    return l->is_mutable && l->alive && l->frozen_by_slot < 0;
   }
   if (expr->kind == OAK_NODE_MEMBER_ACCESS ||
       expr->kind == OAK_NODE_INDEX_ACCESS)

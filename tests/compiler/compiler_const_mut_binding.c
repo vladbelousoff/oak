@@ -195,6 +195,135 @@ OAK_TEST_DECL(ConstSelfImmutableReceiverOk)
       "p.sum();\n");
 }
 
+/* =========================================================================
+ * Borrow checker — move semantics
+ * ========================================================================= */
+
+/* `let mut b = mut_a` moves a; reading a after the move is rejected. */
+OAK_TEST_DECL(BorrowUseAfterMoveFails)
+{
+  return expect_compile_error("record Point { x : number; }\n"
+                              "let mut a = new Point { x : 1 };\n"
+                              "let mut b = a;\n"
+                              "print(a.x);\n");
+}
+
+/* After a move, even writing to the source binding is rejected. */
+OAK_TEST_DECL(BorrowAssignAfterMoveFails)
+{
+  return expect_compile_error("record Point { x : number; }\n"
+                              "let mut a = new Point { x : 1 };\n"
+                              "let mut b = a;\n"
+                              "a = new Point { x : 5 };\n");
+}
+
+/* Storing an exclusive binding into a record field MOVES it. */
+OAK_TEST_DECL(BorrowMoveIntoRecordFieldFails)
+{
+  return expect_compile_error("record Inner { v : number; }\n"
+                              "record Outer { inner : Inner; }\n"
+                              "let mut i = new Inner { v : 7 };\n"
+                              "let mut o = new Outer { inner : i };\n"
+                              "print(i.v);\n");
+}
+
+/* Moves are tracked per binding even when the source is `mut self`. */
+OAK_TEST_DECL(BorrowMoveSelfFails)
+{
+  return expect_compile_error(
+      "record Point { x : number; y : number;\n"
+      "  fn weird(mut self) -> number {\n"
+      "    let mut other = self;\n"
+      "    return self.x;\n"
+      "  }\n"
+      "}\n"
+      "let mut p = new Point { x : 1, y : 2 };\n"
+      "p.weird();\n");
+}
+
+/* =========================================================================
+ * Borrow checker — shared reborrow (freeze)
+ * ========================================================================= */
+
+/* A shared reborrow `let r = mut_a` freezes mut_a for the lifetime of r;
+ * reassigning mut_a while frozen is rejected. */
+OAK_TEST_DECL(BorrowAssignWhileFrozenFails)
+{
+  return expect_compile_error("record Point { x : number; }\n"
+                              "let mut a = new Point { x : 1 };\n"
+                              "let r = a;\n"
+                              "a = new Point { x : 5 };\n"
+                              "print(r.x);\n");
+}
+
+/* Mutating a field of a frozen binding is also rejected. */
+OAK_TEST_DECL(BorrowFieldAssignWhileFrozenFails)
+{
+  return expect_compile_error("record Point { x : number; }\n"
+                              "let mut a = new Point { x : 1 };\n"
+                              "let r = a;\n"
+                              "a.x = 99;\n"
+                              "print(r.x);\n");
+}
+
+/* Once the freezing binding goes out of scope, the source becomes
+ * exclusive again and may be mutated. */
+OAK_TEST_DECL(BorrowReborrowReleasedOnScopeExitOk)
+{
+  return expect_ok("record Point { x : number; }\n"
+                   "let mut a = new Point { x : 1 };\n"
+                   "if true {\n"
+                   "  let r = a;\n"
+                   "  print(r.x);\n"
+                   "}\n"
+                   "a.x = 99;\n");
+}
+
+/* =========================================================================
+ * Borrow checker — call-site argument aliasing
+ * ========================================================================= */
+
+/* Passing the same binding twice to a function where at least one parameter
+ * is `mut` would alias inside the callee — rejected at the call site. */
+OAK_TEST_DECL(BorrowAliasedMutArgsFails)
+{
+  return expect_compile_error(
+      "record Point { x : number; y : number; }\n"
+      "fn swap(mut a : Point, mut b : Point) {\n"
+      "  let tmp = a.x;\n"
+      "  a.x = b.x;\n"
+      "  b.x = tmp;\n"
+      "}\n"
+      "let mut p = new Point { x : 1, y : 2 };\n"
+      "swap(p, p);\n");
+}
+
+/* The same source as both a `mut` and a non-`mut` arg is also rejected
+ * (one exclusive + one shared inside the callee). */
+OAK_TEST_DECL(BorrowMutAndSharedArgsFails)
+{
+  return expect_compile_error(
+      "record Point { x : number; }\n"
+      "fn touch(mut a : Point, b : Point) -> number { return a.x + b.x; }\n"
+      "let mut p = new Point { x : 1 };\n"
+      "touch(p, p);\n");
+}
+
+/* Passing two different bindings to two `mut` parameters is fine. */
+OAK_TEST_DECL(BorrowDistinctMutArgsOk)
+{
+  return expect_ok(
+      "record Point { x : number; y : number; }\n"
+      "fn swap(mut a : Point, mut b : Point) {\n"
+      "  let tmp = a.x;\n"
+      "  a.x = b.x;\n"
+      "  b.x = tmp;\n"
+      "}\n"
+      "let mut p = new Point { x : 1, y : 2 };\n"
+      "let mut q = new Point { x : 3, y : 4 };\n"
+      "swap(p, q);\n");
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -223,6 +352,19 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(MutSelfImmutableReceiverFails),
     OAK_TEST_ENTRY(MutSelfMutableReceiverOk),
     OAK_TEST_ENTRY(ConstSelfImmutableReceiverOk),
+    /* borrow checker — moves */
+    OAK_TEST_ENTRY(BorrowUseAfterMoveFails),
+    OAK_TEST_ENTRY(BorrowAssignAfterMoveFails),
+    OAK_TEST_ENTRY(BorrowMoveIntoRecordFieldFails),
+    OAK_TEST_ENTRY(BorrowMoveSelfFails),
+    /* borrow checker — shared reborrow (freeze) */
+    OAK_TEST_ENTRY(BorrowAssignWhileFrozenFails),
+    OAK_TEST_ENTRY(BorrowFieldAssignWhileFrozenFails),
+    OAK_TEST_ENTRY(BorrowReborrowReleasedOnScopeExitOk),
+    /* borrow checker — call-site aliasing */
+    OAK_TEST_ENTRY(BorrowAliasedMutArgsFails),
+    OAK_TEST_ENTRY(BorrowMutAndSharedArgsFails),
+    OAK_TEST_ENTRY(BorrowDistinctMutArgsOk),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
 }

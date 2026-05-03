@@ -40,6 +40,15 @@ struct oak_local_t
   int is_mutable;
   int depth;
   struct oak_type_t type;
+  /* Borrow state.
+   *  alive = 0 means this binding has been moved out (e.g. `let mut y = x`
+   *  where x was exclusive). Any further read/write is rejected.
+   *  frozen_by_slot >= 0 means this exclusive binding is currently being
+   *  shared-reborrowed by the local at that slot. Reads are still allowed
+   *  (the freeze is read-only); writes are rejected. The freeze is released
+   *  when the freezing local goes out of scope. */
+  int alive;
+  int frozen_by_slot;
 };
 
 struct oak_loop_frame_t
@@ -395,6 +404,20 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
 
 int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* expr);
+
+/* Returns the local-table index (NOT slot) of the local with the given slot,
+ * or -1 if no such local is in scope. */
+int oak_compiler_local_index_for_slot(const struct oak_compiler_t* c, int slot);
+
+/* If `expr` is a bare identifier or `self` referring to a live local, returns
+ * its local-table index. Returns -1 otherwise. */
+int oak_compiler_local_index_for_ident_expr(
+    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr);
+
+/* Returns the local-table index of the root-binding of a place expression
+ * (walks through .field / [idx] chains), or -1 if not a place. */
+int oak_compiler_local_index_for_place_root(
+    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr);
 
 /* ---------- oak_compiler_types.c ---------- */
 

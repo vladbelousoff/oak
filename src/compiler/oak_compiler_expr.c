@@ -148,6 +148,12 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
     if (recv->kind == OAK_NODE_MEMBER_ACCESS ||
         recv->kind == OAK_NODE_INDEX_ACCESS)
     {
+      /* Chained field assignment stays rejected even when the root is
+       * exclusive: an intermediate field may still alias a separate live
+       * binding (e.g. `let mut c = new C { b : new B { a } }` where `a`
+       * is a separate const binding), so writing through the chain can
+       * surprise that holder. Lifting this requires recursive ownership
+       * tracking, which is out of scope for the current borrow checker. */
       oak_compiler_error_at(c,
                             fname->token,
                             "cannot assign to field '%.*s' through a chained "
@@ -194,6 +200,14 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
       return;
     }
 
+    /* If the RHS names an exclusive binding, storing it into the record
+     * field MOVES it: the source binding becomes unusable. Shared/fresh
+     * RHSs are unaffected. */
+    const int rhs_src_idx =
+        oak_type_is_refcounted(&val_ty)
+            ? oak_compiler_local_index_for_ident_expr(c, rhs)
+            : -1;
+
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, rhs);
     oak_compiler_emit_op_arg(c,
@@ -201,6 +215,13 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
                              (u8)idx,
                              oak_compiler_loc_from_token(fname->token));
     oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
+
+    if (rhs_src_idx >= 0)
+    {
+      struct oak_local_t* src = &c->scope.locals[rhs_src_idx];
+      if (src->is_mutable && src->alive && src->frozen_by_slot < 0)
+        src->alive = 0;
+    }
     return;
   }
 
@@ -630,11 +651,38 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
     oak_compiler_emit_constant(
         c, name_idx, oak_compiler_loc_from_token(name_node->token));
 
+    /* Track which source bindings each refcounted-typed initializer reads
+     * from, so we can MOVE exclusive sources into the new record after
+     * compilation. Storing an exclusive binding into a heap container
+     * transfers ownership: the source becomes unusable. Shared sources
+     * are unaffected. Bare ident-or-self only; complex expressions are
+     * fresh values. */
+    int src_idx_for_field[OAK_MAX_RECORD_FIELDS];
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      const struct oak_ast_node_t* fexpr = exprs[i];
+      if (oak_type_is_refcounted(&sd->fields[i].type))
+        src_idx_for_field[i] = oak_compiler_local_index_for_ident_expr(c, fexpr);
+      else
+        src_idx_for_field[i] = -1;
+    }
+
     for (int i = 0; i < sd->field_count; ++i)
     {
       oak_compiler_compile_node(c, exprs[i]);
       if (c->has_error)
         return;
+    }
+
+    /* Apply moves now that all initializer reads have been emitted. */
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      const int li = src_idx_for_field[i];
+      if (li < 0)
+        continue;
+      struct oak_local_t* src = &c->scope.locals[li];
+      if (src->is_mutable && src->alive && src->frozen_by_slot < 0)
+        src->alive = 0;
     }
 
     oak_compiler_emit_op_u8_u16(
@@ -705,6 +753,15 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       const int slot = oak_compiler_find_local(c, name, len, null);
       if (slot >= 0)
       {
+        const int li = oak_compiler_local_index_for_slot(c, slot);
+        if (li >= 0 && !c->scope.locals[li].alive)
+        {
+          oak_compiler_error_at(c,
+                                node->token,
+                                "use of '%s' after it was moved",
+                                name);
+          return;
+        }
         oak_compiler_emit_op_arg(c,
                                  OAK_OP_GET_LOCAL,
                                  (u8)slot,
@@ -731,6 +788,13 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       {
         oak_compiler_error_at(
             c, node->token, "'self' is only valid inside a method body");
+        return;
+      }
+      const int li = oak_compiler_local_index_for_slot(c, slot);
+      if (li >= 0 && !c->scope.locals[li].alive)
+      {
+        oak_compiler_error_at(
+            c, node->token, "use of 'self' after it was moved");
         return;
       }
       oak_compiler_emit_op_arg(c,
@@ -919,11 +983,40 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       if (c->has_error)
         return;
 
+      /* Capture the source binding (if RHS is a bare ident or `self`)
+       * before compiling, so we can apply move/reborrow state changes
+       * after the new local is in place. Only refcounted (heap) types
+       * carry borrow state; value types (number/bool/enum) are copied. */
+      const int src_local_idx =
+          oak_type_is_refcounted(&rhs_ty)
+              ? oak_compiler_local_index_for_ident_expr(c, rhs)
+              : -1;
+
       oak_compiler_compile_node(c, rhs);
       const char* name = oak_token_text(ident->token);
       const usize name_len = oak_token_length(ident->token);
       oak_compiler_add_local(
           c, name, name_len, c->scope.stack_depth - 1, is_mutable, rhs_ty);
+
+      if (src_local_idx >= 0)
+      {
+        struct oak_local_t* src = &c->scope.locals[src_local_idx];
+        if (src->is_mutable && src->alive && src->frozen_by_slot < 0)
+        {
+          if (is_mutable)
+          {
+            /* Move: exclusivity transfers to the new binding. */
+            src->alive = 0;
+          }
+          else
+          {
+            /* Shared reborrow: the source is frozen (read-only) for
+             * the lifetime of the new binding. */
+            const int new_slot = c->scope.locals[c->scope.local_count - 1].slot;
+            src->frozen_by_slot = new_slot;
+          }
+        }
+      }
 
       break;
     }
