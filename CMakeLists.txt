@@ -124,15 +124,21 @@ else()
         add_test(NAME ${test_name} COMMAND ${test_name})
     endforeach()
 
-    # Script tests
+    # Script tests: run oak on each .oak file and diff its stdout against the
+    # matching .expected file via cmake/run_script_test.cmake.
     file(GLOB OAK_SCRIPT_TESTS ${OAK_TESTS_DIR}/scripts/*.oak)
 
     foreach(script ${OAK_SCRIPT_TESTS})
         get_filename_component(script_name ${script} NAME_WE)
+        set(expected_path ${OAK_TESTS_DIR}/scripts/${script_name}.expected)
         set(test_name "script_${script_name}")
 
-        add_test(NAME ${test_name} COMMAND oak ${script})
-        # Project root as cwd (script tests use paths relative to the repo root).
-        set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        add_test(NAME ${test_name}
+            COMMAND ${CMAKE_COMMAND}
+                -DOAK_BIN=$<TARGET_FILE:oak>
+                -DSCRIPT=${script}
+                -DEXPECTED=${expected_path}
+                -DWORKDIR=${CMAKE_SOURCE_DIR}
+                -P ${CMAKE_SOURCE_DIR}/cmake/run_script_test.cmake)
     endforeach()
 endif()

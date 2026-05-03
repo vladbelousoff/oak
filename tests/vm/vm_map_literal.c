@@ -1,36 +1,4 @@
-#include "oak_compiler.h"
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
-#include "oak_test_run.h"
-#include "oak_vm.h"
-
-#include <string.h>
-
-static enum oak_test_status_t run_program(const char* source)
-{
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
-  const struct oak_ast_node_t* root = oak_parser_root(&result);
-  OAK_CHECK(root != null);
-
-  struct oak_compile_result_t cr = { 0 };
-  oak_compile(root, &cr);
-  OAK_CHECK(cr.chunk != null);
-
-  struct oak_vm_t vm;
-  oak_vm_init(&vm);
-  const enum oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
-  oak_vm_free(&vm);
-  oak_compile_result_free(&cr);
-
-  oak_parser_free(&result);
-  oak_lexer_free(lexer);
-
-  OAK_CHECK(r == OAK_VM_OK);
-  return OAK_TEST_OK;
-}
+#include "oak_test_pipeline.h"
 
 static struct oak_chunk_t* try_compile(const char* source)
 {
@@ -54,7 +22,7 @@ static struct oak_chunk_t* try_compile(const char* source)
 OAK_TEST_DECL(MapLiteral)
 {
   /* string -> number, with a function call inside a value expression. */
-  const enum oak_test_status_t r1 = run_program(
+  const enum oak_test_status_t r1 = expect_ok(
       "fn dbl(x: number) -> number { return x * 2; }\n"
       "let scores = ['alice': 10, 'bob': 20 + dbl(5), 'carol': 7];\n"
       "print(scores.size());\n"
@@ -65,7 +33,7 @@ OAK_TEST_DECL(MapLiteral)
 
   /* number -> string keys/values inferred from first entry. */
   const enum oak_test_status_t r2 =
-      run_program("let by_id = [1: 'alpha', 2: 'beta', 3: 'gamma'];\n"
+      expect_ok("let by_id = [1: 'alpha', 2: 'beta', 3: 'gamma'];\n"
                   "print(by_id.size());\n"
                   "print(by_id[1]);\n"
                   "print(by_id[3]);\n");
@@ -73,7 +41,7 @@ OAK_TEST_DECL(MapLiteral)
 
   /* Mutable literal: indexed assign and insert work. */
   const enum oak_test_status_t r3 =
-      run_program("let mut m = ['x': 1, 'y': 2];\n"
+      expect_ok("let mut m = ['x': 1, 'y': 2];\n"
                   "m['x'] = m['x'] + 10;\n"
                   "m['z'] = 99;\n"
                   "print(m['x']);\n"

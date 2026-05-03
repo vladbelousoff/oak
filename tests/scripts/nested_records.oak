@@ -1,0 +1,31 @@
+record Address {
+  city : string;
+  zip  : number;
+
+  fn label(self) -> string {
+    return self.city;
+  }
+}
+
+record Person {
+  name    : string;
+  address : Address;
+
+  fn city(self) -> string {
+    return self.address.city;
+  }
+
+  fn zip(self) -> number {
+    return self.address.zip;
+  }
+}
+
+let addr = new Address { city : 'london', zip : 10000 };
+let p    = new Person { name : 'alice', address : addr };
+
+print(p.name);
+print(p.address.city);
+print(p.address.zip);
+print(p.city());
+print(p.zip());
+print(p.address.label());

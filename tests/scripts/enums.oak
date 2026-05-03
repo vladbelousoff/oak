@@ -1,0 +1,22 @@
+enum Color { Red, Green, Blue }
+enum Direction { North, East, South, West }
+
+let r = Color.Red;
+let g = Color.Green;
+let b = Color.Blue;
+print(r);
+print(g);
+print(b);
+
+let n = Direction.North;
+let w = Direction.West;
+print(n);
+print(w);
+
+let x = Color.Red + 10;
+print(x);
+
+fn describe(c : number) -> number {
+  return c * 2;
+}
+print(describe(Color.Blue));

@@ -1,10 +1,4 @@
-#include "oak_compiler.h"
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
-#include "oak_test_run.h"
-
-#include <string.h>
+#include "oak_test_pipeline.h"
 
 static struct oak_chunk_t* try_compile(const char* source)
 {

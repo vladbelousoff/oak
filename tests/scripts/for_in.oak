@@ -1,0 +1,24 @@
+let arr = [10, 20, 30];
+
+for v in arr {
+  print(v);
+}
+
+for i, v in arr {
+  print(i);
+  print(v);
+}
+
+let m = ['a': 1, 'b': 2, 'c': 3];
+
+let mut key_count = 0;
+for k in m {
+  key_count += 1;
+}
+print(key_count);
+
+let mut val_sum = 0;
+for k, v in m {
+  val_sum += v;
+}
+print(val_sum);

@@ -1,37 +1,7 @@
-#include "oak_compiler.h"
-#include "oak_lexer.h"
-#include "oak_parser.h"
-#include "oak_test.h"
-#include "oak_test_run.h"
-#include "oak_vm.h"
+#include "oak_test_pipeline.h"
 
-#include <string.h>
-
-static enum oak_test_status_t run_program(const char* source)
-{
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
-  struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
-  const struct oak_ast_node_t* root = oak_parser_root(&result);
-  OAK_CHECK(root != null);
-
-  struct oak_compile_result_t cr = { 0 };
-  oak_compile(root, &cr);
-  OAK_CHECK(cr.chunk != null);
-
-  struct oak_vm_t vm;
-  oak_vm_init(&vm);
-  const enum oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
-  oak_vm_free(&vm);
-  oak_compile_result_free(&cr);
-
-  oak_parser_free(&result);
-  oak_lexer_free(lexer);
-
-  OAK_CHECK(r == OAK_VM_OK);
-  return OAK_TEST_OK;
-}
-
+/* Returns null if the source fails at parse or compile, otherwise the chunk
+ * (caller must free via oak_chunk / oak_compile_result_free path). */
 static struct oak_chunk_t* try_compile(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
@@ -55,7 +25,7 @@ OAK_TEST_DECL(ArrayLiteral)
 {
   /* Numeric literal with a function call inside an element expression. */
   const enum oak_test_status_t r1 =
-      run_program("fn sub(a: number, b: number) -> number { return a - b; }\n"
+      expect_ok("fn sub(a: number, b: number) -> number { return a - b; }\n"
                   "let nums = [1, 54, 13, 45 - sub(5, 3)];\n"
                   "print(nums.size());\n"
                   "print(nums[0]);\n"
@@ -64,14 +34,14 @@ OAK_TEST_DECL(ArrayLiteral)
 
   /* String literal infers element type from the first element. */
   const enum oak_test_status_t r2 =
-      run_program("let words = ['sda', 'ada', 'ert', 'rer'];\n"
+      expect_ok("let words = ['sda', 'ada', 'ert', 'rer'];\n"
                   "print(words.size());\n"
                   "print(words[0]);\n"
                   "print(words[3]);\n");
   OAK_CHECK(r2 == OAK_TEST_OK);
 
   /* Mutable literal: push and indexed assignment work. */
-  const enum oak_test_status_t r3 = run_program("let mut a = [10, 20, 30];\n"
+  const enum oak_test_status_t r3 = expect_ok("let mut a = [10, 20, 30];\n"
                                                 "a.push(40);\n"
                                                 "a[0] = 99;\n"
                                                 "print(a[0]);\n"

@@ -19,12 +19,15 @@ cmake --build build
 ctest --test-dir build -C Debug
 ```
 
-`ctest` runs two kinds of tests: **C harnesses** under `tests/*/` (each is its own small executable) and **script tests** by invoking `oak` on every `tests/scripts/*.oak` file (the working directory is the project root). Script tests pass when `oak` exits with status 0. Golden `tests/scripts/*.expected` files list the expected printed output for reference or manual diffing; they are not read automatically by `ctest`.
+`ctest` runs two kinds of tests:
+
+- **C harnesses** under `tests/lexer/`, `tests/parser/`, `tests/compiler/`, `tests/vm/`, and `tests/stdlib/` — each `.c` file builds into its own small executable.
+- **Script tests** that invoke `oak` on every `tests/scripts/*.oak` file (working directory = project root) and diff stdout against the matching `tests/scripts/*.expected` file via [`cmake/run_script_test.cmake`](cmake/run_script_test.cmake). A script test passes when `oak` exits with status 0 *and* the captured output matches the golden file.
 
 A typical full run:
 
 ```
-100% tests passed, 0 tests failed out of 92
+100% tests passed, 0 tests failed out of 109
 ```
 
 ---
