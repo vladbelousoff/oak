@@ -61,6 +61,8 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
   oak_record_registry_init(&c->records);
   oak_enum_registry_init(&c->enums);
   oak_hash_table_init(&c->module_scope_names);
+  c->user_record_start = 0;
+  c->user_enum_start = -1;
 
   return chunk;
 }
@@ -112,6 +114,10 @@ static void compile_program_items(struct oak_compiler_t* c,
       continue;
     if (item->kind == OAK_NODE_ENUM_DECL)
       continue;
+    /* Imports are resolved by the module loader and the imports pre-pass;
+     * they emit no top-level code. */
+    if (item->kind == OAK_NODE_IMPORT_DECL)
+      continue;
     oak_compiler_compile_node(c, item);
     /* Recover after a top-level statement error so subsequent items are also
      * checked and all errors are reported in a single compilation pass. */
@@ -119,6 +125,215 @@ static void compile_program_items(struct oak_compiler_t* c,
     {
       c->has_error = 0;
       c->scope.stack_depth = 0; /* top-level scope has no stack state */
+    }
+  }
+}
+
+int oak_compiler_lookup_import_alias(const struct oak_compiler_t* c,
+                                     const char* name,
+                                     const usize name_len)
+{
+  if (!c->current_module)
+    return -1;
+  return oak_hash_table_get(&c->current_module->imports, name, name_len);
+}
+
+/* Walk the program for OAK_NODE_IMPORT_DECL items.  For each, look up the
+ * matching module in the registry (the loader has already arranged for it to
+ * be present and compiled) and bind its alias name (last path segment) on the
+ * current module's `imports` table.  The loader populates these too, but
+ * doing it here keeps the compiler self-contained for resolution lookups. */
+static void collect_imports(struct oak_compiler_t* c,
+                            const struct oak_ast_node_t* program)
+{
+  if (!c->module_registry || !c->current_module)
+    return;
+  /* The module's `imports` table was populated by the loader.  Nothing extra
+   * to do here for v1 — we simply trust the loader's mapping. */
+  (void)program;
+}
+
+/* Pre-register enum variants from all imported modules so that cross-module
+ * `alias.EnumName.Variant` expressions can be resolved.  Variants are stored
+ * as small integers; we intern OAK_VALUE_I32(value) as constants in the
+ * current chunk and register them in c->enums with the local const_idx.
+ * Must run BEFORE oak_compiler_register_program_enums. */
+static void register_imported_enums(struct oak_compiler_t* c)
+{
+  if (!c->module_registry || !c->current_module)
+    return;
+  const struct oak_module_t* mod = c->current_module;
+  for (int di = 0; di < mod->import_modules.count; ++di)
+  {
+    const u16 dep_id = mod->import_modules.items[di];
+    const struct oak_module_t* dep =
+        oak_module_registry_get(c->module_registry, dep_id);
+    if (!dep)
+      continue;
+    for (int ei = 0; ei < dep->exports_enum.count; ++ei)
+    {
+      const struct oak_module_export_enum_t* exp = &dep->exports_enum.items[ei];
+      /* Skip if this enum name is already registered (diamond imports). */
+      if (oak_enum_registry_is_enum_name(&c->enums, exp->name, exp->name_len))
+        continue;
+      for (int vi = 0; vi < exp->variant_count; ++vi)
+      {
+        const struct oak_module_export_enum_variant_t* v = &exp->variants[vi];
+        /* Skip if the unqualified variant name already exists. */
+        if (oak_enum_registry_find(&c->enums, v->name, v->name_len))
+          continue;
+        const u8 local_idx =
+            oak_compiler_intern_constant(c, OAK_VALUE_I32(v->value));
+        if (c->has_error)
+          return;
+        struct oak_enum_variant_t ev = {
+          .name = v->name,
+          .name_len = v->name_len,
+          .enum_name = exp->name,
+          .enum_name_len = exp->name_len,
+          .const_idx = local_idx,
+          .value = v->value,
+        };
+        oak_enum_registry_insert(&c->enums, &ev);
+      }
+    }
+  }
+}
+
+/* For each imported module in the current module's dependency list, pre-register
+ * its exported record types into the current compiler's type and record
+ * registries.  This must run BEFORE oak_compiler_register_program_records so
+ * that user-defined type IDs are assigned in a consistent topological order
+ * across all modules. */
+static void register_imported_records(struct oak_compiler_t* c)
+{
+  if (!c->module_registry || !c->current_module)
+    return;
+  const struct oak_module_t* mod = c->current_module;
+  for (int di = 0; di < mod->import_modules.count; ++di)
+  {
+    const u16 dep_id = mod->import_modules.items[di];
+    const struct oak_module_t* dep =
+        oak_module_registry_get(c->module_registry, dep_id);
+    if (!dep)
+      continue;
+    for (int ri = 0; ri < dep->exports_record.count; ++ri)
+    {
+      const struct oak_module_export_record_t* exp =
+          &dep->exports_record.items[ri];
+      /* Skip if already registered (diamond imports). */
+      if (oak_record_registry_find_by_name(&c->records, exp->name, exp->name_len))
+        continue;
+      const oak_type_id_t tid =
+          oak_type_registry_intern(&c->types, exp->name, exp->name_len);
+      struct oak_registered_record_t proto = { 0 };
+      proto.name = exp->name;
+      proto.name_len = exp->name_len;
+      proto.type_id = tid;
+      proto.field_count = exp->field_count;
+      OAK_DYNARR_INIT(proto.methods);
+      for (int fi = 0; fi < exp->field_count; ++fi)
+      {
+        proto.fields[fi].name = exp->fields[fi].name;
+        proto.fields[fi].name_len = exp->fields[fi].name_len;
+        oak_type_clear(&proto.fields[fi].type);
+        proto.fields[fi].type.id = oak_type_registry_intern(
+            &c->types, exp->fields[fi].type_name, exp->fields[fi].type_name_len);
+      }
+      oak_record_registry_insert(&c->records, &proto);
+    }
+  }
+}
+
+/* Populate the current module's export tables from the now-fully-populated
+ * compiler registries.  All exports use the module's lexer-arena strings, so
+ * they remain valid as long as the module is alive. */
+static void populate_module_exports(struct oak_compiler_t* c)
+{
+  if (!c->current_module)
+    return;
+  struct oak_module_t* mod = c->current_module;
+  for (int i = 0; i < c->fns.entries.count; ++i)
+  {
+    const struct oak_registered_fn_t* e = &c->fns.entries.items[i];
+    /* Only export fns that come from the user's source (decl != null) AND are
+     * global (no receiver).  Native fns and methods are not exposed cross-
+     * module in v1. */
+    if (!e->decl || e->receiver_type_id != OAK_TYPE_VOID)
+      continue;
+    struct oak_module_export_fn_t exp = {
+      .name = e->name,
+      .name_len = e->name_len,
+      .const_idx = e->const_idx,
+      .arity = e->arity,
+      .return_type_node = oak_compiler_fn_decl_return_type_node(e->decl),
+    };
+    const int idx = mod->exports_fn.count;
+    OAK_DYNARR_PUSH(mod->exports_fn, exp);
+    oak_hash_table_insert(
+        &mod->exports_fn_by_name, e->name, e->name_len, idx);
+  }
+  /* Export user-defined records (those registered after native + imported ones,
+   * i.e. with index >= c->user_record_start). */
+  for (int i = c->user_record_start; i < c->records.entries.count; ++i)
+  {
+    const struct oak_registered_record_t* r = &c->records.entries.items[i];
+    if (mod->exports_record.count >= OAK_MODULE_MAX_RECORD_FIELDS)
+      break; /* guard; in practice record counts are small */
+    struct oak_module_export_record_t exp = { 0 };
+    exp.name = r->name;
+    exp.name_len = r->name_len;
+    exp.field_count = r->field_count > OAK_MODULE_MAX_RECORD_FIELDS
+                          ? OAK_MODULE_MAX_RECORD_FIELDS
+                          : r->field_count;
+    for (int fi = 0; fi < exp.field_count; ++fi)
+    {
+      exp.fields[fi].name = r->fields[fi].name;
+      exp.fields[fi].name_len = r->fields[fi].name_len;
+      /* Resolve type_id back to a name via the type registry so the importing
+       * module can re-intern it using its own registry. */
+      if (r->fields[fi].type.id >= 0 &&
+          r->fields[fi].type.id < c->types.count)
+      {
+        exp.fields[fi].type_name = c->types.entries[r->fields[fi].type.id].name;
+        exp.fields[fi].type_name_len =
+            c->types.entries[r->fields[fi].type.id].len;
+      }
+    }
+    exp.layout_id = 0; /* populated on first cross-module new when needed */
+    const int idx = mod->exports_record.count;
+    OAK_DYNARR_PUSH(mod->exports_record, exp);
+    oak_hash_table_insert(
+        &mod->exports_record_by_name, exp.name, exp.name_len, idx);
+  }
+  /* Export user-defined enums (those registered after native + imported ones).
+   * We group variants by enum_name to produce one export per enum type. */
+  if (c->user_enum_start >= 0)
+  {
+    for (int i = c->user_enum_start; i < c->enums.variants.count; ++i)
+    {
+      const struct oak_enum_variant_t* v = &c->enums.variants.items[i];
+      /* Find or create the export entry for this enum type. */
+      int eidx =
+          oak_hash_table_get(&mod->exports_enum_by_name, v->enum_name, v->enum_name_len);
+      if (eidx < 0)
+      {
+        struct oak_module_export_enum_t ee = { 0 };
+        ee.name = v->enum_name;
+        ee.name_len = v->enum_name_len;
+        eidx = mod->exports_enum.count;
+        OAK_DYNARR_PUSH(mod->exports_enum, ee);
+        oak_hash_table_insert(
+            &mod->exports_enum_by_name, ee.name, ee.name_len, eidx);
+      }
+      struct oak_module_export_enum_t* ee = &mod->exports_enum.items[eidx];
+      if (ee->variant_count < OAK_MODULE_MAX_ENUM_VARIANTS)
+      {
+        ee->variants[ee->variant_count].name = v->name;
+        ee->variants[ee->variant_count].name_len = v->name_len;
+        ee->variants[ee->variant_count].value = v->value;
+        ++ee->variant_count;
+      }
     }
   }
 }
@@ -147,14 +362,29 @@ static void compile_program(struct oak_compiler_t* c,
   oak_compiler_register_record_builtin_methods(c);
   if (c->has_error)
     return;
+  /* Pre-register enum variants from imported modules BEFORE this module's own
+   * enums, so that alias.EnumName.Variant expressions resolve correctly. */
+  register_imported_enums(c);
+  if (c->has_error)
+    return;
   /* Enums are registered early so their variant names are available as
    * constant references in the rest of the program, including function
    * parameter defaults, record field initializers, etc. */
+  c->user_enum_start = c->enums.variants.count;
   oak_compiler_register_program_enums(c, program);
   if (c->has_error)
     return;
+  /* Pre-register records from all imported modules BEFORE this module's own
+   * records.  This guarantees that type IDs are assigned in topological order
+   * so that the same record name resolves to the same type ID in every
+   * compiler instance in the program. */
+  register_imported_records(c);
+  if (c->has_error)
+    return;
   /* Records must be registered before functions so that function parameter
-   * types can refer to user-defined records. */
+   * types can refer to user-defined records.  Save the insertion point so
+   * populate_module_exports knows which records belong to this module. */
+  c->user_record_start = c->records.entries.count;
   oak_compiler_register_program_records(c, program);
   if (c->has_error)
     return;
@@ -164,6 +394,7 @@ static void compile_program(struct oak_compiler_t* c,
   oak_compiler_register_program_methods(c, program);
   if (c->has_error)
     return;
+  collect_imports(c, program);
   collect_module_scope_names(c, program);
   compile_program_items(c, program);
   if (c->has_error)
@@ -173,6 +404,9 @@ static void compile_program(struct oak_compiler_t* c,
   if (c->has_error)
     return;
   oak_compiler_compile_method_bodies(c);
+  if (c->has_error)
+    return;
+  populate_module_exports(c);
 }
 
 void oak_compile(const struct oak_ast_node_t* root,
@@ -190,6 +424,16 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
   const int want_debug = !opts || opts->emit_debug_info;
   if (want_debug)
     oak_chunk_enable_debug(chunk, opts ? opts->source_name : null);
+
+  /* Module-system context: when a registry/current_module are supplied, the
+   * compiler emits cross-module references and tags fn objects with the
+   * current module's id. */
+  if (opts && opts->module_registry && opts->current_module)
+  {
+    compiler.module_registry = opts->module_registry;
+    compiler.current_module = opts->current_module;
+    chunk->module_id = opts->current_module->module_id;
+  }
 
   if (!root || root->kind != OAK_NODE_PROGRAM)
   {

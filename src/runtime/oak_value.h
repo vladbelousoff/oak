@@ -57,6 +57,9 @@ struct oak_obj_fn_t
   struct oak_obj_t obj;
   usize code_offset;
   int arity;
+  /* Module that owns this fn's bytecode. OAK_MODULE_ID_NONE (0xFFFF) for
+   * fns compiled in single-file mode (no module registry). */
+  u16 module_id;
 };
 
 struct oak_value_t;
@@ -197,7 +200,8 @@ struct oak_obj_string_t* oak_string_new(const char* chars, usize length);
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
                                            const struct oak_obj_string_t* b);
 
-struct oak_obj_fn_t* oak_fn_new(usize code_offset, int arity);
+struct oak_obj_fn_t*
+oak_fn_new(usize code_offset, int arity, u16 module_id);
 
 struct oak_obj_native_fn_t* oak_native_fn_new(oak_native_fn_t fn,
                                               int arity,

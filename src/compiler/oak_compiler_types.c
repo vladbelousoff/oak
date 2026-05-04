@@ -149,6 +149,30 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           return;
         const char* mn = oak_token_text(method->token);
         const usize mn_len = oak_token_length(method->token);
+        /* Cross-module call: alias.fn(args) — resolve the return type from
+         * the imported module's exports. */
+        if (recv->kind == OAK_NODE_IDENT)
+        {
+          const char* rname = oak_token_text(recv->token);
+          const usize rlen = oak_token_length(recv->token);
+          const int mod_id =
+              oak_compiler_lookup_import_alias(c, rname, rlen);
+          if (mod_id >= 0)
+          {
+            const struct oak_module_t* dep =
+                oak_module_registry_get(c->module_registry, (u16)mod_id);
+            const struct oak_module_export_fn_t* fexp =
+                dep ? oak_module_find_export_fn(dep, mn, mn_len) : null;
+            if (fexp)
+            {
+              if (fexp->return_type_node)
+                oak_compiler_type_node_to_type(c, fexp->return_type_node, out);
+              else
+                out->id = OAK_TYPE_VOID;
+              return;
+            }
+          }
+        }
         if (recv->kind == OAK_NODE_IDENT)
         {
           const char* rname = oak_token_text(recv->token);
@@ -351,13 +375,24 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
     }
     case OAK_NODE_EXPR_RECORD_LITERAL:
     {
-      const struct oak_ast_node_t* name_node = expr->lhs;
-      if (!name_node || name_node->kind != OAK_NODE_IDENT)
+      /* lhs is OAK_NODE_IMPORT_PATH: last child is the type name segment. */
+      const struct oak_ast_node_t* path_node = expr->lhs;
+      if (!path_node || path_node->kind != OAK_NODE_IMPORT_PATH)
+        return;
+      const struct oak_ast_node_t* type_seg = null;
+      {
+        struct oak_list_entry_t* pos;
+        oak_list_for_each(pos, &path_node->children)
+        {
+          type_seg = oak_container_of(pos, struct oak_ast_node_t, link);
+        }
+      }
+      if (!type_seg)
         return;
       const struct oak_registered_record_t* sd =
           oak_record_registry_find_by_name(&c->records,
-                                           oak_token_text(name_node->token),
-                                           oak_token_length(name_node->token));
+                                           oak_token_text(type_seg->token),
+                                           oak_token_length(type_seg->token));
       if (!sd)
         return;
       out->id = sd->type_id;
@@ -369,7 +404,24 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       const struct oak_ast_node_t* fname = expr->rhs;
       if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
         return;
-      /* Enum variant access: EnumName.Variant yields a number. */
+      /* Cross-module enum variant: alias.EnumName.Variant → number. */
+      if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
+          recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
+      {
+        const char* alias = oak_token_text(recv->lhs->token);
+        const usize alias_len = oak_token_length(recv->lhs->token);
+        if (oak_compiler_lookup_import_alias(c, alias, alias_len) >= 0)
+        {
+          const char* ename = oak_token_text(recv->rhs->token);
+          const usize ename_len = oak_token_length(recv->rhs->token);
+          if (oak_enum_registry_is_enum_name(&c->enums, ename, ename_len))
+          {
+            out->id = OAK_TYPE_NUMBER;
+            return;
+          }
+        }
+      }
+      /* Local enum variant access: EnumName.Variant yields a number. */
       if (recv->kind == OAK_NODE_IDENT)
       {
         const char* recv_name = oak_token_text(recv->token);

@@ -1,0 +1,5 @@
+import cycle.a;
+
+fn from_b() -> number {
+  return 2;
+}

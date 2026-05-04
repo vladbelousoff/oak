@@ -1,0 +1,2 @@
+import top_level_stmt_module;
+print(top_level_stmt_module.top_fn());

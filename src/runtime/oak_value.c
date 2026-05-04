@@ -89,13 +89,16 @@ struct oak_obj_string_t* oak_string_new(const char* chars, const usize length)
   return str;
 }
 
-struct oak_obj_fn_t* oak_fn_new(const usize code_offset, const int arity)
+struct oak_obj_fn_t* oak_fn_new(const usize code_offset,
+                                const int arity,
+                                const u16 module_id)
 {
   struct oak_obj_fn_t* fn = oak_alloc(sizeof(struct oak_obj_fn_t), OAK_SRC_LOC);
   fn->obj.type = OAK_OBJ_FN;
   oak_refcount_init(&fn->obj.refcount, 1);
   fn->code_offset = code_offset;
   fn->arity = arity;
+  fn->module_id = module_id;
   return fn;
 }
 

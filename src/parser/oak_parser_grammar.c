@@ -151,14 +151,30 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> FN_DECL | RECORD_DECL | ENUM_DECL | STMT
+  // PROGRAM_ITEM -> IMPORT_DECL | FN_DECL | RECORD_DECL | ENUM_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
+      OAK_NODE_IMPORT_DECL,
       OAK_NODE_FN_DECL,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
       OAK_NODE_STMT,
+    },
+  },
+  // IMPORT_DECL -> 'import' IMPORT_PATH ';'  (unary: child = IMPORT_PATH)
+  [OAK_NODE_IMPORT_DECL] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_IMPORT | OAK_RULE_TOKEN,
+      OAK_NODE_IMPORT_PATH,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
+    },
+  },
+  // IMPORT_PATH -> IDENT ('.' IDENT)*  (encoded as a single dot-separated repeat)
+  [OAK_NODE_IMPORT_PATH] = {
+    .rules = {
+      OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_DOT_SEP,
     },
   },
   // RECORD_DECL -> 'record' TYPE_NAME '{' RECORD_FIELDS '}'
@@ -311,12 +327,14 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // EXPR_RECORD_LITERAL -> 'new' IDENT '{' RECORD_LITERAL_FIELDS '}'
+  // EXPR_RECORD_LITERAL -> 'new' IMPORT_PATH '{' RECORD_LITERAL_FIELDS '}'
+  //   lhs = IMPORT_PATH (1 child = local type; 2 children = module.TypeName)
+  //   rhs = RECORD_LITERAL_FIELDS
   [OAK_NODE_EXPR_RECORD_LITERAL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_NEW | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT,
+      OAK_NODE_IMPORT_PATH,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
       OAK_NODE_RECORD_LITERAL_FIELDS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,

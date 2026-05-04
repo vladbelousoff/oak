@@ -20,6 +20,8 @@ void oak_compile_options_init(struct oak_compile_options_t* opts)
   OAK_DYNARR_INIT(opts->native_fns);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
   opts->emit_debug_info = 1;
+  opts->module_registry = null;
+  opts->current_module = null;
 }
 
 void oak_compile_options_free(struct oak_compile_options_t* opts)

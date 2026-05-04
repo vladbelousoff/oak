@@ -7,6 +7,9 @@
 #include "oak_types.h"
 #include "oak_value.h"
 
+struct oak_module_registry_t;
+struct oak_module_t;
+
 /* Maximum number of fields a native type may expose to Oak. */
 #define OAK_BIND_MAX_FIELDS 32
 
@@ -127,6 +130,13 @@ struct oak_compile_options_t
    * chunk: per-byte source line/column and local-variable names. Set to 0 to
    * skip these allocations and produce a minimal runtime-only chunk. */
   int emit_debug_info;
+
+  /* Module-system context (both null when compiling standalone — preserves
+   * the original single-file behaviour).  When set, the compiler uses
+   * `current_module` to attach exports and to resolve `import alias.name`
+   * references via `module_registry`. */
+  struct oak_module_registry_t* module_registry;
+  struct oak_module_t*          current_module;
 };
 
 /* ---------- Compile-options lifecycle ---------- */

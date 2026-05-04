@@ -1,0 +1,9 @@
+import palette.color;
+
+let c = color.Color.Green;
+print(c);
+print(color.color_name(c));
+
+let r = color.Color.Red;
+print(r);
+print(color.color_name(r));

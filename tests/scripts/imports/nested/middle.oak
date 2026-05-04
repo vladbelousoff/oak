@@ -1,0 +1,5 @@
+import nested.inner;
+
+fn doubled_via_inner(x : number) -> number {
+  return inner.tripled(x) - x;
+}

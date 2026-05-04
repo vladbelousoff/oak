@@ -124,21 +124,53 @@ else()
         add_test(NAME ${test_name} COMMAND ${test_name})
     endforeach()
 
-    # Script tests: run oak on each .oak file and diff its stdout against the
-    # matching .expected file via cmake/run_script_test.cmake.
-    file(GLOB OAK_SCRIPT_TESTS ${OAK_TESTS_DIR}/scripts/*.oak)
+    # Script tests: run oak on each .oak file with a matching .expected file
+    # (top-level scripts/ files plus _main.oak entry points in subdirs) and
+    # diff its stdout against that .expected file via cmake/run_script_test.cmake.
+    file(GLOB OAK_SCRIPT_TESTS_TOP ${OAK_TESTS_DIR}/scripts/*.oak)
+    file(GLOB_RECURSE OAK_SCRIPT_TESTS_NESTED ${OAK_TESTS_DIR}/scripts/*_main.oak)
 
-    foreach(script ${OAK_SCRIPT_TESTS})
-        get_filename_component(script_name ${script} NAME_WE)
-        set(expected_path ${OAK_TESTS_DIR}/scripts/${script_name}.expected)
-        set(test_name "script_${script_name}")
+    foreach(script ${OAK_SCRIPT_TESTS_TOP} ${OAK_SCRIPT_TESTS_NESTED})
+        # Compute "imports/basic_main" from absolute path; transform '/' to '_'
+        # for the test name.
+        file(RELATIVE_PATH script_rel ${OAK_TESTS_DIR}/scripts ${script})
+        get_filename_component(script_dir ${script_rel} DIRECTORY)
+        get_filename_component(script_stem ${script_rel} NAME_WE)
+        if(script_dir STREQUAL "")
+            set(script_id ${script_stem})
+        else()
+            string(REPLACE "/" "_" script_id "${script_dir}/${script_stem}")
+        endif()
+        set(expected_path ${OAK_TESTS_DIR}/scripts/${script_dir}/${script_stem}.expected)
+        if(script_dir STREQUAL "")
+            set(expected_path ${OAK_TESTS_DIR}/scripts/${script_stem}.expected)
+        endif()
+        set(test_name "script_${script_id}")
 
-        add_test(NAME ${test_name}
-            COMMAND ${CMAKE_COMMAND}
-                -DOAK_BIN=$<TARGET_FILE:oak>
-                -DSCRIPT=${script}
-                -DEXPECTED=${expected_path}
-                -DWORKDIR=${CMAKE_SOURCE_DIR}
-                -P ${CMAKE_SOURCE_DIR}/cmake/run_script_test.cmake)
+        if(EXISTS ${expected_path})
+            add_test(NAME ${test_name}
+                COMMAND ${CMAKE_COMMAND}
+                    -DOAK_BIN=$<TARGET_FILE:oak>
+                    -DSCRIPT=${script}
+                    -DEXPECTED=${expected_path}
+                    -DWORKDIR=${CMAKE_SOURCE_DIR}
+                    -P ${CMAKE_SOURCE_DIR}/cmake/run_script_test.cmake)
+        endif()
+
+        # Error-case variant: script_name.expected_error triggers a test that
+        # expects a non-zero exit and stderr containing the given substring.
+        set(expected_error_path ${OAK_TESTS_DIR}/scripts/${script_dir}/${script_stem}.expected_error)
+        if(script_dir STREQUAL "")
+            set(expected_error_path ${OAK_TESTS_DIR}/scripts/${script_stem}.expected_error)
+        endif()
+        if(EXISTS ${expected_error_path})
+            add_test(NAME "error_${test_name}"
+                COMMAND ${CMAKE_COMMAND}
+                    -DOAK_BIN=$<TARGET_FILE:oak>
+                    -DSCRIPT=${script}
+                    -DEXPECTED_ERR=${expected_error_path}
+                    -DWORKDIR=${CMAKE_SOURCE_DIR}
+                    -P ${CMAKE_SOURCE_DIR}/cmake/run_error_script_test.cmake)
+        endif()
     endforeach()
 endif()

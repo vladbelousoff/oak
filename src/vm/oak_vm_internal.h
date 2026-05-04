@@ -2,6 +2,7 @@
 
 #include "oak_bind.h"
 #include "oak_log.h"
+#include "oak_module.h"
 #include "oak_value.h"
 #include "oak_vm.h"
 

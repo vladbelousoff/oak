@@ -113,6 +113,7 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
     }
 
     const int is_comma_sep = rule & OAK_RULE_COMMA_SEP;
+    const int is_dot_sep = rule & OAK_RULE_DOT_SEP;
     const enum oak_node_kind_t child_kind =
         (enum oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
     if (is_repeat)
@@ -126,6 +127,13 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
           /* Comma required between elements; a trailing comma is allowed
            * (the comma is consumed but the next parse attempt fails). */
           if (!oak_parser_try_skip_token(p, OAK_TOKEN_COMMA))
+            break;
+        }
+        if (is_dot_sep && !is_first)
+        {
+          /* Dot required between elements; trailing dot is rejected
+           * because parsing the next child will fail. */
+          if (!oak_parser_try_skip_token(p, OAK_TOKEN_DOT))
             break;
         }
         struct oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);

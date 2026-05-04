@@ -12,14 +12,18 @@ OAK_TEST_DECL(ParseRecordLiteral)
   /*
      Expected shape:
        EXPR_RECORD_LITERAL
-         IDENT("Point")
+         IMPORT_PATH
+           IDENT("Point")
          RECORD_LITERAL_FIELDS
            RECORD_LITERAL_FIELD [IDENT("x"), INT(1)]
            RECORD_LITERAL_FIELD [IDENT("y"), INT(2)]
   */
   OAK_CHECK_CHILD_COUNT(root, 2);
 
-  const struct oak_ast_node_t* type_ident = oak_test_ast_child(root, 0);
+  const struct oak_ast_node_t* type_path = oak_test_ast_child(root, 0);
+  OAK_CHECK_NODE_KIND(type_path, OAK_NODE_IMPORT_PATH);
+  OAK_CHECK_CHILD_COUNT(type_path, 1);
+  const struct oak_ast_node_t* type_ident = oak_test_ast_child(type_path, 0);
   OAK_CHECK_NODE_KIND(type_ident, OAK_NODE_IDENT);
   OAK_CHECK_TOKEN_STR(type_ident, "Point");
 

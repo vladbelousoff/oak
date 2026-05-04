@@ -485,7 +485,38 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
     return;
   }
 
-  /* Enum variant access: EnumName.Variant */
+  /* Cross-module enum variant: alias.EnumName.Variant */
+  if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
+      recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
+  {
+    const char* alias = oak_token_text(recv->lhs->token);
+    const usize alias_len = oak_token_length(recv->lhs->token);
+    const int mod_id = oak_compiler_lookup_import_alias(c, alias, alias_len);
+    if (mod_id >= 0)
+    {
+      const char* ename = oak_token_text(recv->rhs->token);
+      const usize ename_len = oak_token_length(recv->rhs->token);
+      const char* vname = oak_token_text(fname->token);
+      const usize vlen = oak_token_length(fname->token);
+      const struct oak_enum_variant_t* ev =
+          oak_enum_registry_find_qualified(&c->enums, ename, ename_len, vname, vlen);
+      if (!ev)
+      {
+        oak_compiler_error_at(c,
+                              fname->token,
+                              "enum '%s.%s' has no variant '%s'",
+                              alias,
+                              ename,
+                              vname);
+        return;
+      }
+      oak_compiler_emit_constant(
+          c, ev->const_idx, oak_compiler_loc_from_token(fname->token));
+      return;
+    }
+  }
+
+  /* Local enum variant access: EnumName.Variant */
   if (recv->kind == OAK_NODE_IDENT)
   {
     const char* recv_name = oak_token_text(recv->token);
@@ -528,12 +559,12 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
 static void compile_expr_record_literal(struct oak_compiler_t* c,
                                         const struct oak_ast_node_t* node)
 {
-  const struct oak_ast_node_t* name_node = node->lhs;
+  const struct oak_ast_node_t* path_node = node->lhs;
   const struct oak_ast_node_t* fields_node = node->rhs;
-  if (!name_node || name_node->kind != OAK_NODE_IDENT)
+  if (!path_node || path_node->kind != OAK_NODE_IMPORT_PATH)
   {
     oak_compiler_error_at(
-        c, node->token, "record literal: type must be an identifier");
+        c, node->token, "record literal: malformed type path");
     return;
   }
   if (!fields_node || fields_node->kind != OAK_NODE_RECORD_LITERAL_FIELDS)
@@ -542,14 +573,57 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
         c, node->token, "record literal: malformed field list");
     return;
   }
-  const char* sname = oak_token_text(name_node->token);
-  const usize sname_len = oak_token_length(name_node->token);
+
+  /* Collect path segments.  1 segment = local type; 2 segments = mod.Type. */
+  const struct oak_ast_node_t* seg[2] = { null, null };
+  int seg_count = 0;
+  {
+    struct oak_list_entry_t* pos;
+    oak_list_for_each(pos, &path_node->children)
+    {
+      const struct oak_ast_node_t* s =
+          oak_container_of(pos, struct oak_ast_node_t, link);
+      if (seg_count < 2)
+        seg[seg_count] = s;
+      ++seg_count;
+    }
+  }
+  if (seg_count < 1 || seg_count > 2)
+  {
+    oak_compiler_error_at(
+        c, node->token, "record literal: type path must be 'Type' or 'mod.Type'");
+    return;
+  }
+
+  const struct oak_ast_node_t* type_seg = seg[seg_count - 1]; /* last segment */
+  const char* sname = oak_token_text(type_seg->token);
+  const usize sname_len = oak_token_length(type_seg->token);
+
+  /* For a qualified path (mod.Type) verify the module alias is valid. */
+  if (seg_count == 2)
+  {
+    const char* alias = oak_token_text(seg[0]->token);
+    const usize alias_len = oak_token_length(seg[0]->token);
+    const int mod_id = oak_compiler_lookup_import_alias(c, alias, alias_len);
+    if (mod_id < 0)
+    {
+      oak_compiler_error_at(c,
+                            seg[0]->token,
+                            "'%s' is not an imported module",
+                            alias);
+      return;
+    }
+  }
+
+  /* name_node used below for error token references — point at the type segment. */
+  const struct oak_ast_node_t* name_node = type_seg;
+
   const struct oak_registered_record_t* sd =
       oak_record_registry_find_by_name(&c->records, sname, sname_len);
   if (!sd)
   {
     oak_compiler_error_at(
-        c, name_node->token, "unknown record type '%s'", sname);
+        c, type_seg->token, "unknown record type '%s'", sname);
     return;
   }
 

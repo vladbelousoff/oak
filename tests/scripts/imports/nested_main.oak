@@ -1,0 +1,4 @@
+import nested.middle;
+
+print(middle.doubled_via_inner(7));
+print(middle.doubled_via_inner(11));

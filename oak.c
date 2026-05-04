@@ -1,11 +1,10 @@
 #include "oak_bind.h"
 #include "oak_cli.h"
 #include "oak_compiler.h"
-#include "oak_file_map.h"
-#include "oak_lexer.h"
 #include "oak_log.h"
 #include "oak_mem.h"
-#include "oak_parser.h"
+#include "oak_module.h"
+#include "oak_module_loader.h"
 #include "oak_stdlib.h"
 #include "oak_vm.h"
 
@@ -30,69 +29,54 @@ int main(const int argc, const char* argv[])
 
   oak_mem_init();
 
-  struct oak_file_map_t source_map;
-  struct oak_lexer_result_t* lexer = null;
-  struct oak_parser_result_t result = { 0 };
-  struct oak_compile_result_t cr = { 0 };
   struct oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts);
   compile_opts.source_name = cli.script_path;
   compile_opts.emit_debug_info = !cli.no_debug;
   oak_stdlib_register(&compile_opts);
+
+  struct oak_module_registry_t registry;
+  oak_module_registry_init(&registry);
+  struct oak_module_loader_result_t lr = { 0 };
+
   int exit_code = 1;
-
-  if (oak_file_map(cli.script_path, &source_map) != 0)
+  const int load_rc = oak_module_loader_load_program(
+      cli.script_path, &compile_opts, &registry, &lr);
+  for (int i = 0; i < lr.error_count; i++)
   {
-    oak_mem_shutdown();
-    return 1;
-  }
-
-  lexer = oak_lexer_tokenize(source_map.data, source_map.size);
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
-
-  for (int i = 0; i < oak_parser_error_count(&result); i++)
-  {
-    const struct oak_diagnostic_t* d = &oak_parser_errors(&result)[i];
+    const struct oak_diagnostic_t* d = &lr.errors[i];
     if (d->line > 0)
       oak_log(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
     else
       oak_log(OAK_LOG_ERROR, "%s", d->message);
   }
 
-  const struct oak_ast_node_t* const root = oak_parser_root(&result);
-  if (root)
+  if (load_rc == 0 && lr.entry && lr.entry->chunk)
   {
-    oak_compile_ex(root, &compile_opts, &cr);
-
-    for (int i = 0; i < cr.error_count; i++)
+    exit_code = 0;
+    if (cli.disassemble)
     {
-      const struct oak_diagnostic_t* d = &cr.errors[i];
-      if (d->line > 0)
-        oak_log(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
-      else
-        oak_log(OAK_LOG_ERROR, "%s", d->message);
-    }
-
-    if (cr.chunk)
-    {
-      exit_code = 0;
-      if (cli.disassemble)
-        oak_chunk_disassemble(cr.chunk);
-      else
+      for (int i = 0; i < registry.modules.count; ++i)
       {
-        struct oak_vm_t vm;
-        oak_vm_init(&vm);
-        exit_code = oak_vm_run(&vm, cr.chunk) != OAK_VM_OK;
-        oak_vm_free(&vm);
+        const struct oak_module_t* m = registry.modules.items[i];
+        oak_log(OAK_LOG_INFO,
+                "==== module [%s] ====",
+                m->dotted_name ? m->dotted_name : "<entry>");
+        oak_chunk_disassemble(m->chunk);
       }
+    }
+    else
+    {
+      struct oak_vm_t vm;
+      oak_vm_init(&vm);
+      oak_vm_set_module_registry(&vm, &registry);
+      exit_code = oak_vm_run(&vm, lr.entry->chunk) != OAK_VM_OK;
+      oak_vm_free(&vm);
     }
   }
 
-  oak_compile_result_free(&cr);
+  oak_module_registry_free(&registry);
   oak_compile_options_free(&compile_opts);
-  oak_file_unmap(&source_map);
-  oak_parser_free(&result);
-  oak_lexer_free(lexer);
   oak_mem_shutdown();
   return exit_code;
 }

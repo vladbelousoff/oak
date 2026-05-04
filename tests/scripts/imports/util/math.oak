@@ -1,0 +1,7 @@
+fn double(x : number) -> number {
+  return x * 2;
+}
+
+fn add(a : number, b : number) -> number {
+  return a + b;
+}

@@ -259,7 +259,9 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity);
+  const u16 mid =
+      c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
+  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity, mid);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
   struct oak_registered_fn_t entry = {
@@ -306,7 +308,9 @@ static void register_method_on_record(struct oak_compiler_t* c,
   slot.decl = item;
 
   const int total_arity = self_param ? explicit_arity + 1 : explicit_arity;
-  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity);
+  const u16 mid =
+      c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
+  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity, mid);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
   slot.arity = total_arity;
   OAK_DYNARR_PUSH(sd->methods, slot);

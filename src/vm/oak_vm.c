@@ -160,6 +160,13 @@ void oak_vm_init(struct oak_vm_t* vm)
   vm->sp = vm->stack;
   vm->stack_base = 0;
   vm->frame_count = 0;
+  vm->modules = null;
+}
+
+void oak_vm_set_module_registry(struct oak_vm_t* vm,
+                                struct oak_module_registry_t* modules)
+{
+  vm->modules = modules;
 }
 
 void oak_vm_free(struct oak_vm_t* vm)
@@ -397,6 +404,9 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const enum oak_vm_result_t r = oak_vm_op_call(vm);
         if (r != OAK_VM_OK)
           return r;
+        /* OP_CALL may switch chunks for cross-module calls; refresh the
+         * local pointer so subsequent reads see the active chunk. */
+        chunk = vm->chunk;
         break;
       }
       case OAK_OP_RETURN:
@@ -404,6 +414,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const enum oak_vm_result_t r = oak_vm_op_return(vm);
         if (r != OAK_VM_OK)
           return r;
+        chunk = vm->chunk;
         break;
       }
       case OAK_OP_NEW_ARRAY_FROM_STACK:
@@ -587,6 +598,29 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           return OAK_VM_RUNTIME_ERROR;
         }
         vm->sp -= 1;
+        break;
+      }
+      case OAK_OP_GET_MODULE_FN:
+      {
+        const u16 mod_id = oak_vm_read_u16(vm);
+        const u16 const_idx = oak_vm_read_u16(vm);
+        if (!vm->modules)
+        {
+          oak_vm_runtime_error(vm,
+                               "internal: cross-module reference but VM has "
+                               "no module registry");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const struct oak_module_t* m =
+            oak_module_registry_get(vm->modules, mod_id);
+        if (!m || !m->chunk || (usize)const_idx >= m->chunk->const_count)
+        {
+          oak_vm_runtime_error(
+              vm,
+              "internal: cross-module reference resolves to invalid slot");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        OAK_VM_TRY(oak_vm_push(vm, m->chunk->constants[const_idx]));
         break;
       }
       default:

@@ -1,0 +1,3 @@
+import bad_module;
+
+print(bad_module.usable());

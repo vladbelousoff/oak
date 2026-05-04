@@ -54,7 +54,8 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
     { "else", OAK_TOKEN_ELSE },   { "enum", OAK_TOKEN_ENUM },
     { "false", OAK_TOKEN_FALSE }, { "fn", OAK_TOKEN_FN },
     { "for", OAK_TOKEN_FOR },     { "from", OAK_TOKEN_FROM },
-    { "if", OAK_TOKEN_IF },       { "in", OAK_TOKEN_IN },
+    { "if", OAK_TOKEN_IF },       { "import", OAK_TOKEN_IMPORT },
+    { "in", OAK_TOKEN_IN },
     { "let", OAK_TOKEN_LET },     { "mut", OAK_TOKEN_MUT },
     { "new", OAK_TOKEN_NEW },     { "not", OAK_TOKEN_NOT },
     { "or", OAK_TOKEN_OR },       { "return", OAK_TOKEN_RETURN },
@@ -191,6 +192,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "NEW";
     case OAK_TOKEN_SELF:
       return "SELF";
+    case OAK_TOKEN_IMPORT:
+      return "IMPORT";
     default:
       return null;
   }

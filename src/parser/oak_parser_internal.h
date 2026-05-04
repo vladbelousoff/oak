@@ -18,9 +18,12 @@ struct oak_parser_t
  * before each repetition attempt.  Handles both space- and comma-separated
  * lists and allows an optional trailing comma. */
 #define OAK_RULE_COMMA_SEP ((unsigned short)(1 << 12))
+/* When combined with OAK_RULE_REPEAT (non-token), require a DOT between
+ * elements (no leading or trailing dot).  Used by import paths a.b.c. */
+#define OAK_RULE_DOT_SEP ((unsigned short)(1 << 11))
 #define OAK_RULE_KIND_MASK                                                     \
   ((unsigned short)~(OAK_RULE_TOKEN | OAK_RULE_REPEAT | OAK_RULE_OPTIONAL |    \
-                     OAK_RULE_COMMA_SEP))
+                     OAK_RULE_COMMA_SEP | OAK_RULE_DOT_SEP))
 
 enum oak_grammar_op_t
 {

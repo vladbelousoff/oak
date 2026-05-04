@@ -8,6 +8,7 @@
 #include "oak_hash_table.h"
 #include "oak_log.h"
 #include "oak_mem.h"
+#include "oak_module.h"
 #include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value.h"
@@ -231,6 +232,15 @@ struct oak_compiler_t
   /* Names bound at module scope (top-level `let` items only). Used to reject
    * access from inside user function and method bodies. */
   struct oak_hash_table_t module_scope_names;
+  /* Module-system context. Null when compiling standalone. */
+  struct oak_module_registry_t* module_registry;
+  struct oak_module_t* current_module;
+  /* Index into c->records.entries where user-defined records begin (after
+   * native and imported records).  Set just before register_program_records. */
+  int user_record_start;
+  /* Index into c->enums.variants where user-defined enum variants begin.
+   * Set just before register_program_enums.  -1 means unset. */
+  int user_enum_start;
 };
 
 /* ---------- Registry lifecycle (called from oak_compiler.c) ---------- */
@@ -343,6 +353,19 @@ void oak_compiler_emit_op_u8_u16(struct oak_compiler_t* c,
                                  u8 a,
                                  u16 b,
                                  struct oak_code_loc_t loc);
+
+void oak_compiler_emit_op_u16_u16(struct oak_compiler_t* c,
+                                  u8 op,
+                                  u16 a,
+                                  u16 b,
+                                  struct oak_code_loc_t loc);
+
+/* Returns the imported module's id if `name` is a registered alias on the
+ * current compilation unit, otherwise -1. Returns -1 when there is no module
+ * registry (single-file mode). */
+int oak_compiler_lookup_import_alias(const struct oak_compiler_t* c,
+                                     const char* name,
+                                     usize name_len);
 
 u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
                                  struct oak_value_t value);

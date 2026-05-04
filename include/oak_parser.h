@@ -88,6 +88,8 @@ enum oak_node_kind_t
   OAK_NODE_RECORD_LITERAL_FIELD,
   OAK_NODE_ENUM_VARIANTS,
   OAK_NODE_BLOCK,
+  OAK_NODE_IMPORT_DECL,
+  OAK_NODE_IMPORT_PATH,
 };
 
 struct oak_ast_node_t

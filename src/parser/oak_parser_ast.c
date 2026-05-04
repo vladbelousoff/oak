@@ -237,6 +237,10 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
     return "ENUM_VARIANTS";
   case OAK_NODE_BLOCK:
     return "BLOCK";
+  case OAK_NODE_IMPORT_DECL:
+    return "IMPORT_DECL";
+  case OAK_NODE_IMPORT_PATH:
+    return "IMPORT_PATH";
   }
   return "UNKNOWN";
 }

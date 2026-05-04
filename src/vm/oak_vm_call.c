@@ -60,12 +60,32 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
     return OAK_VM_RUNTIME_ERROR;
   }
 
+  /* Cross-module call?  If the fn's owning module differs from the currently
+   * executing chunk, switch chunks and remember the original on the frame so
+   * OP_RETURN can restore it. */
+  struct oak_chunk_t* target_chunk = vm->chunk;
+  if (vm->modules && fn->module_id != 0xFFFFu &&
+      fn->module_id != vm->chunk->module_id)
+  {
+    struct oak_module_t* target_mod =
+        oak_module_registry_get(vm->modules, fn->module_id);
+    if (!target_mod || !target_mod->chunk)
+    {
+      oak_vm_runtime_error(
+          vm, "internal: cross-module call to unloaded module");
+      return OAK_VM_RUNTIME_ERROR;
+    }
+    target_chunk = target_mod->chunk;
+  }
+
   struct oak_call_frame_t* frame = &vm->frames[vm->frame_count++];
   frame->return_ip = vm->ip;
   frame->caller_stack_base = vm->stack_base;
   frame->fn_slot = fn_slot;
+  frame->return_chunk = vm->chunk;
   vm->stack_base = fn_slot + 1u;
-  vm->ip = vm->chunk->bytecode + fn->code_offset;
+  vm->chunk = target_chunk;
+  vm->ip = target_chunk->bytecode + fn->code_offset;
   return OAK_VM_OK;
 }
 
@@ -119,5 +139,7 @@ enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)
   vm->sp = vm->stack + fn_slot + 1u;
   vm->ip = frame->return_ip;
   vm->stack_base = frame->caller_stack_base;
+  if (frame->return_chunk)
+    vm->chunk = frame->return_chunk;
   return OAK_VM_OK;
 }

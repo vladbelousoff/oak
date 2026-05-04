@@ -58,6 +58,7 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_GET_FIELD] = { "OP_GET_FIELD", OAK_OP_FMT_SLOT, 0 },
   /* Stack: [..., record, value] -> [..., value]; sets record.fields[idx]. */
   [OAK_OP_SET_FIELD] = { "OP_SET_FIELD", OAK_OP_FMT_SLOT, -1 },
+  [OAK_OP_GET_MODULE_FN] = { "OP_GET_MODULE_FN", OAK_OP_FMT_U16_U16, 1 },
 };
 
 #define OAK_OP_INFO_COUNT oak_count_of(oak_op_info)
@@ -81,6 +82,7 @@ void oak_chunk_init(struct oak_chunk_t* chunk)
   chunk->field_layout_count = 0;
   chunk->field_layout_capacity = 0;
   chunk->debug = null;
+  chunk->module_id = 0xFFFFu; /* OAK_MODULE_ID_NONE; no oak_module.h dep */
 }
 
 void oak_chunk_enable_debug(struct oak_chunk_t* chunk, const char* source_name)
@@ -442,6 +444,21 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
               (unsigned)a,
               (unsigned)b);
       return offset + 4;
+    }
+    case OAK_OP_FMT_U16_U16:
+    {
+      const u16 a = (u16)((u16)chunk->bytecode[offset + 1] << 8) |
+                    chunk->bytecode[offset + 2];
+      const u16 b = (u16)((u16)chunk->bytecode[offset + 3] << 8) |
+                    chunk->bytecode[offset + 4];
+      oak_log(OAK_LOG_INFO,
+              "%04zu %s  %-20s  mod %4u, idx %4u",
+              offset,
+              line,
+              name,
+              (unsigned)a,
+              (unsigned)b);
+      return offset + 5;
     }
     default:
       oak_log(OAK_LOG_INFO, "%04zu %s  %s", offset, line, name);

@@ -47,6 +47,9 @@ enum oak_opcode_t
   OAK_OP_NEW_RECORD_FROM_STACK,
   OAK_OP_GET_FIELD,
   OAK_OP_SET_FIELD,
+  /* Cross-module: pushes the function value at constants[const_idx] of the
+   * module identified by module_id. */
+  OAK_OP_GET_MODULE_FN,
 };
 
 enum oak_op_format_t
@@ -60,6 +63,9 @@ enum oak_op_format_t
   OAK_OP_FMT_ARGC,
   /* 8-bit count + 16-bit (big-endian) id; e.g. user record + field layout. */
   OAK_OP_FMT_U8_U16,
+  /* 16-bit (big-endian) module_id + 16-bit (big-endian) const_idx; used by
+   * cross-module references such as OP_GET_MODULE_FN. */
+  OAK_OP_FMT_U16_U16,
 };
 
 #define OAK_CHUNK_MAX_RECORD_FIELDS 32
@@ -127,6 +133,9 @@ struct oak_chunk_t
   int field_layout_capacity;
   /* Optional debug section; null when stripped. */
   struct oak_chunk_debug_t* debug;
+  /* The module that owns this chunk.  OAK_MODULE_ID_NONE (0xFFFF) when the
+   * chunk is part of a single-file (no-import) compile. */
+  u16 module_id;
 };
 
 void oak_chunk_init(struct oak_chunk_t* chunk);

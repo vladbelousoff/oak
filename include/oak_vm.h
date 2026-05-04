@@ -19,7 +19,12 @@ struct oak_call_frame_t
   u8* return_ip;
   usize caller_stack_base;
   usize fn_slot;
+  /* Chunk to restore on return.  When the call did not switch chunks
+   * (intra-module), this is the same as the caller's chunk. */
+  struct oak_chunk_t* return_chunk;
 };
+
+struct oak_module_registry_t;
 
 struct oak_vm_t
 {
@@ -30,10 +35,16 @@ struct oak_vm_t
   usize stack_base;
   struct oak_call_frame_t frames[OAK_FRAMES_MAX];
   int frame_count;
+  /* Optional: when set, the VM can resolve cross-module references via
+   * OP_GET_MODULE_FN and switch chunks on cross-module CALL/RETURN. */
+  struct oak_module_registry_t* modules;
 };
 
 void oak_vm_init(struct oak_vm_t* vm);
 void oak_vm_free(struct oak_vm_t* vm);
+
+void oak_vm_set_module_registry(struct oak_vm_t* vm,
+                                struct oak_module_registry_t* modules);
 
 enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk);
 
