@@ -1,0 +1,24 @@
+let mut scores = [:] as [string:number];
+scores['alice'] = 95;
+scores['bob']   = 87;
+scores['carol'] = 92;
+
+print(scores.size());
+print(scores['alice']);
+
+print(scores.has('bob'));
+print(scores.has('dave'));
+
+scores.delete('bob');
+print(scores.size());
+
+let mut total = 0;
+for k, v in scores {
+  print(k);
+  total += v;
+}
+print(total);
+
+let by_id = [1: 'alpha', 2: 'beta', 3: 'gamma'];
+print(by_id[2]);
+print(by_id.size());

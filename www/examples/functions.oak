@@ -1,0 +1,26 @@
+fn add(a : number, b : number) -> number {
+  return a + b;
+}
+
+fn max(a : number, b : number) -> number {
+  if a > b {
+    return a;
+  }
+  return b;
+}
+
+fn greet(name : string) -> string {
+  return 'Hello, ' + name + '!';
+}
+
+fn abs(x : number) -> number {
+  if x < 0 {
+    return -x;
+  }
+  return x;
+}
+
+print(add(3, 4));
+print(max(10, 20));
+print(greet('Oak'));
+print(abs(-42));

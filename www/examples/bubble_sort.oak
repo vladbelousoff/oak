@@ -1,0 +1,27 @@
+fn swap(mut arr: number[], i: number, j: number) {
+  let tmp = arr[i];
+  arr[i] = arr[j];
+  arr[j] = tmp;
+}
+
+fn bubble_sort(mut arr: number[]) -> number {
+  let n = arr.size();
+  let mut i = 0;
+  while i < n {
+    let mut j = 0;
+    while j < n - i - 1 {
+      if arr[j] > arr[j + 1] {
+        swap(arr, j, j + 1);
+      }
+      j += 1;
+    }
+    i += 1;
+  }
+  return n;
+}
+
+let mut data = [5, 2, 9, 1, 7, 3, 8, 4, 6, 0];
+bubble_sort(data);
+for v in data {
+  print(v);
+}

@@ -1,0 +1,17 @@
+let x = 42;
+let pi = 3.14;
+let flag = true;
+
+let mut n = 10;
+n = 20;
+n += 5;
+n -= 3;
+n *= 2;
+n /= 4;
+n %= 7;
+print(n);
+
+print(x > 0 && flag);
+print(x == 0 || n != 0);
+print(!false);
+print(-x + 100);
