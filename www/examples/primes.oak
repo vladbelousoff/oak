@@ -1,11 +1,16 @@
-for n from 2 to 50 {
-  let mut is_prime = 1;
-  for i from 2 to n {
-    if n % i == 0 {
-      is_prime = 0;
+let mut primes = [2, 3, 5, 7];
+
+for n from 8 to 1000 {
+  let mut is_prime = true;
+  for known_prime in primes {
+    if n % known_prime == 0 {
+      is_prime = false;
+      break;
     }
   }
-  if is_prime == 1 {
-    print(n);
+  if is_prime {
+    primes.push(n);
   }
 }
+
+print(primes);
