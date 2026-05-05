@@ -138,21 +138,6 @@ int oak_compiler_lookup_import_alias(const struct oak_compiler_t* c,
   return oak_hash_table_get(&c->current_module->imports, name, name_len);
 }
 
-/* Walk the program for OAK_NODE_IMPORT_DECL items.  For each, look up the
- * matching module in the registry (the loader has already arranged for it to
- * be present and compiled) and bind its alias name (last path segment) on the
- * current module's `imports` table.  The loader populates these too, but
- * doing it here keeps the compiler self-contained for resolution lookups. */
-static void collect_imports(struct oak_compiler_t* c,
-                            const struct oak_ast_node_t* program)
-{
-  if (!c->module_registry || !c->current_module)
-    return;
-  /* The module's `imports` table was populated by the loader.  Nothing extra
-   * to do here for v1 — we simply trust the loader's mapping. */
-  (void)program;
-}
-
 /* Pre-register enum variants from all imported modules so that cross-module
  * `alias.EnumName.Variant` expressions can be resolved.  Variants are stored
  * as small integers; we intern OAK_VALUE_I32(value) as constants in the
@@ -341,71 +326,43 @@ static void populate_module_exports(struct oak_compiler_t* c)
 static void compile_program(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* program)
 {
-  oak_compiler_register_native_builtins(c);
-  if (c->has_error)
-    return;
-  oak_compiler_register_array_methods(c);
-  if (c->has_error)
-    return;
-  oak_compiler_register_map_methods(c);
-  if (c->has_error)
-    return;
-  oak_compiler_register_string_methods(c);
-  if (c->has_error)
-    return;
-  oak_compiler_register_bool_methods(c);
-  if (c->has_error)
-    return;
-  oak_compiler_register_number_methods(c);
-  if (c->has_error)
-    return;
-  oak_compiler_register_record_builtin_methods(c);
-  if (c->has_error)
-    return;
-  /* Pre-register enum variants from imported modules BEFORE this module's own
-   * enums, so that alias.EnumName.Variant expressions resolve correctly. */
+  /* Step 1 — register all built-in functions and methods. */
+  oak_compiler_register_native_builtins(c);     CHECK_ERROR(c);
+  oak_compiler_register_array_methods(c);       CHECK_ERROR(c);
+  oak_compiler_register_map_methods(c);         CHECK_ERROR(c);
+  oak_compiler_register_string_methods(c);      CHECK_ERROR(c);
+  oak_compiler_register_bool_methods(c);        CHECK_ERROR(c);
+  oak_compiler_register_number_methods(c);      CHECK_ERROR(c);
+  oak_compiler_register_record_builtin_methods(c); CHECK_ERROR(c);
+
+  /* Step 2 — register types in topological order (imported before local) so
+   * that IDs are consistent across all modules in the program.
+   * Import alias resolution uses c->current_module->imports, which the loader
+   * already populated; no extra pass is needed here. */
   register_imported_enums(c);
-  if (c->has_error)
-    return;
-  /* Enums are registered early so their variant names are available as
-   * constant references in the rest of the program, including function
-   * parameter defaults, record field initializers, etc. */
+  CHECK_ERROR(c);
   c->user_enum_start = c->enums.variants.count;
   oak_compiler_register_program_enums(c, program);
-  if (c->has_error)
-    return;
-  /* Pre-register records from all imported modules BEFORE this module's own
-   * records.  This guarantees that type IDs are assigned in topological order
-   * so that the same record name resolves to the same type ID in every
-   * compiler instance in the program. */
+  CHECK_ERROR(c);
+
   register_imported_records(c);
-  if (c->has_error)
-    return;
-  /* Records must be registered before functions so that function parameter
-   * types can refer to user-defined records.  Save the insertion point so
-   * populate_module_exports knows which records belong to this module. */
+  CHECK_ERROR(c);
   c->user_record_start = c->records.entries.count;
   oak_compiler_register_program_records(c, program);
-  if (c->has_error)
-    return;
-  oak_compiler_register_program_functions(c, program);
-  if (c->has_error)
-    return;
-  oak_compiler_register_program_methods(c, program);
-  if (c->has_error)
-    return;
-  collect_imports(c, program);
+  CHECK_ERROR(c);
+
+  /* Step 3 — register functions and methods, then emit code. */
+  oak_compiler_register_program_functions(c, program); CHECK_ERROR(c);
+  oak_compiler_register_program_methods(c, program);   CHECK_ERROR(c);
+
   collect_module_scope_names(c, program);
   compile_program_items(c, program);
-  if (c->has_error)
-    return;
+  CHECK_ERROR(c);
+
+  /* Step 4 — emit halt, compile deferred bodies, populate exports. */
   oak_compiler_emit_op(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
-  oak_compiler_compile_function_bodies(c);
-  if (c->has_error)
-    return;
-  oak_compiler_compile_method_bodies(c);
-  if (c->has_error)
-    return;
+  oak_compiler_compile_function_bodies(c); CHECK_ERROR(c);
+  oak_compiler_compile_method_bodies(c);   CHECK_ERROR(c);
   populate_module_exports(c);
 }
 

@@ -69,13 +69,13 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   const char* mname = oak_token_text(method->token);
   const usize mname_len = oak_token_length(method->token);
 
-  /* alias.fn(args) — cross-module function call.  Resolve the alias against
-   * the imports table, look up the function in the target module's exports,
-   * then emit OP_GET_MODULE_FN + OP_CALL. */
   if (receiver->kind == OAK_NODE_IDENT)
   {
     const char* rname = oak_token_text(receiver->token);
     const usize rlen = oak_token_length(receiver->token);
+
+    /* alias.fn(args) — cross-module call.  If the receiver is a module alias,
+     * look up the export and emit OP_GET_MODULE_FN + OP_CALL. */
     const int mod_id = oak_compiler_lookup_import_alias(c, rname, rlen);
     if (mod_id >= 0)
     {
@@ -113,14 +113,9 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
       c->scope.stack_depth -= user_argc;
       return;
     }
-  }
 
-  /* TypeName.method(args) — static native method: receiver is a record type
-   * name, not a variable. */
-  if (receiver->kind == OAK_NODE_IDENT)
-  {
-    const char* rname = oak_token_text(receiver->token);
-    const usize rlen = oak_token_length(receiver->token);
+    /* TypeName.method(args) — static method: receiver is a type name, not a
+     * variable (mod_id < 0 means the name is not an import alias). */
     struct oak_type_t local_ty;
     oak_type_clear(&local_ty);
     if (!oak_compiler_local_type_get(c, rname, rlen, &local_ty))
@@ -144,8 +139,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
             return;
           }
           oak_compiler_validate_record_method_call_arg_types(c, node, sm);
-          if (c->has_error)
-            return;
+          CHECK_ERROR(c);
           oak_compiler_emit_constant(c, sm->const_idx, call_loc);
           compile_call_args_after_callee(c, node);
           oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)sm->arity, call_loc);

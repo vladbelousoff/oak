@@ -149,14 +149,14 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           return;
         const char* mn = oak_token_text(method->token);
         const usize mn_len = oak_token_length(method->token);
-        /* Cross-module call: alias.fn(args) — resolve the return type from
-         * the imported module's exports. */
         if (recv->kind == OAK_NODE_IDENT)
         {
           const char* rname = oak_token_text(recv->token);
           const usize rlen = oak_token_length(recv->token);
-          const int mod_id =
-              oak_compiler_lookup_import_alias(c, rname, rlen);
+
+          /* alias.fn(args) — cross-module call: resolve return type from the
+           * imported module's export table. */
+          const int mod_id = oak_compiler_lookup_import_alias(c, rname, rlen);
           if (mod_id >= 0)
           {
             const struct oak_module_t* dep =
@@ -172,11 +172,9 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               return;
             }
           }
-        }
-        if (recv->kind == OAK_NODE_IDENT)
-        {
-          const char* rname = oak_token_text(recv->token);
-          const usize rlen = oak_token_length(recv->token);
+
+          /* TypeName.method(args) — static method on a record type name
+           * (mod_id < 0 means the receiver is not an import alias). */
           struct oak_type_t local_ty;
           oak_type_clear(&local_ty);
           if (!oak_compiler_local_type_get(c, rname, rlen, &local_ty))
