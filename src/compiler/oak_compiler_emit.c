@@ -7,48 +7,25 @@ void oak_compiler_emit_byte(const struct oak_compiler_t* c,
   oak_chunk_write(c->chunk, byte, loc);
 }
 
-void oak_compiler_emit_op(struct oak_compiler_t* c,
-                          const u8 op,
-                          const struct oak_code_loc_t loc)
+void oak_compiler_emit_op_impl(struct oak_compiler_t* c,
+                               const u8 op,
+                               const struct oak_code_loc_t loc,
+                               const oak_emit_arg_t* args,
+                               const int n_args)
 {
   oak_compiler_emit_byte(c, op, loc);
-  c->scope.stack_depth += oak_op_info[op].stack_effect;
-}
-
-void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
-                              const u8 op,
-                              const u8 arg,
-                              const struct oak_code_loc_t loc)
-{
-  oak_compiler_emit_byte(c, op, loc);
-  oak_compiler_emit_byte(c, arg, loc);
-  c->scope.stack_depth += oak_op_info[op].stack_effect;
-}
-
-void oak_compiler_emit_op_u8_u16(struct oak_compiler_t* c,
-                                 const u8 op,
-                                 const u8 a,
-                                 const u16 b,
-                                 const struct oak_code_loc_t loc)
-{
-  oak_compiler_emit_byte(c, op, loc);
-  oak_compiler_emit_byte(c, a, loc);
-  oak_compiler_emit_byte(c, (u8)(b >> 8u), loc);
-  oak_compiler_emit_byte(c, (u8)(b & 0xffu), loc);
-  c->scope.stack_depth += oak_op_info[op].stack_effect;
-}
-
-void oak_compiler_emit_op_u16_u16(struct oak_compiler_t* c,
-                                  const u8 op,
-                                  const u16 a,
-                                  const u16 b,
-                                  const struct oak_code_loc_t loc)
-{
-  oak_compiler_emit_byte(c, op, loc);
-  oak_compiler_emit_byte(c, (u8)(a >> 8u), loc);
-  oak_compiler_emit_byte(c, (u8)(a & 0xffu), loc);
-  oak_compiler_emit_byte(c, (u8)(b >> 8u), loc);
-  oak_compiler_emit_byte(c, (u8)(b & 0xffu), loc);
+  for (int i = 0; i < n_args; i++)
+  {
+    if (args[i].type == OAK_EMIT_U8)
+    {
+      oak_compiler_emit_byte(c, (u8)args[i].value, loc);
+    }
+    else
+    {
+      oak_compiler_emit_byte(c, (u8)(args[i].value >> 8u), loc);
+      oak_compiler_emit_byte(c, (u8)(args[i].value & 0xffu), loc);
+    }
+  }
   c->scope.stack_depth += oak_op_info[op].stack_effect;
 }
 
@@ -84,7 +61,7 @@ void oak_compiler_emit_constant(struct oak_compiler_t* c,
 {
   if (idx <= 255)
   {
-    oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, (u8)idx, loc);
+    oak_compiler_emit_op(c, OAK_OP_CONSTANT, loc, OAK_ARG_U8((u8)idx));
   }
   else
   {

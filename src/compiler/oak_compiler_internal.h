@@ -342,26 +342,32 @@ void oak_compiler_emit_byte(const struct oak_compiler_t* c,
                             u8 byte,
                             struct oak_code_loc_t loc);
 
-void oak_compiler_emit_op(struct oak_compiler_t* c,
-                          u8 op,
-                          struct oak_code_loc_t loc);
+typedef enum { OAK_EMIT_U8, OAK_EMIT_U16 } oak_emit_arg_type_t;
+typedef struct
+{
+  oak_emit_arg_type_t type;
+  u16 value;
+} oak_emit_arg_t;
 
-void oak_compiler_emit_op_arg(struct oak_compiler_t* c,
-                              u8 op,
-                              u8 arg,
-                              struct oak_code_loc_t loc);
+#define OAK_ARG_U8(v)  ((oak_emit_arg_t){OAK_EMIT_U8, (u16)(v)})
+#define OAK_ARG_U16(v) ((oak_emit_arg_t){OAK_EMIT_U16, (v)})
 
-void oak_compiler_emit_op_u8_u16(struct oak_compiler_t* c,
-                                 u8 op,
-                                 u8 a,
-                                 u16 b,
-                                 struct oak_code_loc_t loc);
+void oak_compiler_emit_op_impl(struct oak_compiler_t* c,
+                                u8 op,
+                                struct oak_code_loc_t loc,
+                                const oak_emit_arg_t* args,
+                                int n_args);
 
-void oak_compiler_emit_op_u16_u16(struct oak_compiler_t* c,
-                                  u8 op,
-                                  u16 a,
-                                  u16 b,
-                                  struct oak_code_loc_t loc);
+/* Variadic emit: oak_compiler_emit_op(c, op, loc [, OAK_ARG_U8/U16, ...]) */
+#define oak_compiler_emit_op(c, op, loc, ...)                                 \
+  oak_compiler_emit_op_impl(                                                   \
+      c,                                                                        \
+      op,                                                                       \
+      loc,                                                                      \
+      (const oak_emit_arg_t[]){{0}, ##__VA_ARGS__} + 1,                       \
+      (int)(sizeof((const oak_emit_arg_t[]){{0}, ##__VA_ARGS__}) /            \
+            sizeof(oak_emit_arg_t)) -                                           \
+          1)
 
 /* Returns the imported module's id if `name` is a registered alias on the
  * current compilation unit, otherwise -1. Returns -1 when there is no module

@@ -211,10 +211,10 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
 
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, rhs);
-    oak_compiler_emit_op_arg(c,
-                             OAK_OP_SET_FIELD,
-                             (u8)idx,
-                             oak_compiler_loc_from_token(fname->token));
+    oak_compiler_emit_op(c,
+                         OAK_OP_SET_FIELD,
+                         oak_compiler_loc_from_token(fname->token),
+                         OAK_ARG_U8((u8)idx));
     oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
 
     if (rhs_src_idx >= 0)
@@ -236,8 +236,10 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
     return;
 
   oak_compiler_compile_node(c, rhs);
-  oak_compiler_emit_op_arg(
-      c, OAK_OP_SET_LOCAL, (u8)slot, oak_compiler_loc_from_token(lhs->token));
+  oak_compiler_emit_op(c,
+                       OAK_OP_SET_LOCAL,
+                       oak_compiler_loc_from_token(lhs->token),
+                       OAK_ARG_U8((u8)slot));
   oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
 }
 
@@ -301,8 +303,8 @@ static void compile_expr_array_literal(struct oak_compiler_t* c,
       return;
   }
 
-  oak_compiler_emit_op_arg(
-      c, OAK_OP_NEW_ARRAY_FROM_STACK, (u8)count, OAK_LOC_SYNTHETIC);
+  oak_compiler_emit_op(
+      c, OAK_OP_NEW_ARRAY_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
   c->scope.stack_depth -= (int)count;
 }
 
@@ -405,8 +407,8 @@ static void compile_expr_map_literal(struct oak_compiler_t* c,
       return;
   }
 
-  oak_compiler_emit_op_arg(
-      c, OAK_OP_NEW_MAP_FROM_STACK, (u8)count, OAK_LOC_SYNTHETIC);
+  oak_compiler_emit_op(
+      c, OAK_OP_NEW_MAP_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
   c->scope.stack_depth -= (int)count * 2;
 }
 
@@ -438,7 +440,7 @@ static void compile_expr_cast(struct oak_compiler_t* c,
                             "array type (e.g. '[] as number[]')");
       return;
     }
-    oak_compiler_emit_op_arg(c, OAK_OP_NEW_ARRAY_FROM_STACK, 0, OAK_LOC_SYNTHETIC);
+    oak_compiler_emit_op(c, OAK_OP_NEW_ARRAY_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
     return;
   }
 
@@ -463,7 +465,7 @@ static void compile_expr_cast(struct oak_compiler_t* c,
                             "map type (e.g. '[:] as [string:number]')");
       return;
     }
-    oak_compiler_emit_op_arg(c, OAK_OP_NEW_MAP_FROM_STACK, 0, OAK_LOC_SYNTHETIC);
+    oak_compiler_emit_op(c, OAK_OP_NEW_MAP_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
     return;
   }
 
@@ -548,8 +550,10 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
   if (idx < 0)
     return;
   oak_compiler_compile_node(c, recv);
-  oak_compiler_emit_op_arg(
-      c, OAK_OP_GET_FIELD, (u8)idx, oak_compiler_loc_from_token(fname->token));
+  oak_compiler_emit_op(c,
+                       OAK_OP_GET_FIELD,
+                       oak_compiler_loc_from_token(fname->token),
+                       OAK_ARG_U8((u8)idx));
 }
 
 static void compile_expr_record_literal(struct oak_compiler_t* c,
@@ -743,12 +747,11 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
         src->alive = 0;
     }
 
-    oak_compiler_emit_op_u8_u16(
-        c,
-        OAK_OP_NEW_RECORD_FROM_STACK,
-        (u8)sd->field_count,
-        (u16)layout_id,
-        OAK_LOC_SYNTHETIC);
+    oak_compiler_emit_op(c,
+                         OAK_OP_NEW_RECORD_FROM_STACK,
+                         OAK_LOC_SYNTHETIC,
+                         OAK_ARG_U8((u8)sd->field_count),
+                         OAK_ARG_U16((u16)layout_id));
     c->scope.stack_depth -= sd->field_count;
   }
 }
@@ -820,10 +823,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                                 name);
           return;
         }
-        oak_compiler_emit_op_arg(c,
-                                 OAK_OP_GET_LOCAL,
-                                 (u8)slot,
-                                 oak_compiler_loc_from_token(node->token));
+        oak_compiler_emit_op(c,
+                             OAK_OP_GET_LOCAL,
+                             oak_compiler_loc_from_token(node->token),
+                             OAK_ARG_U8((u8)slot));
         break;
       }
       if (c->scope.fn_depth > 0 &&
@@ -855,10 +858,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
             c, node->token, "use of 'self' after it was moved");
         return;
       }
-      oak_compiler_emit_op_arg(c,
-                               OAK_OP_GET_LOCAL,
-                               (u8)slot,
-                               oak_compiler_loc_from_token(node->token));
+      oak_compiler_emit_op(c,
+                           OAK_OP_GET_LOCAL,
+                           oak_compiler_loc_from_token(node->token),
+                           OAK_ARG_U8((u8)slot));
       break;
     }
     case OAK_NODE_BINARY_ADD:
@@ -1096,19 +1099,19 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       if (node->kind == OAK_NODE_STMT_ADD_ASSIGN &&
           oak_compiler_ast_is_int_literal(node->rhs, 1))
       {
-        oak_compiler_emit_op_arg(c,
-                                 OAK_OP_INC_LOCAL,
-                                 (u8)slot,
-                                 oak_compiler_loc_from_token(lhs->token));
+        oak_compiler_emit_op(c,
+                             OAK_OP_INC_LOCAL,
+                             oak_compiler_loc_from_token(lhs->token),
+                             OAK_ARG_U8((u8)slot));
         break;
       }
       if (node->kind == OAK_NODE_STMT_SUB_ASSIGN &&
           oak_compiler_ast_is_int_literal(node->rhs, 1))
       {
-        oak_compiler_emit_op_arg(c,
-                                 OAK_OP_DEC_LOCAL,
-                                 (u8)slot,
-                                 oak_compiler_loc_from_token(lhs->token));
+        oak_compiler_emit_op(c,
+                             OAK_OP_DEC_LOCAL,
+                             oak_compiler_loc_from_token(lhs->token),
+                             OAK_ARG_U8((u8)slot));
         break;
       }
 
@@ -1116,18 +1119,18 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       if (c->has_error)
         return;
 
-      oak_compiler_emit_op_arg(c,
-                               OAK_OP_GET_LOCAL,
-                               (u8)slot,
-                               oak_compiler_loc_from_token(lhs->token));
+      oak_compiler_emit_op(c,
+                           OAK_OP_GET_LOCAL,
+                           oak_compiler_loc_from_token(lhs->token),
+                           OAK_ARG_U8((u8)slot));
       oak_compiler_compile_node(c, node->rhs);
       oak_compiler_emit_op(c,
                            oak_compiler_opcode_for_node_kind(node->kind),
                            oak_compiler_loc_from_token(lhs->token));
-      oak_compiler_emit_op_arg(c,
-                               OAK_OP_SET_LOCAL,
-                               (u8)slot,
-                               oak_compiler_loc_from_token(lhs->token));
+      oak_compiler_emit_op(c,
+                           OAK_OP_SET_LOCAL,
+                           oak_compiler_loc_from_token(lhs->token),
+                           OAK_ARG_U8((u8)slot));
       oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }

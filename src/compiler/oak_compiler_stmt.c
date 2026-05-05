@@ -186,8 +186,8 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
   {
     const struct oak_code_loc_t ident_loc =
         oak_compiler_loc_from_token(ident->token);
-    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)loop_var_slot, ident_loc);
-    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)limit_slot, ident_loc);
+    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
+    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)limit_slot));
     oak_compiler_emit_op(c, OAK_OP_LT, ident_loc);
     const usize exit_jump =
         oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, ident_loc);
@@ -199,7 +199,7 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
 
     oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
 
-    oak_compiler_emit_op_arg(c, OAK_OP_INC_LOCAL, (u8)loop_var_slot, ident_loc);
+    oak_compiler_emit_op(c, OAK_OP_INC_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
 
     oak_compiler_emit_loop(c, loop.loop_start, ident_loc);
     oak_compiler_patch_jump(c, exit_jump);
@@ -236,9 +236,9 @@ static void for_in_init_hidden_state(struct oak_compiler_t* c,
   const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
   oak_compiler_add_local(c, "$i", 0, *out_idx_slot, 1, num_ty);
 
-  oak_compiler_emit_op_arg(c, OAK_OP_CONSTANT, len_m->const_idx, loc);
-  oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
-  oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)len_m->total_arity, loc);
+  oak_compiler_emit_op(c, OAK_OP_CONSTANT, loc, OAK_ARG_U8(len_m->const_idx));
+  oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
+  oak_compiler_emit_op(c, OAK_OP_CALL, loc, OAK_ARG_U8((u8)len_m->total_arity));
   c->scope.stack_depth -= len_m->total_arity;
   *out_limit_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c, "$n", 0, *out_limit_slot, 0, num_ty);
@@ -256,8 +256,8 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
   {
     if (coll_ty->kind == OAK_TYPE_KIND_MAP)
     {
-      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
-      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+      oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
+      oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
       oak_compiler_emit_op(c, OAK_OP_MAP_KEY_AT, loc);
       const struct oak_type_t key_ty = { .id = coll_ty->key_id };
       oak_compiler_add_local(c,
@@ -269,7 +269,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
     }
     else
     {
-      oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+      oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
       const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
@@ -281,8 +281,8 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
   }
   if (v_ident)
   {
-    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)coll_slot, loc);
-    oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
+    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
+    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
     oak_compiler_emit_op(c,
                          coll_ty->kind == OAK_TYPE_KIND_MAP
                              ? OAK_OP_MAP_VALUE_AT
@@ -394,8 +394,8 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   c->scope.current_loop = &loop;
 
   /* Loop condition: idx < limit. */
-  oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)idx_slot, loc);
-  oak_compiler_emit_op_arg(c, OAK_OP_GET_LOCAL, (u8)limit_slot, loc);
+  oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
+  oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)limit_slot));
   oak_compiler_emit_op(c, OAK_OP_LT, loc);
   const usize exit_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, loc);
 
@@ -413,7 +413,7 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   /* `continue` lands here (after k/v are popped). */
   oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
 
-  oak_compiler_emit_op_arg(c, OAK_OP_INC_LOCAL, (u8)idx_slot, loc);
+  oak_compiler_emit_op(c, OAK_OP_INC_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
   oak_compiler_emit_loop(c, loop.loop_start, loc);
   oak_compiler_patch_jump(c, exit_jump);
 
