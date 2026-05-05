@@ -1,0 +1,12 @@
+import util.math as m;
+import palette.color as col;
+
+let x = m.double(21);
+print(x);
+
+let y = m.add(10, 32);
+print(y);
+
+let c = col.Color.Green;
+print(c);
+print(col.color_name(c));

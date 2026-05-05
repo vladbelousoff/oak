@@ -1,4 +1,5 @@
 #include "oak_compiler_internal.h"
+#include "oak_compiler_modules.h"
 
 void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* type_node,
@@ -154,15 +155,10 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           const char* rname = oak_token_text(recv->token);
           const usize rlen = oak_token_length(recv->token);
 
-          /* alias.fn(args) — cross-module call: resolve return type from the
-           * imported module's export table. */
-          const int mod_id = oak_compiler_lookup_import_alias(c, rname, rlen);
-          if (mod_id >= 0)
+          /* alias.fn(args) — cross-module call: resolve return type. */
           {
-            const struct oak_module_t* dep =
-                oak_module_registry_get(c->module_registry, (u16)mod_id);
             const struct oak_module_export_fn_t* fexp =
-                dep ? oak_module_find_export_fn(dep, mn, mn_len) : null;
+                oak_compiler_module_export_fn(c, rname, rlen, mn, mn_len, null);
             if (fexp)
             {
               if (fexp->return_type_node)
@@ -403,16 +399,13 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
         return;
       /* Cross-module enum variant: alias.EnumName.Variant → number. */
-      if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
-          recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
       {
-        const char* alias = oak_token_text(recv->lhs->token);
-        const usize alias_len = oak_token_length(recv->lhs->token);
-        if (oak_compiler_lookup_import_alias(c, alias, alias_len) >= 0)
+        const struct oak_token_t* ename_tok = null;
+        if (oak_compiler_match_module_member(c, recv, &ename_tok))
         {
-          const char* ename = oak_token_text(recv->rhs->token);
-          const usize ename_len = oak_token_length(recv->rhs->token);
-          if (oak_enum_registry_is_enum_name(&c->enums, ename, ename_len))
+          if (oak_enum_registry_is_enum_name(
+                  &c->enums, oak_token_text(ename_tok),
+                  oak_token_length(ename_tok)))
           {
             out->id = OAK_TYPE_NUMBER;
             return;

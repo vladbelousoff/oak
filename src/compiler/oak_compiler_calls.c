@@ -1,4 +1,5 @@
 #include "oak_compiler_internal.h"
+#include "oak_compiler_modules.h"
 
 void oak_compiler_compile_fn_call_arg(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* arg)
@@ -74,24 +75,21 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
     const char* rname = oak_token_text(receiver->token);
     const usize rlen = oak_token_length(receiver->token);
 
-    /* alias.fn(args) — cross-module call.  If the receiver is a module alias,
-     * look up the export and emit OP_GET_MODULE_FN + OP_CALL. */
-    const int mod_id = oak_compiler_lookup_import_alias(c, rname, rlen);
-    if (mod_id >= 0)
+    /* alias.fn(args) — cross-module call. */
+    const struct oak_module_t* dep = null;
+    const struct oak_module_export_fn_t* exp =
+        oak_compiler_module_export_fn(c, rname, rlen, mname, mname_len, &dep);
+    if (dep && !exp)
     {
-      const struct oak_module_t* dep =
-          oak_module_registry_get(c->module_registry, (u16)mod_id);
-      const struct oak_module_export_fn_t* exp =
-          dep ? oak_module_find_export_fn(dep, mname, mname_len) : null;
-      if (!exp)
-      {
-        oak_compiler_error_at(c,
-                              method->token,
-                              "module '%s' has no exported function '%s'",
-                              dep ? dep->dotted_name : "?",
-                              mname);
-        return;
-      }
+      oak_compiler_error_at(c,
+                            method->token,
+                            "module '%s' has no exported function '%s'",
+                            dep->dotted_name,
+                            mname);
+      return;
+    }
+    if (exp)
+    {
       if ((int)user_argc != exp->arity)
       {
         oak_compiler_error_at(c,
@@ -103,11 +101,8 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
                               user_argc);
         return;
       }
-      oak_compiler_emit_op_u16_u16(c,
-                                   OAK_OP_GET_MODULE_FN,
-                                   (u16)mod_id,
-                                   exp->const_idx,
-                                   call_loc);
+      oak_compiler_emit_op_u16_u16(
+          c, OAK_OP_GET_MODULE_FN, dep->module_id, exp->const_idx, call_loc);
       compile_call_args_after_callee(c, node);
       oak_compiler_emit_op_arg(c, OAK_OP_CALL, (u8)user_argc, call_loc);
       c->scope.stack_depth -= user_argc;

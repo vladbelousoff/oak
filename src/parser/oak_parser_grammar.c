@@ -162,12 +162,15 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT,
     },
   },
-  // IMPORT_DECL -> 'import' IMPORT_PATH ';'  (unary: child = IMPORT_PATH)
+  // IMPORT_DECL -> 'import' IMPORT_PATH ('as' IDENT)? ';'
+  //   (binary: lhs = IMPORT_PATH, rhs = alias IDENT or null)
   [OAK_NODE_IMPORT_DECL] = {
-    .op = OAK_GRAMMAR_UNARY,
+    .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_IMPORT | OAK_RULE_TOKEN,
       OAK_NODE_IMPORT_PATH,
+      OAK_TOKEN_AS     | OAK_RULE_TOKEN    | OAK_RULE_OPTIONAL,
+      OAK_NODE_IDENT   | OAK_RULE_OPTIONAL,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },

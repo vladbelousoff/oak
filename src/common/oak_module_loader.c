@@ -188,6 +188,51 @@ dotted_path_last_segment(const struct oak_ast_node_t* path_node)
   return last;
 }
 
+/* ---------- Per-import descriptor ---------- */
+
+/* Flat descriptor extracted from one OAK_NODE_IMPORT_DECL. */
+struct loader_import_t
+{
+  const struct oak_ast_node_t* path;      /* OAK_NODE_IMPORT_PATH (decl->lhs) */
+  const struct oak_ast_node_t* alias_node;/* explicit alias IDENT (decl->rhs) or null */
+};
+
+/* Return the token that should be used as the import alias — the explicit `as
+ * X` identifier when given, otherwise the last segment of the dotted path. */
+static const struct oak_token_t*
+loader_import_alias_token(const struct loader_import_t* imp)
+{
+  if (imp->alias_node)
+    return imp->alias_node->token;
+  const struct oak_ast_node_t* last = dotted_path_last_segment(imp->path);
+  return last ? last->token : null;
+}
+
+/* Collect all import descriptors from a module's parse tree into `out`.
+ * Returns the number collected. */
+static int collect_imports(const struct oak_module_t* mod,
+                           OAK_DYNARR(struct loader_import_t) * out)
+{
+  const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
+  if (!root)
+    return 0;
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &root->children)
+  {
+    const struct oak_ast_node_t* item =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (item->kind != OAK_NODE_IMPORT_DECL)
+      continue;
+    struct loader_import_t imp;
+    imp.path = item->lhs;
+    imp.alias_node = (item->rhs && item->rhs->kind == OAK_NODE_IDENT)
+                         ? item->rhs
+                         : null;
+    OAK_DYNARR_PUSH(*out, imp);
+  }
+  return out->count;
+}
+
 /* ---------- Module body validation (non-entry) ---------- */
 
 static int validate_imported_module_body(
@@ -264,9 +309,8 @@ static int compile_module(struct oak_module_t* mod,
 struct loader_frame_t
 {
   struct oak_module_t* mod;
-  /* Iterator over the module's import children — index of next import to
-   * process. */
-  int next_import_idx;
+  OAK_DYNARR(struct loader_import_t) imports; /* pre-collected from parse tree */
+  int next_import_idx;                         /* cursor into imports */
 };
 
 static struct oak_module_t* parse_or_get_module(
@@ -328,46 +372,6 @@ static struct oak_module_t* parse_or_get_module(
   return mod;
 }
 
-/* Counts top-level OAK_NODE_IMPORT_DECL items in a module's parse tree. */
-static int count_imports(const struct oak_module_t* mod)
-{
-  const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
-  if (!root)
-    return 0;
-  int n = 0;
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &root->children)
-  {
-    const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind == OAK_NODE_IMPORT_DECL)
-      ++n;
-  }
-  return n;
-}
-
-/* Returns the i-th IMPORT_DECL child of the module's parsed program, or null
- * if out of range. */
-static const struct oak_ast_node_t*
-ith_import_decl(const struct oak_module_t* mod, int i)
-{
-  const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
-  if (!root)
-    return null;
-  int n = 0;
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &root->children)
-  {
-    const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_IMPORT_DECL)
-      continue;
-    if (n == i)
-      return item;
-    ++n;
-  }
-  return null;
-}
 
 int oak_module_loader_load_program(
     const char* entry_path,
@@ -414,36 +418,51 @@ int oak_module_loader_load_program(
 
   ENSURE_FLAGS(entry->module_id);
   visiting.items[entry->module_id] = 1;
-  struct loader_frame_t entry_frame = { entry, 0 };
-  OAK_DYNARR_PUSH(stack, entry_frame);
+  {
+    struct loader_frame_t entry_frame;
+    entry_frame.mod = entry;
+    OAK_DYNARR_INIT(entry_frame.imports);
+    collect_imports(entry, &entry_frame.imports);
+    entry_frame.next_import_idx = 0;
+    OAK_DYNARR_PUSH(stack, entry_frame);
+  }
+
+  /* Helper: record the alias→module_id mapping from a loader_import_t. */
+  #define RECORD_ALIAS(_parent_mod, _imp, _dep_id) do {                         \
+    const struct oak_token_t* _atk = loader_import_alias_token(_imp);           \
+    if (_atk) {                                                                  \
+      const char* _a = oak_token_text(_atk);                                    \
+      const usize _al = oak_token_length(_atk);                                 \
+      if (oak_hash_table_get(&(_parent_mod)->imports, _a, _al) < 0)             \
+        oak_hash_table_insert(&(_parent_mod)->imports, _a, _al, (int)(_dep_id));\
+    }                                                                            \
+  } while (0)
 
   int rc = 0;
   while (stack.count > 0 && rc == 0)
   {
     struct loader_frame_t* top = &stack.items[stack.count - 1];
-    const int n_imports = count_imports(top->mod);
-    if (top->next_import_idx >= n_imports)
+    if (top->next_import_idx >= top->imports.count)
     {
       /* All children processed: post-order finalize. */
       visiting.items[top->mod->module_id] = 0;
       visited.items[top->mod->module_id] = 1;
       OAK_DYNARR_PUSH(topo, top->mod);
+      OAK_DYNARR_FREE(top->imports);
       stack.count--;
       continue;
     }
 
-    const struct oak_ast_node_t* import_decl =
-        ith_import_decl(top->mod, top->next_import_idx);
-    top->next_import_idx++;
-    const struct oak_ast_node_t* path_node = import_decl->child;
-    if (!path_node)
+    const struct loader_import_t* imp =
+        &top->imports.items[top->next_import_idx++];
+    if (!imp->path)
     {
       loader_error(out, "%s: malformed import", top->mod->dotted_name);
       rc = -1;
       break;
     }
 
-    char* dotted = dotted_name_from_path(path_node);
+    char* dotted = dotted_name_from_path(imp->path);
     char* file_path = path_resolve_dotted(base_dir, dotted);
     char* canonical = path_canonicalize(file_path);
 
@@ -486,16 +505,7 @@ int oak_module_loader_load_program(
     if (found && (int)found->module_id < visited.count &&
         visited.items[found->module_id])
     {
-      /* Record the alias mapping on the parent module. */
-      const struct oak_ast_node_t* last = dotted_path_last_segment(path_node);
-      if (last)
-      {
-        const char* alias = oak_token_text(last->token);
-        const usize alen = oak_token_length(last->token);
-        if (oak_hash_table_get(&top->mod->imports, alias, alen) < 0)
-          oak_hash_table_insert(
-              &top->mod->imports, alias, alen, (int)found->module_id);
-      }
+      RECORD_ALIAS(top->mod, imp, found->module_id);
       OAK_DYNARR_PUSH(top->mod->import_modules, found->module_id);
       oak_free(dotted, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
@@ -516,27 +526,29 @@ int oak_module_loader_load_program(
       break;
     }
 
-    /* Record the alias mapping on the parent module. */
-    const struct oak_ast_node_t* last = dotted_path_last_segment(path_node);
-    if (last)
+    /* Validate and record the alias. */
     {
-      const char* alias = oak_token_text(last->token);
-      const usize alen = oak_token_length(last->token);
-      if (oak_hash_table_get(&top->mod->imports, alias, alen) >= 0)
+      const struct oak_token_t* atk = loader_import_alias_token(imp);
+      if (atk)
       {
-        loader_error(out,
-                     "%s: duplicate import alias '%.*s'",
-                     top->mod->dotted_name,
-                     (int)alen,
-                     alias);
-        oak_free(dotted, OAK_SRC_LOC);
-        oak_free(file_path, OAK_SRC_LOC);
-        oak_free(canonical, OAK_SRC_LOC);
-        rc = -1;
-        break;
+        const char* alias = oak_token_text(atk);
+        const usize alen = oak_token_length(atk);
+        if (oak_hash_table_get(&top->mod->imports, alias, alen) >= 0)
+        {
+          loader_error(out,
+                       "%s: duplicate import alias '%.*s'",
+                       top->mod->dotted_name,
+                       (int)alen,
+                       alias);
+          oak_free(dotted, OAK_SRC_LOC);
+          oak_free(file_path, OAK_SRC_LOC);
+          oak_free(canonical, OAK_SRC_LOC);
+          rc = -1;
+          break;
+        }
+        oak_hash_table_insert(
+            &top->mod->imports, alias, alen, (int)dep->module_id);
       }
-      oak_hash_table_insert(
-          &top->mod->imports, alias, alen, (int)dep->module_id);
     }
     OAK_DYNARR_PUSH(top->mod->import_modules, dep->module_id);
 
@@ -548,14 +560,26 @@ int oak_module_loader_load_program(
     if (visiting.items[dep->module_id] || visited.items[dep->module_id])
       continue;
     visiting.items[dep->module_id] = 1;
-    struct loader_frame_t f = { dep, 0 };
-    OAK_DYNARR_PUSH(stack, f);
+    {
+      struct loader_frame_t f;
+      f.mod = dep;
+      OAK_DYNARR_INIT(f.imports);
+      collect_imports(dep, &f.imports);
+      f.next_import_idx = 0;
+      OAK_DYNARR_PUSH(stack, f);
+    }
   }
+
+  /* Free any imports arrays still on the stack (error path). */
+  for (int i = 0; i < stack.count; ++i)
+    OAK_DYNARR_FREE(stack.items[i].imports);
 
   oak_free(base_dir, OAK_SRC_LOC);
   OAK_DYNARR_FREE(stack);
   OAK_DYNARR_FREE(visiting);
   OAK_DYNARR_FREE(visited);
+
+  #undef RECORD_ALIAS
 
   if (rc != 0)
   {

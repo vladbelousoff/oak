@@ -1,4 +1,5 @@
 #include "oak_compiler_internal.h"
+#include "oak_compiler_modules.h"
 
 usize oak_compiler_ast_child_count(const struct oak_ast_node_t* node)
 {
@@ -486,16 +487,12 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
   }
 
   /* Cross-module enum variant: alias.EnumName.Variant */
-  if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
-      recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
   {
-    const char* alias = oak_token_text(recv->lhs->token);
-    const usize alias_len = oak_token_length(recv->lhs->token);
-    const int mod_id = oak_compiler_lookup_import_alias(c, alias, alias_len);
-    if (mod_id >= 0)
+    const struct oak_token_t* ename_tok = null;
+    if (oak_compiler_match_module_member(c, recv, &ename_tok))
     {
-      const char* ename = oak_token_text(recv->rhs->token);
-      const usize ename_len = oak_token_length(recv->rhs->token);
+      const char* ename = oak_token_text(ename_tok);
+      const usize ename_len = oak_token_length(ename_tok);
       const char* vname = oak_token_text(fname->token);
       const usize vlen = oak_token_length(fname->token);
       const struct oak_enum_variant_t* ev =
@@ -504,8 +501,7 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
       {
         oak_compiler_error_at(c,
                               fname->token,
-                              "enum '%s.%s' has no variant '%s'",
-                              alias,
+                              "enum '%s' has no variant '%s'",
                               ename,
                               vname);
         return;
@@ -576,18 +572,7 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
 
   /* Collect path segments.  1 segment = local type; 2 segments = mod.Type. */
   const struct oak_ast_node_t* seg[2] = { null, null };
-  int seg_count = 0;
-  {
-    struct oak_list_entry_t* pos;
-    oak_list_for_each(pos, &path_node->children)
-    {
-      const struct oak_ast_node_t* s =
-          oak_container_of(pos, struct oak_ast_node_t, link);
-      if (seg_count < 2)
-        seg[seg_count] = s;
-      ++seg_count;
-    }
-  }
+  const int seg_count = oak_compiler_import_path_segments(path_node, seg, 2);
   if (seg_count < 1 || seg_count > 2)
   {
     oak_compiler_error_at(
@@ -604,8 +589,7 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
   {
     const char* alias = oak_token_text(seg[0]->token);
     const usize alias_len = oak_token_length(seg[0]->token);
-    const int mod_id = oak_compiler_lookup_import_alias(c, alias, alias_len);
-    if (mod_id < 0)
+    if (!oak_compiler_module_for_alias(c, alias, alias_len))
     {
       oak_compiler_error_at(c,
                             seg[0]->token,
