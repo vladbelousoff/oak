@@ -296,37 +296,73 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) + fdelta);
         break;
       }
-      case OAK_OP_ADD:
-      case OAK_OP_SUB:
-      case OAK_OP_MUL:
-      case OAK_OP_DIV:
-      case OAK_OP_MOD:
+      case OAK_OP_BINARY:
       {
+        const u8 binop = oak_vm_read_u8(vm);
         const struct oak_value_t b = oak_vm_pop(vm);
         const struct oak_value_t a = oak_vm_pop(vm);
 
-        if (instruction == OAK_OP_ADD && oak_is_string(a) && oak_is_string(b))
+        switch (binop)
         {
-          struct oak_obj_string_t* result =
-              oak_string_concat(oak_as_string(a), oak_as_string(b));
-          const enum oak_vm_result_t pr =
-              oak_vm_push_owned(vm, OAK_VALUE_OBJ(result));
-          oak_value_decref(a);
-          oak_value_decref(b);
-          if (pr != OAK_VM_OK)
+          case OAK_BINOP_ADD:
+          case OAK_BINOP_SUBTRACT:
+          case OAK_BINOP_MULTIPLY:
+          case OAK_BINOP_DIVIDE:
+          case OAK_BINOP_MODULO:
           {
-            oak_obj_decref(&result->obj);
-            return pr;
+            if (binop == OAK_BINOP_ADD && oak_is_string(a) && oak_is_string(b))
+            {
+              struct oak_obj_string_t* result =
+                  oak_string_concat(oak_as_string(a), oak_as_string(b));
+              const enum oak_vm_result_t pr =
+                  oak_vm_push_owned(vm, OAK_VALUE_OBJ(result));
+              oak_value_decref(a);
+              oak_value_decref(b);
+              if (pr != OAK_VM_OK)
+              {
+                oak_obj_decref(&result->obj);
+                return pr;
+              }
+              break;
+            }
+            const enum oak_vm_result_t r =
+                oak_vm_numeric_binary(vm, binop, a, b);
+            oak_value_decref(a);
+            oak_value_decref(b);
+            if (r != OAK_VM_OK)
+              return r;
+            break;
           }
-          break;
+          case OAK_BINOP_EQUAL:
+          case OAK_BINOP_NOT_EQUAL:
+          {
+            const int eq = oak_value_equal(a, b);
+            oak_value_decref(a);
+            oak_value_decref(b);
+            OAK_VM_TRY(oak_vm_push(
+                vm, OAK_VALUE_BOOL(binop == OAK_BINOP_EQUAL ? eq : !eq)));
+            break;
+          }
+          case OAK_BINOP_LESS:
+          case OAK_BINOP_LESS_EQUAL:
+          case OAK_BINOP_GREATER:
+          case OAK_BINOP_GREATER_EQUAL:
+          {
+            const enum oak_vm_result_t r =
+                oak_vm_numeric_compare(vm, binop, a, b);
+            oak_value_decref(a);
+            oak_value_decref(b);
+            if (r != OAK_VM_OK)
+              return r;
+            break;
+          }
+          default:
+            oak_value_decref(a);
+            oak_value_decref(b);
+            oak_vm_runtime_error(
+                vm, "internal error: unknown binop (0x%02x)", binop);
+            return OAK_VM_RUNTIME_ERROR;
         }
-
-        const enum oak_vm_result_t r =
-            oak_vm_numeric_binary(vm, instruction, a, b);
-        oak_value_decref(a);
-        oak_value_decref(b);
-        if (r != OAK_VM_OK)
-          return r;
         break;
       }
       case OAK_OP_NEGATE:
@@ -361,32 +397,6 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const struct oak_value_t result = OAK_VALUE_BOOL(oak_is_truthy(val));
         oak_value_decref(val);
         OAK_VM_TRY(oak_vm_push(vm, result));
-        break;
-      }
-      case OAK_OP_EQ:
-      case OAK_OP_NEQ:
-      {
-        struct oak_value_t b = oak_vm_pop(vm);
-        struct oak_value_t a = oak_vm_pop(vm);
-        const int eq = oak_value_equal(a, b);
-        oak_value_decref(a);
-        oak_value_decref(b);
-        OAK_VM_TRY(oak_vm_push(
-            vm, OAK_VALUE_BOOL(instruction == OAK_OP_EQ ? eq : !eq)));
-        break;
-      }
-      case OAK_OP_LT:
-      case OAK_OP_LE:
-      case OAK_OP_GT:
-      case OAK_OP_GE:
-      {
-        struct oak_value_t b = oak_vm_pop(vm);
-        struct oak_value_t a = oak_vm_pop(vm);
-        enum oak_vm_result_t r = oak_vm_numeric_compare(vm, instruction, a, b);
-        oak_value_decref(a);
-        oak_value_decref(b);
-        if (r != OAK_VM_OK)
-          return r;
         break;
       }
       case OAK_OP_JUMP:

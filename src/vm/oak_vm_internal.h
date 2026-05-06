@@ -79,12 +79,12 @@ __attribute__((format(printf, 2, 3)))
 void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...);
 
 enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
-                                           u8 op,
+                                           u8 binop,
                                            struct oak_value_t a,
                                            struct oak_value_t b);
 
 enum oak_vm_result_t oak_vm_numeric_compare(struct oak_vm_t* vm,
-                                            u8 op,
+                                            u8 binop,
                                             struct oak_value_t a,
                                             struct oak_value_t b);
 

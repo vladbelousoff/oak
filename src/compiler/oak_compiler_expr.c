@@ -85,37 +85,47 @@ static void reject_binary_enum_misuse(struct oak_compiler_t* c,
   }
 }
 
-u8 oak_compiler_opcode_for_node_kind(const enum oak_node_kind_t kind)
+u8 oak_compiler_binop_for_node_kind(const enum oak_node_kind_t kind)
 {
   switch (kind)
   {
     case OAK_NODE_BINARY_ADD:
     case OAK_NODE_STMT_ADD_ASSIGN:
-      return OAK_OP_ADD;
+      return OAK_BINOP_ADD;
     case OAK_NODE_BINARY_SUB:
     case OAK_NODE_STMT_SUB_ASSIGN:
-      return OAK_OP_SUB;
+      return OAK_BINOP_SUBTRACT;
     case OAK_NODE_BINARY_MUL:
     case OAK_NODE_STMT_MUL_ASSIGN:
-      return OAK_OP_MUL;
+      return OAK_BINOP_MULTIPLY;
     case OAK_NODE_BINARY_DIV:
     case OAK_NODE_STMT_DIV_ASSIGN:
-      return OAK_OP_DIV;
+      return OAK_BINOP_DIVIDE;
     case OAK_NODE_BINARY_MOD:
     case OAK_NODE_STMT_MOD_ASSIGN:
-      return OAK_OP_MOD;
+      return OAK_BINOP_MODULO;
     case OAK_NODE_BINARY_EQ:
-      return OAK_OP_EQ;
+      return OAK_BINOP_EQUAL;
     case OAK_NODE_BINARY_NEQ:
-      return OAK_OP_NEQ;
+      return OAK_BINOP_NOT_EQUAL;
     case OAK_NODE_BINARY_LESS:
-      return OAK_OP_LT;
+      return OAK_BINOP_LESS;
     case OAK_NODE_BINARY_LESS_EQ:
-      return OAK_OP_LE;
+      return OAK_BINOP_LESS_EQUAL;
     case OAK_NODE_BINARY_GREATER:
-      return OAK_OP_GT;
+      return OAK_BINOP_GREATER;
     case OAK_NODE_BINARY_GREATER_EQ:
-      return OAK_OP_GE;
+      return OAK_BINOP_GREATER_EQUAL;
+    default:
+      oak_assert(0);
+      return 0;
+  }
+}
+
+u8 oak_compiler_opcode_for_node_kind(const enum oak_node_kind_t kind)
+{
+  switch (kind)
+  {
     case OAK_NODE_UNARY_NEG:
       return OAK_OP_NEGATE;
     case OAK_NODE_UNARY_NOT:
@@ -948,9 +958,11 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         return;
       oak_compiler_compile_node(c, node->lhs);
       oak_compiler_compile_node(c, node->rhs);
-      oak_compiler_emit_op(c,
-                           oak_compiler_opcode_for_node_kind(node->kind),
-                           oak_compiler_loc_from_token(node->lhs->token));
+      oak_compiler_emit_op(
+          c,
+          OAK_OP_BINARY,
+          oak_compiler_loc_from_token(node->lhs->token),
+          OAK_ARG_U8(oak_compiler_binop_for_node_kind(node->kind)));
       break;
     }
     case OAK_NODE_BINARY_AND:
@@ -1187,9 +1199,11 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                            oak_compiler_loc_from_token(lhs->token),
                            OAK_ARG_U8((u8)slot));
       oak_compiler_compile_node(c, node->rhs);
-      oak_compiler_emit_op(c,
-                           oak_compiler_opcode_for_node_kind(node->kind),
-                           oak_compiler_loc_from_token(lhs->token));
+      oak_compiler_emit_op(
+          c,
+          OAK_OP_BINARY,
+          oak_compiler_loc_from_token(lhs->token),
+          OAK_ARG_U8(oak_compiler_binop_for_node_kind(node->kind)));
       oak_compiler_emit_op(c,
                            OAK_OP_SET_LOCAL,
                            oak_compiler_loc_from_token(lhs->token),

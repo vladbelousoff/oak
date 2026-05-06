@@ -24,19 +24,9 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_SET_LOCAL] = { "OP_SET_LOCAL", OAK_OP_FMT_SLOT, -1 },
   [OAK_OP_INC_LOCAL] = { "OP_INC_LOCAL", OAK_OP_FMT_SLOT, 0 },
   [OAK_OP_DEC_LOCAL] = { "OP_DEC_LOCAL", OAK_OP_FMT_SLOT, 0 },
-  [OAK_OP_ADD] = { "OP_ADD", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_SUB] = { "OP_SUB", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_MUL] = { "OP_MUL", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_DIV] = { "OP_DIV", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_MOD] = { "OP_MOD", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_BINARY] = { "OP_BINARY", OAK_OP_FMT_BINOP, -1 },
   [OAK_OP_NEGATE] = { "OP_NEGATE", OAK_OP_FMT_NONE, 0 },
   [OAK_OP_NOT] = { "OP_NOT", OAK_OP_FMT_NONE, 0 },
-  [OAK_OP_EQ] = { "OP_EQ", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_NEQ] = { "OP_NEQ", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_LT] = { "OP_LT", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_LE] = { "OP_LE", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_GT] = { "OP_GT", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_GE] = { "OP_GE", OAK_OP_FMT_NONE, -1 },
   [OAK_OP_JUMP] = { "OP_JUMP", OAK_OP_FMT_JUMP_FWD, 0 },
   [OAK_OP_JUMP_IF_FALSE] = { "OP_JUMP_IF_FALSE", OAK_OP_FMT_JUMP_FWD, -1 },
   [OAK_OP_JUMP_IF_TRUE] = { "OP_JUMP_IF_TRUE", OAK_OP_FMT_JUMP_FWD, -1 },
@@ -68,6 +58,27 @@ const struct oak_op_info_t* oak_op_get_info(const u8 op)
   if (op < OAK_OP_INFO_COUNT && oak_op_info[op].name)
     return &oak_op_info[op];
   return null;
+}
+
+static const char* const oak_binop_names[] = {
+  [OAK_BINOP_ADD] = "ADD",
+  [OAK_BINOP_SUBTRACT] = "SUBTRACT",
+  [OAK_BINOP_MULTIPLY] = "MULTIPLY",
+  [OAK_BINOP_DIVIDE] = "DIVIDE",
+  [OAK_BINOP_MODULO] = "MODULO",
+  [OAK_BINOP_EQUAL] = "EQUAL",
+  [OAK_BINOP_NOT_EQUAL] = "NOT_EQUAL",
+  [OAK_BINOP_LESS] = "LESS",
+  [OAK_BINOP_LESS_EQUAL] = "LESS_EQUAL",
+  [OAK_BINOP_GREATER] = "GREATER",
+  [OAK_BINOP_GREATER_EQUAL] = "GREATER_EQUAL",
+};
+
+const char* oak_binop_name(const u8 binop)
+{
+  if (binop < oak_count_of(oak_binop_names) && oak_binop_names[binop])
+    return oak_binop_names[binop];
+  return "?";
 }
 
 void oak_chunk_init(struct oak_chunk_t* chunk)
@@ -421,6 +432,17 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     {
       const u8 argc = chunk->bytecode[offset + 1];
       oak_log(OAK_LOG_INFO, "%04zu %s  %-20s %4d", offset, line, name, argc);
+      return offset + 2;
+    }
+    case OAK_OP_FMT_BINOP:
+    {
+      const u8 binop = chunk->bytecode[offset + 1];
+      oak_log(OAK_LOG_INFO,
+              "%04zu %s  %-20s %s",
+              offset,
+              line,
+              name,
+              oak_binop_name(binop));
       return offset + 2;
     }
     case OAK_OP_FMT_U8_U16:

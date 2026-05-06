@@ -188,7 +188,7 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
         oak_compiler_loc_from_token(ident->token);
     oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
     oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)limit_slot));
-    oak_compiler_emit_op(c, OAK_OP_LT, ident_loc);
+    oak_compiler_emit_op(c, OAK_OP_BINARY, ident_loc, OAK_ARG_U8(OAK_BINOP_LESS));
     const usize exit_jump =
         oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, ident_loc);
 
@@ -396,7 +396,7 @@ void oak_compiler_compile_stmt_for_in(struct oak_compiler_t* c,
   /* Loop condition: idx < limit. */
   oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
   oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)limit_slot));
-  oak_compiler_emit_op(c, OAK_OP_LT, loc);
+  oak_compiler_emit_op(c, OAK_OP_BINARY, loc, OAK_ARG_U8(OAK_BINOP_LESS));
   const usize exit_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, loc);
 
   /* Per-iteration scope: exposes k, v to the body. */

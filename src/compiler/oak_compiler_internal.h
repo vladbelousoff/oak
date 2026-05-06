@@ -691,6 +691,7 @@ int oak_compiler_ast_is_int_literal(const struct oak_ast_node_t* node,
                                     int value);
 
 u8 oak_compiler_opcode_for_node_kind(enum oak_node_kind_t kind);
+u8 oak_compiler_binop_for_node_kind(enum oak_node_kind_t kind);
 
 void oak_compiler_compile_node(struct oak_compiler_t* c,
                                const struct oak_ast_node_t* node);

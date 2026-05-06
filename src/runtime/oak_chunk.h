@@ -22,19 +22,11 @@ enum oak_opcode_t
   OAK_OP_SET_LOCAL,
   OAK_OP_INC_LOCAL,
   OAK_OP_DEC_LOCAL,
-  OAK_OP_ADD,
-  OAK_OP_SUB,
-  OAK_OP_MUL,
-  OAK_OP_DIV,
-  OAK_OP_MOD,
+  /* Binary arithmetic / comparison / equality. The operation is encoded in
+   * an 8-bit operand byte (oak_binop_t). */
+  OAK_OP_BINARY,
   OAK_OP_NEGATE,
   OAK_OP_NOT,
-  OAK_OP_EQ,
-  OAK_OP_NEQ,
-  OAK_OP_LT,
-  OAK_OP_LE,
-  OAK_OP_GT,
-  OAK_OP_GE,
   OAK_OP_JUMP,
   OAK_OP_JUMP_IF_FALSE,
   OAK_OP_JUMP_IF_TRUE,
@@ -55,6 +47,24 @@ enum oak_opcode_t
   OAK_OP_GET_MODULE_FN,
 };
 
+/* Operand byte for OAK_OP_BINARY. */
+enum oak_binop_t
+{
+  OAK_BINOP_ADD,
+  OAK_BINOP_SUBTRACT,
+  OAK_BINOP_MULTIPLY,
+  OAK_BINOP_DIVIDE,
+  OAK_BINOP_MODULO,
+  OAK_BINOP_EQUAL,
+  OAK_BINOP_NOT_EQUAL,
+  OAK_BINOP_LESS,
+  OAK_BINOP_LESS_EQUAL,
+  OAK_BINOP_GREATER,
+  OAK_BINOP_GREATER_EQUAL,
+};
+
+const char* oak_binop_name(u8 binop);
+
 enum oak_op_format_t
 {
   OAK_OP_FMT_NONE,
@@ -64,6 +74,7 @@ enum oak_op_format_t
   OAK_OP_FMT_JUMP_FWD,
   OAK_OP_FMT_JUMP_BACK,
   OAK_OP_FMT_ARGC,
+  OAK_OP_FMT_BINOP,    /* 8-bit binary operation selector (oak_binop_t) */
   /* 8-bit count + 16-bit (big-endian) id; e.g. user record + field layout. */
   OAK_OP_FMT_U8_U16,
   /* 16-bit (big-endian) module_id + 16-bit (big-endian) const_idx; used by
