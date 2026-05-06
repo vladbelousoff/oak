@@ -102,6 +102,15 @@ void oak_compiler_register_native_enums(
       return;
     }
 
+    const oak_type_id_t enum_type_id =
+        oak_type_registry_intern(&c->types, ne->name, ne->name_len);
+    if (enum_type_id < 0)
+    {
+      oak_compiler_error_at(
+          c, null, "failed to register native enum '%s' as a type", ne->name);
+      return;
+    }
+
     for (int vi = 0; vi < ne->variant_count; ++vi)
     {
       const struct oak_bind_enum_variant_t* nv = &ne->variants[vi];
@@ -128,6 +137,7 @@ void oak_compiler_register_native_enums(
         .enum_name_len = ne->name_len,
         .const_idx = idx,
         .value = nv->value,
+        .type_id = enum_type_id,
       };
       oak_enum_registry_insert(&c->enums, &v);
     }
@@ -151,6 +161,14 @@ void oak_compiler_register_program_enums(struct oak_compiler_t* c,
     if (!name_node || !variants_node)
     {
       oak_compiler_error_at(c, item->token, "malformed enum declaration");
+      return;
+    }
+
+    const oak_type_id_t enum_type_id = oak_compiler_intern_type_token(c, name_node->token);
+    if (enum_type_id < 0)
+    {
+      oak_compiler_error_at(
+          c, name_node->token, "failed to register enum as a type");
       return;
     }
 
@@ -186,6 +204,7 @@ void oak_compiler_register_program_enums(struct oak_compiler_t* c,
         .enum_name_len = oak_token_length(name_node->token),
         .const_idx = idx,
         .value = ordinal,
+        .type_id = enum_type_id,
       };
       oak_enum_registry_insert(&c->enums, &v);
       ++ordinal;

@@ -13,10 +13,8 @@ let w = Direction.West;
 print(n);
 print(w);
 
-let x = Color.Red + 10;
-print(x);
-
-fn describe(c : number) -> number {
-  return c * 2;
+fn is_red(c : Color) -> bool {
+  return c == Color.Red;
 }
-print(describe(Color.Blue));
+print(is_red(r));
+print(is_red(g));

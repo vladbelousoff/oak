@@ -161,6 +161,14 @@ static void register_imported_enums(struct oak_compiler_t* c)
       /* Skip if this enum name is already registered (diamond imports). */
       if (oak_enum_registry_is_enum_name(&c->enums, exp->name, exp->name_len))
         continue;
+      const oak_type_id_t enum_type_id =
+          oak_type_registry_intern(&c->types, exp->name, exp->name_len);
+      if (enum_type_id < 0)
+      {
+        oak_compiler_error_at(
+            c, null, "failed to register imported enum as a type");
+        return;
+      }
       for (int vi = 0; vi < exp->variant_count; ++vi)
       {
         const struct oak_module_export_enum_variant_t* v = &exp->variants[vi];
@@ -178,6 +186,7 @@ static void register_imported_enums(struct oak_compiler_t* c)
           .enum_name_len = exp->name_len,
           .const_idx = local_idx,
           .value = v->value,
+          .type_id = enum_type_id,
         };
         oak_enum_registry_insert(&c->enums, &ev);
       }

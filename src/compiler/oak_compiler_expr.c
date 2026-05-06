@@ -26,6 +26,65 @@ static void reject_binary_void(struct oak_compiler_t* c,
   oak_compiler_reject_void_value_expr(c, node->rhs);
 }
 
+/* Returns 1 if `t` is a registered enum type. */
+static int type_is_enum(struct oak_compiler_t* c, const struct oak_type_t* t)
+{
+  if (!t || t->kind != OAK_TYPE_KIND_SCALAR)
+    return 0;
+  if (t->id < OAK_TYPE_FIRST_USER || t->id >= c->types.count)
+    return 0;
+  const char* name = c->types.entries[t->id].name;
+  if (!name)
+    return 0;
+  return oak_enum_registry_is_enum_name(
+      &c->enums, name, c->types.entries[t->id].len);
+}
+
+/* Static type check for binary operators applied to enum operands.
+ *   - arithmetic / ordering: rejected on either side being an enum.
+ *   - equality (==, !=)    : allowed only when both sides are the same enum
+ *                            type; rejected when mixed with non-enum or with
+ *                            a different enum.
+ *   Other shape errors (e.g. number + bool) are left to the runtime. */
+static void reject_binary_enum_misuse(struct oak_compiler_t* c,
+                                      const struct oak_ast_node_t* node)
+{
+  struct oak_type_t lt;
+  struct oak_type_t rt;
+  oak_compiler_infer_expr_static_type(c, node->lhs, &lt);
+  oak_compiler_infer_expr_static_type(c, node->rhs, &rt);
+  const int le = type_is_enum(c, &lt);
+  const int re = type_is_enum(c, &rt);
+
+  const enum oak_node_kind_t k = node->kind;
+  const int is_eq = (k == OAK_NODE_BINARY_EQ || k == OAK_NODE_BINARY_NEQ);
+  const struct oak_token_t* tok = node->lhs ? node->lhs->token : node->token;
+
+  if (is_eq)
+  {
+    if (le != re || (le && lt.id != rt.id))
+    {
+      oak_compiler_error_at(
+          c,
+          tok,
+          "cannot compare '%s' and '%s'; enum values may only be compared "
+          "to the same enum type",
+          oak_compiler_type_full_name(c, lt),
+          oak_compiler_type_full_name(c, rt));
+    }
+    return;
+  }
+  if (le || re)
+  {
+    oak_compiler_error_at(
+        c,
+        tok,
+        "operator not supported on enum values (operands: '%s', '%s')",
+        oak_compiler_type_full_name(c, lt),
+        oak_compiler_type_full_name(c, rt));
+  }
+}
+
 u8 oak_compiler_opcode_for_node_kind(const enum oak_node_kind_t kind)
 {
   switch (kind)
@@ -882,6 +941,9 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_BINARY_GREATER_EQ:
     {
       reject_binary_void(c, node);
+      if (c->has_error)
+        return;
+      reject_binary_enum_misuse(c, node);
       if (c->has_error)
         return;
       oak_compiler_compile_node(c, node->lhs);

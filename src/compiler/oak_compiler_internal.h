@@ -212,6 +212,10 @@ struct oak_enum_variant_t
   usize enum_name_len;
   u16 const_idx;
   int value;
+  /* Type id of the enum that owns this variant.  Populated when the enum
+   * is registered (program, native, or import) so that expressions like
+   * `EnumName.Variant` infer to a distinct type rather than `number`. */
+  oak_type_id_t type_id;
 };
 
 /* Concrete dynamic-array type for enum variants. */

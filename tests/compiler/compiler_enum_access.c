@@ -23,20 +23,38 @@ OAK_TEST_DECL(TrailingCommaOk)
                    "let s = Status.On;\n");
 }
 
-/* Enum variant used in an expression. */
-OAK_TEST_DECL(VariantInExpressionOk)
+/* Enums and numbers are distinct: arithmetic on an enum value is rejected. */
+OAK_TEST_DECL(EnumArithmeticRejected)
 {
-  return expect_ok("enum Status { Off, On }\n"
-                   "let s = Status.On;\n"
-                   "let x = s + 10;\n");
+  return expect_compile_error("enum Status { Off, On }\n"
+                              "let s = Status.On;\n"
+                              "let x = s + 10;\n");
 }
 
-/* Enum variant used as a function argument. */
-OAK_TEST_DECL(VariantAsFnArgOk)
+/* Passing an enum value where a `number` is expected is a type error. */
+OAK_TEST_DECL(VariantAsNumberArgRejected)
+{
+  return expect_compile_error(
+      "enum Color { Red, Green, Blue }\n"
+      "fn use_color(c : number) -> number { return c; }\n"
+      "use_color(Color.Blue);\n");
+}
+
+/* Passing an enum value to a function whose parameter is the same enum type
+ * works — enums round-trip as themselves. */
+OAK_TEST_DECL(VariantAsEnumArgOk)
 {
   return expect_ok("enum Color { Red, Green, Blue }\n"
-                   "fn use_color(c : number) -> number { return c; }\n"
+                   "fn use_color(c : Color) -> Color { return c; }\n"
                    "use_color(Color.Blue);\n");
+}
+
+/* Mixing two distinct enum types in a comparison is rejected. */
+OAK_TEST_DECL(MixedEnumComparisonRejected)
+{
+  return expect_compile_error("enum A { X, Y }\n"
+                              "enum B { P, Q }\n"
+                              "let r = A.X == B.P;\n");
 }
 
 /* Multiple enums with independent ordinals. */
@@ -70,8 +88,10 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(QualifiedVariantAccessOk),
     OAK_TEST_ENTRY(SpaceSeparatedVariantsRejected),
     OAK_TEST_ENTRY(TrailingCommaOk),
-    OAK_TEST_ENTRY(VariantInExpressionOk),
-    OAK_TEST_ENTRY(VariantAsFnArgOk),
+    OAK_TEST_ENTRY(EnumArithmeticRejected),
+    OAK_TEST_ENTRY(VariantAsNumberArgRejected),
+    OAK_TEST_ENTRY(VariantAsEnumArgOk),
+    OAK_TEST_ENTRY(MixedEnumComparisonRejected),
     OAK_TEST_ENTRY(MultipleEnumsOk),
     OAK_TEST_ENTRY(BareVariantRejected),
     OAK_TEST_ENTRY(UnknownVariantRejected),

@@ -398,28 +398,42 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
       const struct oak_ast_node_t* fname = expr->rhs;
       if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
         return;
-      /* Cross-module enum variant: alias.EnumName.Variant → number. */
+      /* Cross-module enum variant: alias.EnumName.Variant → enum type. */
       {
         const struct oak_token_t* ename_tok = null;
         if (oak_compiler_match_module_member(c, recv, &ename_tok))
         {
-          if (oak_enum_registry_is_enum_name(
-                  &c->enums, oak_token_text(ename_tok),
-                  oak_token_length(ename_tok)))
+          const char* ename = oak_token_text(ename_tok);
+          const usize ename_len = oak_token_length(ename_tok);
+          if (oak_enum_registry_is_enum_name(&c->enums, ename, ename_len))
           {
-            out->id = OAK_TYPE_NUMBER;
+            const struct oak_enum_variant_t* ev =
+                oak_enum_registry_find_qualified(
+                    &c->enums,
+                    ename,
+                    ename_len,
+                    oak_token_text(fname->token),
+                    oak_token_length(fname->token));
+            out->id = ev ? ev->type_id : OAK_TYPE_VOID;
             return;
           }
         }
       }
-      /* Local enum variant access: EnumName.Variant yields a number. */
+      /* Local enum variant access: EnumName.Variant yields the enum's type. */
       if (recv->kind == OAK_NODE_IDENT)
       {
         const char* recv_name = oak_token_text(recv->token);
         const usize recv_len = oak_token_length(recv->token);
         if (oak_enum_registry_is_enum_name(&c->enums, recv_name, recv_len))
         {
-          out->id = OAK_TYPE_NUMBER;
+          const struct oak_enum_variant_t* ev =
+              oak_enum_registry_find_qualified(
+                  &c->enums,
+                  recv_name,
+                  recv_len,
+                  oak_token_text(fname->token),
+                  oak_token_length(fname->token));
+          out->id = ev ? ev->type_id : OAK_TYPE_VOID;
           return;
         }
       }
