@@ -1,108 +1,100 @@
 # Oak
 
-Oak is a small, dynamically-typed scripting language compiled to bytecode and executed by a stack-based virtual machine.  It is written in C17 and has no external dependencies.
+Oak is a small scripting language. It's dynamically typed, compiles to bytecode, and runs on a stack-based VM. Everything is written in C17, with no real external dependencies beyond a tiny JSON library pulled in via CMake's FetchContent.
+
+There's also a browser playground that runs the same VM compiled to WebAssembly — handy for poking at the language without setting up a toolchain.
 
 ---
 
 ## Building
 
-**Requirements:** CMake ≥ 3.20 and a C17-compatible compiler (MSVC 2022, GCC, or Clang).
+You'll need CMake 3.20+ and any C17 compiler (MSVC 2022, GCC, and Clang all work).
 
 ```sh
 cmake -S . -B build
 cmake --build build
 ```
 
-## Running the test suite
+That gives you the `oak` executable. Run a script with:
+
+```sh
+oak path/to/script.oak [script args...]
+```
+
+A few flags are supported:
+
+- `--disassemble` — print the bytecode chunk before running it
+- `--no-debug` — skip debug logging
+- `--help` — usage
+
+## Tests
 
 ```sh
 ctest --test-dir build -C Debug
 ```
 
-`ctest` runs two kinds of tests:
+Two flavors run side by side: small C harnesses (one per `.c` file under `tests/`) and golden script tests that execute every `.oak` file under `tests/scripts/` and diff its stdout against a `.expected` file. Scripts ending in `_main.oak` inside subdirectories are entry points for multi-file tests (see the import examples). A `.expected_error` file flips a test into "must fail with this stderr" mode.
 
-- **C harnesses** under `tests/lexer/`, `tests/parser/`, `tests/compiler/`, `tests/vm/`, and `tests/stdlib/` — each `.c` file builds into its own small executable.
-- **Script tests** that invoke `oak` on every `tests/scripts/*.oak` file (working directory = project root) and diff stdout against the matching `tests/scripts/*.expected` file via [`cmake/run_script_test.cmake`](cmake/run_script_test.cmake). A script test passes when `oak` exits with status 0 *and* the captured output matches the golden file.
+## Web playground
 
-A typical full run:
+The `www/` directory has a Vite-based playground that loads the WASM build. To play with it:
 
-```
-100% tests passed, 0 tests failed out of 109
+```sh
+emcmake cmake -S . -B build_wasm
+cmake --build build_wasm
+npm install
+npm run dev
 ```
 
 ---
 
-## Language overview
+## The language
 
-### Variables
+### Bindings and assignment
 
 ```oak
-let x = 42;          // immutable binding
-let mut y = 10;      // mutable binding
+let x = 42;          // immutable
+let mut y = 10;      // mutable
 y = 20;
-y += 5;              // +=  -=  *=  /=  %=  all supported
+y += 5;              // +=  -=  *=  /=  %=  also work
 ```
 
 ### Types
 
-| Type | Literals |
-|------|----------|
-| `number` (int or float) | `42`, `3.14`, `1e-3` |
-| `string` | `'hello'` (single-quoted; double quotes are not string delimiters) |
-| `bool` | `true`, `false` |
-| `array` | `[1, 2, 3]`, `[] as number[]` |
-| `map` | `['a': 1, 'b': 2]`, `[:] as [string:number]` |
-| record | `new Point { x: 1, y: 2 }` |
+| Type     | Examples                                    |
+|----------|---------------------------------------------|
+| number   | `42`, `3.14`, `1e-3`                        |
+| string   | `'hello'` (single-quoted only)              |
+| bool     | `true`, `false`                             |
+| array    | `[1, 2, 3]`, `[] as number[]`               |
+| map      | `['a': 1, 'b': 2]`, `[:] as [string:number]`|
+| record   | `new Point { x: 1, y: 2 }`                  |
+| enum     | `Color.Red`                                 |
 
 ### Operators
 
 ```oak
-// Arithmetic
 x + y    x - y    x * y    x / y    x % y
-
-// Comparison
-x == y   x != y   x < y   x <= y   x > y   x >= y
-
-// Logical (short-circuit)
-a && b   a || b   !a
-
-// Unary
--x
+x == y   x != y   x < y    x <= y   x > y    x >= y
+a && b   a || b   !a       -x
 ```
+
+`&&` and `||` short-circuit.
 
 ### Control flow
 
 ```oak
-if x > 0 {
-  print(x);
-} else {
-  print(0);
-}
+if x > 0 { print(x); } else { print(0); }
 
-while x > 0 {
-  x -= 1;
-}
+while x > 0 { x -= 1; }
 
-for i from 0 to 10 {   // i in [0, 10)
-  print(i);
-}
+for i from 0 to 10 { print(i); }   // half-open: [0, 10)
 
-for v in arr {          // iterate array values
-  print(v);
-}
+for v in arr { print(v); }
+for i, v in arr { print(i); print(v); }
 
-for i, v in arr {       // index + value
-  print(i);
-}
-
-for k in map {          // iterate map keys
-  print(k);
-}
-
-for k, v in map {       // key + value
-  print(k);
-  print(v);
-}
+for k in map { print(k); }
+for k, v in map { print(k); print(v); }
 
 break;
 continue;
@@ -110,15 +102,15 @@ continue;
 
 ### Functions
 
+Functions can live at module level, or as methods inside a record. Both recursive and mutually recursive calls work.
+
 ```oak
 fn add(a : number, b : number) -> number {
   return a + b;
 }
 
-print(add(1, 2));   // 3
+print(add(1, 2));  // 3
 ```
-
-User functions are declared as instance methods inside a `record TypeName { }` block.  Recursion and mutual recursion are supported.
 
 ### Records
 
@@ -126,11 +118,13 @@ User functions are declared as instance methods inside a `record TypeName { }` b
 record Point {
   x : number;
   y : number;
+
   fn dist_sq(self, other : Point) -> number {
     let dx = self.x - other.x;
     let dy = self.y - other.y;
     return dx * dx + dy * dy;
   }
+
   fn translate(mut self, dx : number, dy : number) {
     self.x = self.x + dx;
     self.y = self.y + dy;
@@ -138,68 +132,87 @@ record Point {
 }
 
 let p = new Point { x: 3, y: 4 };
-print(p.x);
 print(p.dist_sq(new Point { x: 0, y: 0 }));
 
 let mut q = new Point { x: 1, y: 1 };
 q.translate(2, 3);
 ```
 
-### Enums
+`self` is read-only; `mut self` lets the method mutate its receiver. Records can also be nested inside other records.
 
-Enum variants are lowered to named integer constants and are accessed with the `EnumName.Variant` syntax.
+### Enums
 
 ```oak
 enum Color { Red, Green, Blue }
 
-let c = Color.Green;  // c == 1
+let c = Color.Green;  // 1
 ```
 
-### Arrays
+Variants are just named integers.
+
+### Arrays and maps
 
 ```oak
 let mut nums = [] as number[];
 nums.push(10);
 nums.push(20);
-print(nums.size());  // 2
-print(nums[0]);      // 10
-```
+print(nums.size());   // 2
+print(nums[0]);       // 10
 
-### Maps
-
-```oak
 let mut m = [:] as [string:number];
 m['x'] = 1;
-print(m.size());    // 1
-print(m.has('x'));  // true
+print(m.has('x'));    // true
 m.delete('x');
 
-// Literal form
 let scores = ['alice': 95, 'bob': 87];
 ```
 
-### Built-in functions
+### Strings
 
-| Function | Description |
-|----------|-------------|
-| `print(v)` | Print a value followed by a newline |
+```oak
+let s = 'hello' + ' ' + 'world';
+print(s.size());
 
-### Collection methods
+print('{0}+{1}={2}'.format([2, 3, 5]));   // 2+3=5
+print('{}{}'.format(['a', 'b']));         // ab
+```
 
-| Method | Receiver | Description |
-|--------|----------|-------------|
-| `.size()` | array, map | Number of elements |
-| `.push(v)` | array | Append `v`; returns new size |
-| `.has(k)` | map | `true` if key `k` exists |
-| `.delete(k)` | map | Remove key `k`; returns `true` if it existed |
+### Modules and imports
 
-### Standard library (native bindings)
+A program can pull in other `.oak` files relative to its own directory:
 
-The `oak` driver registers a small set of **native** types and functions in addition to the table above. There is no `import` mechanism yet; these bindings are always registered when running a program through `oak`:
+```oak
+import util.math;
+import palette.color as col;
 
-| Name | Role |
-|------|------|
-| File I/O (see `oak_stdlib_file.h`) | Path-based `read` / `write` helpers |
+let x = math.double(21);
+let c  = col.Color.Green;
+```
+
+Module names use dots for path separators; `as` gives an alias. Cycles are detected and reported as errors.
+
+### Built-ins and the standard library
+
+`print(v)` is built into the VM. Everything else is registered by the `oak` driver as native bindings:
+
+| Method           | On         | What it does                          |
+|------------------|------------|---------------------------------------|
+| `.size()`        | array, map, string | length                        |
+| `.push(v)`       | array      | append, returns new size              |
+| `.has(k)`        | map        | does the key exist                    |
+| `.delete(k)`     | map        | remove key, returns whether it existed |
+| `.format(args)`  | string     | `{}` / `{n}` substitution from an array |
+
+There's also a small `File` type:
+
+```oak
+let f = File.open('notes.txt', 'r');
+let text = f.read_all();
+f.close();
+print(text);
+```
+
+`File` supports `open` (static), and `read`, `read_all`, `write`, `eof`, `close` on instances.
 
 ---
 
@@ -207,17 +220,12 @@ The `oak` driver registers a small set of **native** types and functions in addi
 
 ```
 Source text
-   │  oak_lexer       Lexer → token list
-   │  oak_parser      Parser → AST
+   │  oak_lexer       Lexer    → tokens
+   │  oak_parser      Parser   → AST
    │  oak_compiler    Compiler → bytecode chunk
    │  oak_vm          Stack-based VM
    ▼
 Result / runtime error
 ```
 
-Key limits:
-
-- Stack depth: 256 values (`OAK_STACK_MAX`)
-- Call frames: 64 (`OAK_FRAMES_MAX`)
-- Constants per chunk: 65 536 (16-bit index via `OP_CONSTANT_LONG`)
-- Jump offsets: 32-bit (≈ 4 GiB bytecode)
+The same library powers the CLI and the WASM build; only the entry point differs.

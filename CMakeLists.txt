@@ -56,23 +56,23 @@ set(OAK_DEBUG_DEFINES
 )
 
 # Library
-add_library(liboak STATIC ${OAK_CORE_SOURCES})
+add_library(acorn STATIC ${OAK_CORE_SOURCES})
 
-target_include_directories(liboak
+target_include_directories(acorn
     PUBLIC
     ${OAK_INCLUDE_DIR}
     PRIVATE
     ${OAK_SRC_INCLUDE_DIRS}
 )
 
-target_compile_options(liboak PRIVATE ${OAK_WARN_FLAGS})
-target_compile_definitions(liboak PRIVATE ${OAK_DEBUG_DEFINES})
-target_link_libraries(liboak PUBLIC yyjson)
+target_compile_options(acorn PRIVATE ${OAK_WARN_FLAGS})
+target_compile_definitions(acorn PRIVATE ${OAK_DEBUG_DEFINES})
+target_link_libraries(acorn PUBLIC yyjson)
 
 if(EMSCRIPTEN)
     add_executable(oak_wasm wasm/oak_wasm_entry.c)
 
-    target_link_libraries(oak_wasm PRIVATE liboak)
+    target_link_libraries(oak_wasm PRIVATE acorn)
 
     target_link_options(oak_wasm PRIVATE
         "-sWASM=1"
@@ -89,7 +89,7 @@ else()
     # Executable
     add_executable(oak ${OAK_APP_SOURCES})
 
-    target_link_libraries(oak PRIVATE liboak)
+    target_link_libraries(oak PRIVATE acorn)
 
     target_include_directories(oak
         PUBLIC
@@ -109,7 +109,7 @@ else()
 
         add_executable(${test_name} ${test_src})
 
-        target_link_libraries(${test_name} PRIVATE liboak)
+        target_link_libraries(${test_name} PRIVATE acorn)
 
         target_include_directories(${test_name}
             PRIVATE
