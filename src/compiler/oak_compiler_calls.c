@@ -108,7 +108,7 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
                            OAK_ARG_U16(exp->const_idx));
       compile_call_args_after_callee(c, node);
       oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)user_argc));
-      c->scope.stack_depth -= user_argc;
+      c->scope.stack_depth -= (int)user_argc;
       return;
     }
 
@@ -448,5 +448,5 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
   }
 
   oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)argc));
-  c->scope.stack_depth -= argc;
+  c->scope.stack_depth -= (int)argc;
 }

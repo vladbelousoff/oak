@@ -18,7 +18,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 if(MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-    set(OAK_WARN_FLAGS /W4)
+    set(OAK_WARN_FLAGS /W3 /wd4200)
 else()
     set(OAK_WARN_FLAGS -Wall -Wextra)
 endif()

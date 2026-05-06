@@ -46,8 +46,18 @@ typedef long long i64;
 typedef unsigned long long u64;
 #endif
 
+#if defined(_MSC_VER)
+  #if defined(_WIN64)
+typedef unsigned __int64 usize;
+typedef __int64 isize;
+  #else
+typedef unsigned int usize;
+typedef int isize;
+  #endif
+#else
 typedef unsigned long usize;
 typedef long isize;
+#endif
 
 /*
  * Null pointer constant. C has no real "null type"; this expands to a null

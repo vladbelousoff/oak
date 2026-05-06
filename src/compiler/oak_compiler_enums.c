@@ -120,7 +120,7 @@ void oak_compiler_register_program_enums(struct oak_compiler_t* c,
       }
 
       /* Store the integer value as a chunk constant. */
-      const u8 idx = oak_compiler_intern_constant(c, OAK_VALUE_I32(ordinal));
+      const u8 idx = (u8)oak_compiler_intern_constant(c, OAK_VALUE_I32(ordinal));
       if (c->has_error)
         return;
 

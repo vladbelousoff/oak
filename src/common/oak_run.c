@@ -22,7 +22,7 @@ int oak_run(const char* code)
 		oak_stdlib_register(&compile_opts);
 		int exit_code = 1;
 
-		int code_size = strlen(code);
+		int code_size = (int)strlen(code);
 		struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
 			code, code_size);
 		oak_parse(lexer, OAK_NODE_PROGRAM, &result);
