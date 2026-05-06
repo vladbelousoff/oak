@@ -106,12 +106,15 @@ struct oak_registered_fn_t
   const struct oak_ast_node_t* decl; /* null for native */
 };
 
+/* Concrete dynamic-array type for registered functions. */
+struct oak_registered_fn_vec_t { struct oak_registered_fn_t* items; int count; int capacity; };
+
 /* Unbounded registry of user-declared and native fns.
  * Lookup is O(1) via the hash table; entries owns the storage. */
 struct oak_fn_registry_t
 {
   struct oak_hash_table_t by_name; /* name bytes → index into entries */
-  OAK_DYNARR(struct oak_registered_fn_t) entries;
+  struct oak_registered_fn_vec_t entries;
 };
 
 /* ---------- Builtin method tables (fixed, small, static sets) ---------- */
@@ -181,8 +184,11 @@ struct oak_registered_record_t
   struct oak_record_field_t fields[OAK_MAX_RECORD_FIELDS];
   /* Instance and static methods share one growable array, distinguished by
    * `is_static` on each entry. Freed by oak_record_registry_free. */
-  OAK_DYNARR(struct oak_registered_fn_t) methods;
+  struct oak_registered_fn_vec_t methods;
 };
+
+/* Concrete dynamic-array type for registered records. */
+struct oak_registered_record_vec_t { struct oak_registered_record_t* items; int count; int capacity; };
 
 /* Unbounded registry of user record types.
  * by_name gives O(1) name lookup; find_by_type_id uses a linear scan
@@ -190,7 +196,7 @@ struct oak_registered_record_t
 struct oak_record_registry_t
 {
   struct oak_hash_table_t by_name; /* name bytes → index */
-  OAK_DYNARR(struct oak_registered_record_t) entries;
+  struct oak_registered_record_vec_t entries;
 };
 
 /* ---------- Enum registry ---------- */
@@ -208,6 +214,9 @@ struct oak_enum_variant_t
   int value;
 };
 
+/* Concrete dynamic-array type for enum variants. */
+struct oak_enum_variant_vec_t { struct oak_enum_variant_t* items; int count; int capacity; };
+
 /* Unbounded registry of enum variants.
  * by_name gives O(1) unqualified variant lookup.
  * enum_names gives O(1) existence check for enum type names.
@@ -216,7 +225,7 @@ struct oak_enum_registry_t
 {
   struct oak_hash_table_t by_name;    /* variant name → index into variants */
   struct oak_hash_table_t enum_names; /* enum type name → 1 (set)           */
-  OAK_DYNARR(struct oak_enum_variant_t) variants;
+  struct oak_enum_variant_vec_t variants;
 };
 
 /* ---------- Compiler ---------- */

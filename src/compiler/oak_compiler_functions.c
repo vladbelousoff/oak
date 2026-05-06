@@ -5,20 +5,20 @@
 void oak_fn_registry_init(struct oak_fn_registry_t* r)
 {
   oak_hash_table_init(&r->by_name);
-  OAK_DYNARR_INIT(r->entries);
+  oak_dynarr_init(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
 void oak_fn_registry_free(struct oak_fn_registry_t* r)
 {
   oak_hash_table_free(&r->by_name);
-  OAK_DYNARR_FREE(r->entries);
+  oak_dynarr_free(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
 struct oak_registered_fn_t*
 oak_fn_registry_insert(struct oak_fn_registry_t* r,
                        const struct oak_registered_fn_t* fn)
 {
-  OAK_DYNARR_PUSH(r->entries, *fn);
+  oak_dynarr_push(&r->entries.items, &r->entries.count, &r->entries.capacity, fn, sizeof(*fn));
   const int idx = r->entries.count - 1;
   oak_hash_table_insert(
       &r->by_name, r->entries.items[idx].name, r->entries.items[idx].name_len, idx);
@@ -313,7 +313,7 @@ static void register_method_on_record(struct oak_compiler_t* c,
   struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity, mid);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
   slot.arity = total_arity;
-  OAK_DYNARR_PUSH(sd->methods, slot);
+  oak_dynarr_push(&sd->methods.items, &sd->methods.count, &sd->methods.capacity, &slot, sizeof(slot));
 }
 
 static void register_record_body_methods(struct oak_compiler_t* c,

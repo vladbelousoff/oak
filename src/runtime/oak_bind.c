@@ -16,8 +16,8 @@ void oak_compile_options_init(struct oak_compile_options_t* opts)
   if (!opts)
     return;
   opts->source_name = null;
-  OAK_DYNARR_INIT(opts->native_types);
-  OAK_DYNARR_INIT(opts->native_fns);
+  oak_dynarr_init(&opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
+  oak_dynarr_init(&opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
   opts->emit_debug_info = 1;
   opts->module_registry = null;
@@ -30,8 +30,8 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
     return;
   for (int i = 0; i < opts->native_types.count; ++i)
     oak_free(opts->native_types.items[i], OAK_SRC_LOC);
-  OAK_DYNARR_FREE(opts->native_types);
-  OAK_DYNARR_FREE(opts->native_fns);
+  oak_dynarr_free(&opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
+  oak_dynarr_free(&opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
 }
 
@@ -56,7 +56,7 @@ struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
   t->field_count = 0;
   t->destructor = null;
 
-  OAK_DYNARR_PUSH(opts->native_types, t);
+  oak_dynarr_push(&opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity, &t, sizeof(t));
   return t;
 }
 
@@ -114,7 +114,7 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
   else
     return -1;
 
-  OAK_DYNARR_PUSH(opts->native_fns, *p);
+  oak_dynarr_push(&opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity, p, sizeof(*p));
   return 0;
 }
 

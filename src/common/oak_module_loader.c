@@ -197,6 +197,8 @@ struct loader_import_t
   const struct oak_ast_node_t* alias_node;/* explicit alias IDENT (decl->rhs) or null */
 };
 
+struct loader_import_vec_t { struct loader_import_t* items; int count; int capacity; };
+
 /* Return the token that should be used as the import alias — the explicit `as
  * X` identifier when given, otherwise the last segment of the dotted path. */
 static const struct oak_token_t*
@@ -211,7 +213,7 @@ loader_import_alias_token(const struct loader_import_t* imp)
 /* Collect all import descriptors from a module's parse tree into `out`.
  * Returns the number collected. */
 static int collect_imports(const struct oak_module_t* mod,
-                           OAK_DYNARR(struct loader_import_t) * out)
+                           struct loader_import_vec_t* out)
 {
   const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
   if (!root)
@@ -228,7 +230,7 @@ static int collect_imports(const struct oak_module_t* mod,
     imp.alias_node = (item->rhs && item->rhs->kind == OAK_NODE_IDENT)
                          ? item->rhs
                          : null;
-    OAK_DYNARR_PUSH(*out, imp);
+    oak_dynarr_push(&out->items, &out->count, &out->capacity, &imp, sizeof(imp));
   }
   return out->count;
 }
@@ -309,9 +311,12 @@ static int compile_module(struct oak_module_t* mod,
 struct loader_frame_t
 {
   struct oak_module_t* mod;
-  OAK_DYNARR(struct loader_import_t) imports; /* pre-collected from parse tree */
-  int next_import_idx;                         /* cursor into imports */
+  struct loader_import_vec_t imports; /* pre-collected from parse tree */
+  int next_import_idx;                /* cursor into imports */
 };
+
+struct loader_frame_vec_t { struct loader_frame_t* items; int count; int capacity; };
+struct char_vec_t         { char*                  items; int count; int capacity; };
 
 static struct oak_module_t* parse_or_get_module(
     struct oak_module_registry_t* reg,
@@ -399,21 +404,29 @@ int oak_module_loader_load_program(
 
   /* DFS: explicit stack of frames so we can detect cycles via a "visiting"
    * flag (modules in `stack` are mid-processing). */
-  OAK_DYNARR(struct loader_frame_t) stack;
-  OAK_DYNARR_INIT(stack);
+  struct loader_frame_vec_t stack;
+  oak_dynarr_init(&stack.items, &stack.count, &stack.capacity);
   /* topo: post-order list of modules, ready to compile. */
-  OAK_DYNARR(struct oak_module_t*) topo;
-  OAK_DYNARR_INIT(topo);
+  struct oak_module_ptr_vec_t topo;
+  oak_dynarr_init(&topo.items, &topo.count, &topo.capacity);
   /* visiting flags, indexed by module_id (resized as registry grows). */
-  OAK_DYNARR(char) visiting;
-  OAK_DYNARR_INIT(visiting);
+  struct char_vec_t visiting;
+  oak_dynarr_init(&visiting.items, &visiting.count, &visiting.capacity);
   /* visited (post-order complete) flags. */
-  OAK_DYNARR(char) visited;
-  OAK_DYNARR_INIT(visited);
+  struct char_vec_t visited;
+  oak_dynarr_init(&visited.items, &visited.count, &visited.capacity);
 
-  #define ENSURE_FLAGS(_id) do {                                         \
-    while (visiting.count <= (int)(_id)) OAK_DYNARR_PUSH(visiting, 0);   \
-    while (visited.count  <= (int)(_id)) OAK_DYNARR_PUSH(visited,  0);   \
+  #define ENSURE_FLAGS(_id) do {                                                   \
+    while (visiting.count <= (int)(_id)) {                                         \
+      char _zz = 0;                                                                \
+      oak_dynarr_push(&visiting.items, &visiting.count, &visiting.capacity,        \
+                      &_zz, sizeof(char));                                         \
+    }                                                                              \
+    while (visited.count <= (int)(_id)) {                                          \
+      char _zz = 0;                                                                \
+      oak_dynarr_push(&visited.items, &visited.count, &visited.capacity,           \
+                      &_zz, sizeof(char));                                         \
+    }                                                                              \
   } while (0)
 
   ENSURE_FLAGS(entry->module_id);
@@ -421,10 +434,10 @@ int oak_module_loader_load_program(
   {
     struct loader_frame_t entry_frame;
     entry_frame.mod = entry;
-    OAK_DYNARR_INIT(entry_frame.imports);
+    oak_dynarr_init(&entry_frame.imports.items, &entry_frame.imports.count, &entry_frame.imports.capacity);
     collect_imports(entry, &entry_frame.imports);
     entry_frame.next_import_idx = 0;
-    OAK_DYNARR_PUSH(stack, entry_frame);
+    oak_dynarr_push(&stack.items, &stack.count, &stack.capacity, &entry_frame, sizeof(entry_frame));
   }
 
   /* Helper: record the alias→module_id mapping from a loader_import_t. */
@@ -447,8 +460,8 @@ int oak_module_loader_load_program(
       /* All children processed: post-order finalize. */
       visiting.items[top->mod->module_id] = 0;
       visited.items[top->mod->module_id] = 1;
-      OAK_DYNARR_PUSH(topo, top->mod);
-      OAK_DYNARR_FREE(top->imports);
+      oak_dynarr_push(&topo.items, &topo.count, &topo.capacity, &top->mod, sizeof(top->mod));
+      oak_dynarr_free(&top->imports.items, &top->imports.count, &top->imports.capacity);
       stack.count--;
       continue;
     }
@@ -506,7 +519,7 @@ int oak_module_loader_load_program(
         visited.items[found->module_id])
     {
       RECORD_ALIAS(top->mod, imp, found->module_id);
-      OAK_DYNARR_PUSH(top->mod->import_modules, found->module_id);
+      oak_dynarr_push(&top->mod->import_modules.items, &top->mod->import_modules.count, &top->mod->import_modules.capacity, &found->module_id, sizeof(found->module_id));
       oak_free(dotted, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
       oak_free(canonical, OAK_SRC_LOC);
@@ -550,7 +563,7 @@ int oak_module_loader_load_program(
             &top->mod->imports, alias, alen, (int)dep->module_id);
       }
     }
-    OAK_DYNARR_PUSH(top->mod->import_modules, dep->module_id);
+    oak_dynarr_push(&top->mod->import_modules.items, &top->mod->import_modules.count, &top->mod->import_modules.capacity, &dep->module_id, sizeof(dep->module_id));
 
     oak_free(dotted, OAK_SRC_LOC);
     oak_free(file_path, OAK_SRC_LOC);
@@ -563,27 +576,27 @@ int oak_module_loader_load_program(
     {
       struct loader_frame_t f;
       f.mod = dep;
-      OAK_DYNARR_INIT(f.imports);
+      oak_dynarr_init(&f.imports.items, &f.imports.count, &f.imports.capacity);
       collect_imports(dep, &f.imports);
       f.next_import_idx = 0;
-      OAK_DYNARR_PUSH(stack, f);
+      oak_dynarr_push(&stack.items, &stack.count, &stack.capacity, &f, sizeof(f));
     }
   }
 
   /* Free any imports arrays still on the stack (error path). */
   for (int i = 0; i < stack.count; ++i)
-    OAK_DYNARR_FREE(stack.items[i].imports);
+    oak_dynarr_free(&stack.items[i].imports.items, &stack.items[i].imports.count, &stack.items[i].imports.capacity);
 
   oak_free(base_dir, OAK_SRC_LOC);
-  OAK_DYNARR_FREE(stack);
-  OAK_DYNARR_FREE(visiting);
-  OAK_DYNARR_FREE(visited);
+  oak_dynarr_free(&stack.items, &stack.count, &stack.capacity);
+  oak_dynarr_free(&visiting.items, &visiting.count, &visiting.capacity);
+  oak_dynarr_free(&visited.items, &visited.count, &visited.capacity);
 
   #undef RECORD_ALIAS
 
   if (rc != 0)
   {
-    OAK_DYNARR_FREE(topo);
+    oak_dynarr_free(&topo.items, &topo.count, &topo.capacity);
     return rc;
   }
 
@@ -594,7 +607,7 @@ int oak_module_loader_load_program(
     if (compile_module(topo.items[i], opts, out_reg, out) != 0)
       rc = -1;
   }
-  OAK_DYNARR_FREE(topo);
+  oak_dynarr_free(&topo.items, &topo.count, &topo.capacity);
 
   if (rc == 0)
     out->entry = entry;

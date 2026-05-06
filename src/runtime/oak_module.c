@@ -20,7 +20,7 @@ static char* oak_strdup_loc(const char* s)
 
 void oak_module_registry_init(struct oak_module_registry_t* reg)
 {
-  OAK_DYNARR_INIT(reg->modules);
+  oak_dynarr_init(&reg->modules.items, &reg->modules.count, &reg->modules.capacity);
   oak_hash_table_init(&reg->by_canonical_path);
 }
 
@@ -41,13 +41,13 @@ static void oak_module_free(struct oak_module_t* mod)
   }
   oak_file_unmap(&mod->source);
   oak_hash_table_free(&mod->imports);
-  OAK_DYNARR_FREE(mod->import_modules);
+  oak_dynarr_free(&mod->import_modules.items, &mod->import_modules.count, &mod->import_modules.capacity);
   oak_hash_table_free(&mod->exports_fn_by_name);
-  OAK_DYNARR_FREE(mod->exports_fn);
+  oak_dynarr_free(&mod->exports_fn.items, &mod->exports_fn.count, &mod->exports_fn.capacity);
   oak_hash_table_free(&mod->exports_record_by_name);
-  OAK_DYNARR_FREE(mod->exports_record);
+  oak_dynarr_free(&mod->exports_record.items, &mod->exports_record.count, &mod->exports_record.capacity);
   oak_hash_table_free(&mod->exports_enum_by_name);
-  OAK_DYNARR_FREE(mod->exports_enum);
+  oak_dynarr_free(&mod->exports_enum.items, &mod->exports_enum.count, &mod->exports_enum.capacity);
   if (mod->canonical_path)
     oak_free(mod->canonical_path, OAK_SRC_LOC);
   if (mod->dotted_name)
@@ -59,7 +59,7 @@ void oak_module_registry_free(struct oak_module_registry_t* reg)
 {
   for (int i = 0; i < reg->modules.count; ++i)
     oak_module_free(reg->modules.items[i]);
-  OAK_DYNARR_FREE(reg->modules);
+  oak_dynarr_free(&reg->modules.items, &reg->modules.count, &reg->modules.capacity);
   oak_hash_table_free(&reg->by_canonical_path);
 }
 
@@ -96,15 +96,15 @@ oak_module_registry_create(struct oak_module_registry_t* reg,
   mod->module_id = (u16)reg->modules.count;
   mod->state = OAK_MOD_PARSED;
   oak_hash_table_init(&mod->imports);
-  OAK_DYNARR_INIT(mod->import_modules);
+  oak_dynarr_init(&mod->import_modules.items, &mod->import_modules.count, &mod->import_modules.capacity);
   oak_hash_table_init(&mod->exports_fn_by_name);
-  OAK_DYNARR_INIT(mod->exports_fn);
+  oak_dynarr_init(&mod->exports_fn.items, &mod->exports_fn.count, &mod->exports_fn.capacity);
   oak_hash_table_init(&mod->exports_record_by_name);
-  OAK_DYNARR_INIT(mod->exports_record);
+  oak_dynarr_init(&mod->exports_record.items, &mod->exports_record.count, &mod->exports_record.capacity);
   oak_hash_table_init(&mod->exports_enum_by_name);
-  OAK_DYNARR_INIT(mod->exports_enum);
+  oak_dynarr_init(&mod->exports_enum.items, &mod->exports_enum.count, &mod->exports_enum.capacity);
 
-  OAK_DYNARR_PUSH(reg->modules, mod);
+  oak_dynarr_push(&reg->modules.items, &reg->modules.count, &reg->modules.capacity, &mod, sizeof(mod));
   oak_hash_table_insert(&reg->by_canonical_path,
                         mod->canonical_path,
                         strlen(mod->canonical_path),

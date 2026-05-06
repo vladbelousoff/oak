@@ -109,6 +109,11 @@ struct oak_bind_fn_t
   enum oak_bind_shape_t return_shape;
 };
 
+/* ---------- Concrete dynamic-array types for compile options ---------- */
+
+struct oak_bind_type_ptr_vec_t { struct oak_bind_type_t** items; int count; int capacity; };
+struct oak_bind_fn_vec_t       { struct oak_bind_fn_t*    items; int count; int capacity; };
+
 /* ---------- Compilation options ---------- */
 
 struct oak_compile_options_t
@@ -117,10 +122,10 @@ struct oak_compile_options_t
   const char* source_name;
 
   /* Native record types (owned; populated by oak_bind_type). */
-  OAK_DYNARR(struct oak_bind_type_t*) native_types;
+  struct oak_bind_type_ptr_vec_t native_types;
 
   /* Native function / method bindings (owned; populated by oak_bind_fn). */
-  OAK_DYNARR(struct oak_bind_fn_t) native_fns;
+  struct oak_bind_fn_vec_t native_fns;
 
   /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
    * oak_compile_options_init and incremented by each oak_bind_type call. */

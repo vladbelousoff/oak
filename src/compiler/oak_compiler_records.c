@@ -88,7 +88,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 void oak_record_registry_init(struct oak_record_registry_t* r)
 {
   oak_hash_table_init(&r->by_name);
-  OAK_DYNARR_INIT(r->entries);
+  oak_dynarr_init(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
 void oak_record_registry_free(struct oak_record_registry_t* r)
@@ -96,16 +96,18 @@ void oak_record_registry_free(struct oak_record_registry_t* r)
   oak_hash_table_free(&r->by_name);
   for (int i = 0; i < r->entries.count; ++i)
   {
-    OAK_DYNARR_FREE(r->entries.items[i].methods);
+    oak_dynarr_free(&r->entries.items[i].methods.items,
+                    &r->entries.items[i].methods.count,
+                    &r->entries.items[i].methods.capacity);
   }
-  OAK_DYNARR_FREE(r->entries);
+  oak_dynarr_free(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
 struct oak_registered_record_t*
 oak_record_registry_insert(struct oak_record_registry_t* r,
                            const struct oak_registered_record_t* s)
 {
-  OAK_DYNARR_PUSH(r->entries, *s);
+  oak_dynarr_push(&r->entries.items, &r->entries.count, &r->entries.capacity, s, sizeof(*s));
   const int idx = r->entries.count - 1;
   oak_hash_table_insert(
       &r->by_name, r->entries.items[idx].name, r->entries.items[idx].name_len, idx);
@@ -369,7 +371,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 static void record_append_method(struct oak_registered_record_t* sd,
                                  const struct oak_registered_fn_t* m)
 {
-  OAK_DYNARR_PUSH(sd->methods, *m);
+  oak_dynarr_push(&sd->methods.items, &sd->methods.count, &sd->methods.capacity, m, sizeof(*m));
 }
 
 /* ---------- Native function registration ---------- */

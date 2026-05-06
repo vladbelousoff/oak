@@ -1,56 +1,31 @@
 #pragma once
 
 /*
- * Generic dynamic array as an embedded container struct.
+ * Generic dynamic-array push / free helpers.
  *
- *   OAK_DYNARR(T)              – the type. Use as a struct field:
- *                                  OAK_DYNARR(struct foo_t) entries;
- *   OAK_DYNARR_INIT(arr)       – zero the fields (no allocation).
- *   OAK_DYNARR_PUSH(arr, item) – ensure capacity, append by value.
- *   OAK_DYNARR_FREE(arr)       – free the backing array and zero fields.
+ * Each concrete array type is a plain struct with three fields:
+ *   T*  items;
+ *   int count;
+ *   int capacity;
  *
- * `arr` is an lvalue of OAK_DYNARR(T) type (the field itself, not its
- * address): pass `obj->entries` or `obj.entries`.
+ * oak_dynarr_init(&arr.items, &arr.count, &arr.capacity)
+ *     Zeros all three fields (no allocation). Equivalent to = {0}.
  *
- * PUSH and FREE require oak_mem.h (oak_realloc / oak_free / OAK_SRC_LOC)
- * to be visible in the translation unit.
+ * oak_dynarr_push(&arr.items, &arr.count, &arr.capacity, &item, sizeof item)
+ *     Appends a copy of `item`. Growth: minimum 8 elements, doubles each time.
+ *
+ * oak_dynarr_free(&arr.items, &arr.count, &arr.capacity)
+ *     Frees the backing array and zeros all three fields.
+ *
+ * Both functions require oak_mem.h to be visible in the translation unit.
  *
  * Iteration is plain C:
  *   for (int i = 0; i < arr.count; ++i) { ... arr.items[i] ... }
- *
- * Growth: minimum first allocation of 8 elements, doubles each grow.
  */
 
-#define OAK_DYNARR(T) \
-  struct {            \
-    T*  items;        \
-    int count;        \
-    int capacity;     \
-  }
+void oak_dynarr_init(void* items_field_ptr, int* count, int* capacity);
 
-#define OAK_DYNARR_INIT(arr) \
-  do {                       \
-    (arr).items    = null;   \
-    (arr).count    = 0;      \
-    (arr).capacity = 0;      \
-  } while (0)
+void oak_dynarr_push(void* items_field_ptr, int* count, int* capacity,
+                     const void* item, int item_size);
 
-#define OAK_DYNARR_PUSH(arr, item)                                       \
-  do {                                                                    \
-    if ((arr).count >= (arr).capacity) {                                  \
-      const int _nc = (arr).capacity < 8 ? 8 : (arr).capacity * 2;        \
-      (arr).items   = oak_realloc(                                         \
-          (arr).items, (usize)_nc * sizeof *(arr).items, OAK_SRC_LOC);   \
-      (arr).capacity = _nc;                                               \
-    }                                                                     \
-    (arr).items[(arr).count++] = (item);                                  \
-  } while (0)
-
-#define OAK_DYNARR_FREE(arr)                \
-  do {                                      \
-    if ((arr).items)                        \
-      oak_free((arr).items, OAK_SRC_LOC);  \
-    (arr).items    = null;                  \
-    (arr).count    = 0;                     \
-    (arr).capacity = 0;                     \
-  } while (0)
+void oak_dynarr_free(void* items_field_ptr, int* count, int* capacity);

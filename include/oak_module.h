@@ -66,6 +66,13 @@ struct oak_module_export_enum_t
   struct oak_module_export_enum_variant_t variants[OAK_MODULE_MAX_ENUM_VARIANTS];
 };
 
+/* ----- Concrete dynamic-array types used by the module system ----- */
+
+struct oak_u16_vec_t         { u16*                               items; int count; int capacity; };
+struct oak_export_fn_vec_t   { struct oak_module_export_fn_t*     items; int count; int capacity; };
+struct oak_export_rec_vec_t  { struct oak_module_export_record_t* items; int count; int capacity; };
+struct oak_export_enum_vec_t { struct oak_module_export_enum_t*   items; int count; int capacity; };
+
 /* ----- Module ----- */
 
 struct oak_module_t
@@ -86,15 +93,15 @@ struct oak_module_t
 
   /* Resolved imports (alias_name -> dependency module_id) */
   struct oak_hash_table_t imports;
-  OAK_DYNARR(u16) import_modules;       /* module_ids of direct deps */
+  struct oak_u16_vec_t import_modules;          /* module_ids of direct deps */
 
   /* Exports (populated post-compile) */
   struct oak_hash_table_t exports_fn_by_name;
-  OAK_DYNARR(struct oak_module_export_fn_t) exports_fn;
+  struct oak_export_fn_vec_t exports_fn;
   struct oak_hash_table_t exports_record_by_name;
-  OAK_DYNARR(struct oak_module_export_record_t) exports_record;
+  struct oak_export_rec_vec_t exports_record;
   struct oak_hash_table_t exports_enum_by_name;
-  OAK_DYNARR(struct oak_module_export_enum_t) exports_enum;
+  struct oak_export_enum_vec_t exports_enum;
 
   /* Lifecycle */
   enum
@@ -106,9 +113,11 @@ struct oak_module_t
 
 /* ----- Registry ----- */
 
+struct oak_module_ptr_vec_t { struct oak_module_t** items; int count; int capacity; };
+
 struct oak_module_registry_t
 {
-  OAK_DYNARR(struct oak_module_t*) modules;     /* index = module_id */
+  struct oak_module_ptr_vec_t modules;          /* index = module_id */
   struct oak_hash_table_t by_canonical_path;    /* path -> module_id */
 };
 

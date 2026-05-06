@@ -8,21 +8,21 @@ void oak_enum_registry_init(struct oak_enum_registry_t* r)
 {
   oak_hash_table_init(&r->by_name);
   oak_hash_table_init(&r->enum_names);
-  OAK_DYNARR_INIT(r->variants);
+  oak_dynarr_init(&r->variants.items, &r->variants.count, &r->variants.capacity);
 }
 
 void oak_enum_registry_free(struct oak_enum_registry_t* r)
 {
   oak_hash_table_free(&r->by_name);
   oak_hash_table_free(&r->enum_names);
-  OAK_DYNARR_FREE(r->variants);
+  oak_dynarr_free(&r->variants.items, &r->variants.count, &r->variants.capacity);
 }
 
 struct oak_enum_variant_t*
 oak_enum_registry_insert(struct oak_enum_registry_t* r,
                          const struct oak_enum_variant_t* v)
 {
-  OAK_DYNARR_PUSH(r->variants, *v);
+  oak_dynarr_push(&r->variants.items, &r->variants.count, &r->variants.capacity, v, sizeof(*v));
   const int idx = r->variants.count - 1;
 
   /* Index by unqualified variant name. */

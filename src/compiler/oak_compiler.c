@@ -216,7 +216,7 @@ static void register_imported_records(struct oak_compiler_t* c)
       proto.name_len = exp->name_len;
       proto.type_id = tid;
       proto.field_count = exp->field_count;
-      OAK_DYNARR_INIT(proto.methods);
+      oak_dynarr_init(&proto.methods.items, &proto.methods.count, &proto.methods.capacity);
       for (int fi = 0; fi < exp->field_count; ++fi)
       {
         proto.fields[fi].name = exp->fields[fi].name;
@@ -254,7 +254,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
       .return_type_node = oak_compiler_fn_decl_return_type_node(e->decl),
     };
     const int idx = mod->exports_fn.count;
-    OAK_DYNARR_PUSH(mod->exports_fn, exp);
+    oak_dynarr_push(&mod->exports_fn.items, &mod->exports_fn.count, &mod->exports_fn.capacity, &exp, sizeof(exp));
     oak_hash_table_insert(
         &mod->exports_fn_by_name, e->name, e->name_len, idx);
   }
@@ -287,7 +287,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
     }
     exp.layout_id = 0; /* populated on first cross-module new when needed */
     const int idx = mod->exports_record.count;
-    OAK_DYNARR_PUSH(mod->exports_record, exp);
+    oak_dynarr_push(&mod->exports_record.items, &mod->exports_record.count, &mod->exports_record.capacity, &exp, sizeof(exp));
     oak_hash_table_insert(
         &mod->exports_record_by_name, exp.name, exp.name_len, idx);
   }
@@ -307,7 +307,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
         ee.name = v->enum_name;
         ee.name_len = v->enum_name_len;
         eidx = mod->exports_enum.count;
-        OAK_DYNARR_PUSH(mod->exports_enum, ee);
+        oak_dynarr_push(&mod->exports_enum.items, &mod->exports_enum.count, &mod->exports_enum.capacity, &ee, sizeof(ee));
         oak_hash_table_insert(
             &mod->exports_enum_by_name, ee.name, ee.name_len, eidx);
       }
