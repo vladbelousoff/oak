@@ -132,7 +132,6 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
     oak_compiler_compile_node(c, lhs->rhs);
     oak_compiler_compile_node(c, rhs);
     oak_compiler_emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
-    oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
     return;
   }
 
@@ -215,7 +214,6 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
                          OAK_OP_SET_FIELD,
                          oak_compiler_loc_from_token(fname->token),
                          OAK_ARG_U8((u8)idx));
-    oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
 
     if (rhs_src_idx >= 0)
     {
@@ -240,7 +238,6 @@ static void compile_stmt_assignment(struct oak_compiler_t* c,
                        OAK_OP_SET_LOCAL,
                        oak_compiler_loc_from_token(lhs->token),
                        OAK_ARG_U8((u8)slot));
-  oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
 }
 
 static void compile_expr_array_literal(struct oak_compiler_t* c,
@@ -304,7 +301,7 @@ static void compile_expr_array_literal(struct oak_compiler_t* c,
   }
 
   oak_compiler_emit_op(
-      c, OAK_OP_NEW_ARRAY_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
+      c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
   c->scope.stack_depth -= (int)count;
 }
 
@@ -408,7 +405,7 @@ static void compile_expr_map_literal(struct oak_compiler_t* c,
   }
 
   oak_compiler_emit_op(
-      c, OAK_OP_NEW_MAP_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
+      c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
   c->scope.stack_depth -= (int)count * 2;
 }
 
@@ -440,7 +437,7 @@ static void compile_expr_cast(struct oak_compiler_t* c,
                             "array type (e.g. '[] as number[]')");
       return;
     }
-    oak_compiler_emit_op(c, OAK_OP_NEW_ARRAY_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
+    oak_compiler_emit_op(c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
     return;
   }
 
@@ -465,7 +462,7 @@ static void compile_expr_cast(struct oak_compiler_t* c,
                             "map type (e.g. '[:] as [string:number]')");
       return;
     }
-    oak_compiler_emit_op(c, OAK_OP_NEW_MAP_FROM_STACK, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
+    oak_compiler_emit_op(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
     return;
   }
 
@@ -748,7 +745,7 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
     }
 
     oak_compiler_emit_op(c,
-                         OAK_OP_NEW_RECORD_FROM_STACK,
+                         OAK_OP_NEW_RECORD,
                          OAK_LOC_SYNTHETIC,
                          OAK_ARG_U8((u8)sd->field_count),
                          OAK_ARG_U16((u16)layout_id));
@@ -776,9 +773,17 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_INT:
     {
       const int value = oak_token_as_i32(node->token);
-      const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_I32(value));
-      oak_compiler_emit_constant(
-          c, idx, oak_compiler_loc_from_token(node->token));
+      const struct oak_code_loc_t loc = oak_compiler_loc_from_token(node->token);
+      if (value >= -128 && value <= 127)
+      {
+        oak_compiler_emit_op(
+            c, OAK_OP_PUSH_INT8, loc, OAK_ARG_U8((u8)(value & 0xFF)));
+      }
+      else
+      {
+        const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_I32(value));
+        oak_compiler_emit_constant(c, idx, loc);
+      }
       break;
     }
     case OAK_NODE_FLOAT:
@@ -895,7 +900,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
        *   evaluate lhs
        *   JUMP_IF_FALSE [false_branch]   ; pops lhs; jump if lhs is falsy
        *   evaluate rhs
-       *   NOT, NOT                       ; normalise rhs to bool
+       *   BOOL                           ; normalise rhs to bool
        *   JUMP [end]
        *   [false_branch]: FALSE
        *   [end]:
@@ -912,8 +917,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_compile_node(c, node->rhs);
       if (c->has_error)
         return;
-      oak_compiler_emit_op(c, OAK_OP_NOT, loc);
-      oak_compiler_emit_op(c, OAK_OP_NOT, loc);
+      oak_compiler_emit_op(c, OAK_OP_BOOL, loc);
       const usize end_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, loc);
       oak_compiler_patch_jump(c, false_jump);
       c->scope.stack_depth = depth_after_jif;
@@ -928,10 +932,9 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         return;
       /* Short-circuit ||:
        *   evaluate lhs
-       *   NOT                            ; invert lhs for JUMP_IF_FALSE
-       *   JUMP_IF_FALSE [true_branch]    ; pops !lhs; jump if lhs was truthy
+       *   JUMP_IF_TRUE [true_branch]     ; pops lhs; jump if lhs is truthy
        *   evaluate rhs
-       *   NOT, NOT                       ; normalise rhs to bool
+       *   BOOL                           ; normalise rhs to bool
        *   JUMP [end]
        *   [true_branch]: TRUE
        *   [end]:
@@ -942,15 +945,13 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_compile_node(c, node->lhs);
       if (c->has_error)
         return;
-      oak_compiler_emit_op(c, OAK_OP_NOT, loc);
       const usize true_jump =
-          oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, loc);
+          oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_TRUE, loc);
       const int depth_after_jif = c->scope.stack_depth;
       oak_compiler_compile_node(c, node->rhs);
       if (c->has_error)
         return;
-      oak_compiler_emit_op(c, OAK_OP_NOT, loc);
-      oak_compiler_emit_op(c, OAK_OP_NOT, loc);
+      oak_compiler_emit_op(c, OAK_OP_BOOL, loc);
       const usize end_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, loc);
       oak_compiler_patch_jump(c, true_jump);
       c->scope.stack_depth = depth_after_jif;
@@ -1131,7 +1132,6 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                            OAK_OP_SET_LOCAL,
                            oak_compiler_loc_from_token(lhs->token),
                            OAK_ARG_U8((u8)slot));
-      oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }
     case OAK_NODE_FN_CALL:

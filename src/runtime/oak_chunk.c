@@ -13,14 +13,15 @@
 const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_HALT] = { "OP_HALT", OAK_OP_FMT_NONE, 0 },
   [OAK_OP_CONSTANT] = { "OP_CONSTANT", OAK_OP_FMT_CONSTANT, 1 },
-  [OAK_OP_CONSTANT_LONG] = { "OP_CONSTANT_LONG", OAK_OP_FMT_CONSTANT_LONG, 1 },
+  [OAK_OP_PUSH_INT8] = { "OP_PUSH_INT8", OAK_OP_FMT_INT8, 1 },
   [OAK_OP_TRUE] = { "OP_TRUE", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_FALSE] = { "OP_FALSE", OAK_OP_FMT_NONE, 1 },
+  [OAK_OP_BOOL] = { "OP_BOOL", OAK_OP_FMT_NONE, 0 },
   [OAK_OP_POP] = { "OP_POP", OAK_OP_FMT_NONE, -1 },
   /* Variadic stack effect: tracked explicitly at the emit site. */
   [OAK_OP_POP_N] = { "OP_POP_N", OAK_OP_FMT_ARGC, 0 },
   [OAK_OP_GET_LOCAL] = { "OP_GET_LOCAL", OAK_OP_FMT_SLOT, 1 },
-  [OAK_OP_SET_LOCAL] = { "OP_SET_LOCAL", OAK_OP_FMT_SLOT, 0 },
+  [OAK_OP_SET_LOCAL] = { "OP_SET_LOCAL", OAK_OP_FMT_SLOT, -1 },
   [OAK_OP_INC_LOCAL] = { "OP_INC_LOCAL", OAK_OP_FMT_SLOT, 0 },
   [OAK_OP_DEC_LOCAL] = { "OP_DEC_LOCAL", OAK_OP_FMT_SLOT, 0 },
   [OAK_OP_ADD] = { "OP_ADD", OAK_OP_FMT_NONE, -1 },
@@ -38,26 +39,25 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_GE] = { "OP_GE", OAK_OP_FMT_NONE, -1 },
   [OAK_OP_JUMP] = { "OP_JUMP", OAK_OP_FMT_JUMP_FWD, 0 },
   [OAK_OP_JUMP_IF_FALSE] = { "OP_JUMP_IF_FALSE", OAK_OP_FMT_JUMP_FWD, -1 },
+  [OAK_OP_JUMP_IF_TRUE] = { "OP_JUMP_IF_TRUE", OAK_OP_FMT_JUMP_FWD, -1 },
   [OAK_OP_LOOP] = { "OP_LOOP", OAK_OP_FMT_JUMP_BACK, 0 },
   [OAK_OP_CALL] = { "OP_CALL", OAK_OP_FMT_ARGC, 0 },
   [OAK_OP_RETURN] = { "OP_RETURN", OAK_OP_FMT_NONE, 0 },
-  [OAK_OP_NEW_ARRAY_FROM_STACK] = { "OP_NEW_ARRAY_FROM_STACK",
-                                    OAK_OP_FMT_ARGC,
-                                    1 },
-  [OAK_OP_NEW_MAP_FROM_STACK] = { "OP_NEW_MAP_FROM_STACK", OAK_OP_FMT_ARGC, 1 },
+  [OAK_OP_NEW_ARR] = { "OP_NEW_ARR", OAK_OP_FMT_ARGC, 1 },
+  [OAK_OP_NEW_MAP] = { "OP_NEW_MAP", OAK_OP_FMT_ARGC, 1 },
   [OAK_OP_GET_INDEX] = { "OP_GET_INDEX", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_SET_INDEX] = { "OP_SET_INDEX", OAK_OP_FMT_NONE, -2 },
+  [OAK_OP_SET_INDEX] = { "OP_SET_INDEX", OAK_OP_FMT_NONE, -3 },
   [OAK_OP_MAP_KEY_AT] = { "OP_MAP_KEY_AT", OAK_OP_FMT_NONE, -1 },
-  [OAK_OP_MAP_VALUE_AT] = { "OP_MAP_VALUE_AT", OAK_OP_FMT_NONE, -1 },
+  [OAK_OP_MAP_VAL_AT] = { "OP_MAP_VAL_AT", OAK_OP_FMT_NONE, -1 },
   /* Pops <count> field values plus one type-name string from the stack and
    * pushes a fresh record. Stack effect counts only the name (consumed) and
    * the produced record; <count> is variable and adjusted at compile time. */
-  [OAK_OP_NEW_RECORD_FROM_STACK] = { "OP_NEW_RECORD_FROM_STACK",
+  [OAK_OP_NEW_RECORD] = { "OP_NEW_RECORD",
                                      OAK_OP_FMT_U8_U16,
                                      0 },
   [OAK_OP_GET_FIELD] = { "OP_GET_FIELD", OAK_OP_FMT_SLOT, 0 },
-  /* Stack: [..., record, value] -> [..., value]; sets record.fields[idx]. */
-  [OAK_OP_SET_FIELD] = { "OP_SET_FIELD", OAK_OP_FMT_SLOT, -1 },
+  /* Stack: [..., record, value] -> [...]; sets record.fields[idx] and discards. */
+  [OAK_OP_SET_FIELD] = { "OP_SET_FIELD", OAK_OP_FMT_SLOT, -2 },
   [OAK_OP_GET_MODULE_FN] = { "OP_GET_MODULE_FN", OAK_OP_FMT_U16_U16, 1 },
 };
 
@@ -356,20 +356,6 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
   {
     case OAK_OP_FMT_CONSTANT:
     {
-      const u8 idx = chunk->bytecode[offset + 1];
-      char val[64];
-      snprint_value(val, sizeof(val), chunk->constants[idx]);
-      oak_log(OAK_LOG_INFO,
-              "%04zu %s  %-20s %4d ; %s",
-              offset,
-              line,
-              name,
-              idx,
-              val);
-      return offset + 2;
-    }
-    case OAK_OP_FMT_CONSTANT_LONG:
-    {
       const u16 idx = (u16)((u16)chunk->bytecode[offset + 1] << 8) |
                       chunk->bytecode[offset + 2];
       char val[64];
@@ -382,6 +368,12 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
               (unsigned)idx,
               val);
       return offset + 3;
+    }
+    case OAK_OP_FMT_INT8:
+    {
+      const signed char val = (signed char)chunk->bytecode[offset + 1];
+      oak_log(OAK_LOG_INFO, "%04zu %s  %-20s %4d", offset, line, name, (int)val);
+      return offset + 2;
     }
     case OAK_OP_FMT_SLOT:
     {

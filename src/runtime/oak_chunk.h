@@ -5,12 +5,14 @@
 enum oak_opcode_t
 {
   OAK_OP_HALT,
+  /* Push constants[idx] (16-bit big-endian index). */
   OAK_OP_CONSTANT,
-  /* Like OP_CONSTANT but uses a 16-bit (big-endian) index, supporting up to
-   * 65535 constants in a single chunk. */
-  OAK_OP_CONSTANT_LONG,
+  /* Push a signed 8-bit integer literal directly (no constant pool). */
+  OAK_OP_PUSH_INT8,
   OAK_OP_TRUE,
   OAK_OP_FALSE,
+  /* Coerce top-of-stack to a boolean: pop value, push bool(truthy(value)). */
+  OAK_OP_BOOL,
   OAK_OP_POP,
   /* Pops `arg` values from the stack (decref'ing each). The stack-effect entry
    * in oak_op_info[] is set to 0 because the actual effect varies; callers
@@ -35,16 +37,17 @@ enum oak_opcode_t
   OAK_OP_GE,
   OAK_OP_JUMP,
   OAK_OP_JUMP_IF_FALSE,
+  OAK_OP_JUMP_IF_TRUE,
   OAK_OP_LOOP,
   OAK_OP_CALL,
   OAK_OP_RETURN,
-  OAK_OP_NEW_ARRAY_FROM_STACK,
-  OAK_OP_NEW_MAP_FROM_STACK,
+  OAK_OP_NEW_ARR,
+  OAK_OP_NEW_MAP,
   OAK_OP_GET_INDEX,
   OAK_OP_SET_INDEX,
   OAK_OP_MAP_KEY_AT,
-  OAK_OP_MAP_VALUE_AT,
-  OAK_OP_NEW_RECORD_FROM_STACK,
+  OAK_OP_MAP_VAL_AT,
+  OAK_OP_NEW_RECORD,
   OAK_OP_GET_FIELD,
   OAK_OP_SET_FIELD,
   /* Cross-module: pushes the function value at constants[const_idx] of the
@@ -55,8 +58,8 @@ enum oak_opcode_t
 enum oak_op_format_t
 {
   OAK_OP_FMT_NONE,
-  OAK_OP_FMT_CONSTANT,
-  OAK_OP_FMT_CONSTANT_LONG, /* 16-bit constant index */
+  OAK_OP_FMT_CONSTANT, /* 16-bit (big-endian) constant index */
+  OAK_OP_FMT_INT8,     /* signed 8-bit immediate integer */
   OAK_OP_FMT_SLOT,
   OAK_OP_FMT_JUMP_FWD,
   OAK_OP_FMT_JUMP_BACK,

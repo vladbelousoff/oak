@@ -236,7 +236,7 @@ static void for_in_init_hidden_state(struct oak_compiler_t* c,
   const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
   oak_compiler_add_local(c, "$i", 0, *out_idx_slot, 1, num_ty);
 
-  oak_compiler_emit_op(c, OAK_OP_CONSTANT, loc, OAK_ARG_U8(len_m->const_idx));
+  oak_compiler_emit_constant(c, len_m->const_idx, loc);
   oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
   oak_compiler_emit_op(c, OAK_OP_CALL, loc, OAK_ARG_U8((u8)len_m->total_arity));
   c->scope.stack_depth -= len_m->total_arity;
@@ -285,7 +285,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
     oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
     oak_compiler_emit_op(c,
                          coll_ty->kind == OAK_TYPE_KIND_MAP
-                             ? OAK_OP_MAP_VALUE_AT
+                             ? OAK_OP_MAP_VAL_AT
                              : OAK_OP_GET_INDEX,
                          loc);
     const struct oak_type_t val_ty = { .id = coll_ty->id };

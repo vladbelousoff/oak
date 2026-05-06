@@ -63,9 +63,9 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
     oak_vm_runtime_error(vm, "stack underflow in indexed assignment");
     return OAK_VM_RUNTIME_ERROR;
   }
-  const struct oak_value_t value = vm->sp[-1];
-  const struct oak_value_t subscript = vm->sp[-2];
-  const struct oak_value_t recv = vm->sp[-3];
+  const struct oak_value_t value = oak_vm_pop(vm);
+  const struct oak_value_t subscript = oak_vm_pop(vm);
+  const struct oak_value_t recv = oak_vm_pop(vm);
 
   if (oak_is_map(recv))
   {
@@ -73,8 +73,7 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
     oak_map_set(map, subscript, value);
     oak_value_decref(recv);
     oak_value_decref(subscript);
-    vm->sp[-3] = value;
-    vm->sp -= 2;
+    oak_value_decref(value);
     return OAK_VM_OK;
   }
 
@@ -83,6 +82,9 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
     oak_vm_runtime_error(vm,
                          "indexed assignment requires an array or map, got %s",
                          oak_vm_value_kind_desc(recv));
+    oak_value_decref(recv);
+    oak_value_decref(subscript);
+    oak_value_decref(value);
     return OAK_VM_RUNTIME_ERROR;
   }
   if (!oak_is_i32(subscript))
@@ -90,6 +92,9 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
     oak_vm_runtime_error(vm,
                          "array index must be an integer, got %s",
                          oak_vm_value_kind_desc(subscript));
+    oak_value_decref(recv);
+    oak_value_decref(subscript);
+    oak_value_decref(value);
     return OAK_VM_RUNTIME_ERROR;
   }
   struct oak_obj_array_t* arr = oak_as_array(recv);
@@ -98,15 +103,15 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
   {
     oak_vm_runtime_error(
         vm, "array index %d out of bounds (length %zu)", i, arr->length);
+    oak_value_decref(recv);
+    oak_value_decref(subscript);
+    oak_value_decref(value);
     return OAK_VM_RUNTIME_ERROR;
   }
   oak_value_decref(arr->items[i]);
-  oak_value_incref(value);
   arr->items[i] = value;
   oak_value_decref(recv);
   oak_value_decref(subscript);
-  vm->sp[-3] = value;
-  vm->sp -= 2;
   return OAK_VM_OK;
 }
 
@@ -146,7 +151,7 @@ static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
   }
   const struct oak_value_t v = instruction == OAK_OP_MAP_KEY_AT
                                    ? oak_map_key_at(map, (usize)i)
-                                   : oak_map_value_at(map, (usize)i);
+                                   : oak_map_value_at(map, (usize)i); /* OAK_OP_MAP_VAL_AT */
   const enum oak_vm_result_t pr = oak_vm_push(vm, v);
   oak_value_decref(iter_index);
   oak_value_decref(map_val);
@@ -204,16 +209,15 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         return OAK_VM_OK;
       case OAK_OP_CONSTANT:
       {
-        const u8 idx = oak_vm_read_u8(vm);
+        const u16 idx = oak_vm_read_u16(vm);
         oak_assert((usize)idx < chunk->const_count);
         OAK_VM_TRY(oak_vm_push(vm, chunk->constants[idx]));
         break;
       }
-      case OAK_OP_CONSTANT_LONG:
+      case OAK_OP_PUSH_INT8:
       {
-        const u16 idx = oak_vm_read_u16(vm);
-        oak_assert((usize)idx < chunk->const_count);
-        OAK_VM_TRY(oak_vm_push(vm, chunk->constants[idx]));
+        const signed char val = (signed char)oak_vm_read_u8(vm);
+        OAK_VM_TRY(oak_vm_push_owned(vm, OAK_VALUE_I32((int)val)));
         break;
       }
       case OAK_OP_TRUE:
@@ -257,9 +261,8 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           oak_vm_runtime_error(vm, "local slot out of range (slot %u)", slot);
           return OAK_VM_RUNTIME_ERROR;
         }
+        const struct oak_value_t new_val = oak_vm_pop(vm);
         const struct oak_value_t old_val = vm->stack[idx];
-        const struct oak_value_t new_val = oak_vm_peek(vm, 0);
-        oak_value_incref(new_val);
         vm->stack[idx] = new_val;
         oak_value_decref(old_val);
         break;
@@ -352,6 +355,14 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         OAK_VM_TRY(oak_vm_push(vm, result));
         break;
       }
+      case OAK_OP_BOOL:
+      {
+        struct oak_value_t val = oak_vm_pop(vm);
+        const struct oak_value_t result = OAK_VALUE_BOOL(oak_is_truthy(val));
+        oak_value_decref(val);
+        OAK_VM_TRY(oak_vm_push(vm, result));
+        break;
+      }
       case OAK_OP_EQ:
       case OAK_OP_NEQ:
       {
@@ -393,6 +404,15 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         oak_value_decref(cond);
         break;
       }
+      case OAK_OP_JUMP_IF_TRUE:
+      {
+        const u16 offset = oak_vm_read_u16(vm);
+        struct oak_value_t cond = oak_vm_pop(vm);
+        if (oak_is_truthy(cond))
+          vm->ip += offset;
+        oak_value_decref(cond);
+        break;
+      }
       case OAK_OP_LOOP:
       {
         const u16 offset = oak_vm_read_u16(vm);
@@ -417,7 +437,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         chunk = vm->chunk;
         break;
       }
-      case OAK_OP_NEW_ARRAY_FROM_STACK:
+      case OAK_OP_NEW_ARR:
       {
         const u8 count = oak_vm_read_u8(vm);
         oak_assert((usize)(vm->sp - vm->stack) >= (usize)count);
@@ -431,7 +451,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         OAK_VM_TRY(oak_vm_push_owned(vm, OAK_VALUE_OBJ(&arr->obj)));
         break;
       }
-      case OAK_OP_NEW_MAP_FROM_STACK:
+      case OAK_OP_NEW_MAP:
       {
         const u8 count = oak_vm_read_u8(vm);
         const usize slots = (usize)count * 2u;
@@ -465,14 +485,14 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         break;
       }
       case OAK_OP_MAP_KEY_AT:
-      case OAK_OP_MAP_VALUE_AT:
+      case OAK_OP_MAP_VAL_AT:
       {
         const enum oak_vm_result_t r = vm_op_map_key_value_at(vm, instruction);
         if (r != OAK_VM_OK)
           return r;
         break;
       }
-      case OAK_OP_NEW_RECORD_FROM_STACK:
+      case OAK_OP_NEW_RECORD:
       {
         /* Stack on entry: [..., type_name_string, f0, f1, ..., f(N-1)].
          * Result: [..., record]. */
@@ -549,20 +569,19 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
       case OAK_OP_SET_FIELD:
       {
-        /* Stack: [..., recv, value]; result: [..., value]. */
+        /* Stack: [..., recv, value]; pops both. */
         const u8 idx = oak_vm_read_u8(vm);
         oak_assert(vm->sp - vm->stack >= 2);
-        const struct oak_value_t value = vm->sp[-1];
-        const struct oak_value_t recv = vm->sp[-2];
+        const struct oak_value_t value = oak_vm_pop(vm);
+        const struct oak_value_t recv = oak_vm_pop(vm);
         if (oak_is_record(recv))
         {
           struct oak_obj_record_t* s = oak_as_record(recv);
           oak_assert((int)idx < s->field_count);
-          oak_value_decref(s->fields[idx]);
-          oak_value_incref(value);
+          const struct oak_value_t old_field = s->fields[idx];
           s->fields[idx] = value;
+          oak_value_decref(old_field);
           oak_value_decref(recv);
-          vm->sp[-2] = value;
         }
         else if (oak_is_native_record(recv))
         {
@@ -575,6 +594,8 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
                                  (unsigned)idx,
                                  ns->type->name,
                                  ns->type->field_count);
+            oak_value_decref(recv);
+            oak_value_decref(value);
             return OAK_VM_RUNTIME_ERROR;
           }
           if (!ns->type->fields[idx].setter)
@@ -584,20 +605,23 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
                 "field '%s' on native record '%s' is read-only",
                 ns->type->fields[idx].name,
                 ns->type->name);
+            oak_value_decref(recv);
+            oak_value_decref(value);
             return OAK_VM_RUNTIME_ERROR;
           }
           ns->type->fields[idx].setter(recv, value);
           oak_value_decref(recv);
-          vm->sp[-2] = value;
+          oak_value_decref(value);
         }
         else
         {
           oak_vm_runtime_error(vm,
                                "field assignment requires a record, got %s",
                                oak_vm_value_kind_desc(recv));
+          oak_value_decref(recv);
+          oak_value_decref(value);
           return OAK_VM_RUNTIME_ERROR;
         }
-        vm->sp -= 1;
         break;
       }
       case OAK_OP_GET_MODULE_FN:

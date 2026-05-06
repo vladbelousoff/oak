@@ -59,17 +59,7 @@ void oak_compiler_emit_constant(struct oak_compiler_t* c,
                                 const u16 idx,
                                 const struct oak_code_loc_t loc)
 {
-  if (idx <= 255)
-  {
-    oak_compiler_emit_op(c, OAK_OP_CONSTANT, loc, OAK_ARG_U8((u8)idx));
-  }
-  else
-  {
-    oak_compiler_emit_byte(c, OAK_OP_CONSTANT_LONG, loc);
-    oak_compiler_emit_byte(c, (u8)(idx >> 8), loc);
-    oak_compiler_emit_byte(c, (u8)(idx), loc);
-    c->scope.stack_depth += oak_op_info[OAK_OP_CONSTANT_LONG].stack_effect;
-  }
+  oak_compiler_emit_op(c, OAK_OP_CONSTANT, loc, OAK_ARG_U16(idx));
 }
 
 usize oak_compiler_emit_jump(struct oak_compiler_t* c,
