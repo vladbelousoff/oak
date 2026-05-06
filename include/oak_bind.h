@@ -13,6 +13,9 @@ struct oak_module_t;
 /* Maximum number of fields a native type may expose to Oak. */
 #define OAK_BIND_MAX_FIELDS 32
 
+/* Maximum number of variants a native enum may expose to Oak. */
+#define OAK_BIND_MAX_ENUM_VARIANTS 64
+
 /* ---------- Kind discriminants ---------- */
 
 enum oak_bind_type_kind_t
@@ -109,10 +112,31 @@ struct oak_bind_fn_t
   enum oak_bind_shape_t return_shape;
 };
 
+/* ---------- Native enum descriptor ---------- */
+
+/* A single variant of a native-bound enum: a name plus an integer value.
+ * Variants are exposed to Oak source as `EnumName.Variant`, lowering to the
+ * variant's integer value (the same shape as user-declared enums). */
+struct oak_bind_enum_variant_t
+{
+  const char* name;
+  usize name_len;
+  int value;
+};
+
+struct oak_bind_enum_t
+{
+  const char* name;
+  usize name_len;
+  struct oak_bind_enum_variant_t variants[OAK_BIND_MAX_ENUM_VARIANTS];
+  int variant_count;
+};
+
 /* ---------- Concrete dynamic-array types for compile options ---------- */
 
 struct oak_bind_type_ptr_vec_t { struct oak_bind_type_t** items; int count; int capacity; };
 struct oak_bind_fn_vec_t       { struct oak_bind_fn_t*    items; int count; int capacity; };
+struct oak_bind_enum_ptr_vec_t { struct oak_bind_enum_t** items; int count; int capacity; };
 
 /* ---------- Compilation options ---------- */
 
@@ -126,6 +150,9 @@ struct oak_compile_options_t
 
   /* Native function / method bindings (owned; populated by oak_bind_fn). */
   struct oak_bind_fn_vec_t native_fns;
+
+  /* Native enums (owned; populated by oak_bind_enum / oak_bind_enum_variant). */
+  struct oak_bind_enum_ptr_vec_t native_enums;
 
   /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
    * oak_compile_options_init and incremented by each oak_bind_type call. */
@@ -185,6 +212,21 @@ int oak_bind_field(struct oak_bind_type_t* type,
  * Returns 0 on success, -1 on invalid arguments. */
 int oak_bind_fn(struct oak_compile_options_t* opts,
                 const struct oak_bind_fn_t* params);
+
+/* Allocate a native enum descriptor and register it in opts.  Returns a
+ * pointer for subsequent oak_bind_enum_variant calls; the descriptor is owned
+ * by opts and freed by oak_compile_options_free.  Returns NULL on invalid
+ * arguments. */
+struct oak_bind_enum_t* oak_bind_enum(struct oak_compile_options_t* opts,
+                                      const char* name);
+
+/* Append a variant to a native enum.  Variant values must be unique within
+ * an enum is not enforced — they are forwarded as-is to Oak as integer
+ * constants.  Returns 0 on success, -1 if the variant cap is reached or a
+ * variant with the same name already exists in this enum. */
+int oak_bind_enum_variant(struct oak_bind_enum_t* e,
+                          const char* name,
+                          int value);
 
 /* ---------- Runtime helpers ---------- */
 

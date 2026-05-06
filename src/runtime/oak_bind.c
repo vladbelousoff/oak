@@ -18,6 +18,7 @@ void oak_compile_options_init(struct oak_compile_options_t* opts)
   opts->source_name = null;
   oak_dynarr_init(&opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
   oak_dynarr_init(&opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
+  oak_dynarr_init(&opts->native_enums.items, &opts->native_enums.count, &opts->native_enums.capacity);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
   opts->emit_debug_info = 1;
   opts->module_registry = null;
@@ -32,6 +33,9 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
     oak_free(opts->native_types.items[i], OAK_SRC_LOC);
   oak_dynarr_free(&opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
   oak_dynarr_free(&opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
+  for (int i = 0; i < opts->native_enums.count; ++i)
+    oak_free(opts->native_enums.items[i], OAK_SRC_LOC);
+  oak_dynarr_free(&opts->native_enums.items, &opts->native_enums.count, &opts->native_enums.capacity);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
 }
 
@@ -115,6 +119,46 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
     return -1;
 
   oak_dynarr_push(&opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity, p, sizeof(*p));
+  return 0;
+}
+
+struct oak_bind_enum_t* oak_bind_enum(struct oak_compile_options_t* opts,
+                                      const char* name)
+{
+  if (!opts || !name)
+    return null;
+
+  struct oak_bind_enum_t* e =
+      oak_alloc(sizeof(struct oak_bind_enum_t), OAK_SRC_LOC);
+  e->name = name;
+  e->name_len = strlen(name);
+  e->variant_count = 0;
+
+  oak_dynarr_push(&opts->native_enums.items, &opts->native_enums.count, &opts->native_enums.capacity, &e, sizeof(e));
+  return e;
+}
+
+int oak_bind_enum_variant(struct oak_bind_enum_t* e,
+                          const char* name,
+                          const int value)
+{
+  if (!e || !name)
+    return -1;
+  if (e->variant_count >= OAK_BIND_MAX_ENUM_VARIANTS)
+    return -1;
+
+  const usize len = strlen(name);
+  for (int i = 0; i < e->variant_count; ++i)
+  {
+    if (oak_name_eq(
+            e->variants[i].name, e->variants[i].name_len, name, len))
+      return -1;
+  }
+
+  struct oak_bind_enum_variant_t* v = &e->variants[e->variant_count++];
+  v->name = name;
+  v->name_len = len;
+  v->value = value;
   return 0;
 }
 

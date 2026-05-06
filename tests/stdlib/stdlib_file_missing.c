@@ -14,7 +14,7 @@
 OAK_TEST_DECL(StdlibFileMissingPathRuntimeError)
 {
   const char* source =
-      "let r = File.open('does_not_exist_xyz.tmp', 'r');\n"
+      "let r = File.open('does_not_exist_xyz.tmp', FileMode.Read);\n"
       "let t = r.read_all();\n"
       "r.close();\n"
       "print(t);\n";

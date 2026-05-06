@@ -426,6 +426,19 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
     }
   }
 
+  /* Register native enums before any source-level enum passes so user code
+   * can reference their variants (e.g. FileMode.Read). */
+  if (opts && opts->native_enums.count > 0)
+  {
+    oak_compiler_register_native_enums(&compiler, opts);
+    if (compiler.has_error)
+    {
+      oak_chunk_free(chunk);
+      compiler_teardown(&compiler);
+      return;
+    }
+  }
+
   compile_program(&compiler, root);
 
   compiler_teardown(&compiler);

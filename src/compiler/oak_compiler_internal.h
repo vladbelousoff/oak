@@ -580,6 +580,14 @@ void oak_compiler_register_native_types(
 void oak_compiler_register_native_fns(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
 
+/* Register native enums from `opts` into the compiler's enum registry.
+ * Each variant is interned as an integer constant in the current chunk and
+ * inserted into c->enums.  Must be called before
+ * oak_compiler_register_program_enums so that user code can reference the
+ * native enum's variants. */
+void oak_compiler_register_native_enums(
+    struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
+
 /* ---------- oak_compiler_functions.c ---------- */
 
 const struct oak_ast_node_t*

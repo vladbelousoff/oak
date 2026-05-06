@@ -1,3 +1,4 @@
+#include "oak_bind.h"
 #include "oak_compiler_internal.h"
 
 #include <string.h>
@@ -77,6 +78,60 @@ int oak_enum_registry_is_enum_name(const struct oak_enum_registry_t* r,
                                    usize len)
 {
   return oak_htable_get(&r->enum_names, name, len) >= 0;
+}
+
+void oak_compiler_register_native_enums(
+    struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
+{
+  if (!opts || opts->native_enums.count == 0)
+    return;
+
+  for (int i = 0; i < opts->native_enums.count; ++i)
+  {
+    const struct oak_bind_enum_t* ne = opts->native_enums.items[i];
+    if (!ne)
+      continue;
+
+    if (oak_enum_registry_is_enum_name(&c->enums, ne->name, ne->name_len))
+    {
+      oak_compiler_error_at(
+          c,
+          null,
+          "native enum '%s' conflicts with an already-registered enum",
+          ne->name);
+      return;
+    }
+
+    for (int vi = 0; vi < ne->variant_count; ++vi)
+    {
+      const struct oak_bind_enum_variant_t* nv = &ne->variants[vi];
+
+      if (oak_enum_registry_find(&c->enums, nv->name, nv->name_len))
+      {
+        oak_compiler_error_at(
+            c,
+            null,
+            "native enum variant '%s' conflicts with an already-registered "
+            "variant",
+            nv->name);
+        return;
+      }
+
+      const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_I32(nv->value));
+      if (c->has_error)
+        return;
+
+      struct oak_enum_variant_t v = {
+        .name = nv->name,
+        .name_len = nv->name_len,
+        .enum_name = ne->name,
+        .enum_name_len = ne->name_len,
+        .const_idx = idx,
+        .value = nv->value,
+      };
+      oak_enum_registry_insert(&c->enums, &v);
+    }
+  }
 }
 
 void oak_compiler_register_program_enums(struct oak_compiler_t* c,

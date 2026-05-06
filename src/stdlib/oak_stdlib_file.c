@@ -13,6 +13,15 @@ typedef struct oak_file_handle_t
   FILE* fp;
 } oak_file_handle_t;
 
+/* FileMode variant integer values. Must match the order/values registered in
+ * oak_stdlib_register_file. */
+enum oak_file_mode_t
+{
+  OAK_FILE_MODE_READ = 0,
+  OAK_FILE_MODE_WRITE = 1,
+  OAK_FILE_MODE_APPEND = 2,
+};
+
 static const struct oak_bind_type_t* s_file_type;
 
 static enum oak_fn_call_result_t file_open(struct oak_native_ctx_t* ctx,
@@ -20,9 +29,17 @@ static enum oak_fn_call_result_t file_open(struct oak_native_ctx_t* ctx,
                                            int argc,
                                            struct oak_value_t* out)
 {
-  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_i32(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  FILE* fp = fopen(oak_as_cstring(args[0]), oak_as_cstring(args[1]));
+  const char* mode;
+  switch (oak_as_i32(args[1]))
+  {
+    case OAK_FILE_MODE_READ:   mode = "r"; break;
+    case OAK_FILE_MODE_WRITE:  mode = "w"; break;
+    case OAK_FILE_MODE_APPEND: mode = "a"; break;
+    default: return OAK_FN_CALL_RUNTIME_ERROR;
+  }
+  FILE* fp = fopen(oak_as_cstring(args[0]), mode);
   if (!fp)
     return OAK_FN_CALL_RUNTIME_ERROR;
   const struct oak_src_loc_t loc = oak_vm_oak_mem_src_loc(ctx->vm);
@@ -158,6 +175,14 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
   if (!t)
     return;
   s_file_type = t;
+
+  struct oak_bind_enum_t* mode = oak_bind_enum(opts, "FileMode");
+  if (mode)
+  {
+    oak_bind_enum_variant(mode, "Read",   OAK_FILE_MODE_READ);
+    oak_bind_enum_variant(mode, "Write",  OAK_FILE_MODE_WRITE);
+    oak_bind_enum_variant(mode, "Append", OAK_FILE_MODE_APPEND);
+  }
 
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){

@@ -206,13 +206,13 @@ Module names use dots for path separators; `as` gives an alias. Cycles are detec
 There's also a small `File` type:
 
 ```oak
-let f = File.open('notes.txt', 'r');
+let f = File.open('notes.txt', FileMode.Read);
 let text = f.read_all();
 f.close();
 print(text);
 ```
 
-`File` supports `open` (static), and `read`, `read_all`, `write`, `eof`, `close` on instances.
+`File` supports `open` (static), and `read`, `read_all`, `write`, `eof`, `close` on instances. `open` takes a `FileMode` enum value as its second argument: `FileMode.Read`, `FileMode.Write`, or `FileMode.Append`.
 
 ---
 
