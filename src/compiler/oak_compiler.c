@@ -167,8 +167,8 @@ static void register_imported_enums(struct oak_compiler_t* c)
         /* Skip if the unqualified variant name already exists. */
         if (oak_enum_registry_find(&c->enums, v->name, v->name_len))
           continue;
-        const u8 local_idx =
-            (u8)oak_compiler_intern_constant(c, OAK_VALUE_I32(v->value));
+        const u16 local_idx =
+            oak_compiler_intern_constant(c, OAK_VALUE_I32(v->value));
         if (c->has_error)
           return;
         struct oak_enum_variant_t ev = {
