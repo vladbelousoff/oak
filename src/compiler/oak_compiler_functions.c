@@ -4,13 +4,13 @@
 
 void oak_fn_registry_init(struct oak_fn_registry_t* r)
 {
-  oak_hash_table_init(&r->by_name);
+  oak_htable_init(&r->by_name);
   oak_dynarr_init(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
 void oak_fn_registry_free(struct oak_fn_registry_t* r)
 {
-  oak_hash_table_free(&r->by_name);
+  oak_htable_free(&r->by_name);
   oak_dynarr_free(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
@@ -20,7 +20,7 @@ oak_fn_registry_insert(struct oak_fn_registry_t* r,
 {
   oak_dynarr_push(&r->entries.items, &r->entries.count, &r->entries.capacity, fn, sizeof(*fn));
   const int idx = r->entries.count - 1;
-  oak_hash_table_insert(
+  oak_htable_insert(
       &r->by_name, r->entries.items[idx].name, r->entries.items[idx].name_len, idx);
   return &r->entries.items[idx];
 }
@@ -28,7 +28,7 @@ oak_fn_registry_insert(struct oak_fn_registry_t* r,
 const struct oak_registered_fn_t* oak_fn_registry_find(
     const struct oak_fn_registry_t* r, const char* name, usize len)
 {
-  const int idx = oak_hash_table_get(&r->by_name, name, len);
+  const int idx = oak_htable_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
   return &r->entries.items[idx];

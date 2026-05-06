@@ -60,7 +60,7 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
   oak_fn_registry_init(&c->fns);
   oak_record_registry_init(&c->records);
   oak_enum_registry_init(&c->enums);
-  oak_hash_table_init(&c->module_scope_names);
+  oak_htable_init(&c->module_scope_names);
   c->user_record_start = 0;
   c->user_enum_start = -1;
 
@@ -69,7 +69,7 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
 
 static void compiler_teardown(struct oak_compiler_t* c)
 {
-  oak_hash_table_free(&c->module_scope_names);
+  oak_htable_free(&c->module_scope_names);
   oak_fn_registry_free(&c->fns);
   oak_record_registry_free(&c->records);
   oak_enum_registry_free(&c->enums);
@@ -94,8 +94,8 @@ static void collect_module_scope_names(struct oak_compiler_t* c,
       continue;
     const char* name = oak_token_text(ident->token);
     const usize name_len = oak_token_length(ident->token);
-    if (oak_hash_table_get(&c->module_scope_names, name, name_len) < 0)
-      oak_hash_table_insert(&c->module_scope_names, name, name_len, 1);
+    if (oak_htable_get(&c->module_scope_names, name, name_len) < 0)
+      oak_htable_insert(&c->module_scope_names, name, name_len, 1);
   }
 }
 
@@ -135,7 +135,7 @@ int oak_compiler_lookup_import_alias(const struct oak_compiler_t* c,
 {
   if (!c->current_module)
     return -1;
-  return oak_hash_table_get(&c->current_module->imports, name, name_len);
+  return oak_htable_get(&c->current_module->imports, name, name_len);
 }
 
 /* Pre-register enum variants from all imported modules so that cross-module
@@ -255,7 +255,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
     };
     const int idx = mod->exports_fn.count;
     oak_dynarr_push(&mod->exports_fn.items, &mod->exports_fn.count, &mod->exports_fn.capacity, &exp, sizeof(exp));
-    oak_hash_table_insert(
+    oak_htable_insert(
         &mod->exports_fn_by_name, e->name, e->name_len, idx);
   }
   /* Export user-defined records (those registered after native + imported ones,
@@ -288,7 +288,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
     exp.layout_id = 0; /* populated on first cross-module new when needed */
     const int idx = mod->exports_record.count;
     oak_dynarr_push(&mod->exports_record.items, &mod->exports_record.count, &mod->exports_record.capacity, &exp, sizeof(exp));
-    oak_hash_table_insert(
+    oak_htable_insert(
         &mod->exports_record_by_name, exp.name, exp.name_len, idx);
   }
   /* Export user-defined enums (those registered after native + imported ones).
@@ -300,7 +300,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
       const struct oak_enum_variant_t* v = &c->enums.variants.items[i];
       /* Find or create the export entry for this enum type. */
       int eidx =
-          oak_hash_table_get(&mod->exports_enum_by_name, v->enum_name, v->enum_name_len);
+          oak_htable_get(&mod->exports_enum_by_name, v->enum_name, v->enum_name_len);
       if (eidx < 0)
       {
         struct oak_module_export_enum_t ee = { 0 };
@@ -308,7 +308,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
         ee.name_len = v->enum_name_len;
         eidx = mod->exports_enum.count;
         oak_dynarr_push(&mod->exports_enum.items, &mod->exports_enum.count, &mod->exports_enum.capacity, &ee, sizeof(ee));
-        oak_hash_table_insert(
+        oak_htable_insert(
             &mod->exports_enum_by_name, ee.name, ee.name_len, eidx);
       }
       struct oak_module_export_enum_t* ee = &mod->exports_enum.items[eidx];

@@ -446,8 +446,8 @@ int oak_module_loader_load_program(
     if (_atk) {                                                                  \
       const char* _a = oak_token_text(_atk);                                    \
       const usize _al = oak_token_length(_atk);                                 \
-      if (oak_hash_table_get(&(_parent_mod)->imports, _a, _al) < 0)             \
-        oak_hash_table_insert(&(_parent_mod)->imports, _a, _al, (int)(_dep_id));\
+      if (oak_htable_get(&(_parent_mod)->imports, _a, _al) < 0)             \
+        oak_htable_insert(&(_parent_mod)->imports, _a, _al, (int)(_dep_id));\
     }                                                                            \
   } while (0)
 
@@ -546,7 +546,7 @@ int oak_module_loader_load_program(
       {
         const char* alias = oak_token_text(atk);
         const usize alen = oak_token_length(atk);
-        if (oak_hash_table_get(&top->mod->imports, alias, alen) >= 0)
+        if (oak_htable_get(&top->mod->imports, alias, alen) >= 0)
         {
           loader_error(out,
                        "%s: duplicate import alias '%.*s'",
@@ -559,7 +559,7 @@ int oak_module_loader_load_program(
           rc = -1;
           break;
         }
-        oak_hash_table_insert(
+        oak_htable_insert(
             &top->mod->imports, alias, alen, (int)dep->module_id);
       }
     }

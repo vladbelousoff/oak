@@ -4,7 +4,7 @@ int oak_compiler_is_module_scope_name(const struct oak_compiler_t* c,
                                       const char* name,
                                       const usize len)
 {
-  return oak_hash_table_get(&c->module_scope_names, name, len) >= 0;
+  return oak_htable_get(&c->module_scope_names, name, len) >= 0;
 }
 
 int oak_compiler_find_local(const struct oak_compiler_t* c,

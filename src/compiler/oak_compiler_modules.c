@@ -1,7 +1,7 @@
 #include "oak_compiler_modules.h"
 
 #include "oak_compiler_internal.h"
-#include "oak_hash_table.h"
+#include "oak_htable.h"
 #include "oak_token.h"
 
 const struct oak_module_t*
@@ -12,7 +12,7 @@ oak_compiler_module_for_alias(const struct oak_compiler_t* c,
   if (!c->current_module || !c->module_registry)
     return null;
   const int mod_id =
-      oak_hash_table_get(&c->current_module->imports, name, name_len);
+      oak_htable_get(&c->current_module->imports, name, name_len);
   if (mod_id < 0)
     return null;
   return oak_module_registry_get(c->module_registry, (u16)mod_id);

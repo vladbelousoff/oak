@@ -6,15 +6,15 @@
 
 void oak_enum_registry_init(struct oak_enum_registry_t* r)
 {
-  oak_hash_table_init(&r->by_name);
-  oak_hash_table_init(&r->enum_names);
+  oak_htable_init(&r->by_name);
+  oak_htable_init(&r->enum_names);
   oak_dynarr_init(&r->variants.items, &r->variants.count, &r->variants.capacity);
 }
 
 void oak_enum_registry_free(struct oak_enum_registry_t* r)
 {
-  oak_hash_table_free(&r->by_name);
-  oak_hash_table_free(&r->enum_names);
+  oak_htable_free(&r->by_name);
+  oak_htable_free(&r->enum_names);
   oak_dynarr_free(&r->variants.items, &r->variants.count, &r->variants.capacity);
 }
 
@@ -26,16 +26,16 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
   const int idx = r->variants.count - 1;
 
   /* Index by unqualified variant name. */
-  oak_hash_table_insert(
+  oak_htable_insert(
       &r->by_name, r->variants.items[idx].name, r->variants.items[idx].name_len, idx);
 
   /* Index the enum type name as a set entry (value 1) if not already present.
    */
-  if (oak_hash_table_get(&r->enum_names,
+  if (oak_htable_get(&r->enum_names,
                          r->variants.items[idx].enum_name,
                          r->variants.items[idx].enum_name_len) < 0)
   {
-    oak_hash_table_insert(&r->enum_names,
+    oak_htable_insert(&r->enum_names,
                           r->variants.items[idx].enum_name,
                           r->variants.items[idx].enum_name_len,
                           1);
@@ -47,7 +47,7 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
 const struct oak_enum_variant_t* oak_enum_registry_find(
     const struct oak_enum_registry_t* r, const char* name, usize len)
 {
-  const int idx = oak_hash_table_get(&r->by_name, name, len);
+  const int idx = oak_htable_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
   return &r->variants.items[idx];
@@ -76,7 +76,7 @@ int oak_enum_registry_is_enum_name(const struct oak_enum_registry_t* r,
                                    const char* name,
                                    usize len)
 {
-  return oak_hash_table_get(&r->enum_names, name, len) >= 0;
+  return oak_htable_get(&r->enum_names, name, len) >= 0;
 }
 
 void oak_compiler_register_program_enums(struct oak_compiler_t* c,

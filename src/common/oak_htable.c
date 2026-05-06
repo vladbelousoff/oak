@@ -1,4 +1,4 @@
-#include "oak_hash_table.h"
+#include "oak_htable.h"
 #include "oak_mem.h"
 
 #include <string.h>
@@ -16,14 +16,14 @@ static u32 fnv1a(const void* data, usize len)
   return h;
 }
 
-void oak_hash_table_init(struct oak_hash_table_t* ht)
+void oak_htable_init(struct oak_htable_t* ht)
 {
   ht->slots = null;
   ht->capacity = 0;
   ht->count = 0;
 }
 
-void oak_hash_table_free(struct oak_hash_table_t* ht)
+void oak_htable_free(struct oak_htable_t* ht)
 {
   if (ht->slots)
     oak_free(ht->slots, OAK_SRC_LOC);
@@ -32,17 +32,17 @@ void oak_hash_table_free(struct oak_hash_table_t* ht)
   ht->count = 0;
 }
 
-static void grow(struct oak_hash_table_t* ht)
+static void grow(struct oak_htable_t* ht)
 {
   const int new_cap = ht->capacity < 8 ? 8 : ht->capacity * 2;
-  struct oak_hash_table_slot_t* new_slots =
+  struct oak_htable_slot_t* new_slots =
       oak_alloc((usize)new_cap * sizeof *new_slots, OAK_SRC_LOC);
   memset(new_slots, 0, (usize)new_cap * sizeof *new_slots);
 
   /* Rehash all occupied entries into the new table. */
   for (int i = 0; i < ht->capacity; ++i)
   {
-    const struct oak_hash_table_slot_t* s = &ht->slots[i];
+    const struct oak_htable_slot_t* s = &ht->slots[i];
     if (!s->key)
       continue;
     int j = (int)(s->hash & (u32)(new_cap - 1));
@@ -57,10 +57,10 @@ static void grow(struct oak_hash_table_t* ht)
   ht->capacity = new_cap;
 }
 
-void oak_hash_table_insert(struct oak_hash_table_t* ht,
-                           const void* key,
-                           usize key_len,
-                           int value)
+void oak_htable_insert(struct oak_htable_t* ht,
+                       const void* key,
+                       usize key_len,
+                       int value)
 {
   /* Grow before load exceeds 75%. */
   if (ht->count * 4 >= ht->capacity * 3)
@@ -78,9 +78,9 @@ void oak_hash_table_insert(struct oak_hash_table_t* ht,
   ht->count++;
 }
 
-int oak_hash_table_get(const struct oak_hash_table_t* ht,
-                       const void* key,
-                       usize key_len)
+int oak_htable_get(const struct oak_htable_t* ht,
+                   const void* key,
+                   usize key_len)
 {
   if (!ht->capacity)
     return -1;

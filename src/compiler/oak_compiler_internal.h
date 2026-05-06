@@ -5,7 +5,7 @@
 #include "oak_compiler.h"
 #include "oak_count_of.h"
 #include "oak_dynarr.h"
-#include "oak_hash_table.h"
+#include "oak_htable.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_module.h"
@@ -113,7 +113,7 @@ struct oak_registered_fn_vec_t { struct oak_registered_fn_t* items; int count; i
  * Lookup is O(1) via the hash table; entries owns the storage. */
 struct oak_fn_registry_t
 {
-  struct oak_hash_table_t by_name; /* name bytes → index into entries */
+  struct oak_htable_t by_name; /* name bytes → index into entries */
   struct oak_registered_fn_vec_t entries;
 };
 
@@ -195,7 +195,7 @@ struct oak_registered_record_vec_t { struct oak_registered_record_t* items; int 
  * (type_id lookups are infrequent and record counts remain small). */
 struct oak_record_registry_t
 {
-  struct oak_hash_table_t by_name; /* name bytes → index */
+  struct oak_htable_t by_name; /* name bytes → index */
   struct oak_registered_record_vec_t entries;
 };
 
@@ -223,8 +223,8 @@ struct oak_enum_variant_vec_t { struct oak_enum_variant_t* items; int count; int
  * Qualified lookup (EnumName::Variant) uses a linear scan — it is rare. */
 struct oak_enum_registry_t
 {
-  struct oak_hash_table_t by_name;    /* variant name → index into variants */
-  struct oak_hash_table_t enum_names; /* enum type name → 1 (set)           */
+  struct oak_htable_t by_name;    /* variant name → index into variants */
+  struct oak_htable_t enum_names; /* enum type name → 1 (set)           */
   struct oak_enum_variant_vec_t variants;
 };
 
@@ -243,7 +243,7 @@ struct oak_compiler_t
   struct oak_enum_registry_t enums;
   /* Names bound at module scope (top-level `let` items only). Used to reject
    * access from inside user function and method bodies. */
-  struct oak_hash_table_t module_scope_names;
+  struct oak_htable_t module_scope_names;
   /* Module-system context. Null when compiling standalone. */
   struct oak_module_registry_t* module_registry;
   struct oak_module_t* current_module;

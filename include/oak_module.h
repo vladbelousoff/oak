@@ -4,7 +4,7 @@
 #include "oak_diagnostic.h"
 #include "oak_dynarr.h"
 #include "oak_file_map.h"
-#include "oak_hash_table.h"
+#include "oak_htable.h"
 #include "oak_parser.h"
 
 /* Sentinel module_id used by native fns and the entry-only chunk before a
@@ -92,15 +92,15 @@ struct oak_module_t
   struct oak_chunk_t* chunk;
 
   /* Resolved imports (alias_name -> dependency module_id) */
-  struct oak_hash_table_t imports;
+  struct oak_htable_t imports;
   struct oak_u16_vec_t import_modules;          /* module_ids of direct deps */
 
   /* Exports (populated post-compile) */
-  struct oak_hash_table_t exports_fn_by_name;
+  struct oak_htable_t exports_fn_by_name;
   struct oak_export_fn_vec_t exports_fn;
-  struct oak_hash_table_t exports_record_by_name;
+  struct oak_htable_t exports_record_by_name;
   struct oak_export_rec_vec_t exports_record;
-  struct oak_hash_table_t exports_enum_by_name;
+  struct oak_htable_t exports_enum_by_name;
   struct oak_export_enum_vec_t exports_enum;
 
   /* Lifecycle */
@@ -118,7 +118,7 @@ struct oak_module_ptr_vec_t { struct oak_module_t** items; int count; int capaci
 struct oak_module_registry_t
 {
   struct oak_module_ptr_vec_t modules;          /* index = module_id */
-  struct oak_hash_table_t by_canonical_path;    /* path -> module_id */
+  struct oak_htable_t by_canonical_path;    /* path -> module_id */
 };
 
 /* ----- Lifecycle ----- */
