@@ -25,7 +25,7 @@
  *       p += n;
  *   }
  */
-OAK_UNUSED static int oak_utf8_next(const char* s, u32* out)
+static int oak_utf8_next(const char* s, u32* out)
 {
   const unsigned char* p = (const unsigned char*)s;
   u32 cp;

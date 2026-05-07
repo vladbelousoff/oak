@@ -20,7 +20,7 @@ if(MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
     set(OAK_WARN_FLAGS /W3 /wd4200)
 else()
-    set(OAK_WARN_FLAGS -Wall -Wextra)
+    set(OAK_WARN_FLAGS -Wall -Wextra -Wno-unused-function)
 endif()
 
 # Directories

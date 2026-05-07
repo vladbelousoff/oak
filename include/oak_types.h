@@ -68,11 +68,6 @@ typedef long isize;
 #define null ((void*)0)
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
-#define OAK_UNUSED __attribute__((unused))
-#else
-#define OAK_UNUSED
-#endif
 
 _Static_assert(sizeof(i8) == 1 && sizeof(u8) == 1, "oak_types: byte width");
 _Static_assert(sizeof(i16) == 2 && sizeof(u16) == 2, "oak_types: 16-bit width");

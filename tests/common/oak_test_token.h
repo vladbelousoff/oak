@@ -112,7 +112,7 @@ oak_test_token(const struct oak_token_t* token,
   return OAK_TEST_OK;
 }
 
-OAK_UNUSED static enum oak_test_status_t
+static enum oak_test_status_t
 oak_test_tokens(const struct oak_lexer_result_t* lexer,
                 const struct oak_expected_token_t* expected_tokens,
                 const usize count)

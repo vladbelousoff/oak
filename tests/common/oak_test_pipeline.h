@@ -11,7 +11,7 @@
 
 /* Run source through lex/parse/compile/run; return OAK_TEST_OK iff the program
  * compiles and the VM completes with OAK_VM_OK. */
-OAK_UNUSED static enum oak_test_status_t oak_pipeline_expect_ok(const char* source)
+static enum oak_test_status_t oak_pipeline_expect_ok(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
   struct oak_parser_result_t result = { 0 };
@@ -36,7 +36,7 @@ OAK_UNUSED static enum oak_test_status_t oak_pipeline_expect_ok(const char* sour
 }
 
 /* Source must parse but fail at the compile stage (cr.chunk == null). */
-OAK_UNUSED static enum oak_test_status_t
+static enum oak_test_status_t
 oak_pipeline_expect_compile_error(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
@@ -57,7 +57,7 @@ oak_pipeline_expect_compile_error(const char* source)
 /* Source must fail at *either* the parse stage (root == null) or the compile
  * stage (cr.chunk == null). Useful when a malformed program may be rejected at
  * either stage depending on grammar evolution. */
-OAK_UNUSED static enum oak_test_status_t
+static enum oak_test_status_t
 oak_pipeline_expect_parse_or_compile_error(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
@@ -83,7 +83,7 @@ oak_pipeline_expect_parse_or_compile_error(const char* source)
 
 /* Source must compile (chunk != null) but the VM must report a non-OK result
  * at runtime. */
-OAK_UNUSED static enum oak_test_status_t
+static enum oak_test_status_t
 oak_pipeline_expect_runtime_error(const char* source)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));

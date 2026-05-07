@@ -487,7 +487,7 @@ static struct oak_value_t tracking_getter(struct oak_value_t self)
   return OAK_VALUE_I32(42);
 }
 
-OAK_UNUSED static void tracking_setter(struct oak_value_t self,
+static void tracking_setter(struct oak_value_t self,
                              struct oak_value_t value)
 {
   (void)self;
@@ -498,7 +498,7 @@ OAK_UNUSED static void tracking_setter(struct oak_value_t self,
 /* Helper: compile an Oak chunk with a native type, inject one native record
  * instance onto the VM stack at slot 0, and run it. The `nt` pointer must
  * come from the same `opts` that is passed here, as `opts` owns the type. */
-OAK_UNUSED static enum oak_test_status_t run_with_native_instance(
+static enum oak_test_status_t run_with_native_instance(
     const char* source,
     struct oak_compile_options_t* opts,
     struct oak_bind_type_t* nt,
