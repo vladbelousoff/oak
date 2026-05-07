@@ -56,7 +56,11 @@ set(OAK_DEBUG_DEFINES
 )
 
 # Library
-add_library(acorn STATIC ${OAK_CORE_SOURCES})
+if(EMSCRIPTEN)
+    add_library(acorn STATIC ${OAK_CORE_SOURCES})
+else()
+    add_library(acorn SHARED ${OAK_CORE_SOURCES})
+endif()
 
 target_include_directories(acorn
     PUBLIC
