@@ -1,4 +1,4 @@
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
 void oak_compiler_compile_fn_call_arg(struct oak_compiler_t* c,

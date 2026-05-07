@@ -1,5 +1,5 @@
 #include "oak_bind.h"
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 
 #include <string.h>
 

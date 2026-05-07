@@ -1,4 +1,4 @@
-#include "oak_vm_internal.h"
+#include "internal/oak_vm.h"
 
 static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
                                            const u8 argc,

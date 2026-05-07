@@ -1,4 +1,4 @@
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 
 int oak_compiler_is_module_scope_name(const struct oak_compiler_t* c,
                                       const char* name,

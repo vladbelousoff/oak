@@ -2,7 +2,7 @@
 
 #include "oak_bind.h"
 #include "oak_chunk.h"
-#include "oak_compiler.h"
+#include <oak_compiler.h>
 #include "oak_count_of.h"
 #include "oak_dynarr.h"
 #include "oak_htable.h"

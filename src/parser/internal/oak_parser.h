@@ -2,7 +2,7 @@
 
 #include "oak_arena.h"
 #include "oak_count_of.h"
-#include "oak_parser.h"
+#include <oak_parser.h>
 
 struct oak_parser_t
 {

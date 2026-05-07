@@ -1,4 +1,4 @@
-#include "oak_vm_internal.h"
+#include "internal/oak_vm.h"
 
 static inline float coerce_f32(const struct oak_value_t v)
 {

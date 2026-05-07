@@ -1,4 +1,4 @@
-#include "oak_parser_internal.h"
+#include "internal/oak_parser.h"
 
 int oak_parser_try_skip_token(struct oak_parser_t* p,
                               const enum oak_token_kind_t token_kind)

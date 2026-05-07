@@ -1,4 +1,4 @@
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 
 /* Interns a freshly-allocated native function as a chunk constant and returns
  * its index. The chunk takes ownership of the single allocation reference. */

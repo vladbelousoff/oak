@@ -1,4 +1,4 @@
-#include "oak_vm_internal.h"
+#include "internal/oak_vm.h"
 
 #include <stdarg.h>
 #include <stdio.h>

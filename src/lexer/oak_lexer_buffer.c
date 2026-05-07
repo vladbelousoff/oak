@@ -1,4 +1,4 @@
-#include "oak_lexer_internal.h"
+#include "internal/oak_lexer.h"
 
 #include "oak_mem.h"
 

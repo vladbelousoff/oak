@@ -1,4 +1,4 @@
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 
 void oak_compiler_emit_byte(const struct oak_compiler_t* c,
                             const u8 byte,

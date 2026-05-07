@@ -1,4 +1,4 @@
-#include "oak_parser_internal.h"
+#include "internal/oak_parser.h"
 
 static const struct oak_pratt_rule_t*
 find_pratt_rule(const struct oak_pratt_rule_t* rules,

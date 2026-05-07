@@ -8,7 +8,7 @@
 #include "oak_type_id.h"
 #include "oak_value.h"
 #include "oak_vm.h"
-#include "oak_vm_internal.h"
+#include "internal/oak_vm.h"
 
 #include <string.h>
 

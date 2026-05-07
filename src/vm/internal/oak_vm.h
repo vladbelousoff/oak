@@ -4,7 +4,7 @@
 #include "oak_log.h"
 #include "oak_module.h"
 #include "oak_value.h"
-#include "oak_vm.h"
+#include <oak_vm.h>
 
 void oak_vm_report_stack_overflow(const struct oak_vm_t* vm);
 

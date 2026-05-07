@@ -1,4 +1,4 @@
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 
 /* ---------- oak_fn_registry_t lifecycle ---------- */
 

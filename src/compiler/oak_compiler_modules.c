@@ -1,6 +1,6 @@
 #include "oak_compiler_modules.h"
 
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 #include "oak_htable.h"
 #include "oak_token.h"
 

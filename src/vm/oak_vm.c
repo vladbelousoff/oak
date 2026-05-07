@@ -1,4 +1,4 @@
-#include "oak_vm_internal.h"
+#include "internal/oak_vm.h"
 
 static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
 {

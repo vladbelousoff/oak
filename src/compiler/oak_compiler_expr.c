@@ -1,4 +1,4 @@
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
 usize oak_compiler_ast_child_count(const struct oak_ast_node_t* node)

@@ -1,4 +1,4 @@
-#include "oak_compiler_internal.h"
+#include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
 void oak_compiler_type_node_to_type(struct oak_compiler_t* c,
