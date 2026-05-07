@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(oak VERSION 1.0.0 LANGUAGES C)
 
+option(OAK_TESTS "Build and register tests" OFF)
+
 include(FetchContent)
 # Upstream add_library(yyjson) is STATIC when BUILD_SHARED_LIBS is OFF (CMake
 # default). Tests are off so FetchContent only builds the library.
@@ -102,6 +104,7 @@ else()
     target_compile_options(oak PRIVATE ${OAK_WARN_FLAGS})
     target_compile_definitions(oak PRIVATE ${OAK_DEBUG_DEFINES})
 
+    if(OAK_TESTS)
     enable_testing()
 
     foreach(test_src ${OAK_TEST_SOURCES})
@@ -173,4 +176,5 @@ else()
                     -P ${CMAKE_SOURCE_DIR}/cmake/run_error_script_test.cmake)
         endif()
     endforeach()
+    endif() # OAK_TESTS
 endif()
