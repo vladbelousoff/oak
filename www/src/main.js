@@ -183,16 +183,8 @@ function exampleRelativePath(path) {
     .replace(/^.*\/examples\//, '');
 }
 
-function isEntryPoint(path) {
-  if (!path.endsWith('.oak')) return false;
-  const parts = path.split('/');
-  const fileName = parts[parts.length - 1];
-  const stem = fileName.replace(/\.oak$/, '');
-  return parts.length === 2 && parts[0] === stem;
-}
-
 function isRunnableExample(path) {
-  return isEntryPoint(path);
+  return path.endsWith('.oak');
 }
 
 function shouldShowExampleFile(path) {
