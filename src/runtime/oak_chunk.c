@@ -42,11 +42,10 @@ const struct oak_op_info_t oak_op_info[] = {
   /* Pops <count> field values plus one type-name string from the stack and
    * pushes a fresh record. Stack effect counts only the name (consumed) and
    * the produced record; <count> is variable and adjusted at compile time. */
-  [OAK_OP_NEW_RECORD] = { "OP_NEW_RECORD",
-                                     OAK_OP_FMT_U8_U16,
-                                     0 },
+  [OAK_OP_NEW_RECORD] = { "OP_NEW_RECORD", OAK_OP_FMT_U8_U16, 0 },
   [OAK_OP_GET_FIELD] = { "OP_GET_FIELD", OAK_OP_FMT_SLOT, 0 },
-  /* Stack: [..., record, value] -> [...]; sets record.fields[idx] and discards. */
+  /* Stack: [..., record, value] -> [...]; sets record.fields[idx] and discards.
+   */
   [OAK_OP_SET_FIELD] = { "OP_SET_FIELD", OAK_OP_FMT_SLOT, -2 },
   [OAK_OP_GET_MODULE_FN] = { "OP_GET_MODULE_FN", OAK_OP_FMT_U16_U16, 1 },
 };
@@ -129,7 +128,8 @@ int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
     for (j = 0; j < n; ++j)
     {
       const usize a = name_len ? name_len[j] : strlen(names[j]);
-      if (a != (usize)strlen(e->name[j]) || memcmp(names[j], e->name[j], a) != 0)
+      if (a != (usize)strlen(e->name[j]) ||
+          memcmp(names[j], e->name[j], a) != 0)
         break;
     }
     if (j == n)
@@ -137,12 +137,14 @@ int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
   }
   if (c->field_layout_count >= c->field_layout_capacity)
   {
-    const int nc = c->field_layout_capacity < 4 ? 4 : c->field_layout_capacity * 2;
+    const int nc =
+        c->field_layout_capacity < 4 ? 4 : c->field_layout_capacity * 2;
     c->field_layouts = oak_realloc(
         c->field_layouts, (usize)nc * sizeof *c->field_layouts, OAK_SRC_LOC);
     c->field_layout_capacity = nc;
   }
-  struct oak_chunk_field_layout* const d = &c->field_layouts[c->field_layout_count];
+  struct oak_chunk_field_layout* const d =
+      &c->field_layouts[c->field_layout_count];
   d->field_count = n;
   d->name_blob = null;
   usize tot = 0u;
@@ -225,9 +227,8 @@ void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
   struct oak_chunk_debug_t* dbg = chunk->debug;
   if (dbg->debug_count >= dbg->debug_capacity)
   {
-    const usize new_cap = dbg->debug_capacity == 0
-                              ? DEBUG_INITIAL_CAPACITY
-                              : dbg->debug_capacity * 2;
+    const usize new_cap = dbg->debug_capacity == 0 ? DEBUG_INITIAL_CAPACITY
+                                                   : dbg->debug_capacity * 2;
     dbg->debug_locals = oak_realloc(dbg->debug_locals,
                                     new_cap * sizeof(struct oak_debug_local_t),
                                     OAK_SRC_LOC);
@@ -383,7 +384,8 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
     case OAK_OP_FMT_INT8:
     {
       const signed char val = (signed char)chunk->bytecode[offset + 1];
-      oak_log(OAK_LOG_INFO, "%04zu %s  %-20s %4d", offset, line, name, (int)val);
+      oak_log(
+          OAK_LOG_INFO, "%04zu %s  %-20s %4d", offset, line, name, (int)val);
       return offset + 2;
     }
     case OAK_OP_FMT_SLOT:

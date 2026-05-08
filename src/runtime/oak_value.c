@@ -89,9 +89,8 @@ struct oak_obj_string_t* oak_string_new(const char* chars, const usize length)
   return str;
 }
 
-struct oak_obj_fn_t* oak_fn_new(const usize code_offset,
-                                const int arity,
-                                const u16 module_id)
+struct oak_obj_fn_t*
+oak_fn_new(const usize code_offset, const int arity, const u16 module_id)
 {
   struct oak_obj_fn_t* fn = oak_alloc(sizeof(struct oak_obj_fn_t), OAK_SRC_LOC);
   fn->obj.type = OAK_OBJ_FN;
@@ -102,9 +101,8 @@ struct oak_obj_fn_t* oak_fn_new(const usize code_offset,
   return fn;
 }
 
-struct oak_obj_native_fn_t* oak_native_fn_new(const oak_native_fn_t fn,
-                                              const int arity,
-                                              const char* name)
+struct oak_obj_native_fn_t*
+oak_native_fn_new(const oak_native_fn_t fn, const int arity, const char* name)
 {
   struct oak_obj_native_fn_t* native =
       oak_alloc(sizeof(struct oak_obj_native_fn_t), OAK_SRC_LOC);
@@ -568,8 +566,9 @@ static char* oak_map_key_cstr(const struct oak_value_t key, unsigned depth)
   }
 }
 
-static yyjson_mut_val* oak_yyjson_str_from_oak_string(
-    yyjson_mut_doc* const doc, const struct oak_obj_string_t* s)
+static yyjson_mut_val*
+oak_yyjson_str_from_oak_string(yyjson_mut_doc* const doc,
+                               const struct oak_obj_string_t* s)
 {
   return yyjson_mut_strncpy(doc, s->chars, s->length);
 }
@@ -587,8 +586,8 @@ static yyjson_mut_val* oak_yyjson_unhandled(yyjson_mut_doc* const doc,
   if (oak_is_native_fn(value))
   {
     char tmp[256];
-    const int n = oak_native_fn_format(
-        tmp, (usize)sizeof(tmp), oak_as_native_fn(value));
+    const int n =
+        oak_native_fn_format(tmp, (usize)sizeof(tmp), oak_as_native_fn(value));
     if (n < 0 || (usize)n >= sizeof(tmp))
       return yyjson_mut_null(doc);
     return yyjson_mut_strcpy(doc, tmp);
@@ -675,8 +674,7 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* const doc,
         (void)snprintf(keybuf, sizeof keybuf, "%d", i);
         key = keybuf;
       }
-      yyjson_mut_val* fj =
-          oak_value_to_yyjson(doc, s->fields[i], depth + 1u);
+      yyjson_mut_val* fj = oak_value_to_yyjson(doc, s->fields[i], depth + 1u);
       if (!fj)
         return null;
       yyjson_mut_val* kjv = yyjson_mut_strcpy(doc, key);

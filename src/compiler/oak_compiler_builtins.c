@@ -7,8 +7,7 @@ u16 oak_compiler_intern_native_constant(struct oak_compiler_t* c,
                                         const int arity,
                                         const char* name)
 {
-  struct oak_obj_native_fn_t* native =
-      oak_native_fn_new(impl, arity, name);
+  struct oak_obj_native_fn_t* native = oak_native_fn_new(impl, arity, name);
   return oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
@@ -106,10 +105,11 @@ static enum oak_fn_call_result_t builtin_delete(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t builtin_to_string(struct oak_native_ctx_t* ctx,
-                                                   const struct oak_value_t* args,
-                                                   int argc,
-                                                   struct oak_value_t* out_result)
+static enum oak_fn_call_result_t
+builtin_to_string(struct oak_native_ctx_t* ctx,
+                  const struct oak_value_t* args,
+                  int argc,
+                  struct oak_value_t* out_result)
 {
   (void)ctx;
   if (argc != 1)
@@ -207,10 +207,11 @@ static const struct oak_builtin_method_def_t map_method_table[] = {
   { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, null },
 };
 
-static enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
-                                                     const struct oak_value_t* args,
-                                                     int argc,
-                                                     struct oak_value_t* out_result)
+static enum oak_fn_call_result_t
+builtin_string_format(struct oak_native_ctx_t* ctx,
+                      const struct oak_value_t* args,
+                      int argc,
+                      struct oak_value_t* out_result)
 {
   (void)ctx;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_array(args[1]))
@@ -435,10 +436,8 @@ void oak_compiler_register_string_methods(struct oak_compiler_t* c)
 const struct oak_method_binding_t* oak_compiler_find_string_method(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
-  return method_binding_find(c->builtin_methods.string,
-                             c->builtin_methods.string_count,
-                             name,
-                             len);
+  return method_binding_find(
+      c->builtin_methods.string, c->builtin_methods.string_count, name, len);
 }
 
 void oak_compiler_register_bool_methods(struct oak_compiler_t* c)

@@ -25,7 +25,10 @@
 
 void oak_dynarr_init(void* items_field_ptr, int* count, int* capacity);
 
-void oak_dynarr_push(void* items_field_ptr, int* count, int* capacity,
-                     const void* item, int item_size);
+void oak_dynarr_push(void* items_field_ptr,
+                     int* count,
+                     int* capacity,
+                     const void* item,
+                     int item_size);
 
 void oak_dynarr_free(void* items_field_ptr, int* count, int* capacity);

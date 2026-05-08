@@ -12,7 +12,8 @@ struct oak_builtin_type_t
 };
 
 /* void is pre-registered at slot 0 (OAK_TYPE_VOID) before the loop.
- * The remaining builtins start at slot 1 and must appear in sequential order. */
+ * The remaining builtins start at slot 1 and must appear in sequential order.
+ */
 static const struct oak_builtin_type_t builtin_types[] = {
   { OAK_TYPE_NUMBER, "number" },
   { OAK_TYPE_STRING, "string" },

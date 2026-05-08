@@ -90,8 +90,8 @@ int oak_compiler_local_index_for_slot(const struct oak_compiler_t* c, int slot)
   return -1;
 }
 
-int oak_compiler_local_index_for_ident_expr(
-    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr)
+int oak_compiler_local_index_for_ident_expr(const struct oak_compiler_t* c,
+                                            const struct oak_ast_node_t* expr)
 {
   if (!expr)
     return -1;
@@ -120,8 +120,8 @@ int oak_compiler_local_index_for_ident_expr(
   return -1;
 }
 
-int oak_compiler_local_index_for_place_root(
-    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr)
+int oak_compiler_local_index_for_place_root(const struct oak_compiler_t* c,
+                                            const struct oak_ast_node_t* expr)
 {
   while (expr && (expr->kind == OAK_NODE_MEMBER_ACCESS ||
                   expr->kind == OAK_NODE_INDEX_ACCESS))

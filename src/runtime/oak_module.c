@@ -20,7 +20,8 @@ static char* oak_strdup_loc(const char* s)
 
 void oak_module_registry_init(struct oak_module_registry_t* reg)
 {
-  oak_dynarr_init(&reg->modules.items, &reg->modules.count, &reg->modules.capacity);
+  oak_dynarr_init(
+      &reg->modules.items, &reg->modules.count, &reg->modules.capacity);
   oak_htable_init(&reg->by_canonical_path);
 }
 
@@ -41,13 +42,21 @@ static void oak_module_free(struct oak_module_t* mod)
   }
   oak_file_unmap(&mod->source);
   oak_htable_free(&mod->imports);
-  oak_dynarr_free(&mod->import_modules.items, &mod->import_modules.count, &mod->import_modules.capacity);
+  oak_dynarr_free(&mod->import_modules.items,
+                  &mod->import_modules.count,
+                  &mod->import_modules.capacity);
   oak_htable_free(&mod->exports_fn_by_name);
-  oak_dynarr_free(&mod->exports_fn.items, &mod->exports_fn.count, &mod->exports_fn.capacity);
+  oak_dynarr_free(&mod->exports_fn.items,
+                  &mod->exports_fn.count,
+                  &mod->exports_fn.capacity);
   oak_htable_free(&mod->exports_record_by_name);
-  oak_dynarr_free(&mod->exports_record.items, &mod->exports_record.count, &mod->exports_record.capacity);
+  oak_dynarr_free(&mod->exports_record.items,
+                  &mod->exports_record.count,
+                  &mod->exports_record.capacity);
   oak_htable_free(&mod->exports_enum_by_name);
-  oak_dynarr_free(&mod->exports_enum.items, &mod->exports_enum.count, &mod->exports_enum.capacity);
+  oak_dynarr_free(&mod->exports_enum.items,
+                  &mod->exports_enum.count,
+                  &mod->exports_enum.capacity);
   if (mod->canonical_path)
     oak_free(mod->canonical_path, OAK_SRC_LOC);
   if (mod->dotted_name)
@@ -59,7 +68,8 @@ void oak_module_registry_free(struct oak_module_registry_t* reg)
 {
   for (int i = 0; i < reg->modules.count; ++i)
     oak_module_free(reg->modules.items[i]);
-  oak_dynarr_free(&reg->modules.items, &reg->modules.count, &reg->modules.capacity);
+  oak_dynarr_free(
+      &reg->modules.items, &reg->modules.count, &reg->modules.capacity);
   oak_htable_free(&reg->by_canonical_path);
 }
 
@@ -71,8 +81,9 @@ oak_module_registry_get(const struct oak_module_registry_t* reg, u16 module_id)
   return reg->modules.items[module_id];
 }
 
-struct oak_module_t* oak_module_registry_find_by_path(
-    const struct oak_module_registry_t* reg, const char* canonical_path)
+struct oak_module_t*
+oak_module_registry_find_by_path(const struct oak_module_registry_t* reg,
+                                 const char* canonical_path)
 {
   const int idx = oak_htable_get(
       &reg->by_canonical_path, canonical_path, strlen(canonical_path));
@@ -96,53 +107,56 @@ oak_module_registry_create(struct oak_module_registry_t* reg,
   mod->module_id = (u16)reg->modules.count;
   mod->state = OAK_MOD_PARSED;
   oak_htable_init(&mod->imports);
-  oak_dynarr_init(&mod->import_modules.items, &mod->import_modules.count, &mod->import_modules.capacity);
+  oak_dynarr_init(&mod->import_modules.items,
+                  &mod->import_modules.count,
+                  &mod->import_modules.capacity);
   oak_htable_init(&mod->exports_fn_by_name);
-  oak_dynarr_init(&mod->exports_fn.items, &mod->exports_fn.count, &mod->exports_fn.capacity);
+  oak_dynarr_init(&mod->exports_fn.items,
+                  &mod->exports_fn.count,
+                  &mod->exports_fn.capacity);
   oak_htable_init(&mod->exports_record_by_name);
-  oak_dynarr_init(&mod->exports_record.items, &mod->exports_record.count, &mod->exports_record.capacity);
+  oak_dynarr_init(&mod->exports_record.items,
+                  &mod->exports_record.count,
+                  &mod->exports_record.capacity);
   oak_htable_init(&mod->exports_enum_by_name);
-  oak_dynarr_init(&mod->exports_enum.items, &mod->exports_enum.count, &mod->exports_enum.capacity);
+  oak_dynarr_init(&mod->exports_enum.items,
+                  &mod->exports_enum.count,
+                  &mod->exports_enum.capacity);
 
-  oak_dynarr_push(&reg->modules.items, &reg->modules.count, &reg->modules.capacity, &mod, sizeof(mod));
+  oak_dynarr_push(&reg->modules.items,
+                  &reg->modules.count,
+                  &reg->modules.capacity,
+                  &mod,
+                  sizeof(mod));
   oak_htable_insert(&reg->by_canonical_path,
-                        mod->canonical_path,
-                        strlen(mod->canonical_path),
-                        (int)mod->module_id);
+                    mod->canonical_path,
+                    strlen(mod->canonical_path),
+                    (int)mod->module_id);
   return mod;
 }
 
-const struct oak_module_export_fn_t*
-oak_module_find_export_fn(const struct oak_module_t* mod,
-                          const char* name,
-                          usize name_len)
+const struct oak_module_export_fn_t* oak_module_find_export_fn(
+    const struct oak_module_t* mod, const char* name, usize name_len)
 {
-  const int idx =
-      oak_htable_get(&mod->exports_fn_by_name, name, name_len);
+  const int idx = oak_htable_get(&mod->exports_fn_by_name, name, name_len);
   if (idx < 0)
     return null;
   return &mod->exports_fn.items[idx];
 }
 
-const struct oak_module_export_record_t*
-oak_module_find_export_record(const struct oak_module_t* mod,
-                              const char* name,
-                              usize name_len)
+const struct oak_module_export_record_t* oak_module_find_export_record(
+    const struct oak_module_t* mod, const char* name, usize name_len)
 {
-  const int idx =
-      oak_htable_get(&mod->exports_record_by_name, name, name_len);
+  const int idx = oak_htable_get(&mod->exports_record_by_name, name, name_len);
   if (idx < 0)
     return null;
   return &mod->exports_record.items[idx];
 }
 
-const struct oak_module_export_enum_t*
-oak_module_find_export_enum(const struct oak_module_t* mod,
-                            const char* name,
-                            usize name_len)
+const struct oak_module_export_enum_t* oak_module_find_export_enum(
+    const struct oak_module_t* mod, const char* name, usize name_len)
 {
-  const int idx =
-      oak_htable_get(&mod->exports_enum_by_name, name, name_len);
+  const int idx = oak_htable_get(&mod->exports_enum_by_name, name, name_len);
   if (idx < 0)
     return null;
   return &mod->exports_enum.items[idx];

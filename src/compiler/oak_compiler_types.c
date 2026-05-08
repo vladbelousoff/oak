@@ -212,31 +212,31 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               oak_record_registry_find_by_type_id(&c->records, recv_ty.id);
           if (sd)
           {
-          {
-            const struct oak_registered_fn_t* sm =
-                oak_compiler_find_record_method(sd, mn, mn_len, 0);
-            if (sm)
             {
-              if (sm->decl)
+              const struct oak_registered_fn_t* sm =
+                  oak_compiler_find_record_method(sd, mn, mn_len, 0);
+              if (sm)
               {
-                const struct oak_ast_node_t* retn =
-                    oak_compiler_fn_decl_return_type_node(sm->decl);
-                if (retn)
-                  oak_compiler_type_node_to_type(c, retn, out);
+                if (sm->decl)
+                {
+                  const struct oak_ast_node_t* retn =
+                      oak_compiler_fn_decl_return_type_node(sm->decl);
+                  if (retn)
+                    oak_compiler_type_node_to_type(c, retn, out);
+                  else
+                    out->id = OAK_TYPE_VOID;
+                }
                 else
-                  out->id = OAK_TYPE_VOID;
+                {
+                  /* Native method: use the pre-declared return type. */
+                  out->id = sm->return_type_id;
+                  out->kind = sm->return_kind;
+                  if (out->id == OAK_TYPE_VOID)
+                    out->kind = OAK_TYPE_KIND_SCALAR;
+                }
+                return;
               }
-              else
-              {
-                /* Native method: use the pre-declared return type. */
-                out->id = sm->return_type_id;
-                out->kind = sm->return_kind;
-                if (out->id == OAK_TYPE_VOID)
-                  out->kind = OAK_TYPE_KIND_SCALAR;
-              }
-              return;
             }
-          }
           }
           if (recv_ty.id == OAK_TYPE_STRING)
           {
@@ -427,12 +427,11 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
         if (oak_enum_registry_is_enum_name(&c->enums, recv_name, recv_len))
         {
           const struct oak_enum_variant_t* ev =
-              oak_enum_registry_find_qualified(
-                  &c->enums,
-                  recv_name,
-                  recv_len,
-                  oak_token_text(fname->token),
-                  oak_token_length(fname->token));
+              oak_enum_registry_find_qualified(&c->enums,
+                                               recv_name,
+                                               recv_len,
+                                               oak_token_text(fname->token),
+                                               oak_token_length(fname->token));
           out->id = ev ? ev->type_id : OAK_TYPE_VOID;
           return;
         }

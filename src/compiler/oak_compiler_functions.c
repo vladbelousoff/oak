@@ -18,10 +18,16 @@ struct oak_registered_fn_t*
 oak_fn_registry_insert(struct oak_fn_registry_t* r,
                        const struct oak_registered_fn_t* fn)
 {
-  oak_dynarr_push(&r->entries.items, &r->entries.count, &r->entries.capacity, fn, sizeof(*fn));
+  oak_dynarr_push(&r->entries.items,
+                  &r->entries.count,
+                  &r->entries.capacity,
+                  fn,
+                  sizeof(*fn));
   const int idx = r->entries.count - 1;
-  oak_htable_insert(
-      &r->by_name, r->entries.items[idx].name, r->entries.items[idx].name_len, idx);
+  oak_htable_insert(&r->by_name,
+                    r->entries.items[idx].name,
+                    r->entries.items[idx].name_len,
+                    idx);
   return &r->entries.items[idx];
 }
 
@@ -211,7 +217,8 @@ int oak_compiler_count_fn_params(const struct oak_ast_node_t* decl)
 
 /* ---------- Registration ---------- */
 
-/* lhs of RECORD_DECL: plain IDENT, or TYPE_NAME wrapping IDENT for arrays/maps. */
+/* lhs of RECORD_DECL: plain IDENT, or TYPE_NAME wrapping IDENT for arrays/maps.
+ */
 static const struct oak_ast_node_t*
 record_decl_type_ident(const struct oak_ast_node_t* record_decl)
 {
@@ -313,7 +320,11 @@ static void register_method_on_record(struct oak_compiler_t* c,
   struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity, mid);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
   slot.arity = total_arity;
-  oak_dynarr_push(&sd->methods.items, &sd->methods.count, &sd->methods.capacity, &slot, sizeof(slot));
+  oak_dynarr_push(&sd->methods.items,
+                  &sd->methods.count,
+                  &sd->methods.capacity,
+                  &slot,
+                  sizeof(slot));
 }
 
 static void register_record_body_methods(struct oak_compiler_t* c,
@@ -340,8 +351,10 @@ static void register_record_body_methods(struct oak_compiler_t* c,
     struct oak_registered_record_t* sd = null;
     for (int i = 0; i < c->records.entries.count; ++i)
     {
-      if (oak_name_eq(
-              c->records.entries.items[i].name, c->records.entries.items[i].name_len, rname, rlen))
+      if (oak_name_eq(c->records.entries.items[i].name,
+                      c->records.entries.items[i].name_len,
+                      rname,
+                      rlen))
       {
         sd = &c->records.entries.items[i];
         break;
@@ -599,7 +612,8 @@ void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
       struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
       struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
       fn_obj->code_offset = c->chunk->count;
-      oak_compiler_compile_function_body(c, me->decl, me->is_static ? null : sd);
+      oak_compiler_compile_function_body(
+          c, me->decl, me->is_static ? null : sd);
       if (c->has_error)
         return;
     }
@@ -653,8 +667,7 @@ static void check_call_arg_aliasing(struct oak_compiler_t* c,
     const struct oak_ast_node_t* arg_wrap =
         oak_container_of(pos, struct oak_ast_node_t, link);
     const struct oak_ast_node_t* arg_expr = unwrap_call_arg(arg_wrap);
-    const struct oak_ast_node_t* param =
-        oak_compiler_fn_decl_param_at(decl, i);
+    const struct oak_ast_node_t* param = oak_compiler_fn_decl_param_at(decl, i);
     sources[n] = oak_compiler_local_index_for_ident_expr(c, arg_expr);
     is_mut_param[n] = param ? oak_compiler_fn_param_is_mutable(param) : 0;
     err_tokens[n] = arg_expr_error_token(arg_expr, arg_wrap);

@@ -24,7 +24,8 @@ OAK_TEST_DECL(ParseForInValue)
   return OAK_TEST_OK;
 }
 
-/* `for i, v in arr { ... }` produces FOR_IN with [IDENT, IDENT, EXPR, BLOCK]. */
+/* `for i, v in arr { ... }` produces FOR_IN with [IDENT, IDENT, EXPR, BLOCK].
+ */
 OAK_TEST_DECL(ParseForInIndexValue)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("for i, v in arr { }");

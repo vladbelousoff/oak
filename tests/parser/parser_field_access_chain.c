@@ -1,6 +1,7 @@
 #include "oak_test_ast.h"
 
-/* `a.b.c` parses left-associatively as MEMBER_ACCESS(MEMBER_ACCESS(a, b), c). */
+/* `a.b.c` parses left-associatively as MEMBER_ACCESS(MEMBER_ACCESS(a, b), c).
+ */
 OAK_TEST_DECL(ParseFieldAccessChain)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX("a.b.c;");

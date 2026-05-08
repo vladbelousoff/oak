@@ -81,12 +81,11 @@ OAK_TEST_DECL(TypeBindingInFnParamOk)
  * error even when both records have the same field layout. */
 OAK_TEST_DECL(TypeBindingFnParamWrongTypeFails)
 {
-  return expect_compile_error(
-      "record A { x : number; }\n"
-      "record B { x : number; }\n"
-      "fn take_a(v : A) -> number { return v.x; }\n"
-      "let b = new B { x : 7 };\n"
-      "take_a(b);\n");
+  return expect_compile_error("record A { x : number; }\n"
+                              "record B { x : number; }\n"
+                              "fn take_a(v : A) -> number { return v.x; }\n"
+                              "let b = new B { x : 7 };\n"
+                              "take_a(b);\n");
 }
 
 /* =========================================================================
@@ -121,12 +120,11 @@ OAK_TEST_DECL(TypeBindingAsFieldTypeOk)
 /* Providing a record of the wrong type for a record-typed field is rejected. */
 OAK_TEST_DECL(TypeBindingWrongStructFieldTypeFails)
 {
-  return expect_compile_error(
-      "record Inner { z : number; }\n"
-      "record Other { z : number; }\n"
-      "record Outer { inner : Inner; }\n"
-      "let o2 = new Other { z : 1 };\n"
-      "let bad = new Outer { inner : o2 };\n");
+  return expect_compile_error("record Inner { z : number; }\n"
+                              "record Other { z : number; }\n"
+                              "record Outer { inner : Inner; }\n"
+                              "let o2 = new Other { z : 1 };\n"
+                              "let bad = new Outer { inner : o2 };\n");
 }
 
 /* Three levels of nesting all bind correctly at compile time. */
@@ -184,8 +182,7 @@ OAK_TEST_DECL(StructLiteralDuplicateFieldFails)
 /* Declaring two fields with the same name in a record is a compile error. */
 OAK_TEST_DECL(DuplicateFieldDeclFails)
 {
-  return expect_compile_error(
-      "record Bad { x : number; x : string; }\n");
+  return expect_compile_error("record Bad { x : number; x : string; }\n");
 }
 
 int main(const int argc, char* argv[])

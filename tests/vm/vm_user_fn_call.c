@@ -2,8 +2,9 @@
 
 OAK_TEST_DECL(UserFnCall)
 {
-  return expect_ok("fn add(a : number, b : number) -> number { return a + b; }\n"
-                   "print(add(1, 2));");
+  return expect_ok(
+      "fn add(a : number, b : number) -> number { return a + b; }\n"
+      "print(add(1, 2));");
 }
 
 OAK_TEST_MAIN(UserFnCall)

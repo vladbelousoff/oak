@@ -85,7 +85,7 @@ int oak_cli_parse(int argc,
 
 void oak_cli_usage(FILE* out)
 {
-  fprintf(
-      out,
-      "usage: oak [--disassemble] [--no-debug] [--help] <script> [script args...]\n");
+  fprintf(out,
+          "usage: oak [--disassemble] [--no-debug] [--help] <script> [script "
+          "args...]\n");
 }

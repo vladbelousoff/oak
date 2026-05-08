@@ -18,10 +18,9 @@ OAK_TEST_DECL(ArrayNegativeIndexRuntime)
 /* Reading a missing map key is a runtime error. */
 OAK_TEST_DECL(MapMissingKeyRuntime)
 {
-  return expect_runtime_error(
-      "let mut m = [:] as [string:number];\n"
-      "m['a'] = 1;\n"
-      "print(m['nope']);\n");
+  return expect_runtime_error("let mut m = [:] as [string:number];\n"
+                              "m['a'] = 1;\n"
+                              "print(m['nope']);\n");
 }
 
 /* Integer division by zero is a runtime error. */
@@ -41,9 +40,8 @@ OAK_TEST_DECL(IntModuloByZeroRuntime)
 /* Unbounded recursion exhausts the call-frame stack. */
 OAK_TEST_DECL(CallFrameOverflowRuntime)
 {
-  return expect_runtime_error(
-      "fn loop() -> number { return loop() + 1; }\n"
-      "print(loop());\n");
+  return expect_runtime_error("fn loop() -> number { return loop() + 1; }\n"
+                              "print(loop());\n");
 }
 
 int main(const int argc, char* argv[])

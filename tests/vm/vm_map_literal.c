@@ -22,31 +22,30 @@ static struct oak_chunk_t* try_compile(const char* source)
 OAK_TEST_DECL(MapLiteral)
 {
   /* string -> number, with a function call inside a value expression. */
-  const enum oak_test_status_t r1 = expect_ok(
-      "fn dbl(x: number) -> number { return x * 2; }\n"
-      "let scores = ['alice': 10, 'bob': 20 + dbl(5), 'carol': 7];\n"
-      "print(scores.size());\n"
-      "print(scores['alice']);\n"
-      "print(scores['bob']);\n"
-      "print(scores['carol']);\n");
+  const enum oak_test_status_t r1 =
+      expect_ok("fn dbl(x: number) -> number { return x * 2; }\n"
+                "let scores = ['alice': 10, 'bob': 20 + dbl(5), 'carol': 7];\n"
+                "print(scores.size());\n"
+                "print(scores['alice']);\n"
+                "print(scores['bob']);\n"
+                "print(scores['carol']);\n");
   OAK_CHECK(r1 == OAK_TEST_OK);
 
   /* number -> string keys/values inferred from first entry. */
   const enum oak_test_status_t r2 =
       expect_ok("let by_id = [1: 'alpha', 2: 'beta', 3: 'gamma'];\n"
-                  "print(by_id.size());\n"
-                  "print(by_id[1]);\n"
-                  "print(by_id[3]);\n");
+                "print(by_id.size());\n"
+                "print(by_id[1]);\n"
+                "print(by_id[3]);\n");
   OAK_CHECK(r2 == OAK_TEST_OK);
 
   /* Mutable literal: indexed assign and insert work. */
-  const enum oak_test_status_t r3 =
-      expect_ok("let mut m = ['x': 1, 'y': 2];\n"
-                  "m['x'] = m['x'] + 10;\n"
-                  "m['z'] = 99;\n"
-                  "print(m['x']);\n"
-                  "print(m['z']);\n"
-                  "print(m.size());\n");
+  const enum oak_test_status_t r3 = expect_ok("let mut m = ['x': 1, 'y': 2];\n"
+                                              "m['x'] = m['x'] + 10;\n"
+                                              "m['z'] = 99;\n"
+                                              "print(m['x']);\n"
+                                              "print(m['z']);\n"
+                                              "print(m.size());\n");
   OAK_CHECK(r3 == OAK_TEST_OK);
 
   /* Mismatched value type rejected at compile time. */

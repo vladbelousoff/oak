@@ -71,11 +71,10 @@ OAK_TEST_DECL(FieldTypeFlowsToNumberParamOk)
  * function that expects a string. */
 OAK_TEST_DECL(FieldTypeFlowsToWrongParamFails)
 {
-  return expect_compile_error(
-      "record Point { x : number; }\n"
-      "fn greet(s : string) -> number { return 0; }\n"
-      "let p = new Point { x : 1 };\n"
-      "greet(p.x);\n");
+  return expect_compile_error("record Point { x : number; }\n"
+                              "fn greet(s : string) -> number { return 0; }\n"
+                              "let p = new Point { x : 1 };\n"
+                              "greet(p.x);\n");
 }
 
 /* The static type of a string field is string; passing it to a number
@@ -105,14 +104,13 @@ OAK_TEST_DECL(StructFieldTypeFlowsToFnParamOk)
  * is a compile error even when the records share the same field layout. */
 OAK_TEST_DECL(StructFieldTypeToWrongFnParamFails)
 {
-  return expect_compile_error(
-      "record A { v : number; }\n"
-      "record B { v : number; }\n"
-      "record Outer { a : A; }\n"
-      "fn take_b(x : B) -> number { return x.v; }\n"
-      "let a = new A { v : 1 };\n"
-      "let o = new Outer { a : a };\n"
-      "take_b(o.a);\n");
+  return expect_compile_error("record A { v : number; }\n"
+                              "record B { v : number; }\n"
+                              "record Outer { a : A; }\n"
+                              "fn take_b(x : B) -> number { return x.v; }\n"
+                              "let a = new A { v : 1 };\n"
+                              "let o = new Outer { a : a };\n"
+                              "take_b(o.a);\n");
 }
 
 /* =========================================================================
@@ -154,17 +152,17 @@ OAK_TEST_DECL(FieldAssignChainedFails)
  * the original const binding that was stored in the outer record's field. */
 OAK_TEST_DECL(FieldAssignChainedBypassesConstFails)
 {
-  return expect_compile_error(
-      "record Foo { abc : number; }\n"
-      "record Bar { foo : Foo; }\n"
-      "let foo = new Foo { abc : 123 };\n"
-      "let mut bar = new Bar { foo : foo };\n"
-      "bar.foo.abc = 100;\n");
+  return expect_compile_error("record Foo { abc : number; }\n"
+                              "record Bar { foo : Foo; }\n"
+                              "let foo = new Foo { abc : 123 };\n"
+                              "let mut bar = new Bar { foo : foo };\n"
+                              "bar.foo.abc = 100;\n");
 }
 
 /* Even when intermediate records are constructed inline (no immutable name in
  * the chain to trigger the literal-time check), a chained field assignment is
- * still rejected — the assignment itself is the rule, not the source binding. */
+ * still rejected — the assignment itself is the rule, not the source binding.
+ */
 OAK_TEST_DECL(FieldAssignChainedInlineLiteralFails)
 {
   return expect_compile_error("record A { n : number; }\n"
@@ -199,14 +197,13 @@ OAK_TEST_DECL(FieldAssignNumberToStringFails)
  * compile error. */
 OAK_TEST_DECL(FieldAssignWrongStructTypeFails)
 {
-  return expect_compile_error(
-      "record A { v : number; }\n"
-      "record B { v : number; }\n"
-      "record Container { item : A; }\n"
-      "let b = new B { v : 1 };\n"
-      "let a = new A { v : 2 };\n"
-      "let mut c = new Container { item : a };\n"
-      "c.item = b;\n");
+  return expect_compile_error("record A { v : number; }\n"
+                              "record B { v : number; }\n"
+                              "record Container { item : A; }\n"
+                              "let b = new B { v : 1 };\n"
+                              "let a = new A { v : 2 };\n"
+                              "let mut c = new Container { item : a };\n"
+                              "c.item = b;\n");
 }
 
 /* =========================================================================
@@ -242,7 +239,8 @@ OAK_TEST_DECL(FieldAssignOnNonStructFails)
  * Record static methods (no self)
  * ========================================================================= */
 
-/* Static method defined in the record body is called as TypeName.method(...). */
+/* Static method defined in the record body is called as TypeName.method(...).
+ */
 OAK_TEST_DECL(RecordStaticMethodInBodyOk)
 {
   return expect_ok("record Point { x : number; y : number;\n"

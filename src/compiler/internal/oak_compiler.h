@@ -2,7 +2,6 @@
 
 #include "oak_bind.h"
 #include "oak_chunk.h"
-#include <oak_compiler.h>
 #include "oak_count_of.h"
 #include "oak_dynarr.h"
 #include "oak_htable.h"
@@ -12,6 +11,7 @@
 #include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value.h"
+#include <oak_compiler.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -24,7 +24,12 @@
 #define OAK_LOC_SYNTHETIC ((struct oak_code_loc_t){ .line = 0, .column = 1 })
 
 /* Bail out of the current (void) function on the first compilation error. */
-#define CHECK_ERROR(c) do { if ((c)->has_error) return; } while (0)
+#define CHECK_ERROR(c)                                                         \
+  do                                                                           \
+  {                                                                            \
+    if ((c)->has_error)                                                        \
+      return;                                                                  \
+  } while (0)
 
 #define OAK_MAX_ARRAY_METHODS          8
 #define OAK_MAX_MAP_METHODS            8
@@ -99,15 +104,22 @@ struct oak_registered_fn_t
    * (so user writes N args, stored as N+1). */
   int arity;
   oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
-  oak_type_id_t return_type_id;   /* OAK_TYPE_VOID for user-defined (from AST) */
-  /* From native fn binding: array vs scalar return (element type in return_type_id) */
-  enum oak_type_kind_t return_kind; /* SCALAR or ARRAY for native; else SCALAR */
-  int is_static;                     /* 1 = static method, 0 = instance/global */
+  oak_type_id_t return_type_id; /* OAK_TYPE_VOID for user-defined (from AST) */
+  /* From native fn binding: array vs scalar return (element type in
+   * return_type_id) */
+  enum oak_type_kind_t
+      return_kind; /* SCALAR or ARRAY for native; else SCALAR */
+  int is_static;   /* 1 = static method, 0 = instance/global */
   const struct oak_ast_node_t* decl; /* null for native */
 };
 
 /* Concrete dynamic-array type for registered functions. */
-struct oak_registered_fn_vec_t { struct oak_registered_fn_t* items; int count; int capacity; };
+struct oak_registered_fn_vec_t
+{
+  struct oak_registered_fn_t* items;
+  int count;
+  int capacity;
+};
 
 /* Unbounded registry of user-declared and native fns.
  * Lookup is O(1) via the hash table; entries owns the storage. */
@@ -188,7 +200,12 @@ struct oak_registered_record_t
 };
 
 /* Concrete dynamic-array type for registered records. */
-struct oak_registered_record_vec_t { struct oak_registered_record_t* items; int count; int capacity; };
+struct oak_registered_record_vec_t
+{
+  struct oak_registered_record_t* items;
+  int count;
+  int capacity;
+};
 
 /* Unbounded registry of user record types.
  * by_name gives O(1) name lookup; find_by_type_id uses a linear scan
@@ -219,7 +236,12 @@ struct oak_enum_variant_t
 };
 
 /* Concrete dynamic-array type for enum variants. */
-struct oak_enum_variant_vec_t { struct oak_enum_variant_t* items; int count; int capacity; };
+struct oak_enum_variant_vec_t
+{
+  struct oak_enum_variant_t* items;
+  int count;
+  int capacity;
+};
 
 /* Unbounded registry of enum variants.
  * by_name gives O(1) unqualified variant lookup.
@@ -355,31 +377,35 @@ void oak_compiler_emit_byte(const struct oak_compiler_t* c,
                             u8 byte,
                             struct oak_code_loc_t loc);
 
-typedef enum { OAK_EMIT_U8, OAK_EMIT_U16 } oak_emit_arg_type_t;
+typedef enum
+{
+  OAK_EMIT_U8,
+  OAK_EMIT_U16
+} oak_emit_arg_type_t;
 typedef struct
 {
   oak_emit_arg_type_t type;
   u16 value;
 } oak_emit_arg_t;
 
-#define OAK_ARG_U8(v)  ((oak_emit_arg_t){OAK_EMIT_U8, (u16)(v)})
-#define OAK_ARG_U16(v) ((oak_emit_arg_t){OAK_EMIT_U16, (v)})
+#define OAK_ARG_U8(v)  ((oak_emit_arg_t){ OAK_EMIT_U8, (u16)(v) })
+#define OAK_ARG_U16(v) ((oak_emit_arg_t){ OAK_EMIT_U16, (v) })
 
 void oak_compiler_emit_op_impl(struct oak_compiler_t* c,
-                                u8 op,
-                                struct oak_code_loc_t loc,
-                                const oak_emit_arg_t* args,
-                                int n_args);
+                               u8 op,
+                               struct oak_code_loc_t loc,
+                               const oak_emit_arg_t* args,
+                               int n_args);
 
 /* Variadic emit: oak_compiler_emit_op(c, op, loc [, OAK_ARG_U8/U16, ...]) */
-#define oak_compiler_emit_op(c, op, loc, ...)                                 \
+#define oak_compiler_emit_op(c, op, loc, ...)                                  \
   oak_compiler_emit_op_impl(                                                   \
-      c,                                                                        \
-      op,                                                                       \
-      loc,                                                                      \
-      (const oak_emit_arg_t[]){{0}, ##__VA_ARGS__} + 1,                       \
-      (int)(sizeof((const oak_emit_arg_t[]){{0}, ##__VA_ARGS__}) /            \
-            sizeof(oak_emit_arg_t)) -                                           \
+      c,                                                                       \
+      op,                                                                      \
+      loc,                                                                     \
+      (const oak_emit_arg_t[]){ { 0 }, ##__VA_ARGS__ } + 1,                    \
+      (int)(sizeof((const oak_emit_arg_t[]){ { 0 }, ##__VA_ARGS__ }) /         \
+            sizeof(oak_emit_arg_t)) -                                          \
           1)
 
 /* Returns the imported module's id if `name` is a registered alias on the
@@ -456,13 +482,13 @@ int oak_compiler_local_index_for_slot(const struct oak_compiler_t* c, int slot);
 
 /* If `expr` is a bare identifier or `self` referring to a live local, returns
  * its local-table index. Returns -1 otherwise. */
-int oak_compiler_local_index_for_ident_expr(
-    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr);
+int oak_compiler_local_index_for_ident_expr(const struct oak_compiler_t* c,
+                                            const struct oak_ast_node_t* expr);
 
 /* Returns the local-table index of the root-binding of a place expression
  * (walks through .field / [idx] chains), or -1 if not a place. */
-int oak_compiler_local_index_for_place_root(
-    const struct oak_compiler_t* c, const struct oak_ast_node_t* expr);
+int oak_compiler_local_index_for_place_root(const struct oak_compiler_t* c,
+                                            const struct oak_ast_node_t* expr);
 
 /* ---------- oak_compiler_types.c ---------- */
 
@@ -543,11 +569,11 @@ int oak_compiler_find_record_field(const struct oak_registered_record_t* s,
 
 /* Look up a method by name on a record. If `static_only` is non-zero, only
  * static methods are returned; if zero, only instance methods. */
-const struct oak_registered_fn_t* oak_compiler_find_record_method(
-    const struct oak_registered_record_t* sd,
-    const char* name,
-    usize len,
-    int static_only);
+const struct oak_registered_fn_t*
+oak_compiler_find_record_method(const struct oak_registered_record_t* sd,
+                                const char* name,
+                                usize len,
+                                int static_only);
 
 /* If `recv_ty` is a known record, sets `*out_sd` and returns the field index.
  * Returns -1 if the type is not a record, or the field name is not found
@@ -581,8 +607,8 @@ void oak_compiler_register_native_types(
  * oak_compiler_register_native_types so that receiver type ids are already
  * in the record registry.  Global fns go into c->fns; methods are appended
  * to the matching oak_registered_record_t. */
-void oak_compiler_register_native_fns(
-    struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
+void oak_compiler_register_native_fns(struct oak_compiler_t* c,
+                                      const struct oak_compile_options_t* opts);
 
 /* Register native enums from `opts` into the compiler's enum registry.
  * Each variant is interned as an integer constant in the current chunk and

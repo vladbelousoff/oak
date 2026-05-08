@@ -26,26 +26,26 @@ OAK_TEST_DECL(ArrayLiteral)
   /* Numeric literal with a function call inside an element expression. */
   const enum oak_test_status_t r1 =
       expect_ok("fn sub(a: number, b: number) -> number { return a - b; }\n"
-                  "let nums = [1, 54, 13, 45 - sub(5, 3)];\n"
-                  "print(nums.size());\n"
-                  "print(nums[0]);\n"
-                  "print(nums[3]);\n");
+                "let nums = [1, 54, 13, 45 - sub(5, 3)];\n"
+                "print(nums.size());\n"
+                "print(nums[0]);\n"
+                "print(nums[3]);\n");
   OAK_CHECK(r1 == OAK_TEST_OK);
 
   /* String literal infers element type from the first element. */
   const enum oak_test_status_t r2 =
       expect_ok("let words = ['sda', 'ada', 'ert', 'rer'];\n"
-                  "print(words.size());\n"
-                  "print(words[0]);\n"
-                  "print(words[3]);\n");
+                "print(words.size());\n"
+                "print(words[0]);\n"
+                "print(words[3]);\n");
   OAK_CHECK(r2 == OAK_TEST_OK);
 
   /* Mutable literal: push and indexed assignment work. */
   const enum oak_test_status_t r3 = expect_ok("let mut a = [10, 20, 30];\n"
-                                                "a.push(40);\n"
-                                                "a[0] = 99;\n"
-                                                "print(a[0]);\n"
-                                                "print(a[3]);\n");
+                                              "a.push(40);\n"
+                                              "a[0] = 99;\n"
+                                              "print(a[0]);\n"
+                                              "print(a[3]);\n");
   OAK_CHECK(r3 == OAK_TEST_OK);
 
   /* Mixed-type literal is rejected at compile time. */

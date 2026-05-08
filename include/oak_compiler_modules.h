@@ -8,10 +8,8 @@ struct oak_compiler_t;
 
 /* Resolve an import alias to the module it refers to.
  * Returns null when name is not an import alias in the current module. */
-const struct oak_module_t*
-oak_compiler_module_for_alias(const struct oak_compiler_t* c,
-                              const char* name,
-                              usize name_len);
+const struct oak_module_t* oak_compiler_module_for_alias(
+    const struct oak_compiler_t* c, const char* name, usize name_len);
 
 /* Look up an exported function on an imported module identified by alias.
  * Sets *out_mod when the alias resolves (even when the function is missing),

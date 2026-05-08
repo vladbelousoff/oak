@@ -1,3 +1,4 @@
+#include "internal/oak_vm.h"
 #include "oak_bind.h"
 #include "oak_compiler.h"
 #include "oak_count_of.h"
@@ -8,7 +9,6 @@
 #include "oak_type_id.h"
 #include "oak_value.h"
 #include "oak_vm.h"
-#include "internal/oak_vm.h"
 
 #include <string.h>
 
@@ -31,7 +31,7 @@ static void stub_setter(struct oak_value_t self, struct oak_value_t value)
 }
 
 static enum oak_test_status_t compile_ex_ok(const char* source,
-                                             struct oak_compile_options_t* opts)
+                                            struct oak_compile_options_t* opts)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
   struct oak_parser_result_t result = { 0 };
@@ -49,8 +49,8 @@ static enum oak_test_status_t compile_ex_ok(const char* source,
   return OAK_TEST_OK;
 }
 
-static enum oak_test_status_t compile_ex_fails(const char* source,
-                                                struct oak_compile_options_t* opts)
+static enum oak_test_status_t
+compile_ex_fails(const char* source, struct oak_compile_options_t* opts)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
   struct oak_parser_result_t result = { 0 };
@@ -77,7 +77,8 @@ OAK_TEST_DECL(BindTypeCreatesDescriptor)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec2");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec2");
   OAK_CHECK(t != null);
   OAK_CHECK(strcmp(t->name, "NTVec2") == 0);
   OAK_CHECK(t->name_len == 6u);
@@ -107,8 +108,10 @@ OAK_TEST_DECL(BindTypeDistinctIds)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* a = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTAlpha");
-  struct oak_bind_type_t* b = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBeta");
+  struct oak_bind_type_t* a =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTAlpha");
+  struct oak_bind_type_t* b =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBeta");
   OAK_CHECK(a != null && b != null);
   OAK_CHECK(a->type_id != b->type_id);
   OAK_CHECK(a->type_id >= OAK_TYPE_FIRST_USER);
@@ -128,14 +131,16 @@ OAK_TEST_DECL(BindFieldSucceeds)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTPoint");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTPoint");
   OAK_CHECK(t != null);
 
   const int r = oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "x",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null });
+      t,
+      &(struct oak_bind_field_t){ .name = "x",
+                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .getter = stub_getter,
+                                  .setter = null });
   OAK_CHECK(r == 0);
   OAK_CHECK(t->field_count == 1);
   OAK_CHECK(strcmp(t->fields[0].name, "x") == 0);
@@ -153,14 +158,16 @@ OAK_TEST_DECL(BindFieldReadWriteSucceeds)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTRW");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTRW");
   OAK_CHECK(t != null);
 
   const int r = oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "v",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = stub_setter });
+      t,
+      &(struct oak_bind_field_t){ .name = "v",
+                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .getter = stub_getter,
+                                  .setter = stub_setter });
   OAK_CHECK(r == 0);
   OAK_CHECK(t->fields[0].setter == stub_setter);
 
@@ -174,23 +181,27 @@ OAK_TEST_DECL(BindFieldMultipleFields)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTColor");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTColor");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "r",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "r",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "g",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "g",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "b",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "b",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
   OAK_CHECK(t->field_count == 3);
   OAK_CHECK(strcmp(t->fields[0].name, "r") == 0);
   OAK_CHECK(strcmp(t->fields[1].name, "g") == 0);
@@ -206,14 +217,16 @@ OAK_TEST_DECL(BindFieldNullGetterRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNG");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNG");
   OAK_CHECK(t != null);
 
   const int r = oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "x",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = null,
-                                    .setter = null });
+      t,
+      &(struct oak_bind_field_t){ .name = "x",
+                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .getter = null,
+                                  .setter = null });
   OAK_CHECK(r == -1);
   OAK_CHECK(t->field_count == 0);
 
@@ -227,14 +240,16 @@ OAK_TEST_DECL(BindFieldNullNameRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNN");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNN");
   OAK_CHECK(t != null);
 
   const int r = oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = null,
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null });
+      t,
+      &(struct oak_bind_field_t){ .name = null,
+                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .getter = stub_getter,
+                                  .setter = null });
   OAK_CHECK(r == -1);
   OAK_CHECK(t->field_count == 0);
 
@@ -246,10 +261,11 @@ OAK_TEST_DECL(BindFieldNullNameRejected)
 OAK_TEST_DECL(BindFieldNullTypeRejected)
 {
   const int r = oak_bind_field(
-      null, &(struct oak_bind_field_t){ .name = "x",
-                                        .field_type_id = OAK_TYPE_NUMBER,
-                                        .getter = stub_getter,
-                                        .setter = null });
+      null,
+      &(struct oak_bind_field_t){ .name = "x",
+                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .getter = stub_getter,
+                                  .setter = null });
   OAK_CHECK(r == -1);
   return OAK_TEST_OK;
 }
@@ -260,19 +276,22 @@ OAK_TEST_DECL(BindFieldDuplicateNameRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTDup");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTDup");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "x",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "x",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
   const int r = oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "x",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null });
+      t,
+      &(struct oak_bind_field_t){ .name = "x",
+                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .getter = stub_getter,
+                                  .setter = null });
   OAK_CHECK(r == -1);
   OAK_CHECK(t->field_count == 1);
 
@@ -292,18 +311,21 @@ OAK_TEST_DECL(NativeTypeInFnParamCompiles)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "x",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "x",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "y",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "y",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
   const enum oak_test_status_t s = compile_ex_ok(
       "fn length(v : NTVec) -> number { return v.x + v.y; }", &opts);
@@ -318,13 +340,15 @@ OAK_TEST_DECL(NativeTypeInReturnTypeCompiles)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTHandle");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTHandle");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "id",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "id",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
   const enum oak_test_status_t s = compile_ex_ok(
       "fn get_handle(h : NTHandle) -> NTHandle { return h; }", &opts);
@@ -344,10 +368,11 @@ OAK_TEST_DECL(NativeTypeAsOakStructFieldCompiles)
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTTransform");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "scale",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "scale",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
   const enum oak_test_status_t s = compile_ex_ok(
       "record Entity { name : string; transform : NTTransform; }\n"
@@ -365,13 +390,15 @@ OAK_TEST_DECL(NativeTypeUnknownFieldFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNode");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNode");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "value",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "value",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
   const enum oak_test_status_t s = compile_ex_fails(
       "fn bad(n : NTNode) -> number { return n.missing; }", &opts);
@@ -387,24 +414,28 @@ OAK_TEST_DECL(NativeTypeWrongFnArgFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* a = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTFoo");
-  struct oak_bind_type_t* b = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBar");
+  struct oak_bind_type_t* a =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTFoo");
+  struct oak_bind_type_t* b =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBar");
   OAK_CHECK(a != null && b != null);
   OAK_CHECK(oak_bind_field(
-      a, &(struct oak_bind_field_t){ .name = "x",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                a,
+                &(struct oak_bind_field_t){ .name = "x",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
-      b, &(struct oak_bind_field_t){ .name = "x",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                b,
+                &(struct oak_bind_field_t){ .name = "x",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
-  const enum oak_test_status_t s = compile_ex_fails(
-      "fn take_foo(f : NTFoo) -> number { return f.x; }\n"
-      "fn test(g : NTBar) -> number { return take_foo(g); }",
-      &opts);
+  const enum oak_test_status_t s =
+      compile_ex_fails("fn take_foo(f : NTFoo) -> number { return f.x; }\n"
+                       "fn test(g : NTBar) -> number { return take_foo(g); }",
+                       &opts);
 
   oak_compile_options_free(&opts);
   return s;
@@ -417,13 +448,15 @@ OAK_TEST_DECL(NativeTypeVsOakStructTypeFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTWidget");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTWidget");
   OAK_CHECK(t != null);
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "id",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "id",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
   const enum oak_test_status_t s = compile_ex_fails(
       "record OakWidget { id : number; }\n"
@@ -442,7 +475,8 @@ OAK_TEST_DECL(NativeTypeConflictsWithUserTypeFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Shared");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Shared");
   OAK_CHECK(t != null);
 
   const enum oak_test_status_t s =
@@ -487,8 +521,7 @@ static struct oak_value_t tracking_getter(struct oak_value_t self)
   return OAK_VALUE_I32(42);
 }
 
-static void tracking_setter(struct oak_value_t self,
-                             struct oak_value_t value)
+static void tracking_setter(struct oak_value_t self, struct oak_value_t value)
 {
   (void)self;
   ++s_setter_call_count;
@@ -498,11 +531,11 @@ static void tracking_setter(struct oak_value_t self,
 /* Helper: compile an Oak chunk with a native type, inject one native record
  * instance onto the VM stack at slot 0, and run it. The `nt` pointer must
  * come from the same `opts` that is passed here, as `opts` owns the type. */
-static enum oak_test_status_t run_with_native_instance(
-    const char* source,
-    struct oak_compile_options_t* opts,
-    struct oak_bind_type_t* nt,
-    void* instance)
+static enum oak_test_status_t
+run_with_native_instance(const char* source,
+                         struct oak_compile_options_t* opts,
+                         struct oak_bind_type_t* nt,
+                         void* instance)
 {
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
   struct oak_parser_result_t result = { 0 };
@@ -545,12 +578,12 @@ OAK_TEST_DECL(NativeGetterInvokedOnFieldRead)
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTSensor");
   OAK_CHECK(t != null);
-  OAK_CHECK(
-      oak_bind_field(
-          t, &(struct oak_bind_field_t){ .name = "value",
-                                        .field_type_id = OAK_TYPE_NUMBER,
-                                        .getter = tracking_getter,
-                                        .setter = null }) == 0);
+  OAK_CHECK(oak_bind_field(
+                t,
+                &(struct oak_bind_field_t){ .name = "value",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = tracking_getter,
+                                            .setter = null }) == 0);
 
   s_getter_call_count = 0;
 
@@ -585,14 +618,16 @@ OAK_TEST_DECL(NativeReadOnlyFieldAssignFailsAtRuntime)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTRO");
+  struct oak_bind_type_t* t =
+      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTRO");
   OAK_CHECK(t != null);
   /* Register field with no setter (read-only). */
   OAK_CHECK(oak_bind_field(
-      t, &(struct oak_bind_field_t){ .name = "val",
-                                    .field_type_id = OAK_TYPE_NUMBER,
-                                    .getter = stub_getter,
-                                    .setter = null }) == 0);
+                t,
+                &(struct oak_bind_field_t){ .name = "val",
+                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .getter = stub_getter,
+                                            .setter = null }) == 0);
 
   /* Immutable parameter: assigning to its field is now rejected at compile
    * time because `s` is not declared `mut`. */

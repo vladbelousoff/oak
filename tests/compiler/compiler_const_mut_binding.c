@@ -187,12 +187,11 @@ OAK_TEST_DECL(MutSelfMutableReceiverOk)
 /* Calling a non-mut-self method on an immutable receiver is fine. */
 OAK_TEST_DECL(ConstSelfImmutableReceiverOk)
 {
-  return expect_ok(
-      "record Point { x : number; y : number;\n"
-      "  fn sum(self) -> number { return self.x + self.y; }\n"
-      "}\n"
-      "let p = new Point { x : 3, y : 4 };\n"
-      "p.sum();\n");
+  return expect_ok("record Point { x : number; y : number;\n"
+                   "  fn sum(self) -> number { return self.x + self.y; }\n"
+                   "}\n"
+                   "let p = new Point { x : 3, y : 4 };\n"
+                   "p.sum();\n");
 }
 
 /* =========================================================================
@@ -230,15 +229,14 @@ OAK_TEST_DECL(BorrowMoveIntoRecordFieldFails)
 /* Moves are tracked per binding even when the source is `mut self`. */
 OAK_TEST_DECL(BorrowMoveSelfFails)
 {
-  return expect_compile_error(
-      "record Point { x : number; y : number;\n"
-      "  fn weird(mut self) -> number {\n"
-      "    let mut other = self;\n"
-      "    return self.x;\n"
-      "  }\n"
-      "}\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
-      "p.weird();\n");
+  return expect_compile_error("record Point { x : number; y : number;\n"
+                              "  fn weird(mut self) -> number {\n"
+                              "    let mut other = self;\n"
+                              "    return self.x;\n"
+                              "  }\n"
+                              "}\n"
+                              "let mut p = new Point { x : 1, y : 2 };\n"
+                              "p.weird();\n");
 }
 
 /* =========================================================================
@@ -287,15 +285,14 @@ OAK_TEST_DECL(BorrowReborrowReleasedOnScopeExitOk)
  * is `mut` would alias inside the callee — rejected at the call site. */
 OAK_TEST_DECL(BorrowAliasedMutArgsFails)
 {
-  return expect_compile_error(
-      "record Point { x : number; y : number; }\n"
-      "fn swap(mut a : Point, mut b : Point) {\n"
-      "  let tmp = a.x;\n"
-      "  a.x = b.x;\n"
-      "  b.x = tmp;\n"
-      "}\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
-      "swap(p, p);\n");
+  return expect_compile_error("record Point { x : number; y : number; }\n"
+                              "fn swap(mut a : Point, mut b : Point) {\n"
+                              "  let tmp = a.x;\n"
+                              "  a.x = b.x;\n"
+                              "  b.x = tmp;\n"
+                              "}\n"
+                              "let mut p = new Point { x : 1, y : 2 };\n"
+                              "swap(p, p);\n");
 }
 
 /* The same source as both a `mut` and a non-`mut` arg is also rejected
@@ -312,16 +309,15 @@ OAK_TEST_DECL(BorrowMutAndSharedArgsFails)
 /* Passing two different bindings to two `mut` parameters is fine. */
 OAK_TEST_DECL(BorrowDistinctMutArgsOk)
 {
-  return expect_ok(
-      "record Point { x : number; y : number; }\n"
-      "fn swap(mut a : Point, mut b : Point) {\n"
-      "  let tmp = a.x;\n"
-      "  a.x = b.x;\n"
-      "  b.x = tmp;\n"
-      "}\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
-      "let mut q = new Point { x : 3, y : 4 };\n"
-      "swap(p, q);\n");
+  return expect_ok("record Point { x : number; y : number; }\n"
+                   "fn swap(mut a : Point, mut b : Point) {\n"
+                   "  let tmp = a.x;\n"
+                   "  a.x = b.x;\n"
+                   "  b.x = tmp;\n"
+                   "}\n"
+                   "let mut p = new Point { x : 1, y : 2 };\n"
+                   "let mut q = new Point { x : 3, y : 4 };\n"
+                   "swap(p, q);\n");
 }
 
 int main(const int argc, char* argv[])

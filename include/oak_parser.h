@@ -134,7 +134,7 @@ int oak_node_is_binary_op(enum oak_node_kind_t kind);
 int oak_node_is_token_terminal(enum oak_node_kind_t kind);
 
 usize oak_ast_node_child_count(const struct oak_ast_node_t* node);
-struct oak_ast_node_t*
-oak_ast_node_child_at(const struct oak_ast_node_t* node, usize index);
+struct oak_ast_node_t* oak_ast_node_child_at(const struct oak_ast_node_t* node,
+                                             usize index);
 
 const char* oak_ast_node_kind_name(enum oak_node_kind_t kind);

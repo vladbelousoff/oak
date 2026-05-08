@@ -17,8 +17,8 @@ struct oak_module_export_fn_t
 {
   const char* name; /* borrowed from the module's lexer arena */
   usize name_len;
-  u16 const_idx;    /* index into the module's chunk constants */
-  int arity;        /* user-visible arity (no implicit self for globals) */
+  u16 const_idx; /* index into the module's chunk constants */
+  int arity;     /* user-visible arity (no implicit self for globals) */
   /* Borrowed pointer to the function's return-type AST node (or null when
    * the fn returns void).  Lives for the module's parser arena lifetime. */
   const struct oak_ast_node_t* return_type_node;
@@ -29,7 +29,7 @@ struct oak_module_export_fn_t
 
 struct oak_module_export_record_field_t
 {
-  const char* name;      /* borrowed from lexer arena */
+  const char* name; /* borrowed from lexer arena */
   usize name_len;
   /* Type stored as a name so importing modules can re-intern it against their
    * own type registry.  For primitives this is "number"/"string"/"bool"; for
@@ -41,7 +41,7 @@ struct oak_module_export_record_field_t
 
 struct oak_module_export_record_t
 {
-  const char* name;  /* borrowed from lexer arena */
+  const char* name; /* borrowed from lexer arena */
   usize name_len;
   int field_count;
   struct oak_module_export_record_field_t fields[OAK_MODULE_MAX_RECORD_FIELDS];
@@ -51,27 +51,48 @@ struct oak_module_export_record_t
 /* One variant entry for an exported enum. */
 struct oak_module_export_enum_variant_t
 {
-  const char* name;      /* borrowed from lexer arena */
+  const char* name; /* borrowed from lexer arena */
   usize name_len;
-  int value;             /* ordinal (0, 1, 2, …) */
+  int value; /* ordinal (0, 1, 2, …) */
 };
 
 #define OAK_MODULE_MAX_ENUM_VARIANTS 64
 
 struct oak_module_export_enum_t
 {
-  const char* name;  /* enum type name, borrowed from lexer arena */
+  const char* name; /* enum type name, borrowed from lexer arena */
   usize name_len;
   int variant_count;
-  struct oak_module_export_enum_variant_t variants[OAK_MODULE_MAX_ENUM_VARIANTS];
+  struct oak_module_export_enum_variant_t
+      variants[OAK_MODULE_MAX_ENUM_VARIANTS];
 };
 
 /* ----- Concrete dynamic-array types used by the module system ----- */
 
-struct oak_u16_vec_t         { u16*                               items; int count; int capacity; };
-struct oak_export_fn_vec_t   { struct oak_module_export_fn_t*     items; int count; int capacity; };
-struct oak_export_rec_vec_t  { struct oak_module_export_record_t* items; int count; int capacity; };
-struct oak_export_enum_vec_t { struct oak_module_export_enum_t*   items; int count; int capacity; };
+struct oak_u16_vec_t
+{
+  u16* items;
+  int count;
+  int capacity;
+};
+struct oak_export_fn_vec_t
+{
+  struct oak_module_export_fn_t* items;
+  int count;
+  int capacity;
+};
+struct oak_export_rec_vec_t
+{
+  struct oak_module_export_record_t* items;
+  int count;
+  int capacity;
+};
+struct oak_export_enum_vec_t
+{
+  struct oak_module_export_enum_t* items;
+  int count;
+  int capacity;
+};
 
 /* ----- Module ----- */
 
@@ -93,7 +114,7 @@ struct oak_module_t
 
   /* Resolved imports (alias_name -> dependency module_id) */
   struct oak_htable_t imports;
-  struct oak_u16_vec_t import_modules;          /* module_ids of direct deps */
+  struct oak_u16_vec_t import_modules; /* module_ids of direct deps */
 
   /* Exports (populated post-compile) */
   struct oak_htable_t exports_fn_by_name;
@@ -113,12 +134,17 @@ struct oak_module_t
 
 /* ----- Registry ----- */
 
-struct oak_module_ptr_vec_t { struct oak_module_t** items; int count; int capacity; };
+struct oak_module_ptr_vec_t
+{
+  struct oak_module_t** items;
+  int count;
+  int capacity;
+};
 
 struct oak_module_registry_t
 {
-  struct oak_module_ptr_vec_t modules;          /* index = module_id */
-  struct oak_htable_t by_canonical_path;    /* path -> module_id */
+  struct oak_module_ptr_vec_t modules;   /* index = module_id */
+  struct oak_htable_t by_canonical_path; /* path -> module_id */
 };
 
 /* ----- Lifecycle ----- */
@@ -131,8 +157,9 @@ struct oak_module_t*
 oak_module_registry_get(const struct oak_module_registry_t* reg, u16 module_id);
 
 /* O(1) lookup by canonical path. Returns null if not present. */
-struct oak_module_t* oak_module_registry_find_by_path(
-    const struct oak_module_registry_t* reg, const char* canonical_path);
+struct oak_module_t*
+oak_module_registry_find_by_path(const struct oak_module_registry_t* reg,
+                                 const char* canonical_path);
 
 /* Allocate a module, append to registry, assign it a module_id. The strings
  * `canonical_path` and `dotted_name` are duplicated. */
@@ -142,19 +169,13 @@ oak_module_registry_create(struct oak_module_registry_t* reg,
                            const char* dotted_name);
 
 /* Look up a function export. Returns null if not found. */
-const struct oak_module_export_fn_t*
-oak_module_find_export_fn(const struct oak_module_t* mod,
-                          const char* name,
-                          usize name_len);
+const struct oak_module_export_fn_t* oak_module_find_export_fn(
+    const struct oak_module_t* mod, const char* name, usize name_len);
 
 /* Look up a record export. Returns null if not found. */
-const struct oak_module_export_record_t*
-oak_module_find_export_record(const struct oak_module_t* mod,
-                              const char* name,
-                              usize name_len);
+const struct oak_module_export_record_t* oak_module_find_export_record(
+    const struct oak_module_t* mod, const char* name, usize name_len);
 
 /* Look up an enum export. Returns null if not found. */
-const struct oak_module_export_enum_t*
-oak_module_find_export_enum(const struct oak_module_t* mod,
-                            const char* name,
-                            usize name_len);
+const struct oak_module_export_enum_t* oak_module_find_export_enum(
+    const struct oak_module_t* mod, const char* name, usize name_len);

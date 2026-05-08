@@ -2,11 +2,11 @@
 
 OAK_TEST_DECL(ParseRecordWithInstanceMethod)
 {
-  struct oak_lexer_result_t* lexer = OAK_LEX(
-      "record Point {\n"
-      "  x : number;\n"
-      "  fn dist(self) -> number { return self.x; }\n"
-      "}");
+  struct oak_lexer_result_t* lexer =
+      OAK_LEX("record Point {\n"
+              "  x : number;\n"
+              "  fn dist(self) -> number { return self.x; }\n"
+              "}");
 
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result);

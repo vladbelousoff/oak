@@ -3,25 +3,22 @@
 
 OAK_TEST_DECL(ModuleScopeNameNotReadableInFunction)
 {
-  return expect_compile_error(
-      "let g = 1;\n"
-      "fn f() -> number { return g; }\n");
+  return expect_compile_error("let g = 1;\n"
+                              "fn f() -> number { return g; }\n");
 }
 
 OAK_TEST_DECL(ModuleScopeNameNotAssignableInFunction)
 {
-  return expect_compile_error(
-      "let mut g = 1;\n"
-      "fn f() { g = 2; }\n");
+  return expect_compile_error("let mut g = 1;\n"
+                              "fn f() { g = 2; }\n");
 }
 
 OAK_TEST_DECL(ModuleScopeNameNotReadableInMethod)
 {
-  return expect_compile_error(
-      "record R { x : number;\n"
-      "  fn m(self) -> number { return g; }\n"
-      "}\n"
-      "let g = 1;\n");
+  return expect_compile_error("record R { x : number;\n"
+                              "  fn m(self) -> number { return g; }\n"
+                              "}\n"
+                              "let g = 1;\n");
 }
 
 OAK_TEST_DECL(LocalShadowsModuleScopeNameOk)

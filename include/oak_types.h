@@ -47,13 +47,13 @@ typedef unsigned long long u64;
 #endif
 
 #if defined(_MSC_VER)
-  #if defined(_WIN64)
+#if defined(_WIN64)
 typedef unsigned __int64 usize;
 typedef __int64 isize;
-  #else
+#else
 typedef unsigned int usize;
 typedef int isize;
-  #endif
+#endif
 #else
 typedef unsigned long usize;
 typedef long isize;
@@ -67,7 +67,6 @@ typedef long isize;
 #ifndef null
 #define null ((void*)0)
 #endif
-
 
 _Static_assert(sizeof(i8) == 1 && sizeof(u8) == 1, "oak_types: byte width");
 _Static_assert(sizeof(i16) == 2 && sizeof(u16) == 2, "oak_types: 16-bit width");

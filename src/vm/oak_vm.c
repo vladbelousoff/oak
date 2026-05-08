@@ -149,9 +149,10 @@ static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
     oak_value_decref(map_val);
     return OAK_VM_RUNTIME_ERROR;
   }
-  const struct oak_value_t v = instruction == OAK_OP_MAP_KEY_AT
-                                   ? oak_map_key_at(map, (usize)i)
-                                   : oak_map_value_at(map, (usize)i); /* OAK_OP_MAP_VAL_AT */
+  const struct oak_value_t v =
+      instruction == OAK_OP_MAP_KEY_AT
+          ? oak_map_key_at(map, (usize)i)
+          : oak_map_value_at(map, (usize)i); /* OAK_OP_MAP_VAL_AT */
   const enum oak_vm_result_t pr = oak_vm_push(vm, v);
   oak_value_decref(iter_index);
   oak_value_decref(map_val);
@@ -376,9 +377,9 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
                                oak_vm_value_kind_desc(val));
           return OAK_VM_RUNTIME_ERROR;
         }
-        const struct oak_value_t result =
-            oak_is_i32(val) ? OAK_VALUE_I32(-oak_as_i32(val))
-                            : OAK_VALUE_F32(-oak_as_f32(val));
+        const struct oak_value_t result = oak_is_i32(val)
+                                              ? OAK_VALUE_I32(-oak_as_i32(val))
+                                              : OAK_VALUE_F32(-oak_as_f32(val));
         oak_value_decref(val);
         OAK_VM_TRY(oak_vm_push(vm, result));
         break;
@@ -650,8 +651,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         if (!m || !m->chunk || (usize)const_idx >= m->chunk->const_count)
         {
           oak_vm_runtime_error(
-              vm,
-              "internal: cross-module reference resolves to invalid slot");
+              vm, "internal: cross-module reference resolves to invalid slot");
           return OAK_VM_RUNTIME_ERROR;
         }
         OAK_VM_TRY(oak_vm_push(vm, m->chunk->constants[const_idx]));
@@ -665,8 +665,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
   }
 }
 
-struct oak_src_loc_t
-oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
+struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
 {
 #ifndef OAK_TRACK_MEMORY
   (void)vm;

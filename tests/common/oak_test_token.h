@@ -25,9 +25,10 @@ struct oak_expected_token_t
 };
 
 #define OAK_EXPECT_TOKEN_AT(token_kind, position)                              \
-  {                                                                            \
-    .kind = (token_kind), .line = 1, .column = (position), .offset = (position) \
-  }
+  { .kind = (token_kind),                                                      \
+    .line = 1,                                                                 \
+    .column = (position),                                                      \
+    .offset = (position) }
 
 static enum oak_test_status_t
 oak_test_token(const struct oak_token_t* token,

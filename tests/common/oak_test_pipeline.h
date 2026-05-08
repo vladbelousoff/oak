@@ -109,7 +109,7 @@ oak_pipeline_expect_runtime_error(const char* source)
 }
 
 /* Short aliases used inside per-file tests. */
-#define expect_ok                       oak_pipeline_expect_ok
-#define expect_compile_error            oak_pipeline_expect_compile_error
-#define expect_parse_or_compile_error   oak_pipeline_expect_parse_or_compile_error
-#define expect_runtime_error            oak_pipeline_expect_runtime_error
+#define expect_ok                     oak_pipeline_expect_ok
+#define expect_compile_error          oak_pipeline_expect_compile_error
+#define expect_parse_or_compile_error oak_pipeline_expect_parse_or_compile_error
+#define expect_runtime_error          oak_pipeline_expect_runtime_error

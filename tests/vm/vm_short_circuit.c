@@ -9,15 +9,17 @@
 /* false && (would-fail) → must not evaluate rhs → runs OK. */
 OAK_TEST_DECL(AndShortCircuitsOnFalse)
 {
-  return expect_ok("let arr = [1, 2, 3];\n"
-                   "if false && arr[100] == 0 { print(1); } else { print(0); }\n");
+  return expect_ok(
+      "let arr = [1, 2, 3];\n"
+      "if false && arr[100] == 0 { print(1); } else { print(0); }\n");
 }
 
 /* true || (would-fail) → must not evaluate rhs → runs OK. */
 OAK_TEST_DECL(OrShortCircuitsOnTrue)
 {
-  return expect_ok("let arr = [1, 2, 3];\n"
-                   "if true || arr[100] == 0 { print(1); } else { print(0); }\n");
+  return expect_ok(
+      "let arr = [1, 2, 3];\n"
+      "if true || arr[100] == 0 { print(1); } else { print(0); }\n");
 }
 
 /* true && (would-fail) → DOES evaluate rhs → expect runtime error. */

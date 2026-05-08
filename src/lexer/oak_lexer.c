@@ -160,7 +160,8 @@ static enum oak_lex_status_t scan_op(const struct oak_lexer_ctx_t* ctx,
   {
     if (c1 == single_char_ops[i].c)
     {
-      oak_lexer_save_token(ctx->lexer, &sav_cur, single_char_ops[i].token, p, 0);
+      oak_lexer_save_token(
+          ctx->lexer, &sav_cur, single_char_ops[i].token, p, 0);
       oak_lexer_advance_cursor(cur, 1, 1);
       return OAK_LEX_OK;
     }
@@ -218,13 +219,21 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
 
       switch (*p)
       {
-        case 'n': cp = '\n'; break;
-        case 't': cp = '\t'; break;
-        case 'r': cp = '\r'; break;
+        case 'n':
+          cp = '\n';
+          break;
+        case 't':
+          cp = '\t';
+          break;
+        case 'r':
+          cp = '\r';
+          break;
         case '\\':
         case '\'':
         case '"':
-        default:  cp = (u8)*p; break;
+        default:
+          cp = (u8)*p;
+          break;
       }
       n = 1;
     }

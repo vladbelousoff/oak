@@ -186,9 +186,12 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
   {
     const struct oak_code_loc_t ident_loc =
         oak_compiler_loc_from_token(ident->token);
-    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
-    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)limit_slot));
-    oak_compiler_emit_op(c, OAK_OP_BINARY, ident_loc, OAK_ARG_U8(OAK_BINOP_LESS));
+    oak_compiler_emit_op(
+        c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
+    oak_compiler_emit_op(
+        c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)limit_slot));
+    oak_compiler_emit_op(
+        c, OAK_OP_BINARY, ident_loc, OAK_ARG_U8(OAK_BINOP_LESS));
     const usize exit_jump =
         oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, ident_loc);
 
@@ -199,7 +202,8 @@ void oak_compiler_compile_stmt_for_from(struct oak_compiler_t* c,
 
     oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
 
-    oak_compiler_emit_op(c, OAK_OP_INC_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
+    oak_compiler_emit_op(
+        c, OAK_OP_INC_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
 
     oak_compiler_emit_loop(c, loop.loop_start, ident_loc);
     oak_compiler_patch_jump(c, exit_jump);
@@ -284,9 +288,8 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
     oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
     oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
     oak_compiler_emit_op(c,
-                         coll_ty->kind == OAK_TYPE_KIND_MAP
-                             ? OAK_OP_MAP_VAL_AT
-                             : OAK_OP_GET_INDEX,
+                         coll_ty->kind == OAK_TYPE_KIND_MAP ? OAK_OP_MAP_VAL_AT
+                                                            : OAK_OP_GET_INDEX,
                          loc);
     const struct oak_type_t val_ty = { .id = coll_ty->id };
     oak_compiler_add_local(c,

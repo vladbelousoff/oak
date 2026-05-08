@@ -74,7 +74,7 @@ enum oak_op_format_t
   OAK_OP_FMT_JUMP_FWD,
   OAK_OP_FMT_JUMP_BACK,
   OAK_OP_FMT_ARGC,
-  OAK_OP_FMT_BINOP,    /* 8-bit binary operation selector (oak_binop_t) */
+  OAK_OP_FMT_BINOP, /* 8-bit binary operation selector (oak_binop_t) */
   /* 8-bit count + 16-bit (big-endian) id; e.g. user record + field layout. */
   OAK_OP_FMT_U8_U16,
   /* 16-bit (big-endian) module_id + 16-bit (big-endian) const_idx; used by

@@ -563,15 +563,12 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
       const usize ename_len = oak_token_length(ename_tok);
       const char* vname = oak_token_text(fname->token);
       const usize vlen = oak_token_length(fname->token);
-      const struct oak_enum_variant_t* ev =
-          oak_enum_registry_find_qualified(&c->enums, ename, ename_len, vname, vlen);
+      const struct oak_enum_variant_t* ev = oak_enum_registry_find_qualified(
+          &c->enums, ename, ename_len, vname, vlen);
       if (!ev)
       {
-        oak_compiler_error_at(c,
-                              fname->token,
-                              "enum '%s' has no variant '%s'",
-                              ename,
-                              vname);
+        oak_compiler_error_at(
+            c, fname->token, "enum '%s' has no variant '%s'", ename, vname);
         return;
       }
       oak_compiler_emit_constant(
@@ -589,9 +586,8 @@ static void compile_expr_member_access(struct oak_compiler_t* c,
     {
       const char* vname = oak_token_text(fname->token);
       const usize vlen = oak_token_length(fname->token);
-      const struct oak_enum_variant_t* ev =
-          oak_enum_registry_find_qualified(
-              &c->enums, recv_name, recv_len, vname, vlen);
+      const struct oak_enum_variant_t* ev = oak_enum_registry_find_qualified(
+          &c->enums, recv_name, recv_len, vname, vlen);
       if (!ev)
       {
         oak_compiler_error_at(c,
@@ -646,7 +642,9 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
   if (seg_count < 1 || seg_count > 2)
   {
     oak_compiler_error_at(
-        c, node->token, "record literal: type path must be 'Type' or 'mod.Type'");
+        c,
+        node->token,
+        "record literal: type path must be 'Type' or 'mod.Type'");
     return;
   }
 
@@ -661,15 +659,14 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
     const usize alias_len = oak_token_length(seg[0]->token);
     if (!oak_compiler_module_for_alias(c, alias, alias_len))
     {
-      oak_compiler_error_at(c,
-                            seg[0]->token,
-                            "'%s' is not an imported module",
-                            alias);
+      oak_compiler_error_at(
+          c, seg[0]->token, "'%s' is not an imported module", alias);
       return;
     }
   }
 
-  /* name_node used below for error token references — point at the type segment. */
+  /* name_node used below for error token references — point at the type
+   * segment. */
   const struct oak_ast_node_t* name_node = type_seg;
 
   const struct oak_registered_record_t* sd =
@@ -763,8 +760,8 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
       fptr[i] = sd->fields[i].name;
       flen[i] = sd->fields[i].name_len;
     }
-    const int layout_id = oak_chunk_add_field_layout(
-        c->chunk, sd->field_count, fptr, flen);
+    const int layout_id =
+        oak_chunk_add_field_layout(c->chunk, sd->field_count, fptr, flen);
     if (layout_id < 0)
     {
       oak_compiler_error_at(
@@ -790,7 +787,8 @@ static void compile_expr_record_literal(struct oak_compiler_t* c,
     {
       const struct oak_ast_node_t* fexpr = exprs[i];
       if (oak_type_is_refcounted(&sd->fields[i].type))
-        src_idx_for_field[i] = oak_compiler_local_index_for_ident_expr(c, fexpr);
+        src_idx_for_field[i] =
+            oak_compiler_local_index_for_ident_expr(c, fexpr);
       else
         src_idx_for_field[i] = -1;
     }
@@ -842,7 +840,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_INT:
     {
       const int value = oak_token_as_i32(node->token);
-      const struct oak_code_loc_t loc = oak_compiler_loc_from_token(node->token);
+      const struct oak_code_loc_t loc =
+          oak_compiler_loc_from_token(node->token);
       if (value >= -128 && value <= 127)
       {
         oak_compiler_emit_op(
@@ -891,10 +890,8 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         const int li = oak_compiler_local_index_for_slot(c, slot);
         if (li >= 0 && !c->scope.locals[li].alive)
         {
-          oak_compiler_error_at(c,
-                                node->token,
-                                "use of '%s' after it was moved",
-                                name);
+          oak_compiler_error_at(
+              c, node->token, "use of '%s' after it was moved", name);
           return;
         }
         oak_compiler_emit_op(c,
@@ -906,11 +903,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       if (c->scope.fn_depth > 0 &&
           oak_compiler_is_module_scope_name(c, name, len))
       {
-        oak_compiler_error_at(
-            c,
-            node->token,
-            "'%s' is not visible here (module scope only)",
-            name);
+        oak_compiler_error_at(c,
+                              node->token,
+                              "'%s' is not visible here (module scope only)",
+                              name);
         return;
       }
       oak_compiler_error_at(c, node->token, "undefined variable '%s'", name);

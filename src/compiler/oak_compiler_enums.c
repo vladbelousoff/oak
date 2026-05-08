@@ -1,5 +1,5 @@
-#include "oak_bind.h"
 #include "internal/oak_compiler.h"
+#include "oak_bind.h"
 
 #include <string.h>
 
@@ -9,37 +9,45 @@ void oak_enum_registry_init(struct oak_enum_registry_t* r)
 {
   oak_htable_init(&r->by_name);
   oak_htable_init(&r->enum_names);
-  oak_dynarr_init(&r->variants.items, &r->variants.count, &r->variants.capacity);
+  oak_dynarr_init(
+      &r->variants.items, &r->variants.count, &r->variants.capacity);
 }
 
 void oak_enum_registry_free(struct oak_enum_registry_t* r)
 {
   oak_htable_free(&r->by_name);
   oak_htable_free(&r->enum_names);
-  oak_dynarr_free(&r->variants.items, &r->variants.count, &r->variants.capacity);
+  oak_dynarr_free(
+      &r->variants.items, &r->variants.count, &r->variants.capacity);
 }
 
 struct oak_enum_variant_t*
 oak_enum_registry_insert(struct oak_enum_registry_t* r,
                          const struct oak_enum_variant_t* v)
 {
-  oak_dynarr_push(&r->variants.items, &r->variants.count, &r->variants.capacity, v, sizeof(*v));
+  oak_dynarr_push(&r->variants.items,
+                  &r->variants.count,
+                  &r->variants.capacity,
+                  v,
+                  sizeof(*v));
   const int idx = r->variants.count - 1;
 
   /* Index by unqualified variant name. */
-  oak_htable_insert(
-      &r->by_name, r->variants.items[idx].name, r->variants.items[idx].name_len, idx);
+  oak_htable_insert(&r->by_name,
+                    r->variants.items[idx].name,
+                    r->variants.items[idx].name_len,
+                    idx);
 
   /* Index the enum type name as a set entry (value 1) if not already present.
    */
   if (oak_htable_get(&r->enum_names,
-                         r->variants.items[idx].enum_name,
-                         r->variants.items[idx].enum_name_len) < 0)
+                     r->variants.items[idx].enum_name,
+                     r->variants.items[idx].enum_name_len) < 0)
   {
     oak_htable_insert(&r->enum_names,
-                          r->variants.items[idx].enum_name,
-                          r->variants.items[idx].enum_name_len,
-                          1);
+                      r->variants.items[idx].enum_name,
+                      r->variants.items[idx].enum_name_len,
+                      1);
   }
 
   return &r->variants.items[idx];
@@ -164,7 +172,8 @@ void oak_compiler_register_program_enums(struct oak_compiler_t* c,
       return;
     }
 
-    const oak_type_id_t enum_type_id = oak_compiler_intern_type_token(c, name_node->token);
+    const oak_type_id_t enum_type_id =
+        oak_compiler_intern_type_token(c, name_node->token);
     if (enum_type_id < 0)
     {
       oak_compiler_error_at(

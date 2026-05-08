@@ -34,10 +34,17 @@ static enum oak_fn_call_result_t file_open(struct oak_native_ctx_t* ctx,
   const char* mode;
   switch (oak_as_i32(args[1]))
   {
-    case OAK_FILE_MODE_READ:   mode = "r"; break;
-    case OAK_FILE_MODE_WRITE:  mode = "w"; break;
-    case OAK_FILE_MODE_APPEND: mode = "a"; break;
-    default: return OAK_FN_CALL_RUNTIME_ERROR;
+    case OAK_FILE_MODE_READ:
+      mode = "r";
+      break;
+    case OAK_FILE_MODE_WRITE:
+      mode = "w";
+      break;
+    case OAK_FILE_MODE_APPEND:
+      mode = "a";
+      break;
+    default:
+      return OAK_FN_CALL_RUNTIME_ERROR;
   }
   FILE* fp = fopen(oak_as_cstring(args[0]), mode);
   if (!fp)
@@ -179,8 +186,8 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
   struct oak_bind_enum_t* mode = oak_bind_enum(opts, "FileMode");
   if (mode)
   {
-    oak_bind_enum_variant(mode, "Read",   OAK_FILE_MODE_READ);
-    oak_bind_enum_variant(mode, "Write",  OAK_FILE_MODE_WRITE);
+    oak_bind_enum_variant(mode, "Read", OAK_FILE_MODE_READ);
+    oak_bind_enum_variant(mode, "Write", OAK_FILE_MODE_WRITE);
     oak_bind_enum_variant(mode, "Append", OAK_FILE_MODE_APPEND);
   }
 

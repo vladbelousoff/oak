@@ -17,8 +17,11 @@ void oak_dynarr_init(void* items_field_ptr, int* count, int* capacity)
   *capacity = 0;
 }
 
-void oak_dynarr_push(void* items_field_ptr, int* count, int* capacity,
-                     const void* item, int item_size)
+void oak_dynarr_push(void* items_field_ptr,
+                     int* count,
+                     int* capacity,
+                     const void* item,
+                     int item_size)
 {
   void* items;
   memcpy(&items, items_field_ptr, sizeof(void*));
@@ -30,7 +33,8 @@ void oak_dynarr_push(void* items_field_ptr, int* count, int* capacity,
     *capacity = nc;
   }
 
-  memcpy((char*)items + (usize)(*count) * (usize)item_size, item,
+  memcpy((char*)items + (usize)(*count) * (usize)item_size,
+         item,
          (usize)item_size);
   (*count)++;
 

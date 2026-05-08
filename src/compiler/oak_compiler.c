@@ -194,11 +194,11 @@ static void register_imported_enums(struct oak_compiler_t* c)
   }
 }
 
-/* For each imported module in the current module's dependency list, pre-register
- * its exported record types into the current compiler's type and record
- * registries.  This must run BEFORE oak_compiler_register_program_records so
- * that user-defined type IDs are assigned in a consistent topological order
- * across all modules. */
+/* For each imported module in the current module's dependency list,
+ * pre-register its exported record types into the current compiler's type and
+ * record registries.  This must run BEFORE
+ * oak_compiler_register_program_records so that user-defined type IDs are
+ * assigned in a consistent topological order across all modules. */
 static void register_imported_records(struct oak_compiler_t* c)
 {
   if (!c->module_registry || !c->current_module)
@@ -216,7 +216,8 @@ static void register_imported_records(struct oak_compiler_t* c)
       const struct oak_module_export_record_t* exp =
           &dep->exports_record.items[ri];
       /* Skip if already registered (diamond imports). */
-      if (oak_record_registry_find_by_name(&c->records, exp->name, exp->name_len))
+      if (oak_record_registry_find_by_name(
+              &c->records, exp->name, exp->name_len))
         continue;
       const oak_type_id_t tid =
           oak_type_registry_intern(&c->types, exp->name, exp->name_len);
@@ -225,14 +226,17 @@ static void register_imported_records(struct oak_compiler_t* c)
       proto.name_len = exp->name_len;
       proto.type_id = tid;
       proto.field_count = exp->field_count;
-      oak_dynarr_init(&proto.methods.items, &proto.methods.count, &proto.methods.capacity);
+      oak_dynarr_init(
+          &proto.methods.items, &proto.methods.count, &proto.methods.capacity);
       for (int fi = 0; fi < exp->field_count; ++fi)
       {
         proto.fields[fi].name = exp->fields[fi].name;
         proto.fields[fi].name_len = exp->fields[fi].name_len;
         oak_type_clear(&proto.fields[fi].type);
-        proto.fields[fi].type.id = oak_type_registry_intern(
-            &c->types, exp->fields[fi].type_name, exp->fields[fi].type_name_len);
+        proto.fields[fi].type.id =
+            oak_type_registry_intern(&c->types,
+                                     exp->fields[fi].type_name,
+                                     exp->fields[fi].type_name_len);
       }
       oak_record_registry_insert(&c->records, &proto);
     }
@@ -263,9 +267,12 @@ static void populate_module_exports(struct oak_compiler_t* c)
       .return_type_node = oak_compiler_fn_decl_return_type_node(e->decl),
     };
     const int idx = mod->exports_fn.count;
-    oak_dynarr_push(&mod->exports_fn.items, &mod->exports_fn.count, &mod->exports_fn.capacity, &exp, sizeof(exp));
-    oak_htable_insert(
-        &mod->exports_fn_by_name, e->name, e->name_len, idx);
+    oak_dynarr_push(&mod->exports_fn.items,
+                    &mod->exports_fn.count,
+                    &mod->exports_fn.capacity,
+                    &exp,
+                    sizeof(exp));
+    oak_htable_insert(&mod->exports_fn_by_name, e->name, e->name_len, idx);
   }
   /* Export user-defined records (those registered after native + imported ones,
    * i.e. with index >= c->user_record_start). */
@@ -286,8 +293,7 @@ static void populate_module_exports(struct oak_compiler_t* c)
       exp.fields[fi].name_len = r->fields[fi].name_len;
       /* Resolve type_id back to a name via the type registry so the importing
        * module can re-intern it using its own registry. */
-      if (r->fields[fi].type.id >= 0 &&
-          r->fields[fi].type.id < c->types.count)
+      if (r->fields[fi].type.id >= 0 && r->fields[fi].type.id < c->types.count)
       {
         exp.fields[fi].type_name = c->types.entries[r->fields[fi].type.id].name;
         exp.fields[fi].type_name_len =
@@ -296,7 +302,11 @@ static void populate_module_exports(struct oak_compiler_t* c)
     }
     exp.layout_id = 0; /* populated on first cross-module new when needed */
     const int idx = mod->exports_record.count;
-    oak_dynarr_push(&mod->exports_record.items, &mod->exports_record.count, &mod->exports_record.capacity, &exp, sizeof(exp));
+    oak_dynarr_push(&mod->exports_record.items,
+                    &mod->exports_record.count,
+                    &mod->exports_record.capacity,
+                    &exp,
+                    sizeof(exp));
     oak_htable_insert(
         &mod->exports_record_by_name, exp.name, exp.name_len, idx);
   }
@@ -308,15 +318,19 @@ static void populate_module_exports(struct oak_compiler_t* c)
     {
       const struct oak_enum_variant_t* v = &c->enums.variants.items[i];
       /* Find or create the export entry for this enum type. */
-      int eidx =
-          oak_htable_get(&mod->exports_enum_by_name, v->enum_name, v->enum_name_len);
+      int eidx = oak_htable_get(
+          &mod->exports_enum_by_name, v->enum_name, v->enum_name_len);
       if (eidx < 0)
       {
         struct oak_module_export_enum_t ee = { 0 };
         ee.name = v->enum_name;
         ee.name_len = v->enum_name_len;
         eidx = mod->exports_enum.count;
-        oak_dynarr_push(&mod->exports_enum.items, &mod->exports_enum.count, &mod->exports_enum.capacity, &ee, sizeof(ee));
+        oak_dynarr_push(&mod->exports_enum.items,
+                        &mod->exports_enum.count,
+                        &mod->exports_enum.capacity,
+                        &ee,
+                        sizeof(ee));
         oak_htable_insert(
             &mod->exports_enum_by_name, ee.name, ee.name_len, eidx);
       }
@@ -336,13 +350,20 @@ static void compile_program(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* program)
 {
   /* Step 1 — register all built-in functions and methods. */
-  oak_compiler_register_native_builtins(c);     CHECK_ERROR(c);
-  oak_compiler_register_array_methods(c);       CHECK_ERROR(c);
-  oak_compiler_register_map_methods(c);         CHECK_ERROR(c);
-  oak_compiler_register_string_methods(c);      CHECK_ERROR(c);
-  oak_compiler_register_bool_methods(c);        CHECK_ERROR(c);
-  oak_compiler_register_number_methods(c);      CHECK_ERROR(c);
-  oak_compiler_register_record_builtin_methods(c); CHECK_ERROR(c);
+  oak_compiler_register_native_builtins(c);
+  CHECK_ERROR(c);
+  oak_compiler_register_array_methods(c);
+  CHECK_ERROR(c);
+  oak_compiler_register_map_methods(c);
+  CHECK_ERROR(c);
+  oak_compiler_register_string_methods(c);
+  CHECK_ERROR(c);
+  oak_compiler_register_bool_methods(c);
+  CHECK_ERROR(c);
+  oak_compiler_register_number_methods(c);
+  CHECK_ERROR(c);
+  oak_compiler_register_record_builtin_methods(c);
+  CHECK_ERROR(c);
 
   /* Step 2 — register types in topological order (imported before local) so
    * that IDs are consistent across all modules in the program.
@@ -361,8 +382,10 @@ static void compile_program(struct oak_compiler_t* c,
   CHECK_ERROR(c);
 
   /* Step 3 — register functions and methods, then emit code. */
-  oak_compiler_register_program_functions(c, program); CHECK_ERROR(c);
-  oak_compiler_register_program_methods(c, program);   CHECK_ERROR(c);
+  oak_compiler_register_program_functions(c, program);
+  CHECK_ERROR(c);
+  oak_compiler_register_program_methods(c, program);
+  CHECK_ERROR(c);
 
   collect_module_scope_names(c, program);
   compile_program_items(c, program);
@@ -370,8 +393,10 @@ static void compile_program(struct oak_compiler_t* c,
 
   /* Step 4 — emit halt, compile deferred bodies, populate exports. */
   oak_compiler_emit_op(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
-  oak_compiler_compile_function_bodies(c); CHECK_ERROR(c);
-  oak_compiler_compile_method_bodies(c);   CHECK_ERROR(c);
+  oak_compiler_compile_function_bodies(c);
+  CHECK_ERROR(c);
+  oak_compiler_compile_method_bodies(c);
+  CHECK_ERROR(c);
   populate_module_exports(c);
 }
 

@@ -134,9 +134,24 @@ struct oak_bind_enum_t
 
 /* ---------- Concrete dynamic-array types for compile options ---------- */
 
-struct oak_bind_type_ptr_vec_t { struct oak_bind_type_t** items; int count; int capacity; };
-struct oak_bind_fn_vec_t       { struct oak_bind_fn_t*    items; int count; int capacity; };
-struct oak_bind_enum_ptr_vec_t { struct oak_bind_enum_t** items; int count; int capacity; };
+struct oak_bind_type_ptr_vec_t
+{
+  struct oak_bind_type_t** items;
+  int count;
+  int capacity;
+};
+struct oak_bind_fn_vec_t
+{
+  struct oak_bind_fn_t* items;
+  int count;
+  int capacity;
+};
+struct oak_bind_enum_ptr_vec_t
+{
+  struct oak_bind_enum_t** items;
+  int count;
+  int capacity;
+};
 
 /* ---------- Compilation options ---------- */
 
@@ -151,7 +166,8 @@ struct oak_compile_options_t
   /* Native function / method bindings (owned; populated by oak_bind_fn). */
   struct oak_bind_fn_vec_t native_fns;
 
-  /* Native enums (owned; populated by oak_bind_enum / oak_bind_enum_variant). */
+  /* Native enums (owned; populated by oak_bind_enum / oak_bind_enum_variant).
+   */
   struct oak_bind_enum_ptr_vec_t native_enums;
 
   /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
@@ -168,7 +184,7 @@ struct oak_compile_options_t
    * `current_module` to attach exports and to resolve `import alias.name`
    * references via `module_registry`. */
   struct oak_module_registry_t* module_registry;
-  struct oak_module_t*          current_module;
+  struct oak_module_t* current_module;
 };
 
 /* ---------- Compile-options lifecycle ---------- */

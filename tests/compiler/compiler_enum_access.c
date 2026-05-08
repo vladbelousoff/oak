@@ -11,9 +11,8 @@ OAK_TEST_DECL(QualifiedVariantAccessOk)
 /* Space-separated variants (no commas) must be rejected. */
 OAK_TEST_DECL(SpaceSeparatedVariantsRejected)
 {
-  return expect_parse_or_compile_error(
-      "enum Dir { North South East West }\n"
-      "let a = Dir.North;\n");
+  return expect_parse_or_compile_error("enum Dir { North South East West }\n"
+                                       "let a = Dir.North;\n");
 }
 
 /* Trailing comma is accepted. */

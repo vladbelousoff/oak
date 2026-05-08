@@ -130,8 +130,7 @@ struct oak_obj_native_record_t
 {
   struct oak_obj_t obj;
   void* instance;
-  const struct oak_bind_type_t*
-      type; /* borrowed; lives for binding lifetime */
+  const struct oak_bind_type_t* type; /* borrowed; lives for binding lifetime */
 };
 
 enum oak_fn_call_result_t
@@ -200,12 +199,10 @@ struct oak_obj_string_t* oak_string_new(const char* chars, usize length);
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
                                            const struct oak_obj_string_t* b);
 
-struct oak_obj_fn_t*
-oak_fn_new(usize code_offset, int arity, u16 module_id);
+struct oak_obj_fn_t* oak_fn_new(usize code_offset, int arity, u16 module_id);
 
-struct oak_obj_native_fn_t* oak_native_fn_new(oak_native_fn_t fn,
-                                              int arity,
-                                              const char* name);
+struct oak_obj_native_fn_t*
+oak_native_fn_new(oak_native_fn_t fn, int arity, const char* name);
 
 struct oak_obj_array_t* oak_array_new(void);
 void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
@@ -214,7 +211,7 @@ struct oak_obj_record_t* oak_record_new(
     int field_count,
     const char* type_name,
     const char* const* field_names, /* if NULL, JSON keys are "0", "1", … */
-    const usize* field_name_len);  /* if NULL, strlen(field_names[i]) */
+    const usize* field_name_len);   /* if NULL, strlen(field_names[i]) */
 
 struct oak_obj_native_record_t*
 oak_obj_native_record_new(const struct oak_bind_type_t* type, void* instance);

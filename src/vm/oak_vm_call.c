@@ -71,8 +71,8 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
         oak_module_registry_get(vm->modules, fn->module_id);
     if (!target_mod || !target_mod->chunk)
     {
-      oak_vm_runtime_error(
-          vm, "internal: cross-module call to unloaded module");
+      oak_vm_runtime_error(vm,
+                           "internal: cross-module call to unloaded module");
       return OAK_VM_RUNTIME_ERROR;
     }
     target_chunk = target_mod->chunk;

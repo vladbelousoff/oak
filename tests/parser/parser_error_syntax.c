@@ -10,9 +10,8 @@ static enum oak_test_status_t expect_parse_error(const char* source)
 
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   const int errs = oak_parser_error_count(&result);
-  const enum oak_test_status_t ok = (root == null || errs > 0)
-                                        ? OAK_TEST_OK
-                                        : OAK_TEST_FAIL;
+  const enum oak_test_status_t ok =
+      (root == null || errs > 0) ? OAK_TEST_OK : OAK_TEST_FAIL;
 
   oak_parser_free(&result);
   oak_lexer_free(lexer);

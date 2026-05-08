@@ -1,9 +1,9 @@
 #pragma once
 
 #include "oak_arena.h"
-#include <oak_lexer.h>
 #include "oak_lexer_status.h"
 #include "oak_token.h"
+#include <oak_lexer.h>
 
 struct oak_lexer_result_t
 {

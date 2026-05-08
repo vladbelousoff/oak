@@ -4,10 +4,8 @@
 #include "oak_htable.h"
 #include "oak_token.h"
 
-const struct oak_module_t*
-oak_compiler_module_for_alias(const struct oak_compiler_t* c,
-                              const char* name,
-                              usize name_len)
+const struct oak_module_t* oak_compiler_module_for_alias(
+    const struct oak_compiler_t* c, const char* name, usize name_len)
 {
   if (!c->current_module || !c->module_registry)
     return null;
@@ -44,7 +42,8 @@ oak_compiler_match_module_member(const struct oak_compiler_t* c,
     return null;
   const struct oak_ast_node_t* lhs = node->lhs;
   const struct oak_ast_node_t* rhs = node->rhs;
-  if (!lhs || !rhs || lhs->kind != OAK_NODE_IDENT || rhs->kind != OAK_NODE_IDENT)
+  if (!lhs || !rhs || lhs->kind != OAK_NODE_IDENT ||
+      rhs->kind != OAK_NODE_IDENT)
     return null;
   const struct oak_module_t* mod = oak_compiler_module_for_alias(
       c, oak_token_text(lhs->token), oak_token_length(lhs->token));
