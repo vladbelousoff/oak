@@ -1,4 +1,4 @@
-import cycle.b;
+import b;
 
 fn value() -> number {
   return b.value();

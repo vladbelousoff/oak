@@ -16,10 +16,18 @@ foreach(script ${OAK_EXAMPLES})
         string(REPLACE "/" "_" test_name "${test_name}")
     endif()
 
-    add_test(NAME example_${test_name} COMMAND $<TARGET_FILE:oak> ${script})
-    set_tests_properties(example_${test_name} PROPERTIES WORKING_DIRECTORY ${OAK_SOURCE_DIR})
-
     if(EXISTS ${script_base}.expected_error)
-        set_tests_properties(example_${test_name} PROPERTIES WILL_FAIL TRUE)
+        add_test(
+            NAME example_${test_name}
+            COMMAND ${CMAKE_COMMAND}
+                -DOAK_BIN=$<TARGET_FILE:oak>
+                -DSCRIPT=${script}
+                -DEXPECTED_ERR=${script_base}.expected_error
+                -DWORKDIR=${OAK_SOURCE_DIR}
+                -P ${OAK_SOURCE_DIR}/cmake/testing/check_expected_error.cmake
+        )
+    else()
+        add_test(NAME example_${test_name} COMMAND $<TARGET_FILE:oak> ${script})
+        set_tests_properties(example_${test_name} PROPERTIES WORKING_DIRECTORY ${OAK_SOURCE_DIR})
     endif()
 endforeach()

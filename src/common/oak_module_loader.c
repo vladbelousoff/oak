@@ -397,8 +397,6 @@ int oak_module_loader_load_program(const char* entry_path,
   out->entry = null;
   out->error_count = 0;
 
-  /* Base directory for relative dotted-path resolution = directory of entry. */
-  char* base_dir = path_dirname_dup(entry_path);
   char* entry_canonical = path_canonicalize(entry_path);
 
   /* Parse the entry module first. */
@@ -408,7 +406,6 @@ int oak_module_loader_load_program(const char* entry_path,
   oak_free(entry_canonical, OAK_SRC_LOC);
   if (!entry || out->error_count > 0)
   {
-    oak_free(base_dir, OAK_SRC_LOC);
     return -1;
   }
 
@@ -510,7 +507,8 @@ int oak_module_loader_load_program(const char* entry_path,
     }
 
     char* dotted = dotted_name_from_path(imp->path);
-    char* file_path = path_resolve_dotted(base_dir, dotted);
+    char* mod_dir = path_dirname_dup(top->mod->canonical_path);
+    char* file_path = path_resolve_dotted(mod_dir, dotted);
     char* canonical = path_canonicalize(file_path);
 
     /* Cycle check: is `canonical` currently being visited? */
@@ -542,6 +540,7 @@ int oak_module_loader_load_program(const char* entry_path,
       buf[w] = 0;
       loader_error(out, "import cycle: %s", buf);
       oak_free(dotted, OAK_SRC_LOC);
+      oak_free(mod_dir, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
       oak_free(canonical, OAK_SRC_LOC);
       rc = -1;
@@ -559,6 +558,7 @@ int oak_module_loader_load_program(const char* entry_path,
                       &found->module_id,
                       sizeof(found->module_id));
       oak_free(dotted, OAK_SRC_LOC);
+      oak_free(mod_dir, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
       oak_free(canonical, OAK_SRC_LOC);
       continue;
@@ -571,6 +571,7 @@ int oak_module_loader_load_program(const char* entry_path,
     if (!dep || out->error_count > 0)
     {
       oak_free(dotted, OAK_SRC_LOC);
+      oak_free(mod_dir, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
       oak_free(canonical, OAK_SRC_LOC);
       rc = -1;
@@ -592,6 +593,7 @@ int oak_module_loader_load_program(const char* entry_path,
                        (int)alen,
                        alias);
           oak_free(dotted, OAK_SRC_LOC);
+          oak_free(mod_dir, OAK_SRC_LOC);
           oak_free(file_path, OAK_SRC_LOC);
           oak_free(canonical, OAK_SRC_LOC);
           rc = -1;
@@ -607,6 +609,7 @@ int oak_module_loader_load_program(const char* entry_path,
                     sizeof(dep->module_id));
 
     oak_free(dotted, OAK_SRC_LOC);
+    oak_free(mod_dir, OAK_SRC_LOC);
     oak_free(file_path, OAK_SRC_LOC);
     oak_free(canonical, OAK_SRC_LOC);
 
@@ -631,7 +634,6 @@ int oak_module_loader_load_program(const char* entry_path,
                     &stack.items[i].imports.count,
                     &stack.items[i].imports.capacity);
 
-  oak_free(base_dir, OAK_SRC_LOC);
   oak_dynarr_free(&stack.items, &stack.count, &stack.capacity);
   oak_dynarr_free(&visiting.items, &visiting.count, &visiting.capacity);
   oak_dynarr_free(&visited.items, &visited.count, &visited.capacity);
