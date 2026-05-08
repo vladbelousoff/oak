@@ -175,6 +175,12 @@ else()
                     -DWORKDIR=${CMAKE_SOURCE_DIR}
                     -P ${CMAKE_SOURCE_DIR}/cmake/run_error_script_test.cmake)
         endif()
+
+        if(NOT EXISTS ${expected_path} AND NOT EXISTS ${expected_error_path})
+            message(FATAL_ERROR
+                "script test entry ${script_rel} has no matching .expected "
+                "or .expected_error file")
+        endif()
     endforeach()
     endif() # OAK_TESTS
 endif()

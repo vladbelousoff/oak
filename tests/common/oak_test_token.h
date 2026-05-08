@@ -24,6 +24,11 @@ struct oak_expected_token_t
   };
 };
 
+#define OAK_EXPECT_TOKEN_AT(token_kind, position)                              \
+  {                                                                            \
+    .kind = (token_kind), .line = 1, .column = (position), .offset = (position) \
+  }
+
 static enum oak_test_status_t
 oak_test_token(const struct oak_token_t* token,
                const struct oak_expected_token_t* expected,
@@ -139,6 +144,15 @@ oak_test_tokens(const struct oak_lexer_result_t* lexer,
         oak_test_token(token, expected, token_index);
     if (step != OAK_TEST_OK)
       return step;
+  }
+
+  if (token_index < count)
+  {
+    oak_log(OAK_LOG_ERROR,
+            "missing token at index %zu (expected %zu tokens)",
+            token_index,
+            count);
+    return OAK_TEST_TOKENS_MISSING;
   }
 
   return OAK_TEST_OK;

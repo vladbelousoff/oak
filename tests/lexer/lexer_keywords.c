@@ -3,93 +3,34 @@
 OAK_TEST_DECL(LexKeywords)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX(
-      "let mut if else while for break continue return true false and or not");
+      "and as break continue else enum false fn for from if import in let mut "
+      "new not or return self record to true while");
 
   static struct oak_expected_token_t expected_tokens[] = {
-    {
-        .kind = OAK_TOKEN_LET,
-        .line = 1,
-        .column = 1,
-        .offset = 1,
-    },
-    {
-        .kind = OAK_TOKEN_MUT,
-        .line = 1,
-        .column = 5,
-        .offset = 5,
-    },
-    {
-        .kind = OAK_TOKEN_IF,
-        .line = 1,
-        .column = 9,
-        .offset = 9,
-    },
-    {
-        .kind = OAK_TOKEN_ELSE,
-        .line = 1,
-        .column = 12,
-        .offset = 12,
-    },
-    {
-        .kind = OAK_TOKEN_WHILE,
-        .line = 1,
-        .column = 17,
-        .offset = 17,
-    },
-    {
-        .kind = OAK_TOKEN_FOR,
-        .line = 1,
-        .column = 23,
-        .offset = 23,
-    },
-    {
-        .kind = OAK_TOKEN_BREAK,
-        .line = 1,
-        .column = 27,
-        .offset = 27,
-    },
-    {
-        .kind = OAK_TOKEN_CONTINUE,
-        .line = 1,
-        .column = 33,
-        .offset = 33,
-    },
-    {
-        .kind = OAK_TOKEN_RETURN,
-        .line = 1,
-        .column = 42,
-        .offset = 42,
-    },
-    {
-        .kind = OAK_TOKEN_TRUE,
-        .line = 1,
-        .column = 49,
-        .offset = 49,
-    },
-    {
-        .kind = OAK_TOKEN_FALSE,
-        .line = 1,
-        .column = 54,
-        .offset = 54,
-    },
-    {
-        .kind = OAK_TOKEN_AND,
-        .line = 1,
-        .column = 60,
-        .offset = 60,
-    },
-    {
-        .kind = OAK_TOKEN_OR,
-        .line = 1,
-        .column = 64,
-        .offset = 64,
-    },
-    {
-        .kind = OAK_TOKEN_NOT,
-        .line = 1,
-        .column = 67,
-        .offset = 67,
-    },
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_AND, 1),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_AS, 5),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_BREAK, 8),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_CONTINUE, 14),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_ELSE, 23),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_ENUM, 28),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_FALSE, 33),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_FN, 39),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_FOR, 42),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_FROM, 46),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_IF, 51),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_IMPORT, 54),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_IN, 61),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LET, 64),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_MUT, 68),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_NEW, 72),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_NOT, 76),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_OR, 80),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RETURN, 83),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_SELF, 90),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RECORD, 95),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_TO, 102),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_TRUE, 105),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_WHILE, 110),
   };
 
   const usize n = oak_count_of(expected_tokens);
