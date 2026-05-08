@@ -1,7 +1,0 @@
-import util.math;
-
-let x = math.double(21);
-print(x);
-
-let y = math.add(10, 32);
-print(y);

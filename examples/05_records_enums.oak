@@ -1,0 +1,68 @@
+print('05 records and enums');
+
+enum Status { Planned, Active, Done }
+
+record Point {
+  x : number;
+  y : number;
+
+  fn sum(self) -> number {
+    return self.x + self.y;
+  }
+
+  fn move_by(mut self, dx : number, dy : number) {
+    self.x = self.x + dx;
+    self.y = self.y + dy;
+  }
+
+  fn dist_sq(self, other : Point) -> number {
+    let dx = self.x - other.x;
+    let dy = self.y - other.y;
+    return dx * dx + dy * dy;
+  }
+}
+
+record Job {
+  title : string;
+  status : Status;
+  location : Point;
+
+  fn label(self) -> string {
+    return self.title;
+  }
+}
+
+fn status_name(status : Status) -> string {
+  if status == Status.Planned {
+    return 'planned';
+  }
+  if status == Status.Active {
+    return 'active';
+  }
+  return 'done';
+}
+
+let origin = new Point { x : 0, y : 0 };
+let mut p = new Point { x : 3, y : 4 };
+print(p.sum());
+print(p.dist_sq(origin));
+
+p.move_by(10, -2);
+print(p.x);
+print(p.y);
+
+let job = new Job {
+  title : 'release',
+  status : Status.Planned,
+  location : p
+};
+
+print(job.label());
+print(status_name(job.status));
+let done = new Job {
+  title : 'archive',
+  status : Status.Done,
+  location : origin
+};
+print(status_name(done.status));
+print(job.location.x);

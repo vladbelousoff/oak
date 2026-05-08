@@ -1,0 +1,3 @@
+import cycle.a;
+
+print(a.value());

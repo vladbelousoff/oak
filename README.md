@@ -33,7 +33,7 @@ A few flags are supported:
 ctest --test-dir build -C Debug
 ```
 
-Two flavors run side by side: small C harnesses (one per `.c` file under `tests/`) and golden script tests that execute every `.oak` file under `tests/scripts/` and diff its stdout against a `.expected` file. Scripts ending in `_main.oak` inside subdirectories are entry points for multi-file tests (see the import examples). A `.expected_error` file flips a test into "must fail with this stderr" mode.
+Two flavors run side by side: focused C harnesses under `tests/` and example smoke tests that execute every top-level `.oak` file under `examples/` plus every `_main.oak` entry point below it. A `.expected_error` file marks an example as "must fail"; otherwise the example must exit successfully.
 
 ## Web playground
 

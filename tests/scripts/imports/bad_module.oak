@@ -1,5 +1,0 @@
-print(42);
-
-fn usable() -> number {
-  return 1;
-}

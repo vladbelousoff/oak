@@ -1,5 +1,0 @@
-let path = 'tests/scripts/read_text_file_data.txt';
-let f = File.open(path, FileMode.Read);
-let text = f.read_all();
-f.close();
-print(text);

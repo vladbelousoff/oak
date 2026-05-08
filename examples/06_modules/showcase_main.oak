@@ -1,0 +1,19 @@
+import analytics.stats as stats;
+import domain.project as project;
+
+print('06 modules');
+
+let values = [3, 5, 8, 13];
+print(stats.sum(values));
+print(stats.average(values));
+
+let high = project.Priority.High;
+let mut task = project.make_task('ship examples', 8, high);
+print(task.title);
+print(task.points);
+print(project.priority_name(task.priority));
+print(task.done);
+
+project.finish(task);
+print(task.done);
+print(project.summary(task));

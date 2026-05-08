@@ -1,0 +1,14 @@
+fn sum(values : number[]) -> number {
+  let mut total = 0;
+  for value in values {
+    total += value;
+  }
+  return total;
+}
+
+fn average(values : number[]) -> number {
+  if values.size() == 0 {
+    return 0;
+  }
+  return sum(values) / values.size();
+}

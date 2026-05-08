@@ -1,0 +1,5 @@
+import cycle.b;
+
+fn value() -> number {
+  return b.value();
+}

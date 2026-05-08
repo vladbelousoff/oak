@@ -1,0 +1,21 @@
+print('01 values');
+
+let answer = 40 + 2;
+print(answer);
+
+let ratio = 9.0 / 2.0;
+print(ratio);
+
+let ready = answer == 42 and ratio > 4;
+print(ready);
+
+let mut stock = 10;
+stock += 5;
+stock *= 2;
+print(stock);
+
+let words = ['Oak', 'scripts'];
+print('{} {}'.format(words));
+
+let nums = [2, 3, 5];
+print('{0}+{1}={2}'.format(nums));

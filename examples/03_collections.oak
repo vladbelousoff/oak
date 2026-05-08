@@ -1,0 +1,38 @@
+print('03 collections');
+
+let mut scores = [] as number[];
+scores.push(10);
+scores.push(20);
+scores.push(30);
+print(scores.size());
+
+let mut total = 0;
+for score in scores {
+  total += score;
+}
+print(total);
+
+for i, score in scores {
+  print(i);
+  print(score);
+}
+
+scores[1] = 25;
+print(scores[1]);
+
+let mut inventory = [:] as [string:number];
+inventory['apples'] = 4;
+inventory['pears'] = 6;
+inventory['plums'] = 3;
+
+print(inventory.size());
+print(inventory['pears']);
+print(inventory.has('apples'));
+print(inventory.delete('plums'));
+print(inventory.has('plums'));
+
+let mut fruit_total = 0;
+for name, count in inventory {
+  fruit_total += count;
+}
+print(fruit_total);

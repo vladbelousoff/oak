@@ -1,9 +1,0 @@
-fn half(x : number) -> number {
-  return x / 2;
-}
-
-fn sum_halves(a : number, b : number) -> number {
-  return half(a) + half(b);
-}
-
-print(sum_halves(10, 14));

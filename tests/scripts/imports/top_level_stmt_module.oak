@@ -1,3 +1,0 @@
-fn top_fn() -> number {
-  return 42;
-}

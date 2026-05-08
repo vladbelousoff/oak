@@ -44,6 +44,46 @@ OAK_TEST_DECL(FnCallTooManyArgsRejected)
       "print(add(1, 2, 3));\n");
 }
 
+OAK_TEST_DECL(FnCallArgTypeMismatchRejected)
+{
+  return expect_compile_error(
+      "fn echo(s : string) -> number { return 1; }\n"
+      "print(echo(42));\n");
+}
+
+/* =========================================================================
+ * Module-scope visibility
+ * ========================================================================= */
+
+OAK_TEST_DECL(ModuleScopeNameNotReadableInFunction)
+{
+  return expect_compile_error(
+      "let g = 1;\n"
+      "fn f() -> number { return g; }\n");
+}
+
+OAK_TEST_DECL(ModuleScopeNameNotAssignableInFunction)
+{
+  return expect_compile_error(
+      "let mut g = 1;\n"
+      "fn f() { g = 2; }\n");
+}
+
+OAK_TEST_DECL(ModuleScopeNameNotReadableInMethod)
+{
+  return expect_compile_error(
+      "record R { x : number;\n"
+      "  fn m(self) -> number { return g; }\n"
+      "}\n"
+      "let g = 1;\n");
+}
+
+OAK_TEST_DECL(LocalShadowsModuleScopeNameOk)
+{
+  return expect_ok("let g = 1;\n"
+                   "fn f() -> number { let g = 2; return g; }\n");
+}
+
 /* =========================================================================
  * Type lookups
  * ========================================================================= */
@@ -97,6 +137,11 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(AssignToImmutableBindingRejected),
     OAK_TEST_ENTRY(FnCallTooFewArgsRejected),
     OAK_TEST_ENTRY(FnCallTooManyArgsRejected),
+    OAK_TEST_ENTRY(FnCallArgTypeMismatchRejected),
+    OAK_TEST_ENTRY(ModuleScopeNameNotReadableInFunction),
+    OAK_TEST_ENTRY(ModuleScopeNameNotAssignableInFunction),
+    OAK_TEST_ENTRY(ModuleScopeNameNotReadableInMethod),
+    OAK_TEST_ENTRY(LocalShadowsModuleScopeNameOk),
     OAK_TEST_ENTRY(UnknownRecordTypeRejected),
     OAK_TEST_ENTRY(UnknownFieldOnRecordRejected),
     OAK_TEST_ENTRY(UnknownMethodOnRecordRejected),

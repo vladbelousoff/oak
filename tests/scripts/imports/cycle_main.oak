@@ -1,3 +1,0 @@
-import cycle.a;
-
-print(a.from_a());

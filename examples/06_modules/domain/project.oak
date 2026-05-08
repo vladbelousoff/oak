@@ -1,0 +1,38 @@
+enum Priority { Low, Normal, High }
+
+record Task {
+  title : string;
+  points : number;
+  priority : Priority;
+  done : bool;
+}
+
+fn make_task(title : string, points : number, priority : Priority) -> Task {
+  return new Task {
+    title : title,
+    points : points,
+    priority : priority,
+    done : false
+  };
+}
+
+fn priority_name(priority : Priority) -> string {
+  if priority == Priority.Low {
+    return 'low';
+  }
+  if priority == Priority.Normal {
+    return 'normal';
+  }
+  return 'high';
+}
+
+fn finish(mut task : Task) {
+  task.done = true;
+}
+
+fn summary(task : Task) -> string {
+  if task.done {
+    return task.title + ' done';
+  }
+  return task.title + ' open';
+}
