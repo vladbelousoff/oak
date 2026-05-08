@@ -1,7 +1,0 @@
-print('08 file io');
-
-let file = File.open('examples/09_file_io/message.txt', FileMode.Read);
-let text = file.read_all();
-file.close();
-
-print(text);

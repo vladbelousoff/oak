@@ -28,6 +28,11 @@ function wasmDevPlugin() {
 export default defineConfig(({ command }) => ({
   root: 'www',
   base: command === 'build' ? '/oak/' : '/',
+  resolve: {
+    alias: {
+      '@examples': path.resolve(projectRoot, 'examples'),
+    },
+  },
   plugins: [wasmDevPlugin()],
   server: { open: '/' },
   build: {

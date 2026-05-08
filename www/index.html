@@ -39,23 +39,8 @@
       letter-spacing: 0.5px;
     }
 
-    #examples-select {
-      margin-left: auto;
-      padding: 5px 10px;
-      background: #313244;
-      color: #cdd6f4;
-      border: 1px solid #45475a;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 13px;
-      cursor: pointer;
-      outline: none;
-    }
-
-    #examples-select:hover { border-color: #cba6f7; }
-    #examples-select option { background: #181825; }
-
     #run-btn {
+      margin-left: auto;
       padding: 5px 16px;
       background: #cba6f7;
       color: #1e1e2e;
@@ -73,6 +58,93 @@
 
     #status {
       font-size: 12px;
+      color: #6c7086;
+    }
+
+    .workspace {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .file-tree {
+      display: flex;
+      flex-direction: column;
+      width: 280px;
+      min-width: 220px;
+      background: #181825;
+      border-right: 1px solid #313244;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #examples-tree {
+      flex: 1;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    .tree-list {
+      list-style: none;
+    }
+
+    .tree-list .tree-list {
+      margin-left: 14px;
+    }
+
+    .tree-dir {
+      margin: 2px 0;
+    }
+
+    .tree-dir summary {
+      color: #bac2de;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      user-select: none;
+    }
+
+    .tree-dir summary:hover {
+      background: #313244;
+    }
+
+    .tree-file {
+      margin: 2px 0;
+    }
+
+    .tree-file button,
+    .tree-file span {
+      display: block;
+      width: 100%;
+      min-height: 26px;
+      padding: 4px 6px;
+      overflow: hidden;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 12px;
+    }
+
+    .tree-file button {
+      color: #cdd6f4;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .tree-file button:hover {
+      background: #313244;
+    }
+
+    .tree-file button.active {
+      background: #45475a;
+      color: #f5e0dc;
+    }
+
+    .tree-file span {
       color: #6c7086;
     }
 
@@ -137,22 +209,27 @@
       }
 
       #status {
-        order: 3;
-        flex-basis: 100%;
-        margin-top: 2px;
-      }
-
-      #examples-select {
-        margin-left: 0;
         flex: 1;
         min-width: 0;
-        padding: 8px 10px;
-        font-size: 13px;
+        text-align: right;
       }
 
       #run-btn {
+        margin-left: 0;
         padding: 8px 18px;
         font-size: 13px;
+      }
+
+      .workspace {
+        flex-direction: column;
+      }
+
+      .file-tree {
+        width: 100%;
+        min-width: 0;
+        height: 180px;
+        border-right: none;
+        border-bottom: 1px solid #313244;
       }
 
       .panels {
@@ -179,47 +256,22 @@
   <header>
     <h1>Oak Playground</h1>
     <span id="status">Loading...</span>
-    <select id="examples-select" title="Load an example">
-      <option value="">Examples…</option>
-      <optgroup label="Basics">
-        <option value="hello">Hello World</option>
-        <option value="variables">Variables &amp; Operators</option>
-        <option value="strings">Strings &amp; Formatting</option>
-      </optgroup>
-      <optgroup label="Control Flow">
-        <option value="control_flow">If / For / While</option>
-        <option value="break_continue">Break &amp; Continue</option>
-      </optgroup>
-      <optgroup label="Functions">
-        <option value="functions">Functions</option>
-        <option value="recursion">Recursion</option>
-        <option value="mutual_recursion">Mutual Recursion</option>
-      </optgroup>
-      <optgroup label="Collections">
-        <option value="arrays">Arrays</option>
-        <option value="maps">Maps</option>
-      </optgroup>
-      <optgroup label="Records">
-        <option value="records">Records &amp; Methods</option>
-      </optgroup>
-      <optgroup label="Algorithms">
-        <option value="fizzbuzz">FizzBuzz</option>
-        <option value="fibonacci">Fibonacci</option>
-        <option value="primes">Primes</option>
-        <option value="collatz">Collatz Sequence</option>
-        <option value="bubble_sort">Bubble Sort</option>
-      </optgroup>
-    </select>
     <button id="run-btn" disabled>Run</button>
   </header>
-  <div class="panels">
-    <div class="panel">
-      <div class="panel-label">Input</div>
-      <div id="editor"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-label">Output</div>
-      <div id="output"><span class="placeholder">Output will appear here.</span></div>
+  <div class="workspace">
+    <aside class="file-tree">
+      <div class="panel-label">Examples</div>
+      <nav id="examples-tree" aria-label="Examples"></nav>
+    </aside>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-label">Input</div>
+        <div id="editor"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-label">Output</div>
+        <div id="output"><span class="placeholder">Output will appear here.</span></div>
+      </div>
     </div>
   </div>
 

@@ -1,0 +1,5 @@
+let file = File.open('examples/08_file_io/message.txt', FileMode.Read);
+let text = file.read_all();
+file.close();
+
+print(text);

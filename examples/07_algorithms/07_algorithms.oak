@@ -1,5 +1,3 @@
-print('07 algorithms');
-
 fn is_prime(n : number) -> bool {
   if n < 2 {
     return false;

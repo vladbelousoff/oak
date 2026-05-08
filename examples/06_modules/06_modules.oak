@@ -1,8 +1,6 @@
 import analytics.stats as stats;
 import domain.project as project;
 
-print('06 modules');
-
 let values = [3, 5, 8, 13];
 print(stats.sum(values));
 print(stats.average(values));

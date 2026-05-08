@@ -1,9 +1,0 @@
-let mut a = 0;
-let mut b = 1;
-
-for i from 0 to 20 {
-  print(a);
-  let mut tmp = a + b;
-  a = b;
-  b = tmp;
-}

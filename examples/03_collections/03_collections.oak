@@ -1,5 +1,3 @@
-print('03 collections');
-
 let mut scores = [] as number[];
 scores.push(10);
 scores.push(20);
