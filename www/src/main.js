@@ -118,6 +118,9 @@ window.OakModule({
   printErr: (text) => { if (oakRunFile) captured.push({ text, err: true }); },
 }).then(module => {
   wasmFS = module.FS;
+  if (!wasmFS) {
+    throw new Error('WASM filesystem API is unavailable; refresh the page to load the latest runtime.');
+  }
   mountExamples(wasmFS);
   ensureDir(wasmFS, '/playground');
   oakRunFile = module.cwrap('oak_run_file_wrapper', 'number', ['string']);
