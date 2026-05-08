@@ -76,12 +76,17 @@ const output  = document.getElementById('output');
 const runBtn  = document.getElementById('run-btn');
 const status  = document.getElementById('status');
 const examplesTree = document.getElementById('examples-tree');
+const WASM_ASSET_VERSION = 'examples-tree-fs-v2';
 
 // ── WASM ──────────────────────────────────────────────────────────────────────
 let oakRunFile = null;
 let wasmFS = null;
 let captured = [];
 let activeEntryPath = '/playground/main.oak';
+
+function clearOutput() {
+  output.innerHTML = '';
+}
 
 function appendOutput(text, isErr) {
   const line = document.createElement('span');
@@ -93,7 +98,7 @@ function appendOutput(text, isErr) {
 
 function run() {
   if (!oakRunFile || !wasmFS) return;
-  output.innerHTML = '';
+  clearOutput();
   captured = [];
   const code = view.state.doc.toString();
   let exitCode;
@@ -114,6 +119,12 @@ function run() {
 }
 
 window.OakModule({
+  locateFile: (path, prefix) => {
+    if (path.endsWith('.wasm')) {
+      return `${prefix}${path}?v=${WASM_ASSET_VERSION}`;
+    }
+    return prefix + path;
+  },
   print:    (text) => { if (oakRunFile) captured.push({ text, err: false }); },
   printErr: (text) => { if (oakRunFile) captured.push({ text, err: true }); },
 }).then(module => {
@@ -128,6 +139,7 @@ window.OakModule({
   status.textContent = 'Ready';
 }).catch(err => {
   status.textContent = 'Failed to load';
+  clearOutput();
   appendOutput('Failed to load WASM module: ' + err, true);
 });
 
