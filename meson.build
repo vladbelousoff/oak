@@ -22,6 +22,7 @@ platform_defines = is_msvc ? ['-D_CRT_SECURE_NO_WARNINGS'] : ['-D_XOPEN_SOURCE=7
 common_c_args = warning_args + debug_defines + platform_defines
 
 yyjson_dep = dependency('yyjson')
+math_dep = cc.find_library('m', required: false)
 
 src_inc = include_directories(
   'src',
@@ -82,13 +83,13 @@ acorn = static_library(
   oak_core_sources,
   include_directories: [public_inc, src_inc],
   c_args: common_c_args,
-  dependencies: yyjson_dep,
+  dependencies: [yyjson_dep, math_dep],
 )
 
 acorn_dep = declare_dependency(
   link_with: acorn,
   include_directories: public_inc,
-  dependencies: yyjson_dep,
+  dependencies: [yyjson_dep, math_dep],
 )
 
 if is_emscripten

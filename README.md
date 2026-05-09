@@ -212,6 +212,10 @@ Number helpers:
 | `to_float(v)` | convert a number to a float                       |
 | `is_int(v)`   | is the value stored as an integer number          |
 | `is_float(v)` | is the value stored as a floating-point number    |
+| `sqrt(v)`     | square root                                       |
+| `sin(v)`      | sine, in radians                                  |
+| `cos(v)`      | cosine, in radians                                |
+| `tan(v)`      | tangent, in radians                               |
 
 There's also a small `File` type:
 

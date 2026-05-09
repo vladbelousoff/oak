@@ -1,5 +1,7 @@
 #include "internal/oak_compiler.h"
 
+#include <math.h>
+
 /* Interns a freshly-allocated native function as a chunk constant and returns
  * its index. The chunk takes ownership of the single allocation reference. */
 u16 oak_compiler_intern_native_constant(struct oak_compiler_t* c,
@@ -127,6 +129,11 @@ static int builtin_number_as_i32(const struct oak_value_t value)
   return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
 }
 
+static float builtin_number_as_f32(const struct oak_value_t value)
+{
+  return oak_is_f32(value) ? oak_as_f32(value) : (float)oak_as_i32(value);
+}
+
 static enum oak_fn_call_result_t builtin_intdiv(struct oak_native_ctx_t* ctx,
                                                 const struct oak_value_t* args,
                                                 int argc,
@@ -164,9 +171,7 @@ static enum oak_fn_call_result_t builtin_to_float(struct oak_native_ctx_t* ctx,
   (void)ctx;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const float value = oak_is_f32(args[0]) ? oak_as_f32(args[0])
-                                          : (float)oak_as_i32(args[0]);
-  *out_result = OAK_VALUE_F32(value);
+  *out_result = OAK_VALUE_F32(builtin_number_as_f32(args[0]));
   return OAK_FN_CALL_OK;
 }
 
@@ -194,6 +199,57 @@ static enum oak_fn_call_result_t builtin_is_float(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
+static enum oak_fn_call_result_t builtin_sqrt(struct oak_native_ctx_t* ctx,
+                                              const struct oak_value_t* args,
+                                              int argc,
+                                              struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const float value = builtin_number_as_f32(args[0]);
+  if (value < 0.0f)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_F32(sqrtf(value));
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_sin(struct oak_native_ctx_t* ctx,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_F32(sinf(builtin_number_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_cos(struct oak_native_ctx_t* ctx,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_F32(cosf(builtin_number_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_tan(struct oak_native_ctx_t* ctx,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_F32(tanf(builtin_number_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
 static const struct oak_native_binding_t native_builtins[] = {
   { "print", builtin_print, 1, OAK_TYPE_VOID },
   { "intdiv", builtin_intdiv, 2, OAK_TYPE_NUMBER },
@@ -201,6 +257,10 @@ static const struct oak_native_binding_t native_builtins[] = {
   { "to_float", builtin_to_float, 1, OAK_TYPE_NUMBER },
   { "is_int", builtin_is_int, 1, OAK_TYPE_BOOL },
   { "is_float", builtin_is_float, 1, OAK_TYPE_BOOL },
+  { "sqrt", builtin_sqrt, 1, OAK_TYPE_NUMBER },
+  { "sin", builtin_sin, 1, OAK_TYPE_NUMBER },
+  { "cos", builtin_cos, 1, OAK_TYPE_NUMBER },
+  { "tan", builtin_tan, 1, OAK_TYPE_NUMBER },
 };
 
 void oak_compiler_register_native_builtins(struct oak_compiler_t* c)

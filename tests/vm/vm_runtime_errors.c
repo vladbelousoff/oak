@@ -43,6 +43,14 @@ OAK_TEST_DECL(NumberConversionTypeRuntime)
   return expect_runtime_error("print(to_int('x'));\n");
 }
 
+/* Math helpers reject invalid operands. */
+OAK_TEST_DECL(MathBuiltinRuntime)
+{
+  OAK_CHECK(expect_runtime_error("print(sqrt(-1));\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_runtime_error("print(sin('x'));\n") == OAK_TEST_OK);
+  return OAK_TEST_OK;
+}
+
 /* Integer modulo by zero is a runtime error. */
 OAK_TEST_DECL(IntModuloByZeroRuntime)
 {
@@ -68,6 +76,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(NumberDivisionByZeroRuntime),
     OAK_TEST_ENTRY(IntDivByZeroRuntime),
     OAK_TEST_ENTRY(NumberConversionTypeRuntime),
+    OAK_TEST_ENTRY(MathBuiltinRuntime),
     OAK_TEST_ENTRY(IntModuloByZeroRuntime),
     OAK_TEST_ENTRY(CallFrameOverflowRuntime),
   };
