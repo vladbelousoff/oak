@@ -1,6 +1,6 @@
 # Oak
 
-Oak is a small scripting language. It's dynamically typed, compiles to bytecode, and runs on a stack-based VM. Everything is written in C17, with no real external dependencies beyond a tiny JSON library pulled in via CMake's FetchContent.
+Oak is a small scripting language. It's dynamically typed, compiles to bytecode, and runs on a stack-based VM. Everything is written in C17, with no real external dependencies beyond a tiny JSON library pulled in via Meson WrapDB.
 
 There's also a browser playground that runs the same VM compiled to WebAssembly — handy for poking at the language without setting up a toolchain.
 
@@ -8,11 +8,11 @@ There's also a browser playground that runs the same VM compiled to WebAssembly 
 
 ## Building
 
-You'll need CMake 3.20+ and any C17 compiler (MSVC 2022, GCC, and Clang all work).
+You'll need Meson, Ninja, and any C17 compiler (MSVC 2022, GCC, and Clang all work).
 
 ```sh
-cmake -S . -B build
-cmake --build build
+meson setup build
+meson compile -C build
 ```
 
 That gives you the `oak` executable. Run a script with:
@@ -30,18 +30,18 @@ A few flags are supported:
 ## Tests
 
 ```sh
-ctest --test-dir build -C Debug
+meson test -C build
 ```
 
-Two flavors run side by side: focused C harnesses under `tests/` and example smoke tests that execute every top-level `.oak` file under `examples/` plus every `_main.oak` entry point below it. A `.expected_error` file marks an example as "must fail"; otherwise the example must exit successfully.
+Two flavors run side by side: focused C harnesses under `tests/` and example smoke tests that execute top-level examples under `examples/*/*.oak`. A `.expected_error` file marks an example as "must fail"; otherwise the example must exit successfully.
 
 ## Web playground
 
 The `www/` directory has a Vite-based playground that loads the WASM build. To play with it:
 
 ```sh
-emcmake cmake -S . -B build_wasm
-cmake --build build_wasm
+meson setup build_wasm --cross-file meson/cross/emscripten.ini
+meson compile -C build_wasm
 npm install
 npm run dev
 ```

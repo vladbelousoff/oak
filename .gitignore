@@ -3,3 +3,7 @@ build*/
 node_modules/
 www/public/
 _site/
+subprojects/*
+!subprojects/*.wrap
+!subprojects/packagefiles/
+!subprojects/packagefiles/**

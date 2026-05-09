@@ -10,7 +10,7 @@ Run any example entry point with:
 ./build/oak examples/01_values/01_values.oak
 ```
 
-CTest runs these examples as smoke tests. A `.expected_error` file marks an
+Meson runs these examples as smoke tests. A `.expected_error` file marks an
 example as intentionally failing; otherwise the example must exit successfully.
 Each runnable example lives in a folder with the same name as its entry file.
 

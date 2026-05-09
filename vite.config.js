@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
-// In dev, proxy /build_wasm/* straight from the cmake output directory,
+// In dev, proxy /build_wasm/* straight from the Meson output directory,
 // since Vite root is www/ and can't reach ../build_wasm/ on its own.
 function wasmDevPlugin() {
   return {
