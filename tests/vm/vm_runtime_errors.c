@@ -23,11 +23,24 @@ OAK_TEST_DECL(MapMissingKeyRuntime)
                               "print(m['nope']);\n");
 }
 
-/* Integer division by zero is a runtime error. */
-OAK_TEST_DECL(IntDivisionByZeroRuntime)
+/* Number division by zero is a runtime error. */
+OAK_TEST_DECL(NumberDivisionByZeroRuntime)
 {
   return expect_runtime_error("let x = 1 / 0;\n"
                               "print(x);\n");
+}
+
+/* Integer division by zero through intdiv is a runtime error. */
+OAK_TEST_DECL(IntDivByZeroRuntime)
+{
+  return expect_runtime_error("let x = intdiv(1, 0);\n"
+                              "print(x);\n");
+}
+
+/* Numeric conversions reject non-number operands. */
+OAK_TEST_DECL(NumberConversionTypeRuntime)
+{
+  return expect_runtime_error("print(to_int('x'));\n");
 }
 
 /* Integer modulo by zero is a runtime error. */
@@ -52,7 +65,9 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(ArrayIndexOutOfBoundsRuntime),
     OAK_TEST_ENTRY(ArrayNegativeIndexRuntime),
     OAK_TEST_ENTRY(MapMissingKeyRuntime),
-    OAK_TEST_ENTRY(IntDivisionByZeroRuntime),
+    OAK_TEST_ENTRY(NumberDivisionByZeroRuntime),
+    OAK_TEST_ENTRY(IntDivByZeroRuntime),
+    OAK_TEST_ENTRY(NumberConversionTypeRuntime),
     OAK_TEST_ENTRY(IntModuloByZeroRuntime),
     OAK_TEST_ENTRY(CallFrameOverflowRuntime),
   };

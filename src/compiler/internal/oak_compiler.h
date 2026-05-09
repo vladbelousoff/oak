@@ -357,6 +357,7 @@ struct oak_native_binding_t
   const char* name;
   oak_native_fn_t impl;
   int arity;
+  oak_type_id_t return_type_id;
 };
 
 /* ---------- oak_compiler_error.c ---------- */

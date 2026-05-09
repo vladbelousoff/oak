@@ -22,6 +22,7 @@ static void register_native_fn(struct oak_compiler_t* c,
     .name_len = strlen(binding->name),
     .const_idx = idx,
     .arity = binding->arity,
+    .return_type_id = binding->return_type_id,
     .decl = null,
   };
   oak_fn_registry_insert(&c->fns, &entry);
@@ -121,8 +122,85 @@ builtin_to_string(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
+static int builtin_number_as_i32(const struct oak_value_t value)
+{
+  return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
+}
+
+static enum oak_fn_call_result_t builtin_intdiv(struct oak_native_ctx_t* ctx,
+                                                const struct oak_value_t* args,
+                                                int argc,
+                                                struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+
+  const int divisor = builtin_number_as_i32(args[1]);
+  if (divisor == 0)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+
+  *out_result = OAK_VALUE_I32(builtin_number_as_i32(args[0]) / divisor);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_to_int(struct oak_native_ctx_t* ctx,
+                                                const struct oak_value_t* args,
+                                                int argc,
+                                                struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_I32(builtin_number_as_i32(args[0]));
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_to_float(struct oak_native_ctx_t* ctx,
+                                                  const struct oak_value_t* args,
+                                                  int argc,
+                                                  struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const float value = oak_is_f32(args[0]) ? oak_as_f32(args[0])
+                                          : (float)oak_as_i32(args[0]);
+  *out_result = OAK_VALUE_F32(value);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_is_int(struct oak_native_ctx_t* ctx,
+                                                const struct oak_value_t* args,
+                                                int argc,
+                                                struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_BOOL(oak_is_i32(args[0]));
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_is_float(struct oak_native_ctx_t* ctx,
+                                                  const struct oak_value_t* args,
+                                                  int argc,
+                                                  struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_BOOL(oak_is_f32(args[0]));
+  return OAK_FN_CALL_OK;
+}
+
 static const struct oak_native_binding_t native_builtins[] = {
-  { "print", builtin_print, 1 },
+  { "print", builtin_print, 1, OAK_TYPE_VOID },
+  { "intdiv", builtin_intdiv, 2, OAK_TYPE_NUMBER },
+  { "to_int", builtin_to_int, 1, OAK_TYPE_NUMBER },
+  { "to_float", builtin_to_float, 1, OAK_TYPE_NUMBER },
+  { "is_int", builtin_is_int, 1, OAK_TYPE_BOOL },
+  { "is_float", builtin_is_float, 1, OAK_TYPE_BOOL },
 };
 
 void oak_compiler_register_native_builtins(struct oak_compiler_t* c)

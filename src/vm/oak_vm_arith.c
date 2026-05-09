@@ -10,7 +10,7 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
                                            const struct oak_value_t a,
                                            const struct oak_value_t b)
 {
-  if (oak_is_i32(a) && oak_is_i32(b))
+  if (oak_is_i32(a) && oak_is_i32(b) && binop != OAK_BINOP_DIVIDE)
   {
     int result;
     switch (binop)
@@ -23,14 +23,6 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
         break;
       case OAK_BINOP_MULTIPLY:
         result = oak_as_i32(a) * oak_as_i32(b);
-        break;
-      case OAK_BINOP_DIVIDE:
-        if (oak_as_i32(b) == 0)
-        {
-          oak_vm_runtime_error(vm, "integer division by zero");
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        result = oak_as_i32(a) / oak_as_i32(b);
         break;
       case OAK_BINOP_MODULO:
         if (oak_as_i32(b) == 0)

@@ -79,7 +79,7 @@ x == y   x != y   x < y    x <= y   x > y    x >= y
 a && b   a || b   !a       -x
 ```
 
-`&&` and `||` short-circuit.
+`/` always returns a float. Use `intdiv(a, b)` for integer division. `&&` and `||` short-circuit.
 
 ### Control flow
 
@@ -202,6 +202,16 @@ Module names use dots for path separators; `as` gives an alias. Cycles are detec
 | `.has(k)`        | map        | does the key exist                    |
 | `.delete(k)`     | map        | remove key, returns whether it existed |
 | `.format(args)`  | string     | `{}` / `{n}` substitution from an array |
+
+Number helpers:
+
+| Function      | What it does                                      |
+|---------------|---------------------------------------------------|
+| `intdiv(a,b)` | integer division after converting operands to int |
+| `to_int(v)`   | convert a number to an integer                    |
+| `to_float(v)` | convert a number to a float                       |
+| `is_int(v)`   | is the value stored as an integer number          |
+| `is_float(v)` | is the value stored as a floating-point number    |
 
 There's also a small `File` type:
 

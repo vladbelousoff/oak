@@ -12,6 +12,19 @@ OAK_TEST_DECL(RuntimeScalarFunctionsAndStrings)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(RuntimeNumberConversionsAndIntDiv)
+{
+  OAK_CHECK(expect_ok("let div = 7 / 2;\n"
+                      "if !is_float(div) { print([1][3]); }\n"
+                      "if to_int(div) != 3 { print([1][3]); }\n"
+                      "if intdiv(7, 2) != 3 { print([1][3]); }\n"
+                      "if !is_int(intdiv(7.9, 2.0)) { print([1][3]); }\n"
+                      "if !is_float(to_float(7)) { print([1][3]); }\n"
+                      "if is_int('x') { print([1][3]); }\n"
+                      "if is_float('x') { print([1][3]); }\n") == OAK_TEST_OK);
+  return OAK_TEST_OK;
+}
+
 OAK_TEST_DECL(RuntimeArrays)
 {
   OAK_CHECK(expect_ok("fn first(arr : number[]) -> number { return arr[0]; }\n"
@@ -113,6 +126,7 @@ int main(const int argc, char* argv[])
   (void)argv;
   static struct oak_test_t tests[] = {
     OAK_TEST_ENTRY(RuntimeScalarFunctionsAndStrings),
+    OAK_TEST_ENTRY(RuntimeNumberConversionsAndIntDiv),
     OAK_TEST_ENTRY(RuntimeArrays),
     OAK_TEST_ENTRY(RuntimeMaps),
     OAK_TEST_ENTRY(RuntimeRecords),
