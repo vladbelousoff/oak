@@ -221,13 +221,13 @@ There's also a small `File` type:
 ```oak
 import io;
 
-let f = io.open('notes.txt', io.FileMode.Read);
+let f = io.File.open('notes.txt', io.FileMode.Read);
 let text = f.read_all();
 f.close();
 print(text);
 ```
 
-`io.File` supports `read`, `read_all`, `write`, `eof`, and `close` on instances. `io.open` takes an `io.FileMode` enum value as its second argument: `io.FileMode.Read`, `io.FileMode.Write`, or `io.FileMode.Append`.
+`io.File` supports `open` as a static method and `read`, `read_all`, `write`, `eof`, and `close` on instances. `io.File.open` takes an `io.FileMode` enum value as its second argument: `io.FileMode.Read`, `io.FileMode.Write`, or `io.FileMode.Append`.
 
 ---
 
