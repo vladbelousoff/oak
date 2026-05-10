@@ -32,6 +32,24 @@ oak_compiler_match_module_member(const struct oak_compiler_t* c,
                                  const struct oak_ast_node_t* node,
                                  const struct oak_token_t** out_member);
 
+/* Like oak_compiler_module_export_fn but for record exports. */
+const struct oak_module_export_record_t*
+oak_compiler_module_export_record(const struct oak_compiler_t* c,
+                                  const char* alias,
+                                  usize alias_len,
+                                  const char* type_name,
+                                  usize type_name_len,
+                                  const struct oak_module_t** out_mod);
+
+/* Like oak_compiler_module_export_fn but for enum exports. */
+const struct oak_module_export_enum_t*
+oak_compiler_module_export_enum(const struct oak_compiler_t* c,
+                                const char* alias,
+                                usize alias_len,
+                                const char* enum_name,
+                                usize enum_name_len,
+                                const struct oak_module_t** out_mod);
+
 /* Read at most `cap` IMPORT_PATH segments into out_segs[].
  * Returns the total number of segments (may exceed cap if the path is longer).
  * Used by record-literal compilation to split `Type` vs `mod.Type`. */

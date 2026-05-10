@@ -161,7 +161,7 @@ void apply_native_module_function_exports(
         !native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const int eidx =
-        oak_htable_get(&mod->exports_fn_by_name, fn->name, strlen(fn->name));
+        oak_htable_get(&mod->exports_fn.by_name, fn->name, strlen(fn->name));
     if (eidx < 0)
       continue;
     struct oak_obj_native_fn_t* native =
@@ -402,7 +402,7 @@ struct oak_module_t* create_native_module(
                     &mod->exports_fn.capacity,
                     &exp,
                     sizeof(exp));
-    oak_htable_insert(&mod->exports_fn_by_name, exp.name, exp.name_len, idx);
+    oak_htable_insert(&mod->exports_fn.by_name, exp.name, exp.name_len, idx);
   }
 
   for (int i = 0; i < opts->native_types.count; ++i)
@@ -430,7 +430,7 @@ struct oak_module_t* create_native_module(
                     &exp,
                     sizeof(exp));
     oak_htable_insert(
-        &mod->exports_record_by_name, exp.name, exp.name_len, idx);
+        &mod->exports_record.by_name, exp.name, exp.name_len, idx);
   }
 
   for (int i = 0; i < opts->native_enums.count; ++i)
@@ -456,7 +456,7 @@ struct oak_module_t* create_native_module(
                     &mod->exports_enum.capacity,
                     &exp,
                     sizeof(exp));
-    oak_htable_insert(&mod->exports_enum_by_name, exp.name, exp.name_len, idx);
+    oak_htable_insert(&mod->exports_enum.by_name, exp.name, exp.name_len, idx);
   }
 
   mod->state = OAK_MOD_COMPILED;

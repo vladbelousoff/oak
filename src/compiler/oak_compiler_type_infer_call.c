@@ -22,13 +22,12 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
       recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
   {
-    const struct oak_module_t* dep = oak_compiler_module_for_alias(
-        c,
-        oak_token_text(recv->lhs->token),
-        oak_token_length(recv->lhs->token));
-    if (dep && oak_module_find_export_record(dep,
-                                             oak_token_text(recv->rhs->token),
-                                             oak_token_length(recv->rhs->token)))
+    if (oak_compiler_module_export_record(c,
+                                          oak_token_text(recv->lhs->token),
+                                          oak_token_length(recv->lhs->token),
+                                          oak_token_text(recv->rhs->token),
+                                          oak_token_length(recv->rhs->token),
+                                          null))
     {
       const struct oak_registered_record_t* sd =
           oakc_records_find(

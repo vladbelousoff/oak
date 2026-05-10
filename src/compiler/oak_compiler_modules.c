@@ -33,6 +33,40 @@ oak_compiler_module_export_fn(const struct oak_compiler_t* c,
   return oak_module_find_export_fn(mod, fn_name, fn_name_len);
 }
 
+const struct oak_module_export_record_t*
+oak_compiler_module_export_record(const struct oak_compiler_t* c,
+                                  const char* alias,
+                                  usize alias_len,
+                                  const char* type_name,
+                                  usize type_name_len,
+                                  const struct oak_module_t** out_mod)
+{
+  const struct oak_module_t* mod =
+      oak_compiler_module_for_alias(c, alias, alias_len);
+  if (out_mod)
+    *out_mod = mod;
+  if (!mod)
+    return null;
+  return oak_module_find_export_record(mod, type_name, type_name_len);
+}
+
+const struct oak_module_export_enum_t*
+oak_compiler_module_export_enum(const struct oak_compiler_t* c,
+                                const char* alias,
+                                usize alias_len,
+                                const char* enum_name,
+                                usize enum_name_len,
+                                const struct oak_module_t** out_mod)
+{
+  const struct oak_module_t* mod =
+      oak_compiler_module_for_alias(c, alias, alias_len);
+  if (out_mod)
+    *out_mod = mod;
+  if (!mod)
+    return null;
+  return oak_module_find_export_enum(mod, enum_name, enum_name_len);
+}
+
 const struct oak_module_t*
 oak_compiler_match_module_member(const struct oak_compiler_t* c,
                                  const struct oak_ast_node_t* node,

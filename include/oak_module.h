@@ -70,7 +70,7 @@ struct oak_module_export_enum_t
       variants[OAK_MODULE_MAX_ENUM_VARIANTS];
 };
 
-/* ----- Concrete dynamic-array types used by the module system ----- */
+/* ----- Dynamic-array type for module-id lists ----- */
 
 struct oak_u16_vec_t
 {
@@ -78,20 +78,28 @@ struct oak_u16_vec_t
   int count;
   int capacity;
 };
-struct oak_export_fn_vec_t
+
+/* ----- Export tables: each bundles a name→index htable with its typed array */
+
+struct oak_fn_export_table_t
 {
+  struct oak_htable_t by_name;
   struct oak_module_export_fn_t* items;
   int count;
   int capacity;
 };
-struct oak_export_rec_vec_t
+
+struct oak_rec_export_table_t
 {
+  struct oak_htable_t by_name;
   struct oak_module_export_record_t* items;
   int count;
   int capacity;
 };
-struct oak_export_enum_vec_t
+
+struct oak_enum_export_table_t
 {
+  struct oak_htable_t by_name;
   struct oak_module_export_enum_t* items;
   int count;
   int capacity;
@@ -120,12 +128,9 @@ struct oak_module_t
   struct oak_u16_vec_t import_modules; /* module_ids of direct deps */
 
   /* Exports (populated post-compile) */
-  struct oak_htable_t exports_fn_by_name;
-  struct oak_export_fn_vec_t exports_fn;
-  struct oak_htable_t exports_record_by_name;
-  struct oak_export_rec_vec_t exports_record;
-  struct oak_htable_t exports_enum_by_name;
-  struct oak_export_enum_vec_t exports_enum;
+  struct oak_fn_export_table_t exports_fn;
+  struct oak_rec_export_table_t exports_record;
+  struct oak_enum_export_table_t exports_enum;
 
   /* Lifecycle */
   enum

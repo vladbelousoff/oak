@@ -31,13 +31,13 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* alias_node = receiver->lhs;
     const struct oak_ast_node_t* type_node = receiver->rhs;
-    const struct oak_module_t* dep = oak_compiler_module_for_alias(
-        c,
-        oak_token_text(alias_node->token),
-        oak_token_length(alias_node->token));
-    if (dep && oak_module_find_export_record(dep,
-                                             oak_token_text(type_node->token),
-                                             oak_token_length(type_node->token)))
+    const struct oak_module_t* dep = null;
+    if (oak_compiler_module_export_record(c,
+                                          oak_token_text(alias_node->token),
+                                          oak_token_length(alias_node->token),
+                                          oak_token_text(type_node->token),
+                                          oak_token_length(type_node->token),
+                                          &dep))
     {
       const struct oak_registered_record_t* sd =
           oakc_records_find(&c->records,

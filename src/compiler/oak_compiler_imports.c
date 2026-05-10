@@ -1,5 +1,12 @@
 #include "internal/oak_compiler.h"
 
+#define OC_FOR_EACH_DEP(c, dep)                                                \
+  if ((c)->module_registry && (c)->current_module)                             \
+    for (int _di = 0; _di < (c)->current_module->import_modules.count; ++_di) \
+      if (((dep) = oak_module_registry_get(                                    \
+               (c)->module_registry,                                           \
+               (c)->current_module->import_modules.items[_di])) != null)
+
 /* Pre-register enum variants from all imported modules so that cross-module
  * `alias.EnumName.Variant` expressions can be resolved.  Variants are stored
  * as small integers; we intern OAK_VALUE_I32(value) as constants in the
@@ -7,16 +14,8 @@
  * Must run BEFORE oakc_register_program_enums. */
 void register_imported_enums(struct oak_compiler_t* c)
 {
-  if (!c->module_registry || !c->current_module)
-    return;
-  const struct oak_module_t* mod = c->current_module;
-  for (int di = 0; di < mod->import_modules.count; ++di)
-  {
-    const u16 dep_id = mod->import_modules.items[di];
-    const struct oak_module_t* dep =
-        oak_module_registry_get(c->module_registry, dep_id);
-    if (!dep)
-      continue;
+  const struct oak_module_t* dep;
+  OC_FOR_EACH_DEP(c, dep)
     for (int ei = 0; ei < dep->exports_enum.count; ++ei)
     {
       const struct oak_module_export_enum_t* exp = &dep->exports_enum.items[ei];
@@ -53,7 +52,6 @@ void register_imported_enums(struct oak_compiler_t* c)
         oak_enum_registry_insert(&c->enums, &ev);
       }
     }
-  }
 }
 
 /* For each imported module in the current module's dependency list,
@@ -63,16 +61,8 @@ void register_imported_enums(struct oak_compiler_t* c)
  * assigned in a consistent topological order across all modules. */
 void register_imported_records(struct oak_compiler_t* c)
 {
-  if (!c->module_registry || !c->current_module)
-    return;
-  const struct oak_module_t* mod = c->current_module;
-  for (int di = 0; di < mod->import_modules.count; ++di)
-  {
-    const u16 dep_id = mod->import_modules.items[di];
-    const struct oak_module_t* dep =
-        oak_module_registry_get(c->module_registry, dep_id);
-    if (!dep)
-      continue;
+  const struct oak_module_t* dep;
+  OC_FOR_EACH_DEP(c, dep)
     for (int ri = 0; ri < dep->exports_record.count; ++ri)
     {
       const struct oak_module_export_record_t* exp =
@@ -102,7 +92,6 @@ void register_imported_records(struct oak_compiler_t* c)
       }
       oak_record_registry_insert(&c->records, &proto);
     }
-  }
 }
 
 /* Populate the current module's export tables from the now-fully-populated
@@ -136,7 +125,7 @@ void populate_module_exports(struct oak_compiler_t* c)
                     &mod->exports_fn.capacity,
                     &exp,
                     sizeof(exp));
-    oak_htable_insert(&mod->exports_fn_by_name, e->name, e->name_len, idx);
+    oak_htable_insert(&mod->exports_fn.by_name, e->name, e->name_len, idx);
   }
   /* Export user-defined records (those registered after native + imported ones,
    * i.e. with index >= c->user_record_start). */
@@ -172,7 +161,7 @@ void populate_module_exports(struct oak_compiler_t* c)
                     &exp,
                     sizeof(exp));
     oak_htable_insert(
-        &mod->exports_record_by_name, exp.name, exp.name_len, idx);
+        &mod->exports_record.by_name, exp.name, exp.name_len, idx);
   }
   /* Export user-defined enums (those registered after native + imported ones).
    * We group variants by enum_name to produce one export per enum type. */
@@ -183,7 +172,7 @@ void populate_module_exports(struct oak_compiler_t* c)
       const struct oak_enum_variant_t* v = &c->enums.variants.items[i];
       /* Find or create the export entry for this enum type. */
       int eidx = oak_htable_get(
-          &mod->exports_enum_by_name, v->enum_name, v->enum_name_len);
+          &mod->exports_enum.by_name, v->enum_name, v->enum_name_len);
       if (eidx < 0)
       {
         struct oak_module_export_enum_t ee = { 0 };
@@ -196,7 +185,7 @@ void populate_module_exports(struct oak_compiler_t* c)
                         &ee,
                         sizeof(ee));
         oak_htable_insert(
-            &mod->exports_enum_by_name, ee.name, ee.name_len, eidx);
+            &mod->exports_enum.by_name, ee.name, ee.name_len, eidx);
       }
       struct oak_module_export_enum_t* ee = &mod->exports_enum.items[eidx];
       if (ee->variant_count < OAK_MODULE_MAX_ENUM_VARIANTS)
