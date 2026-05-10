@@ -1,6 +1,6 @@
 #include "internal/oak_compiler.h"
 
-void oc_compile_call_arg(struct oak_compiler_t* c,
+void oakc_compile_call_arg(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* arg)
 {
   if (arg->kind == OAK_NODE_FN_CALL_ARG)
@@ -19,7 +19,7 @@ void oak_compiler_compile_call_args_after_callee(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* arg =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    oc_compile_call_arg(c, arg);
+    oakc_compile_call_arg(c, arg);
   }
 }
 

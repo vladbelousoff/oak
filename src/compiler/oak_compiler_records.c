@@ -9,7 +9,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 /* Walk all top-level record declarations and register each in the compiler's
  * record registry. The record's type id is interned into the type registry so
  * later passes (function param types, record literals) can resolve them. */
-void oc_register_program_records(struct oak_compiler_t* c,
+void oakc_register_program_records(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -49,7 +49,7 @@ void oc_register_program_records(struct oak_compiler_t* c,
     const char* name = oak_token_text(name_ident->token);
     const usize name_len = oak_token_length(name_ident->token);
 
-    if (oc_records_find(&c->records, name, name_len))
+    if (oakc_records_find(&c->records, name, name_len))
     {
       oak_compiler_error_at(
           c, name_ident->token, "duplicate record '%s'", name);
@@ -143,7 +143,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
     f->name = fn_name;
     f->name_len = fn_len;
     oak_type_clear(&f->type);
-    f->type.id = oc_intern_type_tok(c, ftype->token);
+    f->type.id = oakc_intern_type_tok(c, ftype->token);
   }
   return 1;
 }

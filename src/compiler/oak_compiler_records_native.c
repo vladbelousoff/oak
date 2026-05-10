@@ -2,7 +2,7 @@
 
 /* ---------- Native type registration ---------- */
 
-void oc_register_native_types(
+void oakc_register_native_types(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
   if (!opts || opts->native_types.count == 0)
@@ -14,7 +14,7 @@ void oc_register_native_types(
     if (!nt)
       continue;
 
-    if (oc_records_find(&c->records, nt->name, nt->name_len))
+    if (oakc_records_find(&c->records, nt->name, nt->name_len))
     {
       oak_compiler_error_at(
           c,
@@ -89,7 +89,7 @@ static void record_append_method(struct oak_registered_record_t* sd,
                   sizeof(*m));
 }
 
-void oc_register_native_fns(struct oak_compiler_t* c,
+void oakc_register_native_fns(struct oak_compiler_t* c,
                                       const struct oak_compile_options_t* opts)
 {
   if (!opts || opts->native_fns.count == 0)
@@ -122,7 +122,7 @@ void oc_register_native_fns(struct oak_compiler_t* c,
     }
 
     const u16 idx =
-        oc_intern_native_const(c, b->impl, vm_arity, b->name);
+        oakc_intern_native_const(c, b->impl, vm_arity, b->name);
 
     struct oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
@@ -149,7 +149,7 @@ void oc_register_native_fns(struct oak_compiler_t* c,
     else
     {
       struct oak_registered_record_t* sd =
-          (struct oak_registered_record_t*)oc_records_find_by_id(
+          (struct oak_registered_record_t*)oakc_records_find_by_id(
               &c->records, b->receiver_type_id);
       if (!sd)
       {

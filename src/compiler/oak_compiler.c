@@ -129,7 +129,7 @@ static void compile_program_items(struct oak_compiler_t* c,
   }
 }
 
-int oc_import_alias(const struct oak_compiler_t* c,
+int oakc_import_alias(const struct oak_compiler_t* c,
                                      const char* name,
                                      const usize name_len)
 {
@@ -147,19 +147,19 @@ static void compile_program(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* program)
 {
   /* Step 1 — register all built-in functions and methods. */
-  oc_register_native_builtins(c);
+  oakc_register_native_builtins(c);
   CHECK_ERROR(c);
-  oc_register_array_methods(c);
+  oakc_register_array_methods(c);
   CHECK_ERROR(c);
-  oc_register_map_methods(c);
+  oakc_register_map_methods(c);
   CHECK_ERROR(c);
-  oc_register_string_methods(c);
+  oakc_register_string_methods(c);
   CHECK_ERROR(c);
-  oc_register_bool_methods(c);
+  oakc_register_bool_methods(c);
   CHECK_ERROR(c);
-  oc_register_number_methods(c);
+  oakc_register_number_methods(c);
   CHECK_ERROR(c);
-  oc_register_record_methods(c);
+  oakc_register_record_methods(c);
   CHECK_ERROR(c);
 
   /* Step 2 — register types in topological order (imported before local) so
@@ -169,19 +169,19 @@ static void compile_program(struct oak_compiler_t* c,
   register_imported_enums(c);
   CHECK_ERROR(c);
   c->user_enum_start = c->enums.variants.count;
-  oc_register_program_enums(c, program);
+  oakc_register_program_enums(c, program);
   CHECK_ERROR(c);
 
   register_imported_records(c);
   CHECK_ERROR(c);
   c->user_record_start = c->records.entries.count;
-  oc_register_program_records(c, program);
+  oakc_register_program_records(c, program);
   CHECK_ERROR(c);
 
   /* Step 3 — register functions and methods, then emit code. */
-  oc_register_program_fns(c, program);
+  oakc_register_program_fns(c, program);
   CHECK_ERROR(c);
-  oc_register_program_methods(c, program);
+  oakc_register_program_methods(c, program);
   CHECK_ERROR(c);
 
   collect_module_scope_names(c, program);
@@ -190,9 +190,9 @@ static void compile_program(struct oak_compiler_t* c,
 
   /* Step 4 — emit halt, compile deferred bodies, populate exports. */
   oak_compiler_emit_op(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
-  oc_compile_fn_bodies(c);
+  oakc_compile_fn_bodies(c);
   CHECK_ERROR(c);
-  oc_compile_method_bodies(c);
+  oakc_compile_method_bodies(c);
   CHECK_ERROR(c);
   populate_module_exports(c);
 }
@@ -236,7 +236,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
    * reference native type names in function signatures, record fields, etc. */
   if (opts && opts->native_types.count > 0)
   {
-    oc_register_native_types(&compiler, opts);
+    oakc_register_native_types(&compiler, opts);
     if (compiler.has_error)
     {
       oak_chunk_free(chunk);
@@ -249,7 +249,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
    * be in the record registry first). */
   if (opts && opts->native_fns.count > 0)
   {
-    oc_register_native_fns(&compiler, opts);
+    oakc_register_native_fns(&compiler, opts);
     if (compiler.has_error)
     {
       oak_chunk_free(chunk);
@@ -262,7 +262,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
    * can reference their variants (e.g. FileMode.Read). */
   if (opts && opts->native_enums.count > 0)
   {
-    oc_register_native_enums(&compiler, opts);
+    oakc_register_native_enums(&compiler, opts);
     if (compiler.has_error)
     {
       oak_chunk_free(chunk);

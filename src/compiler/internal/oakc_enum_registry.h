@@ -57,13 +57,13 @@ const struct oak_enum_variant_t* oak_enum_registry_find(
 
 /* O(n) lookup by qualified (enum_name, variant_name). */
 const struct oak_enum_variant_t*
-oc_enums_find_qualified(const struct oak_enum_registry_t* r,
+oakc_enums_find_qualified(const struct oak_enum_registry_t* r,
                                  const char* enum_name,
                                  usize enum_name_len,
                                  const char* variant_name,
                                  usize variant_name_len);
 
 /* O(1) check: is this name a registered enum type name? */
-int oc_is_enum_name(const struct oak_enum_registry_t* r,
+int oakc_is_enum_name(const struct oak_enum_registry_t* r,
                                    const char* name,
                                    usize len);

@@ -43,7 +43,7 @@ validate_inferred_type_matches(struct oak_compiler_t* c,
   if (!arg_expr)
     return;
   struct oak_type_t got;
-  oc_infer_type(c, arg_expr, &got);
+  oakc_infer_type(c, arg_expr, &got);
   if (!oak_type_is_known(&got))
     return;
   if (oak_type_equal(&want, &got))
@@ -53,14 +53,14 @@ validate_inferred_type_matches(struct oak_compiler_t* c,
     oak_compiler_error_at(c,
                           t,
                           "map key must be of type '%s', got '%s'",
-                          oc_type_full_name(c, want),
-                          oc_type_full_name(c, got));
+                          oakc_type_full_name(c, want),
+                          oakc_type_full_name(c, got));
   else
     oak_compiler_error_at(c,
                           t,
                           "cannot push value of type '%s' to array of '%s'",
-                          oc_type_full_name(c, got),
-                          oc_type_full_name(c, want));
+                          oakc_type_full_name(c, got),
+                          oakc_type_full_name(c, want));
 }
 
 static void validate_array_push_args(struct oak_compiler_t* c,
@@ -131,7 +131,7 @@ register_method_table_from_defs(struct oak_compiler_t* c,
       return;
     }
     const struct oak_builtin_method_def_t* def = &table[i];
-    const u16 idx = oc_intern_native_const(
+    const u16 idx = oakc_intern_native_const(
         c, def->impl, def->total_arity, def->name);
     if (c->has_error)
       return;
@@ -161,7 +161,7 @@ method_binding_find(const struct oak_method_binding_t* table,
   return null;
 }
 
-void oc_register_array_methods(struct oak_compiler_t* c)
+void oakc_register_array_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(c,
                                   c->builtin_methods.array,
@@ -172,14 +172,14 @@ void oc_register_array_methods(struct oak_compiler_t* c)
                                   oak_count_of(array_method_table));
 }
 
-const struct oak_method_binding_t* oc_find_array_method(
+const struct oak_method_binding_t* oakc_find_array_method(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
   return method_binding_find(
       c->builtin_methods.array, c->builtin_methods.array_count, name, len);
 }
 
-void oc_register_map_methods(struct oak_compiler_t* c)
+void oakc_register_map_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(c,
                                   c->builtin_methods.map,
@@ -190,14 +190,14 @@ void oc_register_map_methods(struct oak_compiler_t* c)
                                   oak_count_of(map_method_table));
 }
 
-const struct oak_method_binding_t* oc_find_map_method(
+const struct oak_method_binding_t* oakc_find_map_method(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
   return method_binding_find(
       c->builtin_methods.map, c->builtin_methods.map_count, name, len);
 }
 
-void oc_register_string_methods(struct oak_compiler_t* c)
+void oakc_register_string_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(c,
                                   c->builtin_methods.string,
@@ -208,14 +208,14 @@ void oc_register_string_methods(struct oak_compiler_t* c)
                                   oak_count_of(string_method_table));
 }
 
-const struct oak_method_binding_t* oc_find_string_method(
+const struct oak_method_binding_t* oakc_find_string_method(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
   return method_binding_find(
       c->builtin_methods.string, c->builtin_methods.string_count, name, len);
 }
 
-void oc_register_bool_methods(struct oak_compiler_t* c)
+void oakc_register_bool_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(c,
                                   c->builtin_methods.bool_,
@@ -226,14 +226,14 @@ void oc_register_bool_methods(struct oak_compiler_t* c)
                                   oak_count_of(bool_method_table));
 }
 
-const struct oak_method_binding_t* oc_find_bool_method(
+const struct oak_method_binding_t* oakc_find_bool_method(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
   return method_binding_find(
       c->builtin_methods.bool_, c->builtin_methods.bool_count, name, len);
 }
 
-void oc_register_number_methods(struct oak_compiler_t* c)
+void oakc_register_number_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(c,
                                   c->builtin_methods.number,
@@ -244,14 +244,14 @@ void oc_register_number_methods(struct oak_compiler_t* c)
                                   oak_count_of(number_method_table));
 }
 
-const struct oak_method_binding_t* oc_find_number_method(
+const struct oak_method_binding_t* oakc_find_number_method(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
   return method_binding_find(
       c->builtin_methods.number, c->builtin_methods.number_count, name, len);
 }
 
-void oc_register_record_methods(struct oak_compiler_t* c)
+void oakc_register_record_methods(struct oak_compiler_t* c)
 {
   register_method_table_from_defs(c,
                                   c->builtin_methods.record,
@@ -262,7 +262,7 @@ void oc_register_record_methods(struct oak_compiler_t* c)
                                   oak_count_of(record_builtin_method_table));
 }
 
-const struct oak_method_binding_t* oc_find_record_builtin_method(
+const struct oak_method_binding_t* oakc_find_record_builtin_method(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
   return method_binding_find(

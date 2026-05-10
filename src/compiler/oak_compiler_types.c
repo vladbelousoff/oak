@@ -1,7 +1,7 @@
 #include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
-void oc_lower_type_node(struct oak_compiler_t* c,
+void oakc_lower_type_node(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* type_node,
                                     struct oak_type_t* out)
 {
@@ -10,7 +10,7 @@ void oc_lower_type_node(struct oak_compiler_t* c,
     return;
   if (type_node->kind == OAK_NODE_IDENT)
   {
-    out->id = oc_intern_type_tok(c, type_node->token);
+    out->id = oakc_intern_type_tok(c, type_node->token);
     return;
   }
   if (type_node->kind == OAK_NODE_TYPE_ARRAY)
@@ -18,7 +18,7 @@ void oc_lower_type_node(struct oak_compiler_t* c,
     const struct oak_ast_node_t* elem = type_node->child;
     if (!elem || elem->kind != OAK_NODE_IDENT)
       return;
-    out->id = oc_intern_type_tok(c, elem->token);
+    out->id = oakc_intern_type_tok(c, elem->token);
     out->kind = OAK_TYPE_KIND_ARRAY;
     return;
   }
@@ -29,21 +29,21 @@ void oc_lower_type_node(struct oak_compiler_t* c,
     if (!key || !val || key->kind != OAK_NODE_IDENT ||
         val->kind != OAK_NODE_IDENT)
       return;
-    out->key_id = oc_intern_type_tok(c, key->token);
-    out->id = oc_intern_type_tok(c, val->token);
+    out->key_id = oakc_intern_type_tok(c, key->token);
+    out->id = oakc_intern_type_tok(c, val->token);
     out->kind = OAK_TYPE_KIND_MAP;
     return;
   }
 }
 
-oak_type_id_t oc_intern_type_tok(struct oak_compiler_t* c,
+oak_type_id_t oakc_intern_type_tok(struct oak_compiler_t* c,
                                              const struct oak_token_t* token)
 {
   return oak_type_registry_intern(
       &c->types, oak_token_text(token), oak_token_length(token));
 }
 
-int oc_local_type_get(struct oak_compiler_t* c,
+int oakc_local_type_get(struct oak_compiler_t* c,
                                 const char* name,
                                 const usize len,
                                 struct oak_type_t* out)

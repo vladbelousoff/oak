@@ -15,7 +15,7 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
 
   if (callee && callee->kind == OAK_NODE_MEMBER_ACCESS)
   {
-    oc_compile_method_call(c, node, callee);
+    oakc_compile_method_call(c, node, callee);
     return;
   }
 
@@ -28,12 +28,12 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
 
   const struct oak_code_loc_t call_loc =
       oak_compiler_loc_from_token(callee->token);
-  const usize argc = oc_child_count(node) - 1;
+  const usize argc = oakc_child_count(node) - 1;
   const usize callee_len = oak_token_length(callee->token);
   const char* callee_name = oak_token_text(callee->token);
 
   const struct oak_registered_fn_t* entry =
-      oc_find_fn(c, callee_name, callee_len);
+      oakc_find_fn(c, callee_name, callee_len);
   if (!entry)
   {
     oak_compiler_error_at(
@@ -52,7 +52,7 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
     return;
   }
 
-  oc_check_fn_args(c, node, entry);
+  oakc_check_fn_args(c, node, entry);
   if (c->has_error)
     return;
 
@@ -63,7 +63,7 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* arg =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    oc_compile_call_arg(c, arg);
+    oakc_compile_call_arg(c, arg);
   }
 
   oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)argc));

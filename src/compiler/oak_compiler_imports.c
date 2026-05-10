@@ -4,7 +4,7 @@
  * `alias.EnumName.Variant` expressions can be resolved.  Variants are stored
  * as small integers; we intern OAK_VALUE_I32(value) as constants in the
  * current chunk and register them in c->enums with the local const_idx.
- * Must run BEFORE oc_register_program_enums. */
+ * Must run BEFORE oakc_register_program_enums. */
 void register_imported_enums(struct oak_compiler_t* c)
 {
   if (!c->module_registry || !c->current_module)
@@ -21,7 +21,7 @@ void register_imported_enums(struct oak_compiler_t* c)
     {
       const struct oak_module_export_enum_t* exp = &dep->exports_enum.items[ei];
       /* Skip if this enum name is already registered (diamond imports). */
-      if (oc_is_enum_name(&c->enums, exp->name, exp->name_len))
+      if (oakc_is_enum_name(&c->enums, exp->name, exp->name_len))
         continue;
       const oak_type_id_t enum_type_id =
           oak_type_registry_intern(&c->types, exp->name, exp->name_len);
@@ -59,7 +59,7 @@ void register_imported_enums(struct oak_compiler_t* c)
 /* For each imported module in the current module's dependency list,
  * pre-register its exported record types into the current compiler's type and
  * record registries.  This must run BEFORE
- * oc_register_program_records so that user-defined type IDs are
+ * oakc_register_program_records so that user-defined type IDs are
  * assigned in a consistent topological order across all modules. */
 void register_imported_records(struct oak_compiler_t* c)
 {
@@ -78,7 +78,7 @@ void register_imported_records(struct oak_compiler_t* c)
       const struct oak_module_export_record_t* exp =
           &dep->exports_record.items[ri];
       /* Skip if already registered (diamond imports). */
-      if (oc_records_find(
+      if (oakc_records_find(
               &c->records, exp->name, exp->name_len))
         continue;
       const oak_type_id_t tid =
@@ -126,7 +126,7 @@ void populate_module_exports(struct oak_compiler_t* c)
       .name_len = e->name_len,
       .const_idx = e->const_idx,
       .arity = e->arity,
-      .return_type_node = oc_fn_return_type_node(e->decl),
+      .return_type_node = oakc_fn_return_type_node(e->decl),
       .return_type_id = OAK_TYPE_VOID,
       .return_kind = OAK_TYPE_KIND_SCALAR,
     };

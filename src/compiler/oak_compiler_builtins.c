@@ -4,7 +4,7 @@
 
 /* Interns a freshly-allocated native function as a chunk constant and returns
  * its index. The chunk takes ownership of the single allocation reference. */
-u16 oc_intern_native_const(struct oak_compiler_t* c,
+u16 oakc_intern_native_const(struct oak_compiler_t* c,
                                         const oak_native_fn_t impl,
                                         const int arity,
                                         const char* name)
@@ -16,7 +16,7 @@ u16 oc_intern_native_const(struct oak_compiler_t* c,
 static void register_native_fn(struct oak_compiler_t* c,
                                const struct oak_native_binding_t* binding)
 {
-  const u16 idx = oc_intern_native_const(
+  const u16 idx = oakc_intern_native_const(
       c, binding->impl, binding->arity, binding->name);
 
   struct oak_registered_fn_t entry = {
@@ -164,7 +164,7 @@ static const struct oak_native_binding_t native_builtins[] = {
   { "tan", builtin_tan, 1, OAK_TYPE_NUMBER },
 };
 
-void oc_register_native_builtins(struct oak_compiler_t* c)
+void oakc_register_native_builtins(struct oak_compiler_t* c)
 {
   for (usize i = 0; i < oak_count_of(native_builtins); ++i)
   {

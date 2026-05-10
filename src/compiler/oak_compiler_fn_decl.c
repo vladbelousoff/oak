@@ -26,14 +26,14 @@ oak_fn_param_list_regular_params(const struct oak_ast_node_t* plist)
 }
 
 const struct oak_ast_node_t*
-oc_fn_param_list(const struct oak_ast_node_t* decl)
+oakc_fn_param_list(const struct oak_ast_node_t* decl)
 {
   /* FN_PARAMS_AND_RET is BINARY: lhs = FN_PARAM_LIST, rhs = FN_RETURN_TYPE?. */
   return oak_fn_decl_params_tail(decl)->lhs;
 }
 
 const struct oak_ast_node_t*
-oc_fn_name_node(const struct oak_ast_node_t* decl)
+oakc_fn_name_node(const struct oak_ast_node_t* decl)
 {
   const struct oak_ast_node_t* head = oak_fn_decl_head(decl);
   oak_assert(head->rhs != null);
@@ -41,16 +41,16 @@ oc_fn_name_node(const struct oak_ast_node_t* decl)
 }
 
 const struct oak_ast_node_t*
-oc_fn_self_param(const struct oak_ast_node_t* decl)
+oakc_fn_self_param(const struct oak_ast_node_t* decl)
 {
-  const struct oak_ast_node_t* plist = oc_fn_param_list(decl);
+  const struct oak_ast_node_t* plist = oakc_fn_param_list(decl);
   if (!plist)
     return null;
   /* FN_PARAM_LIST is BINARY: lhs = FN_PARAM_SELF? (null when absent). */
   return plist->lhs;
 }
 
-int oc_self_is_mut(
+int oakc_self_is_mut(
     const struct oak_ast_node_t* self_param)
 {
   /* FN_PARAM_SELF is BINARY: lhs = MUT_KEYWORD? (non-null iff mutable). */
@@ -58,12 +58,12 @@ int oc_self_is_mut(
 }
 
 const struct oak_ast_node_t*
-oc_fn_block(const struct oak_ast_node_t* decl)
+oakc_fn_block(const struct oak_ast_node_t* decl)
 {
   return (decl->rhs && decl->rhs->kind == OAK_NODE_BLOCK) ? decl->rhs : null;
 }
 
-int oc_param_is_mut(const struct oak_ast_node_t* param)
+int oakc_param_is_mut(const struct oak_ast_node_t* param)
 {
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &param->children)
@@ -77,7 +77,7 @@ int oc_param_is_mut(const struct oak_ast_node_t* param)
 }
 
 const struct oak_ast_node_t*
-oc_fn_param_ident(const struct oak_ast_node_t* param)
+oakc_fn_param_ident(const struct oak_ast_node_t* param)
 {
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &param->children)
@@ -91,7 +91,7 @@ oc_fn_param_ident(const struct oak_ast_node_t* param)
 }
 
 const struct oak_ast_node_t*
-oc_fn_param_type_node(const struct oak_ast_node_t* param)
+oakc_fn_param_type_node(const struct oak_ast_node_t* param)
 {
   int ident_seen = 0;
   struct oak_list_entry_t* pos;
@@ -117,10 +117,10 @@ oc_fn_param_type_node(const struct oak_ast_node_t* param)
 }
 
 const struct oak_ast_node_t*
-oc_fn_param_at(const struct oak_ast_node_t* decl,
+oakc_fn_param_at(const struct oak_ast_node_t* decl,
                               const int index)
 {
-  const struct oak_ast_node_t* plist = oc_fn_param_list(decl);
+  const struct oak_ast_node_t* plist = oakc_fn_param_list(decl);
   if (!plist)
     return null;
   const struct oak_ast_node_t* params = oak_fn_param_list_regular_params(plist);
@@ -143,7 +143,7 @@ oc_fn_param_at(const struct oak_ast_node_t* decl,
 }
 
 const struct oak_ast_node_t*
-oc_fn_return_type_node(const struct oak_ast_node_t* decl)
+oakc_fn_return_type_node(const struct oak_ast_node_t* decl)
 {
   /* FN_PARAMS_AND_RET is BINARY: rhs = FN_RETURN_TYPE? (null when absent).
    * FN_RETURN_TYPE is UNARY: child = TYPE_NAME. */
@@ -153,9 +153,9 @@ oc_fn_return_type_node(const struct oak_ast_node_t* decl)
   return tail->rhs->child;
 }
 
-int oc_count_fn_params(const struct oak_ast_node_t* decl)
+int oakc_count_fn_params(const struct oak_ast_node_t* decl)
 {
-  const struct oak_ast_node_t* plist = oc_fn_param_list(decl);
+  const struct oak_ast_node_t* plist = oakc_fn_param_list(decl);
   if (!plist)
     return 0;
   const struct oak_ast_node_t* params = oak_fn_param_list_regular_params(plist);

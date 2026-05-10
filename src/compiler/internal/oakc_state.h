@@ -1,10 +1,10 @@
 #pragma once
 
-#include "oc_defs.h"
-#include "oc_enum_registry.h"
-#include "oc_fn_registry.h"
-#include "oc_method_table.h"
-#include "oc_record_registry.h"
+#include "oakc_defs.h"
+#include "oakc_enum_registry.h"
+#include "oakc_fn_registry.h"
+#include "oakc_method_table.h"
+#include "oakc_record_registry.h"
 #include "oak_htable.h"
 #include "oak_module.h"
 #include "oak_type.h"

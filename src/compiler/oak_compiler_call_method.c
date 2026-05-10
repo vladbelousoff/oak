@@ -6,7 +6,7 @@
  * native function is pushed as a constant, the receiver is compiled as
  * an implicit first argument, and finally OP_CALL with the full arity
  * is emitted. */
-void oc_compile_method_call(struct oak_compiler_t* c,
+void oakc_compile_method_call(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node,
                                       const struct oak_ast_node_t* callee)
 {
@@ -21,7 +21,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
 
   const struct oak_code_loc_t call_loc =
       oak_compiler_loc_from_token(method->token);
-  const usize user_argc = oc_child_count(node) - 1;
+  const usize user_argc = oakc_child_count(node) - 1;
   const char* mname = oak_token_text(method->token);
   const usize mname_len = oak_token_length(method->token);
 
@@ -40,11 +40,11 @@ void oc_compile_method_call(struct oak_compiler_t* c,
                                              oak_token_length(type_node->token)))
     {
       const struct oak_registered_record_t* sd =
-          oc_records_find(&c->records,
+          oakc_records_find(&c->records,
                                            oak_token_text(type_node->token),
                                            oak_token_length(type_node->token));
       const struct oak_registered_fn_t* sm =
-          oc_find_record_method(sd, mname, mname_len, 1);
+          oakc_find_record_method(sd, mname, mname_len, 1);
       if (!sm)
       {
         oak_compiler_error_at(c,
@@ -66,7 +66,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
                               user_argc);
         return;
       }
-      oc_check_method_args(c, node, sm);
+      oakc_check_method_args(c, node, sm);
       CHECK_ERROR(c);
       oak_compiler_emit_constant(c, sm->const_idx, call_loc);
       oak_compiler_compile_call_args_after_callee(c, node);
@@ -123,14 +123,14 @@ void oc_compile_method_call(struct oak_compiler_t* c,
      * variable (mod_id < 0 means the name is not an import alias). */
     struct oak_type_t local_ty;
     oak_type_clear(&local_ty);
-    if (!oc_local_type_get(c, rname, rlen, &local_ty))
+    if (!oakc_local_type_get(c, rname, rlen, &local_ty))
     {
       const struct oak_registered_record_t* sd =
-          oc_records_find(&c->records, rname, rlen);
+          oakc_records_find(&c->records, rname, rlen);
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oc_find_record_method(sd, mname, mname_len, 1);
+            oakc_find_record_method(sd, mname, mname_len, 1);
         if (sm)
         {
           if ((int)user_argc != sm->arity)
@@ -143,7 +143,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
                                   user_argc);
             return;
           }
-          oc_check_method_args(c, node, sm);
+          oakc_check_method_args(c, node, sm);
           CHECK_ERROR(c);
           oak_compiler_emit_constant(c, sm->const_idx, call_loc);
           oak_compiler_compile_call_args_after_callee(c, node);
@@ -157,18 +157,18 @@ void oc_compile_method_call(struct oak_compiler_t* c,
   }
 
   struct oak_type_t recv_ty;
-  oc_infer_type(c, receiver, &recv_ty);
+  oakc_infer_type(c, receiver, &recv_ty);
 
   /* Record method calls dispatch to a regular user fn whose first
    * parameter is the receiver (`self`). */
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
     const struct oak_registered_record_t* sd =
-        oc_records_find_by_id(&c->records, recv_ty.id);
+        oakc_records_find_by_id(&c->records, recv_ty.id);
     if (sd)
     {
       const struct oak_registered_fn_t* sm =
-          oc_find_record_method(sd, mname, mname_len, 0);
+          oakc_find_record_method(sd, mname, mname_len, 0);
       if (sm)
       {
         const int expected_user = sm->arity - 1;
@@ -183,15 +183,15 @@ void oc_compile_method_call(struct oak_compiler_t* c,
           return;
         }
 
-        oc_check_method_args(c, node, sm);
+        oakc_check_method_args(c, node, sm);
         if (c->has_error)
           return;
 
         if (sm->decl)
         {
           const struct oak_ast_node_t* self_p =
-              oc_fn_self_param(sm->decl);
-          if (self_p && oc_self_is_mut(self_p) &&
+              oakc_fn_self_param(sm->decl);
+          if (self_p && oakc_self_is_mut(self_p) &&
               !oak_compiler_expr_is_mutable_place(c, receiver))
           {
             oak_compiler_error_at(c,
@@ -212,7 +212,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
       }
 
       const struct oak_method_binding_t* bm =
-          oc_find_record_builtin_method(c, mname, mname_len);
+          oakc_find_record_builtin_method(c, mname, mname_len);
       if (!bm)
       {
         oak_compiler_error_at(
@@ -244,7 +244,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
       recv_ty.id == OAK_TYPE_STRING)
   {
     const struct oak_method_binding_t* sm =
-        oc_find_string_method(c, mname, mname_len);
+        oakc_find_string_method(c, mname, mname_len);
     if (!sm)
     {
       oak_compiler_error_at(
@@ -284,7 +284,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
       recv_ty.id == OAK_TYPE_BOOL)
   {
     const struct oak_method_binding_t* sm =
-        oc_find_bool_method(c, mname, mname_len);
+        oakc_find_bool_method(c, mname, mname_len);
     if (!sm)
     {
       oak_compiler_error_at(c, method->token, "no method '%s' on bool", mname);
@@ -314,7 +314,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
       recv_ty.id == OAK_TYPE_NUMBER)
   {
     const struct oak_method_binding_t* sm =
-        oc_find_number_method(c, mname, mname_len);
+        oakc_find_number_method(c, mname, mname_len);
     if (!sm)
     {
       oak_compiler_error_at(
@@ -353,8 +353,8 @@ void oc_compile_method_call(struct oak_compiler_t* c,
 
   const struct oak_method_binding_t* m =
       recv_ty.kind == OAK_TYPE_KIND_MAP
-          ? oc_find_map_method(c, mname, mname_len)
-          : oc_find_array_method(c, mname, mname_len);
+          ? oakc_find_map_method(c, mname, mname_len)
+          : oakc_find_array_method(c, mname, mname_len);
   if (!m)
   {
     oak_compiler_error_at(c,
@@ -363,7 +363,7 @@ void oc_compile_method_call(struct oak_compiler_t* c,
                           mname,
                           recv_ty.kind == OAK_TYPE_KIND_MAP ? "map"
                                                             : "array of",
-                          oc_type_full_name(c, recv_ty));
+                          oakc_type_full_name(c, recv_ty));
     return;
   }
 

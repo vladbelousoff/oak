@@ -51,7 +51,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
   const struct oak_ast_node_t* name_node = type_seg;
 
   const struct oak_registered_record_t* sd =
-      oc_records_find(&c->records, sname, sname_len);
+      oakc_records_find(&c->records, sname, sname_len);
   if (!sd)
   {
     oak_compiler_error_at(
@@ -83,7 +83,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     }
 
     const usize fname_len = oak_token_length(fname->token);
-    const int idx = oc_record_field(
+    const int idx = oakc_record_field(
         sd, oak_token_text(fname->token), fname_len);
     if (idx < 0)
     {
@@ -104,7 +104,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     }
 
     struct oak_type_t got;
-    oc_infer_type(c, fexpr, &got);
+    oakc_infer_type(c, fexpr, &got);
     if (oak_type_is_known(&got) && !oak_type_equal(&sd->fields[idx].type, &got))
     {
       oak_compiler_error_at(
@@ -112,8 +112,8 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
           fexpr->token ? fexpr->token : fname->token,
           "field '%s': expected type '%s', got '%s'",
           sd->fields[idx].name,
-          oc_type_full_name(c, sd->fields[idx].type),
-          oc_type_full_name(c, got));
+          oakc_type_full_name(c, sd->fields[idx].type),
+          oakc_type_full_name(c, got));
       return;
     }
 
@@ -166,7 +166,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
       const struct oak_ast_node_t* fexpr = exprs[i];
       if (oak_type_is_refcounted(&sd->fields[i].type))
         src_idx_for_field[i] =
-            oc_ident_local(c, fexpr);
+            oakc_ident_local(c, fexpr);
       else
         src_idx_for_field[i] = -1;
     }

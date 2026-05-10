@@ -1,9 +1,9 @@
 #include "internal/oak_compiler.h"
 
-void oc_compile_for_from(struct oak_compiler_t* c,
+void oakc_compile_for_from(struct oak_compiler_t* c,
                                         const struct oak_ast_node_t* node)
 {
-  oak_assert(oc_child_count(node) >= 4u);
+  oak_assert(oakc_child_count(node) >= 4u);
 
   struct oak_list_entry_t* pos = node->children.next;
   const struct oak_ast_node_t* ident =
@@ -20,13 +20,13 @@ void oc_compile_for_from(struct oak_compiler_t* c,
 
   oak_compiler_begin_scope(c);
 
-  oc_reject_void(c, from_expr);
+  oakc_reject_void(c, from_expr);
   if (c->has_error)
   {
     oak_compiler_end_scope(c);
     return;
   }
-  oc_reject_void(c, to_expr);
+  oakc_reject_void(c, to_expr);
   if (c->has_error)
   {
     oak_compiler_end_scope(c);
@@ -34,7 +34,7 @@ void oc_compile_for_from(struct oak_compiler_t* c,
   }
 
   struct oak_type_t from_ty;
-  oc_infer_type(c, from_expr, &from_ty);
+  oakc_infer_type(c, from_expr, &from_ty);
   if (!oak_type_is_known(&from_ty))
     from_ty.id = OAK_TYPE_NUMBER;
 
@@ -48,7 +48,7 @@ void oc_compile_for_from(struct oak_compiler_t* c,
                          from_ty);
 
   struct oak_type_t to_ty;
-  oc_infer_type(c, to_expr, &to_ty);
+  oakc_infer_type(c, to_expr, &to_ty);
   if (!oak_type_is_known(&to_ty))
     to_ty.id = OAK_TYPE_NUMBER;
 
@@ -185,10 +185,10 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
   }
 }
 
-void oc_compile_for_in(struct oak_compiler_t* c,
+void oakc_compile_for_in(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node)
 {
-  const usize child_count = oc_child_count(node);
+  const usize child_count = oakc_child_count(node);
   if (child_count != 3 && child_count != 4)
   {
     oak_compiler_error_at(c, null, "malformed 'for ... in' statement");
@@ -215,22 +215,22 @@ void oc_compile_for_in(struct oak_compiler_t* c,
       oak_compiler_loc_from_token(first_ident->token);
 
   struct oak_type_t coll_ty;
-  oc_infer_type(c, coll_expr, &coll_ty);
+  oakc_infer_type(c, coll_expr, &coll_ty);
   if (!oak_type_is_known(&coll_ty) || coll_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
     oak_compiler_error_at(c,
                           coll_expr->token ? coll_expr->token
                                            : first_ident->token,
                           "'for ... in' requires an array or map, got '%s'",
-                          oc_type_full_name(c, coll_ty));
+                          oakc_type_full_name(c, coll_ty));
     return;
   }
 
   /* Look up the receiver's size() binding so we can snapshot length once. */
   const struct oak_method_binding_t* len_m =
       coll_ty.kind == OAK_TYPE_KIND_MAP
-          ? oc_find_map_method(c, "size", 4)
-          : oc_find_array_method(c, "size", 4);
+          ? oakc_find_map_method(c, "size", 4)
+          : oakc_find_array_method(c, "size", 4);
   if (!len_m)
   {
     oak_compiler_error_at(c,

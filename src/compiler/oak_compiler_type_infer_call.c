@@ -31,19 +31,19 @@ static void infer_method_call_type(struct oak_compiler_t* c,
                                              oak_token_length(recv->rhs->token)))
     {
       const struct oak_registered_record_t* sd =
-          oc_records_find(
+          oakc_records_find(
               &c->records,
               oak_token_text(recv->rhs->token),
               oak_token_length(recv->rhs->token));
       const struct oak_registered_fn_t* sm =
-          oc_find_record_method(sd, mn, mn_len, 1);
+          oakc_find_record_method(sd, mn, mn_len, 1);
       if (sm)
       {
         if (sm->decl)
         {
-          const struct oak_ast_node_t* retn = oc_fn_return_type_node(sm->decl);
+          const struct oak_ast_node_t* retn = oakc_fn_return_type_node(sm->decl);
           if (retn)
-            oc_lower_type_node(c, retn, out);
+            oakc_lower_type_node(c, retn, out);
           else
             out->id = OAK_TYPE_VOID;
         }
@@ -71,7 +71,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
       if (fexp)
       {
         if (fexp->return_type_node)
-          oc_lower_type_node(c, fexp->return_type_node, out);
+          oakc_lower_type_node(c, fexp->return_type_node, out);
         else
         {
           out->id = fexp->return_type_id;
@@ -86,21 +86,21 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     /* Case 3: Type.method — local static method (only if rname is not a local). */
     struct oak_type_t local_ty;
     oak_type_clear(&local_ty);
-    if (!oc_local_type_get(c, rname, rlen, &local_ty))
+    if (!oakc_local_type_get(c, rname, rlen, &local_ty))
     {
       const struct oak_registered_record_t* sd =
-          oc_records_find(&c->records, rname, rlen);
+          oakc_records_find(&c->records, rname, rlen);
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oc_find_record_method(sd, mn, mn_len, 1);
+            oakc_find_record_method(sd, mn, mn_len, 1);
         if (sm)
         {
           if (sm->decl)
           {
-            const struct oak_ast_node_t* retn = oc_fn_return_type_node(sm->decl);
+            const struct oak_ast_node_t* retn = oakc_fn_return_type_node(sm->decl);
             if (retn)
-              oc_lower_type_node(c, retn, out);
+              oakc_lower_type_node(c, retn, out);
             else
               out->id = OAK_TYPE_VOID;
           }
@@ -119,22 +119,22 @@ static void infer_method_call_type(struct oak_compiler_t* c,
 
   /* Case 4: expr.method — infer receiver type, then look up instance method. */
   struct oak_type_t recv_ty;
-  oc_infer_type(c, recv, &recv_ty);
+  oakc_infer_type(c, recv, &recv_ty);
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
     const struct oak_registered_record_t* sd =
-        oc_records_find_by_id(&c->records, recv_ty.id);
+        oakc_records_find_by_id(&c->records, recv_ty.id);
     if (sd)
     {
       const struct oak_registered_fn_t* sm =
-          oc_find_record_method(sd, mn, mn_len, 0);
+          oakc_find_record_method(sd, mn, mn_len, 0);
       if (sm)
       {
         if (sm->decl)
         {
-          const struct oak_ast_node_t* retn = oc_fn_return_type_node(sm->decl);
+          const struct oak_ast_node_t* retn = oakc_fn_return_type_node(sm->decl);
           if (retn)
-            oc_lower_type_node(c, retn, out);
+            oakc_lower_type_node(c, retn, out);
           else
             out->id = OAK_TYPE_VOID;
         }
@@ -151,7 +151,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     if (recv_ty.id == OAK_TYPE_STRING)
     {
       const struct oak_method_binding_t* sm =
-          oc_find_string_method(c, mn, mn_len);
+          oakc_find_string_method(c, mn, mn_len);
       if (sm)
         out->id = sm->return_type_id;
     }
@@ -159,15 +159,15 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   }
   const struct oak_method_binding_t* m = null;
   if (recv_ty.kind == OAK_TYPE_KIND_ARRAY)
-    m = oc_find_array_method(c, mn, mn_len);
+    m = oakc_find_array_method(c, mn, mn_len);
   else if (recv_ty.kind == OAK_TYPE_KIND_MAP)
-    m = oc_find_map_method(c, mn, mn_len);
+    m = oakc_find_map_method(c, mn, mn_len);
   if (m)
     out->id = m->return_type_id;
 }
 
 /* Infer the return type of an OAK_NODE_FN_CALL expression. */
-void oc_infer_fn_call_type(struct oak_compiler_t* c,
+void oakc_infer_fn_call_type(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* expr,
                             struct oak_type_t* out)
 {
@@ -189,7 +189,7 @@ void oc_infer_fn_call_type(struct oak_compiler_t* c,
     return;
   const char* cn = oak_token_text(callee->token);
   const usize clen = oak_token_length(callee->token);
-  const struct oak_registered_fn_t* fe = oc_find_fn(c, cn, clen);
+  const struct oak_registered_fn_t* fe = oakc_find_fn(c, cn, clen);
   if (fe && !fe->decl)
   {
     if (strcmp(fe->name, "print") == 0)
@@ -205,9 +205,9 @@ void oc_infer_fn_call_type(struct oak_compiler_t* c,
   }
   if (!fe)
     return;
-  const struct oak_ast_node_t* retn = oc_fn_return_type_node(fe->decl);
+  const struct oak_ast_node_t* retn = oakc_fn_return_type_node(fe->decl);
   if (retn)
-    oc_lower_type_node(c, retn, out);
+    oakc_lower_type_node(c, retn, out);
   else
     out->id = OAK_TYPE_VOID;
 }

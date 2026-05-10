@@ -45,9 +45,9 @@ static void check_call_arg_aliasing(struct oak_compiler_t* c,
     const struct oak_ast_node_t* arg_wrap =
         oak_container_of(pos, struct oak_ast_node_t, link);
     const struct oak_ast_node_t* arg_expr = unwrap_call_arg(arg_wrap);
-    const struct oak_ast_node_t* param = oc_fn_param_at(decl, i);
-    sources[n] = oc_ident_local(c, arg_expr);
-    is_mut_param[n] = param ? oc_param_is_mut(param) : 0;
+    const struct oak_ast_node_t* param = oakc_fn_param_at(decl, i);
+    sources[n] = oakc_ident_local(c, arg_expr);
+    is_mut_param[n] = param ? oakc_param_is_mut(param) : 0;
     err_tokens[n] = arg_expr_error_token(arg_expr, arg_wrap);
   }
 
@@ -93,7 +93,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       arg_expr = arg_wrap->child;
 
     const struct oak_ast_node_t* param =
-        oc_fn_param_at(decl, (int)i);
+        oakc_fn_param_at(decl, (int)i);
     if (!param)
     {
       oak_compiler_error_at(
@@ -101,7 +101,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       return;
     }
     const struct oak_ast_node_t* want_type_node =
-        oc_fn_param_type_node(param);
+        oakc_fn_param_type_node(param);
     if (!want_type_node)
     {
       oak_compiler_error_at(
@@ -109,7 +109,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       return;
     }
     struct oak_type_t want;
-    oc_lower_type_node(c, want_type_node, &want);
+    oakc_lower_type_node(c, want_type_node, &want);
     if (!oak_type_is_known(&want))
     {
       oak_compiler_error_at(
@@ -118,7 +118,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
     }
 
     struct oak_type_t got;
-    oc_infer_type(c, arg_expr, &got);
+    oakc_infer_type(c, arg_expr, &got);
     if (!oak_type_is_known(&got))
       continue;
 
@@ -138,11 +138,11 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
                             err_tok,
                             "argument %zu: expected type '%s', found '%s'",
                             i + 1u,
-                            oc_type_full_name(c, want),
-                            oc_type_full_name(c, got));
+                            oakc_type_full_name(c, want),
+                            oakc_type_full_name(c, got));
     }
 
-    if (oc_param_is_mut(param) &&
+    if (oakc_param_is_mut(param) &&
         oak_type_is_refcounted(&want) &&
         !oak_compiler_expr_is_mutable_place(c, arg_expr))
     {
@@ -157,7 +157,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
   }
 }
 
-void oc_check_fn_args(
+void oakc_check_fn_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* fn)
@@ -170,7 +170,7 @@ void oc_check_fn_args(
   check_call_arg_aliasing(c, call, fn->decl);
 }
 
-void oc_check_method_args(
+void oakc_check_method_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* m)

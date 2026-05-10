@@ -3,10 +3,10 @@
 void oak_compiler_reject_binary_void(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* node)
 {
-  oc_reject_void(c, node->lhs);
+  oakc_reject_void(c, node->lhs);
   if (c->has_error)
     return;
-  oc_reject_void(c, node->rhs);
+  oakc_reject_void(c, node->rhs);
 }
 
 /* Returns 1 if `t` is a registered enum type. */
@@ -19,7 +19,7 @@ static int type_is_enum(struct oak_compiler_t* c, const struct oak_type_t* t)
   const char* name = c->types.entries[t->id].name;
   if (!name)
     return 0;
-  return oc_is_enum_name(
+  return oakc_is_enum_name(
       &c->enums, name, c->types.entries[t->id].len);
 }
 
@@ -29,8 +29,8 @@ void oak_compiler_reject_binary_enum_misuse(struct oak_compiler_t* c,
 {
   struct oak_type_t lt;
   struct oak_type_t rt;
-  oc_infer_type(c, node->lhs, &lt);
-  oc_infer_type(c, node->rhs, &rt);
+  oakc_infer_type(c, node->lhs, &lt);
+  oakc_infer_type(c, node->rhs, &rt);
   const int le = type_is_enum(c, &lt);
   const int re = type_is_enum(c, &rt);
 
@@ -47,8 +47,8 @@ void oak_compiler_reject_binary_enum_misuse(struct oak_compiler_t* c,
           tok,
           "cannot compare '%s' and '%s'; enum values may only be compared "
           "to the same enum type",
-          oc_type_full_name(c, lt),
-          oc_type_full_name(c, rt));
+          oakc_type_full_name(c, lt),
+          oakc_type_full_name(c, rt));
     }
     return;
   }
@@ -58,8 +58,8 @@ void oak_compiler_reject_binary_enum_misuse(struct oak_compiler_t* c,
         c,
         tok,
         "operator not supported on enum values (operands: '%s', '%s')",
-        oc_type_full_name(c, lt),
-        oc_type_full_name(c, rt));
+        oakc_type_full_name(c, lt),
+        oakc_type_full_name(c, rt));
   }
 }
 
@@ -78,7 +78,7 @@ void oak_compiler_compile_binary_op(struct oak_compiler_t* c,
       c,
       OAK_OP_BINARY,
       oak_compiler_loc_from_token(node->lhs->token),
-      OAK_ARG_U8(oc_binop_for_node(node->kind)));
+      OAK_ARG_U8(oakc_binop_for_node(node->kind)));
 }
 
 void oak_compiler_compile_binary_and(struct oak_compiler_t* c,

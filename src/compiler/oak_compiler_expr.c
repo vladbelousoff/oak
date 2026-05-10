@@ -1,7 +1,7 @@
 #include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
-usize oc_child_count(const struct oak_ast_node_t* node)
+usize oakc_child_count(const struct oak_ast_node_t* node)
 {
   if (oak_node_is_unary_op(node->kind))
     return node->child ? 1u : 0u;
@@ -10,14 +10,14 @@ usize oc_child_count(const struct oak_ast_node_t* node)
   return oak_list_length(&node->children);
 }
 
-int oc_is_int_literal(const struct oak_ast_node_t* node,
+int oakc_is_int_literal(const struct oak_ast_node_t* node,
                                     const int value)
 {
   return node && node->kind == OAK_NODE_INT &&
          oak_token_as_i32(node->token) == value;
 }
 
-u8 oc_binop_for_node(const enum oak_node_kind_t kind)
+u8 oakc_binop_for_node(const enum oak_node_kind_t kind)
 {
   switch (kind)
   {
@@ -56,7 +56,7 @@ u8 oc_binop_for_node(const enum oak_node_kind_t kind)
   }
 }
 
-u8 oc_op_for_node(const enum oak_node_kind_t kind)
+u8 oakc_op_for_node(const enum oak_node_kind_t kind)
 {
   switch (kind)
   {
@@ -85,7 +85,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_FN_DECL:
       break;
     case OAK_NODE_STMT_RETURN:
-      oc_compile_return(c, node);
+      oakc_compile_return(c, node);
       break;
     case OAK_NODE_INT:
     {
@@ -137,7 +137,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       const int slot = oak_compiler_find_local(c, name, len, null);
       if (slot >= 0)
       {
-        const int li = oc_local_at_slot(c, slot);
+        const int li = oakc_local_at_slot(c, slot);
         if (li >= 0 && !c->scope.locals[li].alive)
         {
           oak_compiler_error_at(
@@ -151,7 +151,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         break;
       }
       if (c->scope.fn_depth > 0 &&
-          oc_is_module_scope(c, name, len))
+          oakc_is_module_scope(c, name, len))
       {
         oak_compiler_error_at(c,
                               node->token,
@@ -171,7 +171,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
             c, node->token, "'self' is only valid inside a method body");
         return;
       }
-      const int li = oc_local_at_slot(c, slot);
+      const int li = oakc_local_at_slot(c, slot);
       if (li >= 0 && !c->scope.locals[li].alive)
       {
         oak_compiler_error_at(
@@ -207,12 +207,12 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_UNARY_NEG:
     case OAK_NODE_UNARY_NOT:
     {
-      oc_reject_void(c, node->child);
+      oakc_reject_void(c, node->child);
       if (c->has_error)
         return;
       oak_compiler_compile_node(c, node->child);
       oak_compiler_emit_op(c,
-                           oc_op_for_node(node->kind),
+                           oakc_op_for_node(node->kind),
                            oak_compiler_loc_from_token(node->child->token));
       break;
     }
@@ -270,10 +270,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       break;
     case OAK_NODE_INDEX_ACCESS:
     {
-      oc_reject_void(c, node->lhs);
+      oakc_reject_void(c, node->lhs);
       if (c->has_error)
         return;
-      oc_reject_void(c, node->rhs);
+      oakc_reject_void(c, node->rhs);
       if (c->has_error)
         return;
       oak_compiler_compile_node(c, node->lhs);
@@ -291,13 +291,13 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_compile_stmt_if(c, node);
       break;
     case OAK_NODE_STMT_WHILE:
-      oc_compile_while(c, node);
+      oakc_compile_while(c, node);
       break;
     case OAK_NODE_STMT_FOR_FROM:
-      oc_compile_for_from(c, node);
+      oakc_compile_for_from(c, node);
       break;
     case OAK_NODE_STMT_FOR_IN:
-      oc_compile_for_in(c, node);
+      oakc_compile_for_in(c, node);
       break;
     case OAK_NODE_STMT_BREAK:
     case OAK_NODE_STMT_CONTINUE:
@@ -310,7 +310,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         return;
       }
       struct oak_loop_frame_t* loop = c->scope.current_loop;
-      oc_emit_loop_jump(
+      oakc_emit_loop_jump(
           c,
           is_break ? loop->break_jumps : loop->continue_jumps,
           is_break ? &loop->break_count : &loop->continue_count,
