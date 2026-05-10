@@ -6,6 +6,7 @@
 #include "oak_file_map.h"
 #include "oak_htable.h"
 #include "oak_parser.h"
+#include "oak_type.h"
 
 /* Sentinel module_id used by native fns and the entry-only chunk before a
  * registry exists. */
@@ -22,6 +23,8 @@ struct oak_module_export_fn_t
   /* Borrowed pointer to the function's return-type AST node (or null when
    * the fn returns void).  Lives for the module's parser arena lifetime. */
   const struct oak_ast_node_t* return_type_node;
+  oak_type_id_t return_type_id;
+  enum oak_type_kind_t return_kind;
 };
 
 /* Maximum record fields mirrored here so oak_module.h is self-contained. */

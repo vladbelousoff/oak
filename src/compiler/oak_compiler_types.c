@@ -164,7 +164,12 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
               if (fexp->return_type_node)
                 oak_compiler_type_node_to_type(c, fexp->return_type_node, out);
               else
-                out->id = OAK_TYPE_VOID;
+              {
+                out->id = fexp->return_type_id;
+                out->kind = fexp->return_kind;
+              }
+              if (out->id == OAK_TYPE_VOID)
+                out->kind = OAK_TYPE_KIND_SCALAR;
               return;
             }
           }

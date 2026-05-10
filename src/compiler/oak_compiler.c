@@ -265,6 +265,8 @@ static void populate_module_exports(struct oak_compiler_t* c)
       .const_idx = e->const_idx,
       .arity = e->arity,
       .return_type_node = oak_compiler_fn_decl_return_type_node(e->decl),
+      .return_type_id = OAK_TYPE_VOID,
+      .return_kind = OAK_TYPE_KIND_SCALAR,
     };
     const int idx = mod->exports_fn.count;
     oak_dynarr_push(&mod->exports_fn.items,

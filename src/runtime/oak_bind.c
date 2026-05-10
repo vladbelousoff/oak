@@ -57,6 +57,15 @@ struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
                                       const enum oak_bind_type_kind_t kind,
                                       const char* name)
 {
+  return oak_bind_type_in_module(opts, null, kind, name);
+}
+
+struct oak_bind_type_t* oak_bind_type_in_module(
+    struct oak_compile_options_t* opts,
+    const char* module_name,
+    const enum oak_bind_type_kind_t kind,
+    const char* name)
+{
   if (!opts || !name)
     return null;
 
@@ -65,6 +74,8 @@ struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
 
   struct oak_bind_type_t* t =
       oak_alloc(sizeof(struct oak_bind_type_t), OAK_SRC_LOC);
+  t->module_name = module_name;
+  t->module_name_len = module_name ? strlen(module_name) : 0u;
   t->kind = kind;
   t->name = name;
   t->name_len = strlen(name);
@@ -134,22 +145,36 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
   else
     return -1;
 
+  struct oak_bind_fn_t copy = *p;
+  if (copy.module_name && copy.module_name_len == 0u)
+    copy.module_name_len = strlen(copy.module_name);
+
   oak_dynarr_push(&opts->native_fns.items,
                   &opts->native_fns.count,
                   &opts->native_fns.capacity,
-                  p,
-                  sizeof(*p));
+                  &copy,
+                  sizeof(copy));
   return 0;
 }
 
 struct oak_bind_enum_t* oak_bind_enum(struct oak_compile_options_t* opts,
                                       const char* name)
 {
+  return oak_bind_enum_in_module(opts, null, name);
+}
+
+struct oak_bind_enum_t* oak_bind_enum_in_module(
+    struct oak_compile_options_t* opts,
+    const char* module_name,
+    const char* name)
+{
   if (!opts || !name)
     return null;
 
   struct oak_bind_enum_t* e =
       oak_alloc(sizeof(struct oak_bind_enum_t), OAK_SRC_LOC);
+  e->module_name = module_name;
+  e->module_name_len = module_name ? strlen(module_name) : 0u;
   e->name = name;
   e->name_len = strlen(name);
   e->variant_count = 0;

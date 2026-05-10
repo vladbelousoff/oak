@@ -6,6 +6,7 @@
 #include "oak_lexer.h"
 #include "oak_log.h"
 #include "oak_mem.h"
+#include "oak_type.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -175,6 +176,186 @@ static char* dotted_name_from_path(const struct oak_ast_node_t* path_node)
   }
   buf[w] = 0;
   return buf;
+}
+
+static int native_module_name_eq(const char* module_name,
+                                 const usize module_name_len,
+                                 const char* dotted)
+{
+  return module_name && module_name_len == strlen(dotted) &&
+         memcmp(module_name, dotted, module_name_len) == 0;
+}
+
+static int opts_has_native_module(const struct oak_compile_options_t* opts,
+                                  const char* dotted)
+{
+  if (!opts || !dotted)
+    return 0;
+  for (int i = 0; i < opts->native_fns.count; ++i)
+  {
+    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
+    if (fn->kind == OAK_BIND_FN_GLOBAL &&
+        native_module_name_eq(fn->module_name, fn->module_name_len, dotted))
+      return 1;
+  }
+  for (int i = 0; i < opts->native_types.count; ++i)
+  {
+    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    if (type &&
+        native_module_name_eq(type->module_name, type->module_name_len, dotted))
+      return 1;
+  }
+  for (int i = 0; i < opts->native_enums.count; ++i)
+  {
+    const struct oak_bind_enum_t* e = opts->native_enums.items[i];
+    if (e && native_module_name_eq(e->module_name, e->module_name_len, dotted))
+      return 1;
+  }
+  return 0;
+}
+
+static char* native_canonical_path_dup(const char* dotted)
+{
+  const char* prefix = "native:";
+  const usize plen = strlen(prefix);
+  const usize dlen = strlen(dotted);
+  char* out = oak_alloc(plen + dlen + 1u, OAK_SRC_LOC);
+  memcpy(out, prefix, plen);
+  memcpy(out + plen, dotted, dlen);
+  out[plen + dlen] = 0;
+  return out;
+}
+
+static const char* builtin_type_name(const oak_type_id_t id)
+{
+  switch (id)
+  {
+    case OAK_TYPE_NUMBER:
+      return "number";
+    case OAK_TYPE_STRING:
+      return "string";
+    case OAK_TYPE_BOOL:
+      return "bool";
+    default:
+      return "unknown";
+  }
+}
+
+static struct oak_module_t*
+create_native_module(struct oak_module_registry_t* reg,
+                     const struct oak_compile_options_t* opts,
+                     const char* dotted,
+                     struct oak_module_loader_result_t* out)
+{
+  char* canonical = native_canonical_path_dup(dotted);
+  struct oak_module_t* existing =
+      oak_module_registry_find_by_path(reg, canonical);
+  if (existing)
+  {
+    oak_free(canonical, OAK_SRC_LOC);
+    return existing;
+  }
+
+  struct oak_module_t* mod =
+      oak_module_registry_create(reg, canonical, dotted);
+  oak_free(canonical, OAK_SRC_LOC);
+  if (!mod)
+  {
+    loader_error(out, "out of memory creating native module '%s'", dotted);
+    return null;
+  }
+
+  mod->chunk = oak_alloc(sizeof(struct oak_chunk_t), OAK_SRC_LOC);
+  oak_chunk_init(mod->chunk);
+  mod->chunk->module_id = mod->module_id;
+
+  for (int i = 0; i < opts->native_fns.count; ++i)
+  {
+    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
+    if (fn->kind != OAK_BIND_FN_GLOBAL ||
+        !native_module_name_eq(fn->module_name, fn->module_name_len, dotted))
+      continue;
+    struct oak_obj_native_fn_t* native =
+        oak_native_fn_new(fn->impl, fn->arity, fn->name);
+    const u16 const_idx =
+        (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
+    struct oak_module_export_fn_t exp = {
+      .name = fn->name,
+      .name_len = strlen(fn->name),
+      .const_idx = const_idx,
+      .arity = fn->arity,
+      .return_type_node = null,
+      .return_type_id = fn->return_type_id,
+      .return_kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
+                         ? OAK_TYPE_KIND_ARRAY
+                         : OAK_TYPE_KIND_SCALAR,
+    };
+    const int idx = mod->exports_fn.count;
+    oak_dynarr_push(&mod->exports_fn.items,
+                    &mod->exports_fn.count,
+                    &mod->exports_fn.capacity,
+                    &exp,
+                    sizeof(exp));
+    oak_htable_insert(&mod->exports_fn_by_name, exp.name, exp.name_len, idx);
+  }
+
+  for (int i = 0; i < opts->native_types.count; ++i)
+  {
+    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    if (!type ||
+        !native_module_name_eq(type->module_name, type->module_name_len, dotted))
+      continue;
+    struct oak_module_export_record_t exp = { 0 };
+    exp.name = type->name;
+    exp.name_len = type->name_len;
+    exp.field_count = type->field_count > OAK_MODULE_MAX_RECORD_FIELDS
+                          ? OAK_MODULE_MAX_RECORD_FIELDS
+                          : type->field_count;
+    for (int fi = 0; fi < exp.field_count; ++fi)
+    {
+      exp.fields[fi].name = type->fields[fi].name;
+      exp.fields[fi].name_len = type->fields[fi].name_len;
+      exp.fields[fi].type_name = builtin_type_name(type->fields[fi].field_type_id);
+      exp.fields[fi].type_name_len = strlen(exp.fields[fi].type_name);
+    }
+    const int idx = mod->exports_record.count;
+    oak_dynarr_push(&mod->exports_record.items,
+                    &mod->exports_record.count,
+                    &mod->exports_record.capacity,
+                    &exp,
+                    sizeof(exp));
+    oak_htable_insert(
+        &mod->exports_record_by_name, exp.name, exp.name_len, idx);
+  }
+
+  for (int i = 0; i < opts->native_enums.count; ++i)
+  {
+    const struct oak_bind_enum_t* e = opts->native_enums.items[i];
+    if (!e || !native_module_name_eq(e->module_name, e->module_name_len, dotted))
+      continue;
+    struct oak_module_export_enum_t exp = { 0 };
+    exp.name = e->name;
+    exp.name_len = e->name_len;
+    exp.variant_count = e->variant_count > OAK_MODULE_MAX_ENUM_VARIANTS
+                            ? OAK_MODULE_MAX_ENUM_VARIANTS
+                            : e->variant_count;
+    for (int vi = 0; vi < exp.variant_count; ++vi)
+    {
+      exp.variants[vi].name = e->variants[vi].name;
+      exp.variants[vi].name_len = e->variants[vi].name_len;
+      exp.variants[vi].value = e->variants[vi].value;
+    }
+    const int idx = mod->exports_enum.count;
+    oak_dynarr_push(&mod->exports_enum.items,
+                    &mod->exports_enum.count,
+                    &mod->exports_enum.capacity,
+                    &exp,
+                    sizeof(exp));
+    oak_htable_insert(&mod->exports_enum_by_name, exp.name, exp.name_len, idx);
+  }
+
+  mod->state = OAK_MOD_COMPILED;
+  return mod;
 }
 
 static const struct oak_ast_node_t*
@@ -507,6 +688,46 @@ int oak_module_loader_load_program(const char* entry_path,
     }
 
     char* dotted = dotted_name_from_path(imp->path);
+
+    if (opts_has_native_module(opts, dotted))
+    {
+      struct oak_module_t* dep =
+          create_native_module(out_reg, opts, dotted, out);
+      if (!dep || out->error_count > 0)
+      {
+        oak_free(dotted, OAK_SRC_LOC);
+        rc = -1;
+        break;
+      }
+      const struct oak_token_t* atk = loader_import_alias_token(imp);
+      if (atk)
+      {
+        const char* alias = oak_token_text(atk);
+        const usize alen = oak_token_length(atk);
+        if (oak_htable_get(&top->mod->imports, alias, alen) >= 0)
+        {
+          loader_error(out,
+                       "%s: duplicate import alias '%.*s'",
+                       top->mod->dotted_name,
+                       (int)alen,
+                       alias);
+          oak_free(dotted, OAK_SRC_LOC);
+          rc = -1;
+          break;
+        }
+        oak_htable_insert(&top->mod->imports, alias, alen, (int)dep->module_id);
+      }
+      oak_dynarr_push(&top->mod->import_modules.items,
+                      &top->mod->import_modules.count,
+                      &top->mod->import_modules.capacity,
+                      &dep->module_id,
+                      sizeof(dep->module_id));
+      ENSURE_FLAGS(dep->module_id);
+      visited.items[dep->module_id] = 1;
+      oak_free(dotted, OAK_SRC_LOC);
+      continue;
+    }
+
     char* mod_dir = path_dirname_dup(top->mod->canonical_path);
     char* file_path = path_resolve_dotted(mod_dir, dotted);
     char* canonical = path_canonicalize(file_path);

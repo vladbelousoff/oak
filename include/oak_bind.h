@@ -79,6 +79,11 @@ struct oak_bind_field_t
 struct oak_bind_type_t
 {
   enum oak_bind_type_kind_t kind;
+  /* Optional native module name. When set, the type is exported from that
+   * synthetic module and imported as `module.Type`; when NULL, it is
+   * registered in the global namespace as before. */
+  const char* module_name;
+  usize module_name_len;
   const char* name;
   usize name_len;
   /* Stable id assigned by oak_bind_type() from opts->next_type_id.
@@ -96,6 +101,11 @@ struct oak_bind_type_t
 struct oak_bind_fn_t
 {
   enum oak_bind_fn_kind_t kind;
+  /* Optional native module name for global functions. A global function with
+   * module_name = "math" is called as `math.sqrt(...)` after `import math;`.
+   * Instance/static methods still bind to their receiver type. */
+  const char* module_name;
+  usize module_name_len;
   /* OAK_TYPE_VOID = global (only with OAK_BIND_FN_GLOBAL).  Otherwise the
    * native record type_id for instance or static methods on that type. */
   oak_type_id_t receiver_type_id;
@@ -126,6 +136,10 @@ struct oak_bind_enum_variant_t
 
 struct oak_bind_enum_t
 {
+  /* Optional native module name. When set, variants are exported from that
+   * synthetic module and referenced as `module.Enum.Variant`. */
+  const char* module_name;
+  usize module_name_len;
   const char* name;
   usize name_len;
   struct oak_bind_enum_variant_t variants[OAK_BIND_MAX_ENUM_VARIANTS];
@@ -204,6 +218,12 @@ struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
                                       enum oak_bind_type_kind_t kind,
                                       const char* name);
 
+struct oak_bind_type_t* oak_bind_type_in_module(
+    struct oak_compile_options_t* opts,
+    const char* module_name,
+    enum oak_bind_type_kind_t kind,
+    const char* name);
+
 /* Register a field on a native type.  Fields are assigned indices in
  * registration order, matching the order the compiler resolves them.
  * `params` must not be NULL; it supplies name, field_type_id, getter, and
@@ -235,6 +255,11 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
  * arguments. */
 struct oak_bind_enum_t* oak_bind_enum(struct oak_compile_options_t* opts,
                                       const char* name);
+
+struct oak_bind_enum_t* oak_bind_enum_in_module(
+    struct oak_compile_options_t* opts,
+    const char* module_name,
+    const char* name);
 
 /* Append a variant to a native enum.  Variant values must be unique within
  * an enum is not enforced — they are forwarded as-is to Oak as integer

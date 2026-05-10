@@ -14,10 +14,10 @@
 OAK_TEST_DECL(StdlibFileWriteReadRoundTrip)
 {
   const char* source =
-      "let w = File.open('oak_vm_file_test.tmp', FileMode.Write);\n"
+      "let w = File.open('oak_vm_file_test.tmp', 1);\n"
       "w.write('hello line\\nline two\\n');\n"
       "w.close();\n"
-      "let r = File.open('oak_vm_file_test.tmp', FileMode.Read);\n"
+      "let r = File.open('oak_vm_file_test.tmp', 0);\n"
       "let t = r.read_all();\n"
       "let e = r.eof();\n"
       "r.close();\n"
@@ -54,10 +54,10 @@ OAK_TEST_DECL(StdlibFileWriteReadRoundTrip)
 OAK_TEST_DECL(StdlibFileReadlineAndEof)
 {
   const char* source =
-      "let w = File.open('oak_vm_file_rl.tmp', FileMode.Write);\n"
+      "let w = File.open('oak_vm_file_rl.tmp', 1);\n"
       "w.write('A\\nB\\n');\n"
       "w.close();\n"
-      "let r = File.open('oak_vm_file_rl.tmp', FileMode.Read);\n"
+      "let r = File.open('oak_vm_file_rl.tmp', 0);\n"
       "let a = r.read();\n"
       "let b = r.read();\n"
       "let c = r.eof();\n"

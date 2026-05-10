@@ -178,12 +178,13 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
 {
   if (!opts)
     return;
-  struct oak_bind_type_t* t = oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "File");
+  struct oak_bind_type_t* t =
+      oak_bind_type_in_module(opts, "io", OAK_BIND_TYPE_RECORD, "File");
   if (!t)
     return;
   s_file_type = t;
 
-  struct oak_bind_enum_t* mode = oak_bind_enum(opts, "FileMode");
+  struct oak_bind_enum_t* mode = oak_bind_enum_in_module(opts, "io", "FileMode");
   if (mode)
   {
     oak_bind_enum_variant(mode, "Read", OAK_FILE_MODE_READ);
@@ -191,6 +192,17 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
     oak_bind_enum_variant(mode, "Append", OAK_FILE_MODE_APPEND);
   }
 
+  oak_bind_fn(opts,
+              &(struct oak_bind_fn_t){
+                  .kind = OAK_BIND_FN_GLOBAL,
+                  .module_name = "io",
+                  .receiver_type_id = OAK_TYPE_VOID,
+                  .name = "open",
+                  .impl = file_open,
+                  .arity = 2,
+                  .return_type_id = t->type_id,
+                  .return_shape = OAK_BIND_SHAPE_SCALAR,
+              });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_STATIC_METHOD,

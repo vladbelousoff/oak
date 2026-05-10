@@ -203,7 +203,7 @@ Module names use dots for path separators; `as` gives an alias. Cycles are detec
 | `.delete(k)`     | map        | remove key, returns whether it existed |
 | `.format(args)`  | string     | `{}` / `{n}` substitution from an array |
 
-Number helpers:
+Number helpers. Import `math` before using the `math.*` functions.
 
 | Function      | What it does                                      |
 |---------------|---------------------------------------------------|
@@ -212,21 +212,23 @@ Number helpers:
 | `to_float(v)` | convert a number to a float                       |
 | `is_int(v)`   | is the value stored as an integer number          |
 | `is_float(v)` | is the value stored as a floating-point number    |
-| `sqrt(v)`     | square root                                       |
-| `sin(v)`      | sine, in radians                                  |
-| `cos(v)`      | cosine, in radians                                |
-| `tan(v)`      | tangent, in radians                               |
+| `math.sqrt(v)` | square root                                      |
+| `math.sin(v)`  | sine, in radians                                 |
+| `math.cos(v)`  | cosine, in radians                               |
+| `math.tan(v)`  | tangent, in radians                              |
 
 There's also a small `File` type:
 
 ```oak
-let f = File.open('notes.txt', FileMode.Read);
+import io;
+
+let f = io.open('notes.txt', io.FileMode.Read);
 let text = f.read_all();
 f.close();
 print(text);
 ```
 
-`File` supports `open` (static), and `read`, `read_all`, `write`, `eof`, `close` on instances. `open` takes a `FileMode` enum value as its second argument: `FileMode.Read`, `FileMode.Write`, or `FileMode.Append`.
+`io.File` supports `read`, `read_all`, `write`, `eof`, and `close` on instances. `io.open` takes an `io.FileMode` enum value as its second argument: `io.FileMode.Read`, `io.FileMode.Write`, or `io.FileMode.Append`.
 
 ---
 

@@ -395,6 +395,8 @@ void oak_compiler_register_native_fns(struct oak_compiler_t* c,
     const struct oak_bind_fn_t* b = &opts->native_fns.items[i];
     if (!b->name || !b->impl)
       continue;
+    if (b->kind == OAK_BIND_FN_GLOBAL && b->module_name)
+      continue;
 
     const usize name_len = strlen(b->name);
 

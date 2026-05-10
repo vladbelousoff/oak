@@ -99,6 +99,8 @@ void oak_compiler_register_native_enums(
     const struct oak_bind_enum_t* ne = opts->native_enums.items[i];
     if (!ne)
       continue;
+    if (ne->module_name)
+      continue;
 
     if (oak_enum_registry_is_enum_name(&c->enums, ne->name, ne->name_len))
     {

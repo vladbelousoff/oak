@@ -72,6 +72,7 @@ oak_core_sources = files(
   'src/runtime/oak_value.c',
   'src/stdlib/oak_stdlib.c',
   'src/stdlib/oak_stdlib_file.c',
+  'src/stdlib/oak_stdlib_math.c',
   'src/vm/oak_vm.c',
   'src/vm/oak_vm_arith.c',
   'src/vm/oak_vm_call.c',

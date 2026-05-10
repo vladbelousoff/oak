@@ -1,4 +1,6 @@
-let file = File.open('examples/08_file_io/message.txt', FileMode.Read);
+import io;
+
+let file = io.open('examples/08_file_io/message.txt', io.FileMode.Read);
 let text = file.read_all();
 file.close();
 
