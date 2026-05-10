@@ -101,6 +101,8 @@ u8 oak_compiler_binop_for_node_kind(const enum oak_node_kind_t kind)
     case OAK_NODE_BINARY_DIV:
     case OAK_NODE_STMT_DIV_ASSIGN:
       return OAK_BINOP_DIVIDE;
+    case OAK_NODE_BINARY_INT_DIV:
+      return OAK_BINOP_INT_DIVIDE;
     case OAK_NODE_BINARY_MOD:
     case OAK_NODE_STMT_MOD_ASSIGN:
       return OAK_BINOP_MODULO;
@@ -938,6 +940,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_BINARY_SUB:
     case OAK_NODE_BINARY_MUL:
     case OAK_NODE_BINARY_DIV:
+    case OAK_NODE_BINARY_INT_DIV:
     case OAK_NODE_BINARY_MOD:
     case OAK_NODE_BINARY_EQ:
     case OAK_NODE_BINARY_NEQ:

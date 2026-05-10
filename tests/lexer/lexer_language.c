@@ -75,7 +75,7 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
 OAK_TEST_DECL(LexOperatorsAndPunctuation)
 {
   struct oak_lexer_result_t* lexer =
-      OAK_LEX("? == && || >= <= -= *= /= %= : , ( ) { } [ ] > < . ->");
+      OAK_LEX("? == && || >= <= -= *= /= %= // : , ( ) { } [ ] > < . ->");
 
   static struct oak_expected_token_t expected[] = {
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_QUESTION, 1),
@@ -88,18 +88,38 @@ OAK_TEST_DECL(LexOperatorsAndPunctuation)
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_STAR_ASSIGN, 21),
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_SLASH_ASSIGN, 24),
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_PERCENT_ASSIGN, 27),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_COLON, 30),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_COMMA, 32),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LPAREN, 34),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RPAREN, 36),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LBRACE, 38),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RBRACE, 40),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LBRACKET, 42),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RBRACKET, 44),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_GREATER, 46),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LESS, 48),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_DOT, 50),
-    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_ARROW, 52),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_DOUBLE_SLASH, 30),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_COLON, 33),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_COMMA, 35),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LPAREN, 37),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RPAREN, 39),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LBRACE, 41),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RBRACE, 43),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LBRACKET, 45),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_RBRACKET, 47),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_GREATER, 49),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LESS, 51),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_DOT, 53),
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_ARROW, 55),
+  };
+
+  const enum oak_test_status_t result =
+      oak_test_tokens(lexer, expected, oak_count_of(expected));
+  oak_lexer_free(lexer);
+  return result;
+}
+
+OAK_TEST_DECL(LexBlockComments)
+{
+  struct oak_lexer_result_t* lexer =
+      OAK_LEX("let /* ignored\ncomment */ value = 1;");
+
+  static struct oak_expected_token_t expected[] = {
+    OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LET, 1),
+    { .kind = OAK_TOKEN_IDENT, .line = 2, .column = 12, .offset = 27, .string = "value" },
+    { .kind = OAK_TOKEN_ASSIGN, .line = 2, .column = 18, .offset = 33 },
+    { .kind = OAK_TOKEN_INT, .line = 2, .column = 20, .offset = 35, .integer = 1 },
+    { .kind = OAK_TOKEN_SEMICOLON, .line = 2, .column = 21, .offset = 36 },
   };
 
   const enum oak_test_status_t result =
@@ -161,6 +181,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(LexNumbersIdentifiersAndOperators),
     OAK_TEST_ENTRY(LexKeywordsAndPunctuation),
     OAK_TEST_ENTRY(LexOperatorsAndPunctuation),
+    OAK_TEST_ENTRY(LexBlockComments),
     OAK_TEST_ENTRY(LexStringsEscapesUnicodeAndGrowth),
     OAK_TEST_ENTRY(LexWhitespaceNewlinesAndErrors),
   };

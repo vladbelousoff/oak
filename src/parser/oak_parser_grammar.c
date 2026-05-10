@@ -108,6 +108,13 @@ static const struct oak_pratt_rule_t expr_infix[] = {
   },
   {
       .kind = OAK_PRATT_OP,
+      .trigger_token = OAK_TOKEN_DOUBLE_SLASH,
+      .l_bp = 11,
+      .r_bp = 12,
+      .node_kind = OAK_NODE_BINARY_INT_DIV,
+  },
+  {
+      .kind = OAK_PRATT_OP,
       .trigger_token = OAK_TOKEN_PERCENT,
       .l_bp = 11,
       .r_bp = 12,
@@ -562,6 +569,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_BINARY_SUB]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_BINARY_MUL]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_BINARY_DIV]        = { .op = OAK_GRAMMAR_BINARY },
+  [OAK_NODE_BINARY_INT_DIV]    = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_BINARY_MOD]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_BINARY_EQ]         = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_BINARY_NEQ]        = { .op = OAK_GRAMMAR_BINARY },

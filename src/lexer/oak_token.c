@@ -115,6 +115,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "GREATER_EQUAL";
     case OAK_TOKEN_SLASH:
       return "SLASH";
+    case OAK_TOKEN_DOUBLE_SLASH:
+      return "DOUBLE_SLASH";
     case OAK_TOKEN_PERCENT:
       return "PERCENT";
     case OAK_TOKEN_ARROW:

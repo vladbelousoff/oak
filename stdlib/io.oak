@@ -8,3 +8,5 @@ record File {
   fn eof(self) -> bool;
   fn close(self);
 }
+
+fn open(path : string, mode : FileMode) -> File;

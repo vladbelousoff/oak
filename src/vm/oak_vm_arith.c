@@ -1,5 +1,10 @@
 #include "internal/oak_vm.h"
 
+static inline int coerce_i32(const struct oak_value_t v)
+{
+  return oak_is_f32(v) ? (int)oak_as_f32(v) : oak_as_i32(v);
+}
+
 static inline float coerce_f32(const struct oak_value_t v)
 {
   return oak_is_f32(v) ? oak_as_f32(v) : (float)oak_as_i32(v);
@@ -10,6 +15,27 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
                                            const struct oak_value_t a,
                                            const struct oak_value_t b)
 {
+  if (binop == OAK_BINOP_INT_DIVIDE)
+  {
+    if (!oak_is_number(a) || !oak_is_number(b))
+    {
+      oak_vm_runtime_error(
+          vm,
+          "integer division operands must be numbers (left operand is %s, "
+          "right operand is %s)",
+          oak_vm_value_kind_desc(a),
+          oak_vm_value_kind_desc(b));
+      return OAK_VM_RUNTIME_ERROR;
+    }
+    const int divisor = coerce_i32(b);
+    if (divisor == 0)
+    {
+      oak_vm_runtime_error(vm, "integer division by zero");
+      return OAK_VM_RUNTIME_ERROR;
+    }
+    return oak_vm_push(vm, OAK_VALUE_I32(coerce_i32(a) / divisor));
+  }
+
   if (oak_is_i32(a) && oak_is_i32(b) && binop != OAK_BINOP_DIVIDE)
   {
     int result;

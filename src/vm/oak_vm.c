@@ -309,6 +309,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
           case OAK_BINOP_SUBTRACT:
           case OAK_BINOP_MULTIPLY:
           case OAK_BINOP_DIVIDE:
+          case OAK_BINOP_INT_DIVIDE:
           case OAK_BINOP_MODULO:
           {
             if (binop == OAK_BINOP_ADD && oak_is_string(a) && oak_is_string(b))

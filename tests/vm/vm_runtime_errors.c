@@ -30,10 +30,10 @@ OAK_TEST_DECL(NumberDivisionByZeroRuntime)
                               "print(x);\n");
 }
 
-/* Integer division by zero through intdiv is a runtime error. */
+/* Integer division by zero through // is a runtime error. */
 OAK_TEST_DECL(IntDivByZeroRuntime)
 {
-  return expect_runtime_error("let x = intdiv(1, 0);\n"
+  return expect_runtime_error("let x = 1 // 0;\n"
                               "print(x);\n");
 }
 

@@ -53,10 +53,10 @@ npm run dev
 ### Bindings and assignment
 
 ```oak
-let x = 42;          // immutable
-let mut y = 10;      // mutable
+let x = 42;          /* immutable */
+let mut y = 10;      /* mutable */
 y = 20;
-y += 5;              // +=  -=  *=  /=  %=  also work
+y += 5;              /* +=  -=  *=  /=  %=  also work */
 ```
 
 ### Types
@@ -74,12 +74,12 @@ y += 5;              // +=  -=  *=  /=  %=  also work
 ### Operators
 
 ```oak
-x + y    x - y    x * y    x / y    x % y
+x + y    x - y    x * y    x / y    x // y   x % y
 x == y   x != y   x < y    x <= y   x > y    x >= y
 a && b   a || b   !a       -x
 ```
 
-`/` always returns a float. Use `intdiv(a, b)` for integer division. `&&` and `||` short-circuit.
+`/` always returns a float. `//` performs integer division after converting both operands to integers. `&&` and `||` short-circuit.
 
 ### Control flow
 
@@ -88,7 +88,7 @@ if x > 0 { print(x); } else { print(0); }
 
 while x > 0 { x -= 1; }
 
-for i from 0 to 10 { print(i); }   // half-open: [0, 10)
+for i from 0 to 10 { print(i); }   /* half-open: [0, 10) */
 
 for v in arr { print(v); }
 for i, v in arr { print(i); print(v); }
@@ -109,7 +109,7 @@ fn add(a : number, b : number) -> number {
   return a + b;
 }
 
-print(add(1, 2));  // 3
+print(add(1, 2));  /* 3 */
 ```
 
 ### Records
@@ -145,7 +145,7 @@ q.translate(2, 3);
 ```oak
 enum Color { Red, Green, Blue }
 
-let c = Color.Green;  // 1
+let c = Color.Green;  /* 1 */
 ```
 
 Variants are just named integers.
@@ -156,12 +156,12 @@ Variants are just named integers.
 let mut nums = [] as number[];
 nums.push(10);
 nums.push(20);
-print(nums.size());   // 2
-print(nums[0]);       // 10
+print(nums.size());   /* 2 */
+print(nums[0]);       /* 10 */
 
 let mut m = [:] as [string:number];
 m['x'] = 1;
-print(m.has('x'));    // true
+print(m.has('x'));    /* true */
 m.delete('x');
 
 let scores = ['alice': 95, 'bob': 87];
@@ -173,8 +173,8 @@ let scores = ['alice': 95, 'bob': 87];
 let s = 'hello' + ' ' + 'world';
 print(s.size());
 
-print('{0}+{1}={2}'.format([2, 3, 5]));   // 2+3=5
-print('{}{}'.format(['a', 'b']));         // ab
+print('{0}+{1}={2}'.format([2, 3, 5]));   /* 2+3=5 */
+print('{}{}'.format(['a', 'b']));         /* ab */
 ```
 
 ### Modules and imports
@@ -207,7 +207,6 @@ Number helpers. Import `math` before using the `math.*` functions.
 
 | Function      | What it does                                      |
 |---------------|---------------------------------------------------|
-| `intdiv(a,b)` | integer division after converting operands to int |
 | `to_int(v)`   | convert a number to an integer                    |
 | `to_float(v)` | convert a number to a float                       |
 | `is_int(v)`   | is the value stored as an integer number          |

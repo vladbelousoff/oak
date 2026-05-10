@@ -100,6 +100,36 @@ static enum oak_lex_status_t scan_ws(const struct oak_lexer_ctx_t* ctx,
   return OAK_LEX_NO_MATCH;
 }
 
+static enum oak_lex_status_t scan_block_comment(
+    const struct oak_lexer_ctx_t* ctx, const char* input)
+{
+  struct oak_lexer_cur_t* cur = ctx->cur;
+  if ((usize)cur->buf_pos + 1u >= ctx->input_len)
+    return OAK_LEX_NO_MATCH;
+  if (input[cur->buf_pos] != '/' || input[cur->buf_pos + 1] != '*')
+    return OAK_LEX_NO_MATCH;
+
+  oak_lexer_advance_cursor(cur, 2, 2);
+  while ((usize)cur->buf_pos < ctx->input_len)
+  {
+    if ((usize)cur->buf_pos + 1u < ctx->input_len &&
+        input[cur->buf_pos] == '*' && input[cur->buf_pos + 1] == '/')
+    {
+      oak_lexer_advance_cursor(cur, 2, 2);
+      return OAK_LEX_OK;
+    }
+    if (input[cur->buf_pos] == '\n')
+    {
+      oak_lexer_new_line(cur);
+      oak_lexer_advance_cursor(cur, 1, 1);
+      continue;
+    }
+    oak_lexer_advance_cursor(cur, 1, 1);
+  }
+
+  return OAK_LEX_UNTERMINATED_COMMENT;
+}
+
 struct two_char_op_t
 {
   char a, b;
@@ -119,6 +149,7 @@ static const struct two_char_op_t two_char_ops[] = {
   { '<', '=', OAK_TOKEN_LESS_EQUAL },   { '+', '=', OAK_TOKEN_PLUS_ASSIGN },
   { '-', '=', OAK_TOKEN_MINUS_ASSIGN }, { '*', '=', OAK_TOKEN_STAR_ASSIGN },
   { '/', '=', OAK_TOKEN_SLASH_ASSIGN }, { '%', '=', OAK_TOKEN_PERCENT_ASSIGN },
+  { '/', '/', OAK_TOKEN_DOUBLE_SLASH },
 };
 
 static const struct single_char_op_t single_char_ops[] = {
@@ -426,7 +457,7 @@ typedef enum oak_lex_status_t (*scan_fn_t)(const struct oak_lexer_ctx_t* ctx,
                                            const char* input);
 
 static const scan_fn_t scanners[] = {
-  scan_ws, scan_op, scan_string, scan_number, scan_ident,
+  scan_ws, scan_block_comment, scan_op, scan_string, scan_number, scan_ident,
 };
 
 static enum oak_lex_status_t try_scan(const struct oak_lexer_ctx_t* ctx,

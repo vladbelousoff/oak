@@ -127,6 +127,8 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "BINARY_MUL";
     case OAK_NODE_BINARY_DIV:
       return "BINARY_DIV";
+    case OAK_NODE_BINARY_INT_DIV:
+      return "BINARY_INT_DIV";
     case OAK_NODE_BINARY_MOD:
       return "BINARY_MOD";
     case OAK_NODE_BINARY_EQ:
