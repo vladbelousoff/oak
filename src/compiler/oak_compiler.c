@@ -427,6 +427,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
     compiler.current_module = opts->current_module;
     chunk->module_id = opts->current_module->module_id;
   }
+  compiler.allow_bodyless_fns = opts ? opts->allow_bodyless_fns : 0;
 
   if (!root || root->kind != OAK_NODE_PROGRAM)
   {

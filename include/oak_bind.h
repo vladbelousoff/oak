@@ -199,6 +199,11 @@ struct oak_compile_options_t
    * references via `module_registry`. */
   struct oak_module_registry_t* module_registry;
   struct oak_module_t* current_module;
+
+  /* Internal module-loader option: native stdlib declaration modules contain
+   * function signatures without Oak bodies because their implementations are
+   * provided by native bindings. */
+  int allow_bodyless_fns;
 };
 
 /* ---------- Compile-options lifecycle ---------- */

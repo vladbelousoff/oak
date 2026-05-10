@@ -138,6 +138,15 @@ static char* path_canonicalize(const char* path)
   return copy;
 }
 
+static int path_exists(const char* path)
+{
+  FILE* f = fopen(path, "rb");
+  if (!f)
+    return 0;
+  fclose(f);
+  return 1;
+}
+
 /* ---------- Dotted-name extraction from IMPORT_PATH AST ---------- */
 
 static char* dotted_name_from_path(const struct oak_ast_node_t* path_node)
@@ -239,6 +248,303 @@ static const char* builtin_type_name(const oak_type_id_t id)
     default:
       return "unknown";
   }
+}
+
+static int native_type_in_module(const struct oak_compile_options_t* opts,
+                                 oak_type_id_t type_id,
+                                 const char* dotted)
+{
+  if (!opts || !dotted)
+    return 0;
+  for (int i = 0; i < opts->native_types.count; ++i)
+  {
+    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    if (type && type->type_id == type_id &&
+        native_module_name_eq(type->module_name, type->module_name_len, dotted))
+      return 1;
+  }
+  return 0;
+}
+
+static void module_loader_filter_native_decls(
+    const struct oak_compile_options_t* base_opts,
+    const char* dotted,
+    struct oak_compile_options_t* opts)
+{
+  if (!opts_has_native_module(base_opts, dotted))
+    return;
+
+  oak_dynarr_init(
+      &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
+  oak_dynarr_init(
+      &opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
+  oak_dynarr_init(&opts->native_enums.items,
+                  &opts->native_enums.count,
+                  &opts->native_enums.capacity);
+
+  for (int i = 0; i < base_opts->native_types.count; ++i)
+  {
+    struct oak_bind_type_t* type = base_opts->native_types.items[i];
+    if (type &&
+        native_module_name_eq(type->module_name, type->module_name_len, dotted))
+      continue;
+    oak_dynarr_push(&opts->native_types.items,
+                    &opts->native_types.count,
+                    &opts->native_types.capacity,
+                    &type,
+                    sizeof(type));
+  }
+
+  for (int i = 0; i < base_opts->native_fns.count; ++i)
+  {
+    const struct oak_bind_fn_t* fn = &base_opts->native_fns.items[i];
+    if (fn->kind == OAK_BIND_FN_GLOBAL &&
+        native_module_name_eq(fn->module_name, fn->module_name_len, dotted))
+      continue;
+    if (fn->receiver_type_id != OAK_TYPE_VOID &&
+        native_type_in_module(base_opts, fn->receiver_type_id, dotted))
+      continue;
+    oak_dynarr_push(&opts->native_fns.items,
+                    &opts->native_fns.count,
+                    &opts->native_fns.capacity,
+                    fn,
+                    sizeof(*fn));
+  }
+
+  for (int i = 0; i < base_opts->native_enums.count; ++i)
+  {
+    struct oak_bind_enum_t* e = base_opts->native_enums.items[i];
+    if (e && native_module_name_eq(e->module_name, e->module_name_len, dotted))
+      continue;
+    oak_dynarr_push(&opts->native_enums.items,
+                    &opts->native_enums.count,
+                    &opts->native_enums.capacity,
+                    &e,
+                    sizeof(e));
+  }
+}
+
+static void module_loader_free_filtered_native_decls(
+    const struct oak_compile_options_t* base_opts,
+    const char* dotted,
+    struct oak_compile_options_t* opts)
+{
+  if (!opts_has_native_module(base_opts, dotted))
+    return;
+  oak_dynarr_free(
+      &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
+  oak_dynarr_free(
+      &opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
+  oak_dynarr_free(&opts->native_enums.items,
+                  &opts->native_enums.count,
+                  &opts->native_enums.capacity);
+}
+
+static void apply_native_module_function_exports(
+    struct oak_module_t* mod,
+    const struct oak_compile_options_t* opts)
+{
+  if (!mod || !mod->chunk || !opts || !opts_has_native_module(opts, mod->dotted_name))
+    return;
+  for (int i = 0; i < opts->native_fns.count; ++i)
+  {
+    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
+    if (fn->kind != OAK_BIND_FN_GLOBAL ||
+        !native_module_name_eq(
+            fn->module_name, fn->module_name_len, mod->dotted_name))
+      continue;
+    const int eidx =
+        oak_htable_get(&mod->exports_fn_by_name, fn->name, strlen(fn->name));
+    if (eidx < 0)
+      continue;
+    struct oak_obj_native_fn_t* native =
+        oak_native_fn_new(fn->impl, fn->arity, fn->name);
+    const u16 const_idx =
+        (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
+    struct oak_module_export_fn_t* exp = &mod->exports_fn.items[eidx];
+    exp->const_idx = const_idx;
+    exp->arity = fn->arity;
+    exp->return_type_node = null;
+    exp->return_type_id = fn->return_type_id;
+    exp->return_kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
+                           ? OAK_TYPE_KIND_ARRAY
+                           : OAK_TYPE_KIND_SCALAR;
+  }
+}
+
+static const struct oak_ast_node_t*
+loader_fn_decl_name_node(const struct oak_ast_node_t* decl)
+{
+  const struct oak_ast_node_t* proto = decl ? decl->lhs : null;
+  const struct oak_ast_node_t* head = proto ? proto->lhs : null;
+  return head ? head->rhs : null;
+}
+
+static const struct oak_ast_node_t*
+loader_fn_decl_param_list(const struct oak_ast_node_t* decl)
+{
+  const struct oak_ast_node_t* proto = decl ? decl->lhs : null;
+  const struct oak_ast_node_t* tail = proto ? proto->rhs : null;
+  return tail ? tail->lhs : null;
+}
+
+static int loader_fn_decl_has_self(const struct oak_ast_node_t* decl)
+{
+  const struct oak_ast_node_t* plist = loader_fn_decl_param_list(decl);
+  return plist && plist->lhs;
+}
+
+static int loader_fn_decl_param_count(const struct oak_ast_node_t* decl)
+{
+  const struct oak_ast_node_t* plist = loader_fn_decl_param_list(decl);
+  if (!plist || !plist->rhs)
+    return 0;
+  return (int)oak_list_length(&plist->rhs->children);
+}
+
+static int loader_fn_decl_is_bodyless(const struct oak_ast_node_t* decl)
+{
+  return decl && decl->rhs && decl->rhs->kind == OAK_NODE_FN_DECL_SEMICOLON;
+}
+
+static const struct oak_ast_node_t*
+loader_record_decl_name_node(const struct oak_ast_node_t* record_decl)
+{
+  const struct oak_ast_node_t* name = record_decl ? record_decl->lhs : null;
+  if (name && name->kind == OAK_NODE_TYPE_NAME)
+  {
+    const struct oak_list_entry_t* first = name->children.next;
+    if (first == &name->children)
+      return null;
+    name = oak_container_of(first, struct oak_ast_node_t, link);
+  }
+  return (name && name->kind == OAK_NODE_IDENT) ? name : null;
+}
+
+static const struct oak_bind_type_t*
+find_native_type_decl(const struct oak_compile_options_t* opts,
+                      const char* dotted,
+                      const char* name,
+                      usize name_len)
+{
+  for (int i = 0; opts && i < opts->native_types.count; ++i)
+  {
+    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    if (type &&
+        native_module_name_eq(type->module_name, type->module_name_len, dotted) &&
+        type->name_len == name_len && memcmp(type->name, name, name_len) == 0)
+      return type;
+  }
+  return null;
+}
+
+static int native_global_fn_decl_exists(const struct oak_compile_options_t* opts,
+                                        const char* dotted,
+                                        const char* name,
+                                        usize name_len,
+                                        int arity)
+{
+  for (int i = 0; opts && i < opts->native_fns.count; ++i)
+  {
+    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
+    if (fn->kind == OAK_BIND_FN_GLOBAL &&
+        native_module_name_eq(fn->module_name, fn->module_name_len, dotted) &&
+        strlen(fn->name) == name_len && memcmp(fn->name, name, name_len) == 0 &&
+        fn->arity == arity)
+      return 1;
+  }
+  return 0;
+}
+
+static int native_method_decl_exists(const struct oak_compile_options_t* opts,
+                                     const struct oak_bind_type_t* receiver,
+                                     const char* name,
+                                     usize name_len,
+                                     int has_self,
+                                     int arity)
+{
+  for (int i = 0; opts && receiver && i < opts->native_fns.count; ++i)
+  {
+    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
+    const enum oak_bind_fn_kind_t want_kind =
+        has_self ? OAK_BIND_FN_INSTANCE_METHOD : OAK_BIND_FN_STATIC_METHOD;
+    if (fn->kind == want_kind && fn->receiver_type_id == receiver->type_id &&
+        strlen(fn->name) == name_len && memcmp(fn->name, name, name_len) == 0 &&
+        fn->arity == arity)
+      return 1;
+  }
+  return 0;
+}
+
+static int validate_bodyless_native_decls(
+    struct oak_module_loader_result_t* out,
+    const struct oak_module_t* mod,
+    const struct oak_compile_options_t* opts)
+{
+  if (!opts_has_native_module(opts, mod->dotted_name))
+    return 1;
+  const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
+  if (!root)
+    return 1;
+  int ok = 1;
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &root->children)
+  {
+    const struct oak_ast_node_t* item =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (item->kind == OAK_NODE_FN_DECL && loader_fn_decl_is_bodyless(item))
+    {
+      const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(item);
+      const char* name = oak_token_text(name_node->token);
+      const usize name_len = oak_token_length(name_node->token);
+      const int arity = loader_fn_decl_param_count(item);
+      if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, name_len, arity))
+      {
+        loader_error(out,
+                     "%s: bodyless function '%.*s' has no native binding",
+                     mod->dotted_name,
+                     (int)name_len,
+                     name);
+        ok = 0;
+      }
+      continue;
+    }
+    if (item->kind != OAK_NODE_RECORD_DECL || !item->rhs)
+      continue;
+    const struct oak_ast_node_t* record_name_node =
+        loader_record_decl_name_node(item);
+    if (!record_name_node)
+      continue;
+    const char* record_name = oak_token_text(record_name_node->token);
+    const usize record_name_len = oak_token_length(record_name_node->token);
+    const struct oak_bind_type_t* receiver =
+        find_native_type_decl(opts, mod->dotted_name, record_name, record_name_len);
+    struct oak_list_entry_t* mpos;
+    oak_list_for_each(mpos, &item->rhs->children)
+    {
+      const struct oak_ast_node_t* member =
+          oak_container_of(mpos, struct oak_ast_node_t, link);
+      if (member->kind != OAK_NODE_FN_DECL || !loader_fn_decl_is_bodyless(member))
+        continue;
+      const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(member);
+      const char* name = oak_token_text(name_node->token);
+      const usize name_len = oak_token_length(name_node->token);
+      const int has_self = loader_fn_decl_has_self(member);
+      const int arity = loader_fn_decl_param_count(member);
+      if (!native_method_decl_exists(opts, receiver, name, name_len, has_self, arity))
+      {
+        loader_error(out,
+                     "%s: bodyless method '%.*s.%.*s' has no native binding",
+                     mod->dotted_name,
+                     (int)record_name_len,
+                     record_name,
+                     (int)name_len,
+                     name);
+        ok = 0;
+      }
+    }
+  }
+  return ok;
 }
 
 static struct oak_module_t*
@@ -468,6 +774,14 @@ static int compile_module(struct oak_module_t* mod,
   opts.source_name = mod->canonical_path;
   opts.module_registry = reg;
   opts.current_module = mod;
+  opts.allow_bodyless_fns = opts_has_native_module(base_opts, mod->dotted_name);
+  module_loader_filter_native_decls(base_opts, mod->dotted_name, &opts);
+
+  if (!validate_bodyless_native_decls(out, mod, base_opts))
+  {
+    module_loader_free_filtered_native_decls(base_opts, mod->dotted_name, &opts);
+    return -1;
+  }
 
   struct oak_compile_result_t cr = { 0 };
   oak_compile_ex(oak_parser_root(&mod->parser), &opts, &cr);
@@ -477,16 +791,20 @@ static int compile_module(struct oak_module_t* mod,
     loader_propagate_diagnostics(
         out, mod->dotted_name, cr.errors, cr.error_count);
     oak_compile_result_free(&cr);
+    module_loader_free_filtered_native_decls(base_opts, mod->dotted_name, &opts);
     return -1;
   }
   if (!cr.chunk)
   {
     loader_error(out, "%s: compilation produced no chunk", mod->dotted_name);
+    module_loader_free_filtered_native_decls(base_opts, mod->dotted_name, &opts);
     return -1;
   }
   /* Ownership of the chunk transfers to the module. */
   mod->chunk = cr.chunk;
   mod->state = OAK_MOD_COMPILED;
+  apply_native_module_function_exports(mod, base_opts);
+  module_loader_free_filtered_native_decls(base_opts, mod->dotted_name, &opts);
   return 0;
 }
 
@@ -563,7 +881,6 @@ parse_or_get_module(struct oak_module_registry_t* reg,
   const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
   if (!root)
     return null;
-
   if (!is_entry && !validate_imported_module_body(out, mod, root))
     return null;
 
@@ -689,7 +1006,24 @@ int oak_module_loader_load_program(const char* entry_path,
 
     char* dotted = dotted_name_from_path(imp->path);
 
-    if (opts_has_native_module(opts, dotted))
+    char* mod_dir = path_dirname_dup(top->mod->canonical_path);
+    char* file_path = path_resolve_dotted(mod_dir, dotted);
+    oak_free(mod_dir, OAK_SRC_LOC);
+
+    if (!path_exists(file_path) && opts_has_native_module(opts, dotted))
+    {
+      oak_free(file_path, OAK_SRC_LOC);
+      file_path = path_resolve_dotted("stdlib", dotted);
+#if defined(OAK_STDLIB_DIR)
+      if (!path_exists(file_path))
+      {
+        oak_free(file_path, OAK_SRC_LOC);
+        file_path = path_resolve_dotted(OAK_STDLIB_DIR, dotted);
+      }
+#endif
+    }
+
+    if (!path_exists(file_path) && opts_has_native_module(opts, dotted))
     {
       struct oak_module_t* dep =
           create_native_module(out_reg, opts, dotted, out);
@@ -725,11 +1059,10 @@ int oak_module_loader_load_program(const char* entry_path,
       ENSURE_FLAGS(dep->module_id);
       visited.items[dep->module_id] = 1;
       oak_free(dotted, OAK_SRC_LOC);
+      oak_free(file_path, OAK_SRC_LOC);
       continue;
     }
 
-    char* mod_dir = path_dirname_dup(top->mod->canonical_path);
-    char* file_path = path_resolve_dotted(mod_dir, dotted);
     char* canonical = path_canonicalize(file_path);
 
     /* Cycle check: is `canonical` currently being visited? */
@@ -761,7 +1094,6 @@ int oak_module_loader_load_program(const char* entry_path,
       buf[w] = 0;
       loader_error(out, "import cycle: %s", buf);
       oak_free(dotted, OAK_SRC_LOC);
-      oak_free(mod_dir, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
       oak_free(canonical, OAK_SRC_LOC);
       rc = -1;
@@ -779,7 +1111,6 @@ int oak_module_loader_load_program(const char* entry_path,
                       &found->module_id,
                       sizeof(found->module_id));
       oak_free(dotted, OAK_SRC_LOC);
-      oak_free(mod_dir, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
       oak_free(canonical, OAK_SRC_LOC);
       continue;
@@ -792,7 +1123,6 @@ int oak_module_loader_load_program(const char* entry_path,
     if (!dep || out->error_count > 0)
     {
       oak_free(dotted, OAK_SRC_LOC);
-      oak_free(mod_dir, OAK_SRC_LOC);
       oak_free(file_path, OAK_SRC_LOC);
       oak_free(canonical, OAK_SRC_LOC);
       rc = -1;
@@ -811,10 +1141,9 @@ int oak_module_loader_load_program(const char* entry_path,
           loader_error(out,
                        "%s: duplicate import alias '%.*s'",
                        top->mod->dotted_name,
-                       (int)alen,
-                       alias);
+                          (int)alen,
+                          alias);
           oak_free(dotted, OAK_SRC_LOC);
-          oak_free(mod_dir, OAK_SRC_LOC);
           oak_free(file_path, OAK_SRC_LOC);
           oak_free(canonical, OAK_SRC_LOC);
           rc = -1;
@@ -830,7 +1159,6 @@ int oak_module_loader_load_program(const char* entry_path,
                     sizeof(dep->module_id));
 
     oak_free(dotted, OAK_SRC_LOC);
-    oak_free(mod_dir, OAK_SRC_LOC);
     oak_free(file_path, OAK_SRC_LOC);
     oak_free(canonical, OAK_SRC_LOC);
 

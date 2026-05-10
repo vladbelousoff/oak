@@ -459,13 +459,25 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT_ASSIGNMENT,
     },
   },
-  // FN_DECL -> FN_PROTO BLOCK (binary: lhs = signature, rhs = body)
+  // FN_DECL -> FN_PROTO FN_DECL_BODY (binary: lhs = signature, rhs = body/semicolon)
   [OAK_NODE_FN_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_NODE_FN_PROTO,
-      OAK_NODE_BLOCK,
+      OAK_NODE_FN_DECL_BODY,
     },
+  },
+  // FN_DECL_BODY -> BLOCK | ';'
+  [OAK_NODE_FN_DECL_BODY] = {
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_BLOCK,
+      OAK_NODE_FN_DECL_SEMICOLON,
+    },
+  },
+  [OAK_NODE_FN_DECL_SEMICOLON] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_SEMICOLON,
   },
   // FN_PROTO -> FN_HEAD FN_PARAMS_AND_RET (binary: lhs = name intro, rhs = params + return)
   [OAK_NODE_FN_PROTO] = {

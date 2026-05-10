@@ -102,7 +102,7 @@ int oak_compiler_fn_param_self_is_mutable(
 const struct oak_ast_node_t*
 oak_compiler_fn_decl_block(const struct oak_ast_node_t* decl)
 {
-  return decl->rhs;
+  return (decl->rhs && decl->rhs->kind == OAK_NODE_BLOCK) ? decl->rhs : null;
 }
 
 int oak_compiler_fn_param_is_mutable(const struct oak_ast_node_t* param)
@@ -590,6 +590,13 @@ void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
     const struct oak_registered_fn_t* e = &c->fns.entries.items[i];
     if (!e->decl)
       continue;
+    if (!oak_compiler_fn_decl_block(e->decl))
+    {
+      if (c->allow_bodyless_fns)
+        continue;
+      oak_compiler_error_at(c, e->decl->token, "function has no body");
+      return;
+    }
     struct oak_value_t fn_val = c->chunk->constants[e->const_idx];
     struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
     fn_obj->code_offset = c->chunk->count;
@@ -609,6 +616,13 @@ void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
       const struct oak_registered_fn_t* me = &sd->methods.items[m];
       if (!me->decl)
         continue;
+      if (!oak_compiler_fn_decl_block(me->decl))
+      {
+        if (c->allow_bodyless_fns)
+          continue;
+        oak_compiler_error_at(c, me->decl->token, "function has no body");
+        return;
+      }
       struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
       struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
       fn_obj->code_offset = c->chunk->count;

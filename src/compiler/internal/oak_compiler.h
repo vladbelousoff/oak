@@ -273,6 +273,7 @@ struct oak_compiler_t
   /* Module-system context. Null when compiling standalone. */
   struct oak_module_registry_t* module_registry;
   struct oak_module_t* current_module;
+  int allow_bodyless_fns;
   /* Index into c->records.entries where user-defined records begin (after
    * native and imported records).  Set just before register_program_records. */
   int user_record_start;

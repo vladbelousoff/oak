@@ -150,6 +150,46 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           return;
         const char* mn = oak_token_text(method->token);
         const usize mn_len = oak_token_length(method->token);
+        if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
+            recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
+        {
+          const struct oak_module_t* dep = oak_compiler_module_for_alias(
+              c,
+              oak_token_text(recv->lhs->token),
+              oak_token_length(recv->lhs->token));
+          if (dep && oak_module_find_export_record(dep,
+                                                   oak_token_text(recv->rhs->token),
+                                                   oak_token_length(recv->rhs->token)))
+          {
+            const struct oak_registered_record_t* sd =
+                oak_record_registry_find_by_name(
+                    &c->records,
+                    oak_token_text(recv->rhs->token),
+                    oak_token_length(recv->rhs->token));
+            const struct oak_registered_fn_t* sm =
+                oak_compiler_find_record_method(sd, mn, mn_len, 1);
+            if (sm)
+            {
+              if (sm->decl)
+              {
+                const struct oak_ast_node_t* retn =
+                    oak_compiler_fn_decl_return_type_node(sm->decl);
+                if (retn)
+                  oak_compiler_type_node_to_type(c, retn, out);
+                else
+                  out->id = OAK_TYPE_VOID;
+              }
+              else
+              {
+                out->id = sm->return_type_id;
+                out->kind = sm->return_kind;
+              }
+              if (out->id == OAK_TYPE_VOID)
+                out->kind = OAK_TYPE_KIND_SCALAR;
+              return;
+            }
+          }
+        }
         if (recv->kind == OAK_NODE_IDENT)
         {
           const char* rname = oak_token_text(recv->token);

@@ -70,6 +70,58 @@ void oak_compiler_compile_method_call(struct oak_compiler_t* c,
   const char* mname = oak_token_text(method->token);
   const usize mname_len = oak_token_length(method->token);
 
+  if (receiver->kind == OAK_NODE_MEMBER_ACCESS && receiver->lhs &&
+      receiver->rhs && receiver->lhs->kind == OAK_NODE_IDENT &&
+      receiver->rhs->kind == OAK_NODE_IDENT)
+  {
+    const struct oak_ast_node_t* alias_node = receiver->lhs;
+    const struct oak_ast_node_t* type_node = receiver->rhs;
+    const struct oak_module_t* dep = oak_compiler_module_for_alias(
+        c,
+        oak_token_text(alias_node->token),
+        oak_token_length(alias_node->token));
+    if (dep && oak_module_find_export_record(dep,
+                                             oak_token_text(type_node->token),
+                                             oak_token_length(type_node->token)))
+    {
+      const struct oak_registered_record_t* sd =
+          oak_record_registry_find_by_name(&c->records,
+                                           oak_token_text(type_node->token),
+                                           oak_token_length(type_node->token));
+      const struct oak_registered_fn_t* sm =
+          oak_compiler_find_record_method(sd, mname, mname_len, 1);
+      if (!sm)
+      {
+        oak_compiler_error_at(c,
+                              method->token,
+                              "record '%s.%.*s' has no static method '%s'",
+                              dep->dotted_name,
+                              (int)oak_token_length(type_node->token),
+                              oak_token_text(type_node->token),
+                              mname);
+        return;
+      }
+      if ((int)user_argc != sm->arity)
+      {
+        oak_compiler_error_at(c,
+                              method->token,
+                              "method '%s' expects %d arguments, got %zu",
+                              mname,
+                              sm->arity,
+                              user_argc);
+        return;
+      }
+      oak_compiler_validate_record_method_call_arg_types(c, node, sm);
+      CHECK_ERROR(c);
+      oak_compiler_emit_constant(c, sm->const_idx, call_loc);
+      compile_call_args_after_callee(c, node);
+      oak_compiler_emit_op(
+          c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
+      c->scope.stack_depth -= sm->arity;
+      return;
+    }
+  }
+
   if (receiver->kind == OAK_NODE_IDENT)
   {
     const char* rname = oak_token_text(receiver->token);

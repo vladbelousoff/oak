@@ -1,0 +1,10 @@
+enum FileMode { Read, Write, Append }
+
+record File {
+  fn open(path : string, mode : FileMode) -> File;
+  fn read(self) -> string;
+  fn read_all(self) -> string;
+  fn write(mut self, value : string);
+  fn eof(self) -> bool;
+  fn close(self);
+}

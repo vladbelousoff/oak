@@ -24,6 +24,9 @@ common_c_args = warning_args + debug_defines + platform_defines
 yyjson_dep = dependency('yyjson')
 math_dep = cc.find_library('m', required: false)
 
+stdlib_dir_define = '-DOAK_STDLIB_DIR="' + meson.current_source_dir() / 'stdlib' + '"'
+common_c_args += [stdlib_dir_define]
+
 src_inc = include_directories(
   'src',
   'src/common',

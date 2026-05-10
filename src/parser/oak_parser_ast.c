@@ -157,6 +157,10 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "FN_HEAD";
     case OAK_NODE_FN_PREFIX:
       return "FN_PREFIX";
+    case OAK_NODE_FN_DECL_BODY:
+      return "FN_DECL_BODY";
+    case OAK_NODE_FN_DECL_SEMICOLON:
+      return "FN_DECL_SEMICOLON";
     case OAK_NODE_FN_PARAMS_AND_RET:
       return "FN_PARAMS_AND_RET";
     case OAK_NODE_FN_PARAM_LIST:
