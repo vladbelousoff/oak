@@ -1,0 +1,224 @@
+#include "internal/oak_compiler.h"
+
+void oak_compiler_compile_stmt_return(struct oak_compiler_t* c,
+                                      const struct oak_ast_node_t* node)
+{
+  if (c->scope.fn_depth == 0)
+  {
+    oak_compiler_error_at(c, null, "'return' outside of a function");
+    return;
+  }
+
+  /* STMT_RETURN is UNARY: child = EXPR? */
+  const struct oak_ast_node_t* expr = node->child;
+  if (oak_type_is_void(&c->scope.declared_return_type))
+  {
+    if (expr)
+    {
+      oak_compiler_error_at(c,
+                            expr->token ? expr->token : node->token,
+                            "void function cannot return a value");
+      return;
+    }
+  }
+  else
+  {
+    if (!expr)
+    {
+      oak_compiler_error_at(
+          c, node->token, "missing return value (function returns a value)");
+      return;
+    }
+    if (oak_type_is_known(&c->scope.declared_return_type))
+    {
+      struct oak_type_t got;
+      oak_compiler_infer_expr_static_type(c, expr, &got);
+      if (oak_type_is_known(&got) &&
+          !oak_type_equal(&c->scope.declared_return_type, &got))
+      {
+        oak_compiler_error_at(
+            c,
+            expr->token ? expr->token : node->token,
+            "return type mismatch: expected '%s', found '%s'",
+            oak_compiler_type_full_name(c, c->scope.declared_return_type),
+            oak_compiler_type_full_name(c, got));
+      }
+    }
+    oak_compiler_compile_node(c, expr);
+    if (c->has_error)
+      return;
+    oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
+    return;
+  }
+
+  const u16 z = oak_compiler_intern_constant(c, OAK_VALUE_I32(0));
+  oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
+  oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
+}
+
+/* If `recv` is non-null, the fn is treated as a method: an
+ * implicit `self` local is installed at slot 0 with the receiver's static
+ * type, and explicit parameters start at slot 1. */
+void oak_compiler_compile_function_body(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* decl,
+    const struct oak_registered_record_t* recv)
+{
+  const struct oak_ast_node_t* body = oak_compiler_fn_decl_block(decl);
+  if (!body || body->kind != OAK_NODE_BLOCK)
+  {
+    oak_compiler_error_at(c, decl->token, "function has no body");
+    return;
+  }
+
+  c->scope.fn_depth++;
+  c->scope.local_count = 0;
+  c->scope.scope_depth = 0;
+  c->scope.stack_depth = 0;
+  c->scope.current_loop = null;
+
+  /* Return type: omitted `->` means void. */
+  oak_type_clear(&c->scope.declared_return_type);
+  const struct oak_ast_node_t* ret_type_node =
+      oak_compiler_fn_decl_return_type_node(decl);
+  if (ret_type_node)
+  {
+    oak_compiler_type_node_to_type(
+        c, ret_type_node, &c->scope.declared_return_type);
+    if (oak_type_is_void(&c->scope.declared_return_type))
+    {
+      oak_compiler_error_at(
+          c,
+          ret_type_node->token,
+          "omit the return type for a function with no value; 'void' is not "
+          "allowed after '->'");
+      c->scope.fn_depth--;
+      return;
+    }
+  }
+  else
+    c->scope.declared_return_type.id = OAK_TYPE_VOID;
+
+  int slot = 0;
+  if (recv)
+  {
+    const struct oak_ast_node_t* sp = oak_compiler_fn_decl_self_param(decl);
+    oak_assert(sp != null);
+    struct oak_type_t self_ty;
+    oak_type_clear(&self_ty);
+    self_ty.id = recv->type_id;
+    oak_compiler_add_local(c,
+                           "self",
+                           4u,
+                           slot++,
+                           oak_compiler_fn_param_self_is_mutable(sp),
+                           self_ty);
+  }
+
+  const struct oak_ast_node_t* plist = oak_compiler_fn_decl_param_list(decl);
+  if (!plist || plist->kind != OAK_NODE_FN_PARAM_LIST)
+  {
+    oak_compiler_error_at(c, decl->token, "malformed function declaration");
+    c->scope.fn_depth--;
+    return;
+  }
+
+  /* FN_PARAM_LIST is BINARY: lhs = FN_PARAM_SELF?, rhs = FN_PARAMS. */
+  const struct oak_ast_node_t* params = plist->rhs;
+  if (!params)
+  {
+    oak_compiler_error_at(c, decl->token, "malformed function declaration");
+    c->scope.fn_depth--;
+    return;
+  }
+
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &params->children)
+  {
+    const struct oak_ast_node_t* ch =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (ch->kind != OAK_NODE_FN_PARAM)
+      continue;
+    const struct oak_ast_node_t* id = oak_compiler_fn_param_ident(ch);
+    if (!id)
+    {
+      oak_compiler_error_at(c, ch->token, "malformed function parameter");
+      c->scope.fn_depth--;
+      return;
+    }
+    const struct oak_ast_node_t* type_id = oak_compiler_fn_param_type_node(ch);
+    struct oak_type_t param_type;
+    oak_type_clear(&param_type);
+    if (type_id)
+      oak_compiler_type_node_to_type(c, type_id, &param_type);
+    oak_compiler_add_local(c,
+                           oak_token_text(id->token),
+                           oak_token_length(id->token),
+                           slot++,
+                           oak_compiler_fn_param_is_mutable(ch),
+                           param_type);
+  }
+
+  c->scope.stack_depth = slot;
+
+  oak_compiler_compile_block(c, body);
+
+  const u16 z = oak_compiler_intern_constant(c, OAK_VALUE_I32(0));
+  oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
+  oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
+
+  /* Clear the return type so it doesn't apply outside this fn. */
+  oak_type_clear(&c->scope.declared_return_type);
+  c->scope.fn_depth--;
+}
+
+void oak_compiler_compile_function_bodies(struct oak_compiler_t* c)
+{
+  for (int i = 0; i < c->fns.entries.count; ++i)
+  {
+    const struct oak_registered_fn_t* e = &c->fns.entries.items[i];
+    if (!e->decl)
+      continue;
+    if (!oak_compiler_fn_decl_block(e->decl))
+    {
+      if (c->allow_bodyless_fns)
+        continue;
+      oak_compiler_error_at(c, e->decl->token, "function has no body");
+      return;
+    }
+    struct oak_value_t fn_val = c->chunk->constants[e->const_idx];
+    struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
+    fn_obj->code_offset = c->chunk->count;
+    oak_compiler_compile_function_body(c, e->decl, null);
+    if (c->has_error)
+      return;
+  }
+}
+
+void oak_compiler_compile_method_bodies(struct oak_compiler_t* c)
+{
+  for (int s = 0; s < c->records.entries.count; ++s)
+  {
+    const struct oak_registered_record_t* sd = &c->records.entries.items[s];
+    for (int m = 0; m < sd->methods.count; ++m)
+    {
+      const struct oak_registered_fn_t* me = &sd->methods.items[m];
+      if (!me->decl)
+        continue;
+      if (!oak_compiler_fn_decl_block(me->decl))
+      {
+        if (c->allow_bodyless_fns)
+          continue;
+        oak_compiler_error_at(c, me->decl->token, "function has no body");
+        return;
+      }
+      struct oak_value_t fn_val = c->chunk->constants[me->const_idx];
+      struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
+      fn_obj->code_offset = c->chunk->count;
+      oak_compiler_compile_function_body(
+          c, me->decl, me->is_static ? null : sd);
+      if (c->has_error)
+        return;
+    }
+  }
+}

@@ -1,0 +1,271 @@
+#include "oak_value.h"
+
+#include "oak_bind.h"
+#include "oak_mem.h"
+
+#include "yyjson.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define OAK_JSON_MAX_DEPTH 64u
+
+static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
+                                           struct oak_value_t value,
+                                           unsigned depth);
+
+static char* oak_map_key_cstr(struct oak_value_t key, unsigned depth)
+{
+  if (depth > OAK_JSON_MAX_DEPTH)
+  {
+    char* t = (char*)malloc(5u);
+    if (!t)
+      return null;
+    memcpy(t, "null", 5u);
+    return t;
+  }
+  if (oak_is_string(key))
+  {
+    const struct oak_obj_string_t* s = oak_as_string(key);
+    char* t = (char*)malloc(s->length + 1u);
+    if (!t)
+      return null;
+    memcpy(t, s->chars, s->length);
+    t[s->length] = '\0';
+    return t;
+  }
+  if (oak_is_number(key) && oak_is_i32(key))
+  {
+    char* t = (char*)malloc(32u);
+    if (!t)
+      return null;
+    (void)snprintf(t, 32, "%d", oak_as_i32(key));
+    return t;
+  }
+  if (oak_is_number(key) && oak_is_f32(key))
+  {
+    char* t = (char*)malloc(32u);
+    if (!t)
+      return null;
+    (void)snprintf(t, 32, "%.9g", (double)oak_as_f32(key));
+    return t;
+  }
+  if (oak_is_bool(key))
+  {
+    const char* s = oak_as_bool(key) ? "true" : "false";
+    const usize n = (usize)strlen(s) + 1u;
+    char* t = (char*)malloc(n);
+    if (!t)
+      return null;
+    memcpy(t, s, n);
+    return t;
+  }
+  {
+    yyjson_mut_doc* const tmp = yyjson_mut_doc_new(NULL);
+    if (!tmp)
+      return null;
+    yyjson_mut_val* j = oak_value_to_yyjson(tmp, key, depth + 1u);
+    if (!j)
+    {
+      yyjson_mut_doc_free(tmp);
+      return null;
+    }
+    yyjson_mut_doc_set_root(tmp, j);
+    size_t plen;
+    char* out = yyjson_mut_write(tmp, 0, &plen);
+    yyjson_mut_doc_free(tmp);
+    return out;
+  }
+}
+
+static yyjson_mut_val* yyjson_str_from_oak_string(yyjson_mut_doc* doc,
+                                                   const struct oak_obj_string_t* s)
+{
+  return yyjson_mut_strncpy(doc, s->chars, s->length);
+}
+
+static yyjson_mut_val* yyjson_unhandled(yyjson_mut_doc* doc,
+                                        struct oak_value_t value)
+{
+  if (oak_is_fn(value))
+  {
+    char buf[64];
+    (void)snprintf(
+        buf, sizeof(buf), "<fn @%zu>", (size_t)oak_as_fn(value)->code_offset);
+    return yyjson_mut_strcpy(doc, buf);
+  }
+  if (oak_is_native_fn(value))
+  {
+    char tmp[256];
+    const int n =
+        oak_native_fn_format(tmp, (usize)sizeof(tmp), oak_as_native_fn(value));
+    if (n < 0 || (usize)n >= sizeof(tmp))
+      return yyjson_mut_null(doc);
+    return yyjson_mut_strcpy(doc, tmp);
+  }
+  if (oak_is_obj(value))
+  {
+    char buf[64];
+    (void)snprintf(buf, sizeof(buf), "%p", (void*)oak_as_obj(value));
+    return yyjson_mut_strcpy(doc, buf);
+  }
+  return yyjson_mut_null(doc);
+}
+
+static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
+                                           struct oak_value_t value,
+                                           unsigned depth)
+{
+  if (depth > OAK_JSON_MAX_DEPTH)
+    return yyjson_mut_null(doc);
+  if (oak_is_bool(value))
+    return oak_as_bool(value) ? yyjson_mut_true(doc) : yyjson_mut_false(doc);
+  if (oak_is_number(value))
+  {
+    if (oak_is_f32(value))
+      return yyjson_mut_real(doc, (double)oak_as_f32(value));
+    return yyjson_mut_sint(doc, (int64_t)oak_as_i32(value));
+  }
+  if (oak_is_string(value))
+    return yyjson_str_from_oak_string(doc, oak_as_string(value));
+  if (oak_is_array(value))
+  {
+    yyjson_mut_val* a = yyjson_mut_arr(doc);
+    if (!a)
+      return null;
+    const struct oak_obj_array_t* ar = oak_as_array(value);
+    for (usize i = 0; i < ar->length; ++i)
+    {
+      yyjson_mut_val* e = oak_value_to_yyjson(doc, ar->items[i], depth + 1u);
+      if (!e)
+        return null;
+      if (!yyjson_mut_arr_add_val(a, e))
+        return null;
+    }
+    return a;
+  }
+  if (oak_is_map(value))
+  {
+    yyjson_mut_val* o = yyjson_mut_obj(doc);
+    if (!o)
+      return null;
+    const struct oak_obj_map_t* m = oak_as_map(value);
+    for (usize i = 0; i < m->length; ++i)
+    {
+      char* kc = oak_map_key_cstr(m->entries[i].key, depth);
+      if (!kc)
+        return null;
+      yyjson_mut_val* const kj = yyjson_mut_strcpy(doc, kc);
+      free(kc);
+      if (!kj)
+        return null;
+      yyjson_mut_val* vj =
+          oak_value_to_yyjson(doc, m->entries[i].value, depth + 1u);
+      if (!vj)
+        return null;
+      if (!yyjson_mut_obj_add(o, kj, vj))
+        return null;
+    }
+    return o;
+  }
+  if (oak_is_record(value))
+  {
+    yyjson_mut_val* o = yyjson_mut_obj(doc);
+    if (!o)
+      return null;
+    const struct oak_obj_record_t* s = oak_as_record(value);
+    for (int i = 0; i < s->field_count; ++i)
+    {
+      const char* key;
+      char keybuf[48];
+      if (s->field_name_ptrs)
+        key = s->field_name_ptrs[i];
+      else
+      {
+        (void)snprintf(keybuf, sizeof keybuf, "%d", i);
+        key = keybuf;
+      }
+      yyjson_mut_val* fj = oak_value_to_yyjson(doc, s->fields[i], depth + 1u);
+      if (!fj)
+        return null;
+      yyjson_mut_val* kjv = yyjson_mut_strcpy(doc, key);
+      if (!kjv)
+        return null;
+      if (!yyjson_mut_obj_add(o, kjv, fj))
+        return null;
+    }
+    return o;
+  }
+  if (oak_is_native_record(value))
+  {
+    const struct oak_obj_native_record_t* ns = oak_as_native_record(value);
+    const struct oak_bind_type_t* t = ns->type;
+    if (!t || !ns->instance)
+      return yyjson_mut_null(doc);
+    yyjson_mut_val* o = yyjson_mut_obj(doc);
+    if (!o)
+      return null;
+    {
+      const struct oak_value_t self = value;
+      for (int i = 0; i < t->field_count; ++i)
+      {
+        const struct oak_bind_field_t* f = &t->fields[i];
+        struct oak_value_t fv = f->getter(self);
+        yyjson_mut_val* fj = oak_value_to_yyjson(doc, fv, depth + 1u);
+        if (oak_is_obj(fv))
+          oak_value_decref(fv);
+        if (!fj)
+          return null;
+        if (!yyjson_mut_obj_add_val(doc, o, f->name, fj))
+          return null;
+      }
+    }
+    return o;
+  }
+  return yyjson_unhandled(doc, value);
+}
+
+struct oak_obj_string_t* oak_value_to_string(struct oak_value_t value)
+{
+  if (oak_is_bool(value))
+  {
+    const char* s = oak_as_bool(value) ? "true" : "false";
+    return oak_string_new(s, strlen(s));
+  }
+  if (oak_is_number(value))
+  {
+    char buf[64];
+    int n;
+    if (oak_is_f32(value))
+      n = snprintf(buf, sizeof(buf), "%g", (double)oak_as_f32(value));
+    else
+      n = snprintf(buf, sizeof(buf), "%d", oak_as_i32(value));
+    if (n < 0)
+      return null;
+    return oak_string_new(buf, (usize)n);
+  }
+  if (oak_is_string(value))
+  {
+    oak_value_incref(value);
+    return oak_as_string(value);
+  }
+  yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
+  if (!doc)
+    return null;
+  yyjson_mut_val* const root = oak_value_to_yyjson(doc, value, 0u);
+  if (!root)
+  {
+    yyjson_mut_doc_free(doc);
+    return null;
+  }
+  yyjson_mut_doc_set_root(doc, root);
+  size_t json_len;
+  char* p = yyjson_mut_write(doc, YYJSON_WRITE_PRETTY_TWO_SPACES, &json_len);
+  yyjson_mut_doc_free(doc);
+  if (!p)
+    return null;
+  struct oak_obj_string_t* s = oak_string_new(p, json_len);
+  free(p);
+  return s;
+}

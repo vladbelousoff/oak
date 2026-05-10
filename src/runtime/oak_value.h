@@ -103,6 +103,12 @@ struct oak_value_t
   } as;
 };
 
+struct oak_map_entry_t
+{
+  struct oak_value_t key;
+  struct oak_value_t value;
+};
+
 /* User-defined record instance. Fields are stored densely in declaration
  * order. The record's compile-time type is not tracked at runtime; field
  * lookup is resolved to a fixed index by the compiler.
