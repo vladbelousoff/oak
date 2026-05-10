@@ -90,3 +90,16 @@ enum oak_vm_result_t oak_vm_numeric_compare(struct oak_vm_t* vm,
 
 enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm);
 enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm);
+
+/* oak_vm_stack.c — stack and local-variable opcodes */
+enum oak_vm_result_t vm_stack_dispatch(struct oak_vm_t* vm,
+                                       struct oak_chunk_t* chunk,
+                                       u8 instruction);
+
+/* oak_vm_control.c — jump and loop opcodes */
+enum oak_vm_result_t vm_control_dispatch(struct oak_vm_t* vm, u8 instruction);
+
+/* oak_vm_object.c — array / map / record / field opcodes */
+enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
+                                        struct oak_chunk_t* chunk,
+                                        u8 instruction);

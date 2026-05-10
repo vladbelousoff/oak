@@ -1,0 +1,195 @@
+#include "internal/oak_compiler.h"
+
+enum oak_fn_call_result_t builtin_size(struct oak_native_ctx_t* ctx,
+                                       const struct oak_value_t* args,
+                                       int argc,
+                                       struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (oak_is_array(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  if (oak_is_map(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_map(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  if (oak_is_string(args[0]))
+  {
+    *out_result = OAK_VALUE_I32((int)oak_as_string(args[0])->length);
+    return OAK_FN_CALL_OK;
+  }
+  return OAK_FN_CALL_RUNTIME_ERROR;
+}
+
+enum oak_fn_call_result_t builtin_push(struct oak_native_ctx_t* ctx,
+                                       const struct oak_value_t* args,
+                                       int argc,
+                                       struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_array(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  oak_array_push(oak_as_array(args[0]), args[1]);
+  *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t builtin_has(struct oak_native_ctx_t* ctx,
+                                      const struct oak_value_t* args,
+                                      int argc,
+                                      struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_map(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const int found = oak_map_has(oak_as_map(args[0]), args[1]);
+  *out_result = OAK_VALUE_BOOL(found);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t builtin_delete(struct oak_native_ctx_t* ctx,
+                                         const struct oak_value_t* args,
+                                         int argc,
+                                         struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_map(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const int removed = oak_map_delete(oak_as_map(args[0]), args[1]);
+  *out_result = OAK_VALUE_BOOL(removed);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t builtin_to_string(struct oak_native_ctx_t* ctx,
+                                            const struct oak_value_t* args,
+                                            int argc,
+                                            struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  struct oak_obj_string_t* s = oak_value_to_string(args[0]);
+  if (!s)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_OBJ(s);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
+                                                const struct oak_value_t* args,
+                                                int argc,
+                                                struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_array(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+
+  const struct oak_obj_string_t* tmpl = oak_as_string(args[0]);
+  const struct oak_obj_array_t* subs = oak_as_array(args[1]);
+
+  struct oak_obj_string_t* acc = oak_string_new("", 0);
+  const char* s = tmpl->chars;
+  const usize len = tmpl->length;
+  usize i = 0;
+  usize implicit = 0;
+
+  while (i < len)
+  {
+    if (s[i] == '{')
+    {
+      if (i + 1 < len && s[i + 1] == '{')
+      {
+        struct oak_obj_string_t* lit = oak_string_new("{", 1);
+        struct oak_obj_string_t* next = oak_string_concat(acc, lit);
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        oak_value_decref(OAK_VALUE_OBJ(lit));
+        acc = next;
+        i += 2;
+        continue;
+      }
+
+      ++i;
+      usize idx;
+      if (i < len && s[i] == '}')
+      {
+        idx = implicit++;
+        ++i;
+      }
+      else if (i < len && s[i] >= '0' && s[i] <= '9')
+      {
+        idx = 0;
+        while (i < len && s[i] >= '0' && s[i] <= '9')
+        {
+          idx = idx * 10u + (usize)(s[i] - '0');
+          ++i;
+        }
+        if (i >= len || s[i] != '}')
+        {
+          oak_value_decref(OAK_VALUE_OBJ(acc));
+          return OAK_FN_CALL_RUNTIME_ERROR;
+        }
+        ++i;
+      }
+      else
+      {
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        return OAK_FN_CALL_RUNTIME_ERROR;
+      }
+
+      if (idx >= subs->length)
+      {
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        return OAK_FN_CALL_RUNTIME_ERROR;
+      }
+
+      struct oak_obj_string_t* piece =
+          oak_string_from_value_repr(subs->items[idx]);
+      if (!piece)
+      {
+        oak_value_decref(OAK_VALUE_OBJ(acc));
+        return OAK_FN_CALL_RUNTIME_ERROR;
+      }
+      struct oak_obj_string_t* next = oak_string_concat(acc, piece);
+      oak_value_decref(OAK_VALUE_OBJ(acc));
+      oak_value_decref(OAK_VALUE_OBJ(piece));
+      acc = next;
+      continue;
+    }
+
+    if (i + 1 < len && s[i] == '}' && s[i + 1] == '}')
+    {
+      struct oak_obj_string_t* lit = oak_string_new("}", 1);
+      struct oak_obj_string_t* next = oak_string_concat(acc, lit);
+      oak_value_decref(OAK_VALUE_OBJ(acc));
+      oak_value_decref(OAK_VALUE_OBJ(lit));
+      acc = next;
+      i += 2;
+      continue;
+    }
+
+    {
+      const usize start = i;
+      while (i < len)
+      {
+        if (s[i] == '{')
+          break;
+        if (s[i] == '}' && i + 1 < len && s[i + 1] == '}')
+          break;
+        ++i;
+      }
+      struct oak_obj_string_t* lit = oak_string_new(s + start, i - start);
+      struct oak_obj_string_t* next = oak_string_concat(acc, lit);
+      oak_value_decref(OAK_VALUE_OBJ(acc));
+      oak_value_decref(OAK_VALUE_OBJ(lit));
+      acc = next;
+    }
+  }
+
+  *out_result = OAK_VALUE_OBJ(acc);
+  return OAK_FN_CALL_OK;
+}

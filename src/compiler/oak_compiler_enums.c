@@ -63,7 +63,7 @@ const struct oak_enum_variant_t* oak_enum_registry_find(
 }
 
 const struct oak_enum_variant_t*
-oak_enum_registry_find_qualified(const struct oak_enum_registry_t* r,
+oc_enums_find_qualified(const struct oak_enum_registry_t* r,
                                  const char* enum_name,
                                  usize enum_name_len,
                                  const char* variant_name,
@@ -83,14 +83,14 @@ oak_enum_registry_find_qualified(const struct oak_enum_registry_t* r,
   return null;
 }
 
-int oak_enum_registry_is_enum_name(const struct oak_enum_registry_t* r,
+int oc_is_enum_name(const struct oak_enum_registry_t* r,
                                    const char* name,
                                    usize len)
 {
   return oak_htable_get(&r->enum_names, name, len) >= 0;
 }
 
-void oak_compiler_register_native_enums(
+void oc_register_native_enums(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
   if (!opts || opts->native_enums.count == 0)
@@ -104,7 +104,7 @@ void oak_compiler_register_native_enums(
     if (ne->module_name)
       continue;
 
-    if (oak_enum_registry_is_enum_name(&c->enums, ne->name, ne->name_len))
+    if (oc_is_enum_name(&c->enums, ne->name, ne->name_len))
     {
       oak_compiler_error_at(
           c,
@@ -156,7 +156,7 @@ void oak_compiler_register_native_enums(
   }
 }
 
-void oak_compiler_register_program_enums(struct oak_compiler_t* c,
+void oc_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -177,7 +177,7 @@ void oak_compiler_register_program_enums(struct oak_compiler_t* c,
     }
 
     const oak_type_id_t enum_type_id =
-        oak_compiler_intern_type_token(c, name_node->token);
+        oc_intern_type_tok(c, name_node->token);
     if (enum_type_id < 0)
     {
       oak_compiler_error_at(

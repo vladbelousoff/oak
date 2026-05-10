@@ -1,6 +1,6 @@
 #include "internal/oak_compiler.h"
 
-int oak_compiler_is_module_scope_name(const struct oak_compiler_t* c,
+int oc_is_module_scope(const struct oak_compiler_t* c,
                                       const char* name,
                                       const usize len)
 {
@@ -80,7 +80,7 @@ void oak_compiler_end_scope(struct oak_compiler_t* c)
   c->scope.scope_depth--;
 }
 
-int oak_compiler_local_index_for_slot(const struct oak_compiler_t* c, int slot)
+int oc_local_at_slot(const struct oak_compiler_t* c, int slot)
 {
   for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
@@ -90,7 +90,7 @@ int oak_compiler_local_index_for_slot(const struct oak_compiler_t* c, int slot)
   return -1;
 }
 
-int oak_compiler_local_index_for_ident_expr(const struct oak_compiler_t* c,
+int oc_ident_local(const struct oak_compiler_t* c,
                                             const struct oak_ast_node_t* expr)
 {
   if (!expr)
@@ -120,16 +120,16 @@ int oak_compiler_local_index_for_ident_expr(const struct oak_compiler_t* c,
   return -1;
 }
 
-int oak_compiler_local_index_for_place_root(const struct oak_compiler_t* c,
+int oc_place_root_local(const struct oak_compiler_t* c,
                                             const struct oak_ast_node_t* expr)
 {
   while (expr && (expr->kind == OAK_NODE_MEMBER_ACCESS ||
                   expr->kind == OAK_NODE_INDEX_ACCESS))
     expr = expr->lhs;
-  return oak_compiler_local_index_for_ident_expr(c, expr);
+  return oc_ident_local(c, expr);
 }
 
-int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
+int oc_compile_assign_target(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* lhs,
                                        const char* non_ident_msg)
 {
@@ -145,7 +145,7 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
   if (slot < 0)
   {
     if (c->scope.fn_depth > 0 &&
-        oak_compiler_is_module_scope_name(c, name, name_len))
+        oc_is_module_scope(c, name, name_len))
     {
       oak_compiler_error_at(
           c,
@@ -163,7 +163,7 @@ int oak_compiler_compile_assign_target(struct oak_compiler_t* c,
         c, lhs->token, "cannot assign to immutable variable '%s'", name);
     return -1;
   }
-  const int li = oak_compiler_local_index_for_slot(c, slot);
+  const int li = oc_local_at_slot(c, slot);
   if (li >= 0)
   {
     const struct oak_local_t* l = &c->scope.locals[li];
@@ -193,7 +193,7 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
     return 1;
   if (expr->kind == OAK_NODE_IDENT || expr->kind == OAK_NODE_SELF)
   {
-    const int idx = oak_compiler_local_index_for_ident_expr(c, expr);
+    const int idx = oc_ident_local(c, expr);
     if (idx < 0)
       return 0;
     const struct oak_local_t* l = &c->scope.locals[idx];

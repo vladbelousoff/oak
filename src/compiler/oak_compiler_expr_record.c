@@ -1,0 +1,199 @@
+#include "internal/oak_compiler.h"
+#include "oak_compiler_modules.h"
+
+void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
+                                         const struct oak_ast_node_t* node)
+{
+  const struct oak_ast_node_t* path_node = node->lhs;
+  const struct oak_ast_node_t* fields_node = node->rhs;
+  if (!path_node || path_node->kind != OAK_NODE_IMPORT_PATH)
+  {
+    oak_compiler_error_at(
+        c, node->token, "record literal: malformed type path");
+    return;
+  }
+  if (!fields_node || fields_node->kind != OAK_NODE_RECORD_LITERAL_FIELDS)
+  {
+    oak_compiler_error_at(
+        c, node->token, "record literal: malformed field list");
+    return;
+  }
+
+  /* Collect path segments.  1 segment = local type; 2 segments = mod.Type. */
+  const struct oak_ast_node_t* seg[2] = { null, null };
+  const int seg_count = oak_compiler_import_path_segments(path_node, seg, 2);
+  if (seg_count < 1 || seg_count > 2)
+  {
+    oak_compiler_error_at(
+        c,
+        node->token,
+        "record literal: type path must be 'Type' or 'mod.Type'");
+    return;
+  }
+
+  const struct oak_ast_node_t* type_seg = seg[seg_count - 1]; /* last segment */
+  const char* sname = oak_token_text(type_seg->token);
+  const usize sname_len = oak_token_length(type_seg->token);
+
+  /* For a qualified path (mod.Type) verify the module alias is valid. */
+  if (seg_count == 2)
+  {
+    const char* alias = oak_token_text(seg[0]->token);
+    const usize alias_len = oak_token_length(seg[0]->token);
+    if (!oak_compiler_module_for_alias(c, alias, alias_len))
+    {
+      oak_compiler_error_at(
+          c, seg[0]->token, "'%s' is not an imported module", alias);
+      return;
+    }
+  }
+
+  const struct oak_ast_node_t* name_node = type_seg;
+
+  const struct oak_registered_record_t* sd =
+      oc_records_find(&c->records, sname, sname_len);
+  if (!sd)
+  {
+    oak_compiler_error_at(
+        c, type_seg->token, "unknown record type '%s'", sname);
+    return;
+  }
+
+  const struct oak_ast_node_t* exprs[OAK_MAX_RECORD_FIELDS] = { 0 };
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &fields_node->children)
+  {
+    const struct oak_ast_node_t* entry =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (entry->kind != OAK_NODE_RECORD_LITERAL_FIELD || !entry->lhs)
+    {
+      oak_compiler_error_at(
+          c, entry->token, "malformed record field initializer");
+      return;
+    }
+    const struct oak_ast_node_t* fname = entry->lhs;
+    /* Shorthand `{ foo }` desugars to `{ foo: foo }` — use the name node as
+     * the value expression so compile_node emits a GET_LOCAL. */
+    const struct oak_ast_node_t* fexpr = entry->rhs ? entry->rhs : fname;
+    if (fname->kind != OAK_NODE_IDENT)
+    {
+      oak_compiler_error_at(
+          c, fname->token, "record field name must be an identifier");
+      return;
+    }
+
+    const usize fname_len = oak_token_length(fname->token);
+    const int idx = oc_record_field(
+        sd, oak_token_text(fname->token), fname_len);
+    if (idx < 0)
+    {
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "no such field '%s' on record '%s'",
+                            oak_token_text(fname->token),
+                            sd->name);
+      return;
+    }
+    if (exprs[idx])
+    {
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "duplicate field '%s' in record literal",
+                            oak_token_text(fname->token));
+      return;
+    }
+
+    struct oak_type_t got;
+    oc_infer_type(c, fexpr, &got);
+    if (oak_type_is_known(&got) && !oak_type_equal(&sd->fields[idx].type, &got))
+    {
+      oak_compiler_error_at(
+          c,
+          fexpr->token ? fexpr->token : fname->token,
+          "field '%s': expected type '%s', got '%s'",
+          sd->fields[idx].name,
+          oc_type_full_name(c, sd->fields[idx].type),
+          oc_type_full_name(c, got));
+      return;
+    }
+
+    exprs[idx] = fexpr;
+  }
+
+  for (int i = 0; i < sd->field_count; ++i)
+  {
+    if (!exprs[i])
+    {
+      oak_compiler_error_at(c,
+                            name_node->token,
+                            "missing field '%s' in '%s' literal",
+                            sd->fields[i].name,
+                            sd->name);
+      return;
+    }
+  }
+
+  {
+    const char* fptr[OAK_MAX_RECORD_FIELDS];
+    usize flen[OAK_MAX_RECORD_FIELDS];
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      fptr[i] = sd->fields[i].name;
+      flen[i] = sd->fields[i].name_len;
+    }
+    const int layout_id =
+        oak_chunk_add_field_layout(c->chunk, sd->field_count, fptr, flen);
+    if (layout_id < 0)
+    {
+      oak_compiler_error_at(
+          c, name_node->token, "internal error: could not add record layout");
+      return;
+    }
+
+    struct oak_obj_string_t* type_name_obj =
+        oak_string_new(sd->name, sd->name_len);
+    const u16 name_idx =
+        oak_compiler_intern_constant(c, OAK_VALUE_OBJ(type_name_obj));
+    oak_compiler_emit_constant(
+        c, name_idx, oak_compiler_loc_from_token(name_node->token));
+
+    /* Track which source bindings each refcounted-typed initializer reads
+     * from, so we can MOVE exclusive sources into the new record after
+     * compilation. */
+    int src_idx_for_field[OAK_MAX_RECORD_FIELDS];
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      const struct oak_ast_node_t* fexpr = exprs[i];
+      if (oak_type_is_refcounted(&sd->fields[i].type))
+        src_idx_for_field[i] =
+            oc_ident_local(c, fexpr);
+      else
+        src_idx_for_field[i] = -1;
+    }
+
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      oak_compiler_compile_node(c, exprs[i]);
+      if (c->has_error)
+        return;
+    }
+
+    /* Apply moves now that all initializer reads have been emitted. */
+    for (int i = 0; i < sd->field_count; ++i)
+    {
+      const int li = src_idx_for_field[i];
+      if (li < 0)
+        continue;
+      struct oak_local_t* src = &c->scope.locals[li];
+      if (src->is_mutable && src->alive && src->frozen_by_slot < 0)
+        src->alive = 0;
+    }
+
+    oak_compiler_emit_op(c,
+                         OAK_OP_NEW_RECORD,
+                         OAK_LOC_SYNTHETIC,
+                         OAK_ARG_U8((u8)sd->field_count),
+                         OAK_ARG_U16((u16)layout_id));
+    c->scope.stack_depth -= sd->field_count;
+  }
+}
