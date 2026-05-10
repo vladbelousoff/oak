@@ -295,7 +295,7 @@ static void register_method_on_record(struct oak_compiler_t* c,
   for (int i = 0; i < sd->methods.count; ++i)
   {
     const struct oak_registered_fn_t* e = &sd->methods.items[i];
-    if (oak_name_eq(e->name, e->name_len, name, name_len))
+    if (strcmp(e->name, name) == 0)
     {
       oak_compiler_error_at(c,
                             name_node->token,
@@ -347,14 +347,10 @@ static void register_record_body_methods(struct oak_compiler_t* c,
       return;
     }
     const char* rname = oak_token_text(name_ident->token);
-    const usize rlen = oak_token_length(name_ident->token);
     struct oak_registered_record_t* sd = null;
     for (int i = 0; i < c->records.entries.count; ++i)
     {
-      if (oak_name_eq(c->records.entries.items[i].name,
-                      c->records.entries.items[i].name_len,
-                      rname,
-                      rlen))
+      if (strcmp(c->records.entries.items[i].name, rname) == 0)
       {
         sd = &c->records.entries.items[i];
         break;

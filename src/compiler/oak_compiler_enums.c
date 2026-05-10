@@ -69,13 +69,15 @@ oak_enum_registry_find_qualified(const struct oak_enum_registry_t* r,
                                  const char* variant_name,
                                  usize variant_name_len)
 {
+  (void)enum_name_len;
+  (void)variant_name_len;
   /* Linear scan: qualified lookup is rare (only EnumName.Variant expressions).
    */
   for (int i = 0; i < r->variants.count; ++i)
   {
     const struct oak_enum_variant_t* v = &r->variants.items[i];
-    if (oak_name_eq(v->enum_name, v->enum_name_len, enum_name, enum_name_len) &&
-        oak_name_eq(v->name, v->name_len, variant_name, variant_name_len))
+    if (strcmp(v->enum_name, enum_name) == 0 &&
+        strcmp(v->name, variant_name) == 0)
       return v;
   }
   return null;

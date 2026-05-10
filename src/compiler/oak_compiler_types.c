@@ -311,7 +311,7 @@ void oak_compiler_infer_expr_static_type(struct oak_compiler_t* c,
           oak_compiler_find_registered_fn_entry(c, cn, clen);
       if (fe && !fe->decl)
       {
-        if (fe->name_len == 5u && memcmp(fe->name, "print", 5u) == 0)
+        if (strcmp(fe->name, "print") == 0)
         {
           out->id = OAK_TYPE_VOID;
           return;

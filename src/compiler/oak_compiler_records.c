@@ -147,10 +147,11 @@ int oak_compiler_find_record_field(const struct oak_registered_record_t* s,
                                    const char* name,
                                    const usize len)
 {
+  (void)len;
   for (int i = 0; i < s->field_count; ++i)
   {
     const struct oak_record_field_t* f = &s->fields[i];
-    if (oak_name_eq(f->name, f->name_len, name, len))
+    if (strcmp(f->name, name) == 0)
       return i;
   }
   return -1;
@@ -162,6 +163,7 @@ oak_compiler_find_record_method(const struct oak_registered_record_t* sd,
                                 const usize len,
                                 const int static_only)
 {
+  (void)len;
   if (!sd)
     return null;
   for (int i = 0; i < sd->methods.count; ++i)
@@ -169,7 +171,7 @@ oak_compiler_find_record_method(const struct oak_registered_record_t* sd,
     const struct oak_registered_fn_t* m = &sd->methods.items[i];
     if ((!!m->is_static) != (!!static_only))
       continue;
-    if (oak_name_eq(m->name, m->name_len, name, len))
+    if (strcmp(m->name, name) == 0)
       return m;
   }
   return null;
@@ -350,8 +352,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
     const usize fn_len = oak_token_length(fname->token);
     for (int i = 0; i < slot->field_count; ++i)
     {
-      if (oak_name_eq(
-              slot->fields[i].name, slot->fields[i].name_len, fn_name, fn_len))
+      if (strcmp(slot->fields[i].name, fn_name) == 0)
       {
         oak_compiler_error_at(c,
                               fname->token,
@@ -461,10 +462,7 @@ void oak_compiler_register_native_fns(struct oak_compiler_t* c,
       entry.is_static = is_static;
       for (int j = 0; j < sd->methods.count; ++j)
       {
-        if (oak_name_eq(sd->methods.items[j].name,
-                        sd->methods.items[j].name_len,
-                        b->name,
-                        name_len))
+        if (strcmp(sd->methods.items[j].name, b->name) == 0)
         {
           oak_compiler_error_at(c,
                                 null,

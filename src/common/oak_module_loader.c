@@ -187,12 +187,9 @@ static char* dotted_name_from_path(const struct oak_ast_node_t* path_node)
   return buf;
 }
 
-static int native_module_name_eq(const char* module_name,
-                                 const usize module_name_len,
-                                 const char* dotted)
+static int native_module_name_eq(const char* module_name, const char* dotted)
 {
-  return module_name && module_name_len == strlen(dotted) &&
-         memcmp(module_name, dotted, module_name_len) == 0;
+  return module_name && dotted && strcmp(module_name, dotted) == 0;
 }
 
 static int opts_has_native_module(const struct oak_compile_options_t* opts,
@@ -204,20 +201,20 @@ static int opts_has_native_module(const struct oak_compile_options_t* opts,
   {
     const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
     if (fn->kind == OAK_BIND_FN_GLOBAL &&
-        native_module_name_eq(fn->module_name, fn->module_name_len, dotted))
+        native_module_name_eq(fn->module_name, dotted))
       return 1;
   }
   for (int i = 0; i < opts->native_types.count; ++i)
   {
     const struct oak_bind_type_t* type = opts->native_types.items[i];
     if (type &&
-        native_module_name_eq(type->module_name, type->module_name_len, dotted))
+        native_module_name_eq(type->module_name, dotted))
       return 1;
   }
   for (int i = 0; i < opts->native_enums.count; ++i)
   {
     const struct oak_bind_enum_t* e = opts->native_enums.items[i];
-    if (e && native_module_name_eq(e->module_name, e->module_name_len, dotted))
+    if (e && native_module_name_eq(e->module_name, dotted))
       return 1;
   }
   return 0;
@@ -260,7 +257,7 @@ static int native_type_in_module(const struct oak_compile_options_t* opts,
   {
     const struct oak_bind_type_t* type = opts->native_types.items[i];
     if (type && type->type_id == type_id &&
-        native_module_name_eq(type->module_name, type->module_name_len, dotted))
+        native_module_name_eq(type->module_name, dotted))
       return 1;
   }
   return 0;
@@ -286,7 +283,7 @@ static void module_loader_filter_native_decls(
   {
     struct oak_bind_type_t* type = base_opts->native_types.items[i];
     if (type &&
-        native_module_name_eq(type->module_name, type->module_name_len, dotted))
+        native_module_name_eq(type->module_name, dotted))
       continue;
     oak_dynarr_push(&opts->native_types.items,
                     &opts->native_types.count,
@@ -299,7 +296,7 @@ static void module_loader_filter_native_decls(
   {
     const struct oak_bind_fn_t* fn = &base_opts->native_fns.items[i];
     if (fn->kind == OAK_BIND_FN_GLOBAL &&
-        native_module_name_eq(fn->module_name, fn->module_name_len, dotted))
+        native_module_name_eq(fn->module_name, dotted))
       continue;
     if (fn->receiver_type_id != OAK_TYPE_VOID &&
         native_type_in_module(base_opts, fn->receiver_type_id, dotted))
@@ -314,7 +311,7 @@ static void module_loader_filter_native_decls(
   for (int i = 0; i < base_opts->native_enums.count; ++i)
   {
     struct oak_bind_enum_t* e = base_opts->native_enums.items[i];
-    if (e && native_module_name_eq(e->module_name, e->module_name_len, dotted))
+    if (e && native_module_name_eq(e->module_name, dotted))
       continue;
     oak_dynarr_push(&opts->native_enums.items,
                     &opts->native_enums.count,
@@ -350,8 +347,7 @@ static void apply_native_module_function_exports(
   {
     const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
     if (fn->kind != OAK_BIND_FN_GLOBAL ||
-        !native_module_name_eq(
-            fn->module_name, fn->module_name_len, mod->dotted_name))
+        !native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const int eidx =
         oak_htable_get(&mod->exports_fn_by_name, fn->name, strlen(fn->name));
@@ -424,15 +420,13 @@ loader_record_decl_name_node(const struct oak_ast_node_t* record_decl)
 static const struct oak_bind_type_t*
 find_native_type_decl(const struct oak_compile_options_t* opts,
                       const char* dotted,
-                      const char* name,
-                      usize name_len)
+                      const char* name)
 {
   for (int i = 0; opts && i < opts->native_types.count; ++i)
   {
     const struct oak_bind_type_t* type = opts->native_types.items[i];
-    if (type &&
-        native_module_name_eq(type->module_name, type->module_name_len, dotted) &&
-        type->name_len == name_len && memcmp(type->name, name, name_len) == 0)
+    if (type && native_module_name_eq(type->module_name, dotted) &&
+        strcmp(type->name, name) == 0)
       return type;
   }
   return null;
@@ -441,16 +435,14 @@ find_native_type_decl(const struct oak_compile_options_t* opts,
 static int native_global_fn_decl_exists(const struct oak_compile_options_t* opts,
                                         const char* dotted,
                                         const char* name,
-                                        usize name_len,
                                         int arity)
 {
   for (int i = 0; opts && i < opts->native_fns.count; ++i)
   {
     const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
     if (fn->kind == OAK_BIND_FN_GLOBAL &&
-        native_module_name_eq(fn->module_name, fn->module_name_len, dotted) &&
-        strlen(fn->name) == name_len && memcmp(fn->name, name, name_len) == 0 &&
-        fn->arity == arity)
+        native_module_name_eq(fn->module_name, dotted) &&
+        strcmp(fn->name, name) == 0 && fn->arity == arity)
       return 1;
   }
   return 0;
@@ -459,7 +451,6 @@ static int native_global_fn_decl_exists(const struct oak_compile_options_t* opts
 static int native_method_decl_exists(const struct oak_compile_options_t* opts,
                                      const struct oak_bind_type_t* receiver,
                                      const char* name,
-                                     usize name_len,
                                      int has_self,
                                      int arity)
 {
@@ -469,8 +460,7 @@ static int native_method_decl_exists(const struct oak_compile_options_t* opts,
     const enum oak_bind_fn_kind_t want_kind =
         has_self ? OAK_BIND_FN_INSTANCE_METHOD : OAK_BIND_FN_STATIC_METHOD;
     if (fn->kind == want_kind && fn->receiver_type_id == receiver->type_id &&
-        strlen(fn->name) == name_len && memcmp(fn->name, name, name_len) == 0 &&
-        fn->arity == arity)
+        strcmp(fn->name, name) == 0 && fn->arity == arity)
       return 1;
   }
   return 0;
@@ -498,7 +488,7 @@ static int validate_bodyless_native_decls(
       const char* name = oak_token_text(name_node->token);
       const usize name_len = oak_token_length(name_node->token);
       const int arity = loader_fn_decl_param_count(item);
-      if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, name_len, arity))
+      if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, arity))
       {
         loader_error(out,
                      "%s: bodyless function '%.*s' has no native binding",
@@ -518,7 +508,7 @@ static int validate_bodyless_native_decls(
     const char* record_name = oak_token_text(record_name_node->token);
     const usize record_name_len = oak_token_length(record_name_node->token);
     const struct oak_bind_type_t* receiver =
-        find_native_type_decl(opts, mod->dotted_name, record_name, record_name_len);
+        find_native_type_decl(opts, mod->dotted_name, record_name);
     struct oak_list_entry_t* mpos;
     oak_list_for_each(mpos, &item->rhs->children)
     {
@@ -531,7 +521,7 @@ static int validate_bodyless_native_decls(
       const usize name_len = oak_token_length(name_node->token);
       const int has_self = loader_fn_decl_has_self(member);
       const int arity = loader_fn_decl_param_count(member);
-      if (!native_method_decl_exists(opts, receiver, name, name_len, has_self, arity))
+      if (!native_method_decl_exists(opts, receiver, name, has_self, arity))
       {
         loader_error(out,
                      "%s: bodyless method '%.*s.%.*s' has no native binding",
@@ -579,7 +569,7 @@ create_native_module(struct oak_module_registry_t* reg,
   {
     const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
     if (fn->kind != OAK_BIND_FN_GLOBAL ||
-        !native_module_name_eq(fn->module_name, fn->module_name_len, dotted))
+        !native_module_name_eq(fn->module_name, dotted))
       continue;
     struct oak_obj_native_fn_t* native =
         oak_native_fn_new(fn->impl, fn->arity, fn->name);
@@ -609,7 +599,7 @@ create_native_module(struct oak_module_registry_t* reg,
   {
     const struct oak_bind_type_t* type = opts->native_types.items[i];
     if (!type ||
-        !native_module_name_eq(type->module_name, type->module_name_len, dotted))
+        !native_module_name_eq(type->module_name, dotted))
       continue;
     struct oak_module_export_record_t exp = { 0 };
     exp.name = type->name;
@@ -637,7 +627,7 @@ create_native_module(struct oak_module_registry_t* reg,
   for (int i = 0; i < opts->native_enums.count; ++i)
   {
     const struct oak_bind_enum_t* e = opts->native_enums.items[i];
-    if (!e || !native_module_name_eq(e->module_name, e->module_name_len, dotted))
+    if (!e || !native_module_name_eq(e->module_name, dotted))
       continue;
     struct oak_module_export_enum_t exp = { 0 };
     exp.name = e->name;

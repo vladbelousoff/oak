@@ -3,7 +3,6 @@
 #include "oak_dynarr.h"
 #include "oak_log.h"
 #include "oak_mem.h"
-#include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value.h"
 
@@ -101,19 +100,16 @@ int oak_bind_field(struct oak_bind_type_t* type,
   if (type->field_count >= OAK_BIND_MAX_FIELDS)
     return -1;
 
-  const usize len = strlen(p->name);
-
   /* Reject duplicate field names. */
   for (int i = 0; i < type->field_count; ++i)
   {
-    if (oak_name_eq(
-            type->fields[i].name, type->fields[i].name_len, p->name, len))
+    if (strcmp(type->fields[i].name, p->name) == 0)
       return -1;
   }
 
   struct oak_bind_field_t* f = &type->fields[type->field_count++];
   f->name = p->name;
-  f->name_len = len;
+  f->name_len = strlen(p->name);
   f->field_type_id = p->field_type_id;
   f->shape = p->shape;
   f->getter = p->getter;
@@ -196,16 +192,15 @@ int oak_bind_enum_variant(struct oak_bind_enum_t* e,
   if (e->variant_count >= OAK_BIND_MAX_ENUM_VARIANTS)
     return -1;
 
-  const usize len = strlen(name);
   for (int i = 0; i < e->variant_count; ++i)
   {
-    if (oak_name_eq(e->variants[i].name, e->variants[i].name_len, name, len))
+    if (strcmp(e->variants[i].name, name) == 0)
       return -1;
   }
 
   struct oak_bind_enum_variant_t* v = &e->variants[e->variant_count++];
   v->name = name;
-  v->name_len = len;
+  v->name_len = strlen(name);
   v->value = value;
   return 0;
 }

@@ -497,10 +497,11 @@ method_binding_find(const struct oak_method_binding_t* table,
                     const char* name,
                     usize len)
 {
+  (void)len;
   for (int i = 0; i < n; ++i)
   {
     const struct oak_method_binding_t* m = &table[i];
-    if (oak_name_eq(m->name, m->name_len, name, len))
+    if (strcmp(m->name, name) == 0)
       return m;
   }
   return null;
