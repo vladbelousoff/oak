@@ -1,0 +1,38 @@
+trait Shape {
+  fn area(self) -> number;
+  fn describe(self) -> string;
+}
+
+record Circle {
+  radius : number;
+}
+
+fn Circle.area(self) -> number {
+  return 3.14159 * self.radius * self.radius;
+}
+fn Circle.describe(self) -> string {
+  return 'circle';
+}
+
+record Rect {
+  w : number;
+  h : number;
+}
+
+fn Rect.area(self) -> number {
+  return self.w * self.h;
+}
+fn Rect.describe(self) -> string {
+  return 'rect';
+}
+
+fn print_shape(s: Shape) {
+  print(s.describe());
+  print(s.area());
+}
+
+let c = new Circle { radius: 5 };
+let r = new Rect { w: 3, h: 4 };
+
+print_shape(c);
+print_shape(r);

@@ -77,6 +77,7 @@ oak_core_sources = files(
   'src/compiler/oak_compiler_scope.c',
   'src/compiler/oak_compiler_imports.c',
   'src/compiler/oak_compiler_stmt.c',
+  'src/compiler/oak_compiler_traits.c',
   'src/compiler/oak_compiler_stmt_for.c',
   'src/compiler/oak_compiler_type_infer.c',
   'src/compiler/oak_compiler_type_infer_call.c',
@@ -187,6 +188,7 @@ else
     '06_modules': 'examples/06_modules/06_modules.oak',
     '07_algorithms': 'examples/07_algorithms/07_algorithms.oak',
     '08_file_io': 'examples/08_file_io/08_file_io.oak',
+    '10_traits': 'examples/10_traits/10_traits.oak',
   }
 
   foreach example_name, script : example_sources

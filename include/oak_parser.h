@@ -93,6 +93,20 @@ enum oak_node_kind_t
   OAK_NODE_BLOCK,
   OAK_NODE_IMPORT_DECL,
   OAK_NODE_IMPORT_PATH,
+  /* trait Name { fn_decl* }
+   * Binary: lhs = IDENT (trait name), rhs = TRAIT_MEMBERS */
+  OAK_NODE_TRAIT_DECL,
+  OAK_NODE_TRAIT_MEMBERS,
+  /* impl TypeName { fn_decl* } — kept for enum stability but no longer parsed */
+  OAK_NODE_IMPL_DECL,
+  OAK_NODE_IMPL_MEMBERS,
+  /* fn TypeName.method_name(self, ...) { ... }
+   * METHOD_DECL: binary lhs = METHOD_PROTO, rhs = FN_DECL_BODY
+   * METHOD_PROTO: binary lhs = METHOD_HEAD, rhs = FN_PARAMS_AND_RET
+   * METHOD_HEAD: binary lhs = type IDENT, rhs = method IDENT */
+  OAK_NODE_METHOD_DECL,
+  OAK_NODE_METHOD_PROTO,
+  OAK_NODE_METHOD_HEAD,
 };
 
 struct oak_ast_node_t

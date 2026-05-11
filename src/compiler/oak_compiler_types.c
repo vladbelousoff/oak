@@ -10,6 +10,15 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
     return;
   if (type_node->kind == OAK_NODE_IDENT)
   {
+    const char* name = oak_token_text(type_node->token);
+    const usize len = oak_token_length(type_node->token);
+    const struct oak_registered_trait_t* tr = oakc_trait_find(&c->traits, name, len);
+    if (tr)
+    {
+      out->id = tr->trait_id;
+      out->kind = OAK_TYPE_KIND_TRAIT;
+      return;
+    }
     out->id = oakc_intern_type_tok(c, type_node->token);
     return;
   }

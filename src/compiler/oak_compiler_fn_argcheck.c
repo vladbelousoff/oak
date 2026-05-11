@@ -130,6 +130,42 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       return;
     }
 
+    /* Structural trait coercion: a concrete record satisfying the trait is
+     * accepted without an exact type match. */
+    if (want.kind == OAK_TYPE_KIND_TRAIT)
+    {
+      const struct oak_registered_trait_t* tr =
+          oakc_trait_find_by_id(&c->traits, want.id);
+      if (tr)
+      {
+        if (oak_type_equal(&want, &got))
+          continue; /* already a trait object of the same trait */
+        const struct oak_registered_record_t* sd = null;
+        if (got.kind == OAK_TYPE_KIND_SCALAR)
+          sd = oakc_records_find_by_id(&c->records, got.id);
+        if (sd && oakc_record_satisfies_trait(c, sd, tr))
+          continue; /* concrete type structurally satisfies the trait */
+        const struct oak_token_t* err_tok =
+            arg_expr_error_token(arg_expr, arg_wrap);
+        if (sd)
+          oak_compiler_error_at(c,
+                                err_tok,
+                                "argument %zu: type '%s' does not implement "
+                                "trait '%s'",
+                                i + 1u,
+                                sd->name,
+                                tr->name);
+        else
+          oak_compiler_error_at(c,
+                                err_tok,
+                                "argument %zu: cannot coerce '%s' to trait '%s'",
+                                i + 1u,
+                                oakc_type_full_name(c, got),
+                                tr->name);
+        return;
+      }
+    }
+
     if (!oak_type_equal(&want, &got))
     {
       const struct oak_token_t* err_tok =
@@ -181,4 +217,16 @@ void oakc_check_method_args(
   if (c->has_error)
     return;
   check_call_arg_aliasing(c, call, m->decl);
+}
+
+void oakc_check_args_against_decl(struct oak_compiler_t* c,
+                                   const struct oak_ast_node_t* call,
+                                   const struct oak_ast_node_t* decl)
+{
+  if (!decl)
+    return;
+  validate_call_arg_types_for_decl(c, call, decl);
+  if (c->has_error)
+    return;
+  check_call_arg_aliasing(c, call, decl);
 }

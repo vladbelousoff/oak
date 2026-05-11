@@ -13,6 +13,7 @@ enum oak_type_kind_t
   OAK_TYPE_KIND_SCALAR = 0, /* plain value: number, bool, string, user record */
   OAK_TYPE_KIND_ARRAY,      /* typed array; element type is `id` */
   OAK_TYPE_KIND_MAP, /* typed map; key type is `key_id`, value type is `id` */
+  OAK_TYPE_KIND_TRAIT, /* trait object; trait type id is `id` */
 };
 
 /* A typed slot.
@@ -116,4 +117,9 @@ static inline int oak_type_is_refcounted(const struct oak_type_t* t)
   if (t->id >= OAK_TYPE_FIRST_USER)
     return 1;
   return 0;
+}
+
+static inline int oak_type_is_trait(const struct oak_type_t* t)
+{
+  return t->kind == OAK_TYPE_KIND_TRAIT;
 }

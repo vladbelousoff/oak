@@ -5,6 +5,7 @@
 #include "oakc_fn_registry.h"
 #include "oakc_method_table.h"
 #include "oakc_record_registry.h"
+#include "oakc_trait_registry.h"
 #include "oak_htable.h"
 #include "oak_module.h"
 #include "oak_type.h"
@@ -69,6 +70,7 @@ struct oak_compiler_t
   struct oak_builtin_methods_t builtin_methods;
   struct oak_record_registry_t records;
   struct oak_enum_registry_t enums;
+  struct oak_trait_registry_t traits;
   /* Names bound at module scope (top-level `let` items only). Used to reject
    * access from inside user function and method bodies. */
   struct oak_htable_t module_scope_names;

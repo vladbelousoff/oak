@@ -79,8 +79,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     oak_compiler_error_at(
         c,
         first_child->token,
-        "'self' is only valid on instance methods: put `fn %s(self, ...)` "
-        "inside the corresponding `record ... { }` block",
+        "'self' is only valid on instance methods: use `fn TypeName.%s(self, ...)` syntax",
         name);
     return;
   }
@@ -106,9 +105,9 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
-static void register_method_on_record(struct oak_compiler_t* c,
-                                      const struct oak_ast_node_t* item,
-                                      struct oak_registered_record_t* sd)
+void oakc_register_method_on_record(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* item,
+                                    struct oak_registered_record_t* sd)
 {
   const struct oak_ast_node_t* name_node = oakc_fn_name_node(item);
   const char* name = oak_token_text(name_node->token);
@@ -196,7 +195,7 @@ static void register_record_body_methods(struct oak_compiler_t* c,
           oak_container_of(fpos, struct oak_ast_node_t, link);
       if (mdecl->kind != OAK_NODE_FN_DECL)
         continue;
-      register_method_on_record(c, mdecl, sd);
+      oakc_register_method_on_record(c, mdecl, sd);
       if (c->has_error)
         return;
     }

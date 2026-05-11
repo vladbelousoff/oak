@@ -156,6 +156,30 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     }
     return;
   }
+  if (recv_ty.kind == OAK_TYPE_KIND_TRAIT)
+  {
+    const struct oak_registered_trait_t* tr =
+        oakc_trait_find_by_id(&c->traits, recv_ty.id);
+    if (tr)
+    {
+      const int slot = oakc_trait_method_slot(tr, mn, mn_len);
+      if (slot >= 0)
+      {
+        const struct oak_trait_method_t* tm = &tr->methods[slot];
+        if (tm->sig_decl)
+        {
+          const struct oak_ast_node_t* retn =
+              oakc_fn_return_type_node(tm->sig_decl);
+          if (retn)
+            oakc_lower_type_node(c, retn, out);
+          else
+            out->id = OAK_TYPE_VOID;
+        }
+        return;
+      }
+    }
+    return;
+  }
   const struct oak_method_binding_t* m = null;
   if (recv_ty.kind == OAK_TYPE_KIND_ARRAY)
     m = oakc_find_array_method(c, mn, mn_len);

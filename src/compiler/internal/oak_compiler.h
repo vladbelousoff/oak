@@ -161,6 +161,38 @@ const struct oak_method_binding_t* oakc_find_record_builtin_method(
 void oakc_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* prog);
 
+/* ---------- oak_compiler_traits.c ---------- */
+
+void oakc_register_program_traits(struct oak_compiler_t* c,
+                                  const struct oak_ast_node_t* program);
+
+void oakc_register_method_decls(struct oak_compiler_t* c,
+                                const struct oak_ast_node_t* program);
+
+void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
+                                     const struct oak_ast_node_t* program);
+
+/* Returns the type-name IDENT node from a METHOD_DECL node.
+ * Path: decl->lhs (METHOD_PROTO) -> lhs (METHOD_HEAD) -> lhs (type IDENT). */
+const struct oak_ast_node_t* oakc_method_decl_type_ident(
+    const struct oak_ast_node_t* decl);
+
+int oakc_record_satisfies_trait(struct oak_compiler_t* c,
+                                const struct oak_registered_record_t* sd,
+                                const struct oak_registered_trait_t* tr);
+
+u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
+                             const struct oak_registered_record_t* sd,
+                             const struct oak_registered_trait_t* tr);
+
+/* If `want` is a trait type and `arg_expr`'s concrete type satisfies it,
+ * emit OAK_OP_MAKE_TRAIT_OBJECT to wrap the top-of-stack value in a trait
+ * object.  No-op when `want` is not a trait type. */
+void oakc_emit_trait_coerce(struct oak_compiler_t* c,
+                            const struct oak_ast_node_t* arg_expr,
+                            struct oak_type_t want,
+                            struct oak_code_loc_t loc);
+
 /* ---------- oak_compiler_record_registry.c ---------- */
 
 int oakc_record_field(const struct oak_registered_record_t* s,
@@ -256,11 +288,24 @@ void oakc_register_program_fns(struct oak_compiler_t* c,
 void oakc_register_program_methods(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* prog);
 
+/* Register a single FN_DECL or METHOD_DECL as an instance/static method on
+ * `sd`.  Shared between record-body registration and fn TypeName.method passes. */
+void oakc_register_method_on_record(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* item,
+                                    struct oak_registered_record_t* sd);
+
 const struct oak_registered_fn_t* oakc_find_fn(
     struct oak_compiler_t* c, const char* name, usize len);
 
 void oakc_compile_return(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node);
+
+/* Compile the body of a single fn or method declaration.
+ * `recv` is null for free functions; non-null binds an implicit `self` local
+ * with that record type. */
+void oakc_compile_fn_body(struct oak_compiler_t* c,
+                          const struct oak_ast_node_t* decl,
+                          const struct oak_registered_record_t* recv);
 
 void oakc_compile_fn_bodies(struct oak_compiler_t* c);
 
@@ -275,6 +320,12 @@ void oakc_check_method_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* m);
+
+/* Validate argument types and aliasing directly against an AST decl node.
+ * Used for virtual dispatch where only the trait sig_decl is available. */
+void oakc_check_args_against_decl(struct oak_compiler_t* c,
+                                   const struct oak_ast_node_t* call,
+                                   const struct oak_ast_node_t* decl);
 
 /* ---------- oak_compiler_stmt.c ---------- */
 

@@ -69,7 +69,38 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
       oakc_check_method_args(c, node, sm);
       CHECK_ERROR(c);
       oak_compiler_emit_constant(c, sm->const_idx, call_loc);
-      oak_compiler_compile_call_args_after_callee(c, node);
+      {
+        const struct oak_list_entry_t* _first = node->children.next;
+        int _ai = 0;
+        for (struct oak_list_entry_t* _p = _first->next;
+             _p != &node->children;
+             _p = _p->next, ++_ai)
+        {
+          const struct oak_ast_node_t* _arg =
+              oak_container_of(_p, struct oak_ast_node_t, link);
+          oakc_compile_call_arg(c, _arg);
+          if (sm->decl)
+          {
+            const struct oak_ast_node_t* _param =
+                oakc_fn_param_at(sm->decl, _ai);
+            if (_param)
+            {
+              const struct oak_ast_node_t* _tnode =
+                  oakc_fn_param_type_node(_param);
+              if (_tnode)
+              {
+                struct oak_type_t _want;
+                oakc_lower_type_node(c, _tnode, &_want);
+                const struct oak_ast_node_t* _expr =
+                    _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
+                oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+                if (c->has_error)
+                  return;
+              }
+            }
+          }
+        }
+      }
       oak_compiler_emit_op(
           c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
       c->scope.stack_depth -= sm->arity;
@@ -146,7 +177,38 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
           oakc_check_method_args(c, node, sm);
           CHECK_ERROR(c);
           oak_compiler_emit_constant(c, sm->const_idx, call_loc);
-          oak_compiler_compile_call_args_after_callee(c, node);
+          {
+            const struct oak_list_entry_t* _first = node->children.next;
+            int _ai = 0;
+            for (struct oak_list_entry_t* _p = _first->next;
+                 _p != &node->children;
+                 _p = _p->next, ++_ai)
+            {
+              const struct oak_ast_node_t* _arg =
+                  oak_container_of(_p, struct oak_ast_node_t, link);
+              oakc_compile_call_arg(c, _arg);
+              if (sm->decl)
+              {
+                const struct oak_ast_node_t* _param =
+                    oakc_fn_param_at(sm->decl, _ai);
+                if (_param)
+                {
+                  const struct oak_ast_node_t* _tnode =
+                      oakc_fn_param_type_node(_param);
+                  if (_tnode)
+                  {
+                    struct oak_type_t _want;
+                    oakc_lower_type_node(c, _tnode, &_want);
+                    const struct oak_ast_node_t* _expr =
+                        _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
+                    oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+                    if (c->has_error)
+                      return;
+                  }
+                }
+              }
+            }
+          }
           oak_compiler_emit_op(
               c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
           c->scope.stack_depth -= sm->arity;
@@ -158,6 +220,54 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
 
   struct oak_type_t recv_ty;
   oakc_infer_type(c, receiver, &recv_ty);
+
+  /* Virtual dispatch through a trait object. */
+  if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_TRAIT)
+  {
+    const struct oak_registered_trait_t* tr =
+        oakc_trait_find_by_id(&c->traits, recv_ty.id);
+    if (!tr)
+    {
+      oak_compiler_error_at(
+          c, method->token, "unknown trait type for receiver");
+      return;
+    }
+    const int slot = oakc_trait_method_slot(tr, mname, mname_len);
+    if (slot < 0)
+    {
+      oak_compiler_error_at(c,
+                            method->token,
+                            "trait '%s' has no method '%s'",
+                            tr->name,
+                            mname);
+      return;
+    }
+    const int expected_user = tr->methods[slot].arity - 1;
+    if ((int)user_argc != expected_user)
+    {
+      oak_compiler_error_at(c,
+                            method->token,
+                            "method '%s' expects %d arguments, got %zu",
+                            mname,
+                            expected_user,
+                            user_argc);
+      return;
+    }
+    const struct oak_trait_method_t* tm = &tr->methods[slot];
+    oakc_check_args_against_decl(c, node, tm->sig_decl);
+    if (c->has_error)
+      return;
+    const u8 total_arity = (u8)tm->arity;
+    oak_compiler_compile_node(c, receiver);
+    oak_compiler_compile_call_args_after_callee(c, node);
+    oak_compiler_emit_op(c,
+                         OAK_OP_CALL_VIRTUAL,
+                         call_loc,
+                         OAK_ARG_U8((u8)slot),
+                         OAK_ARG_U8(total_arity));
+    c->scope.stack_depth -= (int)(total_arity - 1u);
+    return;
+  }
 
   /* Record method calls dispatch to a regular user fn whose first
    * parameter is the receiver (`self`). */
@@ -204,7 +314,38 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
 
         oak_compiler_emit_constant(c, sm->const_idx, call_loc);
         oak_compiler_compile_node(c, receiver);
-        oak_compiler_compile_call_args_after_callee(c, node);
+        {
+          const struct oak_list_entry_t* _first = node->children.next;
+          int _ai = 0;
+          for (struct oak_list_entry_t* _p = _first->next;
+               _p != &node->children;
+               _p = _p->next, ++_ai)
+          {
+            const struct oak_ast_node_t* _arg =
+                oak_container_of(_p, struct oak_ast_node_t, link);
+            oakc_compile_call_arg(c, _arg);
+            if (sm->decl)
+            {
+              const struct oak_ast_node_t* _param =
+                  oakc_fn_param_at(sm->decl, _ai);
+              if (_param)
+              {
+                const struct oak_ast_node_t* _tnode =
+                    oakc_fn_param_type_node(_param);
+                if (_tnode)
+                {
+                  struct oak_type_t _want;
+                  oakc_lower_type_node(c, _tnode, &_want);
+                  const struct oak_ast_node_t* _expr =
+                      _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
+                  oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+                  if (c->has_error)
+                    return;
+                }
+              }
+            }
+          }
+        }
         oak_compiler_emit_op(
             c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
         c->scope.stack_depth -= sm->arity;

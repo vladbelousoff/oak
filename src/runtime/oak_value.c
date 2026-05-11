@@ -53,6 +53,12 @@ void oak_obj_decref(struct oak_obj_t* obj)
     if (ns->instance && ns->type && ns->type->destructor)
       ns->type->destructor(ns->instance);
   }
+  else if (obj->type == OAK_OBJ_TRAIT_OBJECT)
+  {
+    struct oak_obj_trait_object_t* to = (struct oak_obj_trait_object_t*)obj;
+    oak_value_decref(to->value);
+    oak_obj_decref((struct oak_obj_t*)to->vtable);
+  }
 
   oak_free(obj, OAK_SRC_LOC);
 }
@@ -201,6 +207,20 @@ oak_obj_native_record_new(const struct oak_bind_type_t* type, void* instance)
   ns->instance = instance;
   ns->type = type;
   return ns;
+}
+
+struct oak_obj_trait_object_t*
+oak_trait_object_new(struct oak_value_t value, struct oak_obj_array_t* vtable)
+{
+  struct oak_obj_trait_object_t* to =
+      oak_alloc(sizeof(struct oak_obj_trait_object_t), OAK_SRC_LOC);
+  to->obj.type = OAK_OBJ_TRAIT_OBJECT;
+  oak_refcount_init(&to->obj.refcount, 1);
+  oak_value_incref(value);
+  to->value = value;
+  oak_obj_incref((struct oak_obj_t*)vtable);
+  to->vtable = vtable;
+  return to;
 }
 
 struct oak_obj_map_t* oak_map_new(void)

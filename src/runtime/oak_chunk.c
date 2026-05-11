@@ -48,6 +48,10 @@ const struct oak_op_info_t oak_op_info[] = {
    */
   [OAK_OP_SET_FIELD] = { "OP_SET_FIELD", OAK_OP_FMT_SLOT, -2 },
   [OAK_OP_GET_MODULE_FN] = { "OP_GET_MODULE_FN", OAK_OP_FMT_U16_U16, 1 },
+  /* Pops concrete value, pushes trait object; stack effect = 0 (net). */
+  [OAK_OP_MAKE_TRAIT_OBJECT] = { "OP_MAKE_TRAIT_OBJECT", OAK_OP_FMT_CONSTANT, 0 },
+  /* Virtual call through trait object: variadic stack effect. */
+  [OAK_OP_CALL_VIRTUAL] = { "OP_CALL_VIRTUAL", OAK_OP_FMT_U8_U8, 0 },
 };
 
 #define OAK_OP_INFO_COUNT oak_count_of(oak_op_info)
@@ -476,6 +480,19 @@ static usize disassemble_instruction(const struct oak_chunk_t* chunk,
               (unsigned)a,
               (unsigned)b);
       return offset + 5;
+    }
+    case OAK_OP_FMT_U8_U8:
+    {
+      const u8 a = chunk->bytecode[offset + 1];
+      const u8 b = chunk->bytecode[offset + 2];
+      oak_log(OAK_LOG_INFO,
+              "%04zu %s  %-20s  slot %3u, argc %3u",
+              offset,
+              line,
+              name,
+              (unsigned)a,
+              (unsigned)b);
+      return offset + 3;
     }
     default:
       oak_log(OAK_LOG_INFO, "%04zu %s  %s", offset, line, name);

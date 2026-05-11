@@ -89,6 +89,73 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
   return OAK_VM_OK;
 }
 
+enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
+{
+  const u8 vtable_slot = oak_vm_read_u8(vm);
+  const u8 arity = oak_vm_read_u8(vm); /* includes self */
+  const usize depth = (usize)(vm->sp - vm->stack);
+  if (depth < (usize)arity)
+  {
+    oak_vm_runtime_error(vm, "stack underflow in virtual call");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  /* The trait object is at the receiver position (sp - arity). */
+  const usize recv_pos = depth - (usize)arity;
+  const struct oak_value_t trait_obj_val = vm->stack[recv_pos];
+  if (!oak_is_trait_object(trait_obj_val))
+  {
+    oak_vm_runtime_error(vm,
+                         "CALL_VIRTUAL: receiver is not a trait object, got %s",
+                         oak_vm_value_kind_desc(trait_obj_val));
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  const struct oak_obj_trait_object_t* to = oak_as_trait_object(trait_obj_val);
+  if ((usize)vtable_slot >= to->vtable->length)
+  {
+    oak_vm_runtime_error(
+        vm, "CALL_VIRTUAL: vtable slot %u out of range", (unsigned)vtable_slot);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  const struct oak_value_t fn_val = to->vtable->items[vtable_slot];
+  const struct oak_value_t concrete_val = to->value;
+
+  if (!oak_is_fn(fn_val))
+  {
+    oak_vm_runtime_error(vm, "CALL_VIRTUAL: vtable entry is not a function");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  /* Make room for the fn value by shifting everything from recv_pos onwards
+   * right by one slot, then insert fn and unwrapped concrete value. */
+  if (vm->sp >= vm->stack + OAK_STACK_MAX)
+  {
+    oak_vm_runtime_error(vm, "stack overflow in virtual call setup");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  /* Shift the args (everything after recv_pos) right by 1. */
+  const usize n_args = (usize)arity - 1u; /* args after receiver */
+  for (usize i = n_args; i > 0; --i)
+    vm->stack[recv_pos + 1u + i] = vm->stack[recv_pos + i];
+  vm->sp++;
+
+  /* Incref fn and concrete; decref the trait object (we replaced it). */
+  oak_value_incref(fn_val);
+  oak_value_incref(concrete_val);
+  oak_value_decref(trait_obj_val);
+
+  vm->stack[recv_pos] = fn_val;
+  vm->stack[recv_pos + 1u] = concrete_val;
+
+  /* Now dispatch exactly like OP_CALL with fn at recv_pos. */
+  const usize fn_slot = recv_pos;
+  struct oak_value_t* arg_base = &vm->stack[fn_slot + 1u];
+  if (oak_is_native_fn(fn_val))
+    return vm_call_native(vm, arity, fn_slot, arg_base, fn_val);
+  return vm_call_bytecode(vm, arity, fn_slot, fn_val);
+}
+
 enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
 {
   const u8 argc = oak_vm_read_u8(vm);

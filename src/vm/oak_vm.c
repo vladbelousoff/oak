@@ -204,6 +204,15 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         break;
       }
 
+      case OAK_OP_CALL_VIRTUAL:
+      {
+        const enum oak_vm_result_t r = oak_vm_op_call_virtual(vm);
+        if (r != OAK_VM_OK)
+          return r;
+        chunk = vm->chunk;
+        break;
+      }
+
       case OAK_OP_NEW_ARR:
       case OAK_OP_NEW_MAP:
       case OAK_OP_GET_INDEX:
@@ -214,6 +223,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_GET_FIELD:
       case OAK_OP_SET_FIELD:
       case OAK_OP_GET_MODULE_FN:
+      case OAK_OP_MAKE_TRAIT_OBJECT:
       {
         const enum oak_vm_result_t r =
             vm_object_dispatch(vm, chunk, instruction);

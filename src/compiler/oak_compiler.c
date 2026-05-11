@@ -61,6 +61,7 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
   oak_record_registry_init(&c->records);
   oak_enum_registry_init(&c->enums);
   oak_htable_init(&c->module_scope_names);
+  c->traits = (struct oak_trait_registry_t){ 0 };
   c->user_record_start = 0;
   c->user_enum_start = -1;
 
@@ -117,6 +118,11 @@ static void compile_program_items(struct oak_compiler_t* c,
     /* Imports are resolved by the module loader and the imports pre-pass;
      * they emit no top-level code. */
     if (item->kind == OAK_NODE_IMPORT_DECL)
+      continue;
+    /* Trait and method declarations are processed in pre-passes; no top-level code. */
+    if (item->kind == OAK_NODE_TRAIT_DECL)
+      continue;
+    if (item->kind == OAK_NODE_METHOD_DECL)
       continue;
     oak_compiler_compile_node(c, item);
     /* Recover after a top-level statement error so subsequent items are also
@@ -178,10 +184,16 @@ static void compile_program(struct oak_compiler_t* c,
   oakc_register_program_records(c, program);
   CHECK_ERROR(c);
 
+  /* Step 2b — register traits (after records so trait method types resolve). */
+  oakc_register_program_traits(c, program);
+  CHECK_ERROR(c);
+
   /* Step 3 — register functions and methods, then emit code. */
   oakc_register_program_fns(c, program);
   CHECK_ERROR(c);
   oakc_register_program_methods(c, program);
+  CHECK_ERROR(c);
+  oakc_register_method_decls(c, program);
   CHECK_ERROR(c);
 
   collect_module_scope_names(c, program);
@@ -193,6 +205,8 @@ static void compile_program(struct oak_compiler_t* c,
   oakc_compile_fn_bodies(c);
   CHECK_ERROR(c);
   oakc_compile_method_bodies(c);
+  CHECK_ERROR(c);
+  oakc_compile_method_decl_bodies(c, program);
   CHECK_ERROR(c);
   populate_module_exports(c);
 }

@@ -24,6 +24,11 @@ enum oak_obj_type_t
    * pointer is not owned by Oak; the type descriptor pointer is borrowed from
    * the oak_bind_type_t that was registered with oak_bind_type(). */
   OAK_OBJ_NATIVE_RECORD,
+  /* A trait fat-pointer: wraps a concrete value together with a vtable
+   * (an OAK_OBJ_ARRAY of function values in trait-method declaration order).
+   * Both the inner value and the vtable array are incref'd on construction
+   * and decref'd when the trait object is freed. */
+  OAK_OBJ_TRAIT_OBJECT,
 };
 
 struct oak_obj_t
@@ -139,6 +144,14 @@ struct oak_obj_native_record_t
   const struct oak_bind_type_t* type; /* borrowed; lives for binding lifetime */
 };
 
+/* Trait fat-pointer: wraps a concrete value and a vtable array. */
+struct oak_obj_trait_object_t
+{
+  struct oak_obj_t obj;
+  struct oak_value_t value;          /* the wrapped concrete value (incref'd) */
+  struct oak_obj_array_t* vtable;    /* function values in trait-method order */
+};
+
 enum oak_fn_call_result_t
 {
   OAK_FN_CALL_OK = 0,
@@ -222,6 +235,9 @@ struct oak_obj_record_t* oak_record_new(
 struct oak_obj_native_record_t*
 oak_obj_native_record_new(const struct oak_bind_type_t* type, void* instance);
 
+struct oak_obj_trait_object_t*
+oak_trait_object_new(struct oak_value_t value, struct oak_obj_array_t* vtable);
+
 struct oak_obj_map_t* oak_map_new(void);
 /* Returns 1 and writes the value into *out if found; 0 otherwise. */
 int oak_map_get(const struct oak_obj_map_t* map,
@@ -290,6 +306,11 @@ static inline int oak_is_record(const struct oak_value_t value)
 static inline int oak_is_native_record(const struct oak_value_t value)
 {
   return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_NATIVE_RECORD;
+}
+
+static inline int oak_is_trait_object(const struct oak_value_t value)
+{
+  return oak_is_obj(value) && value.as.obj->type == OAK_OBJ_TRAIT_OBJECT;
 }
 
 static inline int oak_is_i32(const struct oak_value_t value)
@@ -372,6 +393,13 @@ oak_as_native_record(const struct oak_value_t value)
 {
   oak_assert(oak_is_native_record(value));
   return (struct oak_obj_native_record_t*)value.as.obj;
+}
+
+static inline struct oak_obj_trait_object_t*
+oak_as_trait_object(const struct oak_value_t value)
+{
+  oak_assert(oak_is_trait_object(value));
+  return (struct oak_obj_trait_object_t*)value.as.obj;
 }
 
 static inline char* oak_as_cstring(const struct oak_value_t value)

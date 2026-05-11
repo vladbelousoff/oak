@@ -64,6 +64,8 @@ enum oak_token_kind_t
   OAK_TOKEN_NEW,
   OAK_TOKEN_SELF,
   OAK_TOKEN_IMPORT,
+  OAK_TOKEN_TRAIT,
+  OAK_TOKEN_IMPL,
 };
 
 struct oak_keyword_entry_t

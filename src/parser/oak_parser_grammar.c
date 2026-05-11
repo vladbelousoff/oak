@@ -158,14 +158,16 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> IMPORT_DECL | FN_DECL | RECORD_DECL | ENUM_DECL | STMT
+  // PROGRAM_ITEM -> IMPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_IMPORT_DECL,
+      OAK_NODE_METHOD_DECL,
       OAK_NODE_FN_DECL,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
+      OAK_NODE_TRAIT_DECL,
       OAK_NODE_STMT,
     },
   },
@@ -721,6 +723,71 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
       OAK_NODE_STMT | OAK_RULE_REPEAT,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // TRAIT_DECL -> 'trait' IDENT '{' TRAIT_MEMBERS '}'
+  //   (binary: lhs = IDENT (name), rhs = TRAIT_MEMBERS)
+  [OAK_NODE_TRAIT_DECL] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_TOKEN_TRAIT | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_TRAIT_MEMBERS,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // TRAIT_MEMBERS -> FN_DECL*  (body may be ';' for abstract or BLOCK for default)
+  [OAK_NODE_TRAIT_MEMBERS] = {
+    .rules = {
+      OAK_NODE_FN_DECL | OAK_RULE_REPEAT,
+    },
+  },
+  // IMPL_DECL -> 'impl' IDENT '{' IMPL_MEMBERS '}'
+  //   (binary: lhs = IDENT (type name), rhs = IMPL_MEMBERS)
+  [OAK_NODE_IMPL_DECL] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_TOKEN_IMPL | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_IMPL_MEMBERS,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+    },
+  },
+  // IMPL_MEMBERS -> FN_DECL*
+  [OAK_NODE_IMPL_MEMBERS] = {
+    .rules = {
+      OAK_NODE_FN_DECL | OAK_RULE_REPEAT,
+    },
+  },
+  // METHOD_DECL -> METHOD_PROTO FN_DECL_BODY
+  //   (binary: lhs = METHOD_PROTO, rhs = FN_DECL_BODY)
+  [OAK_NODE_METHOD_DECL] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_METHOD_PROTO,
+      OAK_NODE_FN_DECL_BODY,
+    },
+  },
+  // METHOD_PROTO -> METHOD_HEAD FN_PARAMS_AND_RET
+  //   (binary: lhs = METHOD_HEAD, rhs = FN_PARAMS_AND_RET)
+  [OAK_NODE_METHOD_PROTO] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_METHOD_HEAD,
+      OAK_NODE_FN_PARAMS_AND_RET,
+    },
+  },
+  // METHOD_HEAD -> 'fn' IDENT '.' IDENT
+  //   (binary: lhs = type IDENT, rhs = method IDENT)
+  [OAK_NODE_METHOD_HEAD] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_TOKEN_FN | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
+      OAK_TOKEN_DOT | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
     },
   },
 };
