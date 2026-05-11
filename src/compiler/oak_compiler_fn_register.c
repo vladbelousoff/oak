@@ -151,57 +151,6 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
                   sizeof(slot));
 }
 
-static void register_record_body_methods(struct oak_compiler_t* c,
-                                         const struct oak_ast_node_t* program)
-{
-  struct oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
-  {
-    const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_RECORD_DECL)
-      continue;
-    if (!item->rhs || item->rhs->kind != OAK_NODE_RECORD_FIELDS)
-      continue;
-
-    const struct oak_ast_node_t* name_ident = record_decl_type_ident(item);
-    if (!name_ident)
-    {
-      oak_compiler_error_at(c, item->token, "malformed record declaration");
-      return;
-    }
-    const char* rname = oak_token_text(name_ident->token);
-    struct oak_registered_record_t* sd = null;
-    for (int i = 0; i < c->records.entries.count; ++i)
-    {
-      if (strcmp(c->records.entries.items[i].name, rname) == 0)
-      {
-        sd = &c->records.entries.items[i];
-        break;
-      }
-    }
-    if (!sd)
-    {
-      oak_compiler_error_at(
-          c, name_ident->token, "internal error: record not registered");
-      return;
-    }
-
-    for (struct oak_list_entry_t* fpos = item->rhs->children.next;
-         fpos != &item->rhs->children;
-         fpos = fpos->next)
-    {
-      const struct oak_ast_node_t* mdecl =
-          oak_container_of(fpos, struct oak_ast_node_t, link);
-      if (mdecl->kind != OAK_NODE_FN_DECL)
-        continue;
-      oakc_register_method_on_record(c, mdecl, sd);
-      if (c->has_error)
-        return;
-    }
-  }
-}
-
 void oakc_register_program_fns(
     struct oak_compiler_t* c, const struct oak_ast_node_t* program)
 {
@@ -221,7 +170,8 @@ void oakc_register_program_fns(
 void oakc_register_program_methods(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* program)
 {
-  register_record_body_methods(c, program);
+  (void)c;
+  (void)program;
 }
 
 const struct oak_registered_fn_t* oakc_find_fn(

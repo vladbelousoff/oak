@@ -236,30 +236,26 @@ OAK_TEST_DECL(FieldAssignOnNonStructFails)
 }
 
 /* =========================================================================
- * Record static methods (no self)
+ * Functions inside record bodies are not allowed; use fn TypeName.method(...)
  * ========================================================================= */
 
-/* Static method defined in the record body is called as TypeName.method(...).
- */
-OAK_TEST_DECL(RecordStaticMethodInBodyOk)
+/* fn inside a record body is a parse error. */
+OAK_TEST_DECL(RecordBodyFnFails)
 {
-  return expect_ok("record Point { x : number; y : number;\n"
-                   "  fn origin() -> Point {\n"
-                   "    return new Point { x : 0, y : 0 };\n"
-                   "  }\n"
-                   "}\n"
-                   "let p = Point.origin();\n"
-                   "print(p.x);\n"
-                   "print(p.y);\n");
+  return expect_parse_or_compile_error(
+      "record Point { x : number; y : number;\n"
+      "  fn origin() -> Point {\n"
+      "    return new Point { x : 0, y : 0 };\n"
+      "  }\n"
+      "}\n");
 }
 
-/* Instance and static methods on the same record cannot share a name. */
-OAK_TEST_DECL(RecordStaticMethodDuplicateNameFails)
+/* Instance method inside a record body is also a parse error. */
+OAK_TEST_DECL(RecordBodyInstanceFnFails)
 {
-  return expect_compile_error(
+  return expect_parse_or_compile_error(
       "record Point { x : number; y : number;\n"
       "  fn dup(self) -> number { return self.x; }\n"
-      "  fn dup() -> Point { return new Point { x : 0, y : 0 }; }\n"
       "}\n");
 }
 
@@ -295,9 +291,9 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(FieldAccessOnNumberFails),
     OAK_TEST_ENTRY(FieldAccessOnStringFails),
     OAK_TEST_ENTRY(FieldAssignOnNonStructFails),
-    /* record static methods */
-    OAK_TEST_ENTRY(RecordStaticMethodInBodyOk),
-    OAK_TEST_ENTRY(RecordStaticMethodDuplicateNameFails),
+    /* fn inside record body is forbidden */
+    OAK_TEST_ENTRY(RecordBodyFnFails),
+    OAK_TEST_ENTRY(RecordBodyInstanceFnFails),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
 }

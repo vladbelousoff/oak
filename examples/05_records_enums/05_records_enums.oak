@@ -3,31 +3,31 @@ enum Status { Planned, Active, Done }
 record Point {
   x : number;
   y : number;
+}
 
-  fn sum(self) -> number {
-    return self.x + self.y;
-  }
+fn Point.sum(self) -> number {
+  return self.x + self.y;
+}
 
-  fn move_by(mut self, dx : number, dy : number) {
-    self.x = self.x + dx;
-    self.y = self.y + dy;
-  }
+fn Point.move_by(mut self, dx : number, dy : number) {
+  self.x = self.x + dx;
+  self.y = self.y + dy;
+}
 
-  fn dist_sq(self, other : Point) -> number {
-    let dx = self.x - other.x;
-    let dy = self.y - other.y;
-    return dx * dx + dy * dy;
-  }
+fn Point.dist_sq(self, other : Point) -> number {
+  let dx = self.x - other.x;
+  let dy = self.y - other.y;
+  return dx * dx + dy * dy;
 }
 
 record Job {
   title : string;
   status : Status;
   location : Point;
+}
 
-  fn label(self) -> string {
-    return self.title;
-  }
+fn Job.label(self) -> string {
+  return self.title;
 }
 
 fn status_name(status : Status) -> string {

@@ -72,9 +72,8 @@ OAK_TEST_DECL(ModuleScopeNameNotAssignableInFunction)
 OAK_TEST_DECL(ModuleScopeNameNotReadableInMethod)
 {
   return expect_compile_error(
-      "record R { x : number;\n"
-      "  fn m(self) -> number { return g; }\n"
-      "}\n"
+      "record R { x : number; }\n"
+      "fn R.m(self) -> number { return g; }\n"
       "let g = 1;\n");
 }
 

@@ -158,12 +158,11 @@ OAK_TEST_DECL(MutValueParamFromImmutableOk)
 OAK_TEST_DECL(MutSelfImmutableReceiverFails)
 {
   return expect_compile_error(
-      "record Point { x : number; y : number;\n"
-      "  fn shift(mut self, dx : number, dy : number) -> number {\n"
-      "    self.x = self.x + dx;\n"
-      "    self.y = self.y + dy;\n"
-      "    return self.x + self.y;\n"
-      "  }\n"
+      "record Point { x : number; y : number; }\n"
+      "fn Point.shift(mut self, dx : number, dy : number) -> number {\n"
+      "  self.x = self.x + dx;\n"
+      "  self.y = self.y + dy;\n"
+      "  return self.x + self.y;\n"
       "}\n"
       "let p = new Point { x : 1, y : 2 };\n"
       "p.shift(3, 4);\n");
@@ -173,12 +172,11 @@ OAK_TEST_DECL(MutSelfImmutableReceiverFails)
 OAK_TEST_DECL(MutSelfMutableReceiverOk)
 {
   return expect_ok(
-      "record Point { x : number; y : number;\n"
-      "  fn shift(mut self, dx : number, dy : number) -> number {\n"
-      "    self.x = self.x + dx;\n"
-      "    self.y = self.y + dy;\n"
-      "    return self.x + self.y;\n"
-      "  }\n"
+      "record Point { x : number; y : number; }\n"
+      "fn Point.shift(mut self, dx : number, dy : number) -> number {\n"
+      "  self.x = self.x + dx;\n"
+      "  self.y = self.y + dy;\n"
+      "  return self.x + self.y;\n"
       "}\n"
       "let mut p = new Point { x : 1, y : 2 };\n"
       "p.shift(3, 4);\n");
@@ -187,9 +185,8 @@ OAK_TEST_DECL(MutSelfMutableReceiverOk)
 /* Calling a non-mut-self method on an immutable receiver is fine. */
 OAK_TEST_DECL(ConstSelfImmutableReceiverOk)
 {
-  return expect_ok("record Point { x : number; y : number;\n"
-                   "  fn sum(self) -> number { return self.x + self.y; }\n"
-                   "}\n"
+  return expect_ok("record Point { x : number; y : number; }\n"
+                   "fn Point.sum(self) -> number { return self.x + self.y; }\n"
                    "let p = new Point { x : 3, y : 4 };\n"
                    "p.sum();\n");
 }
@@ -229,11 +226,10 @@ OAK_TEST_DECL(BorrowMoveIntoRecordFieldFails)
 /* Moves are tracked per binding even when the source is `mut self`. */
 OAK_TEST_DECL(BorrowMoveSelfFails)
 {
-  return expect_compile_error("record Point { x : number; y : number;\n"
-                              "  fn weird(mut self) -> number {\n"
-                              "    let mut other = self;\n"
-                              "    return self.x;\n"
-                              "  }\n"
+  return expect_compile_error("record Point { x : number; y : number; }\n"
+                              "fn Point.weird(mut self) -> number {\n"
+                              "  let mut other = self;\n"
+                              "  return self.x;\n"
                               "}\n"
                               "let mut p = new Point { x : 1, y : 2 };\n"
                               "p.weird();\n");
