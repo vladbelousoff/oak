@@ -68,9 +68,43 @@ static void validate_array_push_args(struct oak_compiler_t* c,
                                      struct oak_type_t recv_ty,
                                      const struct oak_token_t* err_tok)
 {
+  const struct oak_ast_node_t* arg_expr = oak_compiler_fn_call_arg_expr_at(call, 0);
+  if (!arg_expr)
+    return;
+
+  /* Trait element arrays accept any concrete type that structurally satisfies
+   * the trait; coercion to a trait object is emitted at the call site. */
+  const struct oak_registered_trait_t* elem_tr =
+      oakc_trait_find_by_id(&c->traits, recv_ty.id);
+  if (elem_tr)
+  {
+    struct oak_type_t got;
+    oakc_infer_type(c, arg_expr, &got);
+    if (!oak_type_is_known(&got))
+      return;
+    if (got.kind == OAK_TYPE_KIND_TRAIT && got.id == elem_tr->trait_id)
+      return; /* already a matching trait object */
+    const struct oak_registered_record_t* sd = null;
+    if (got.kind == OAK_TYPE_KIND_SCALAR)
+      sd = oakc_records_find_by_id(&c->records, got.id);
+    if (sd && oakc_record_satisfies_trait(c, sd, elem_tr))
+      return;
+    const struct oak_token_t* t = first_arg_error_token(arg_expr, err_tok);
+    if (sd)
+      oak_compiler_error_at(c, t,
+                            "cannot push value of type '%s' to array of '%s': "
+                            "type does not implement trait '%s'",
+                            sd->name, elem_tr->name, elem_tr->name);
+    else
+      oak_compiler_error_at(c, t,
+                            "cannot push value of type '%s' to array of '%s'",
+                            oakc_type_full_name(c, got), elem_tr->name);
+    return;
+  }
+
   const struct oak_type_t element_ty = { .id = recv_ty.id };
   validate_inferred_type_matches(
-      c, oak_compiler_fn_call_arg_expr_at(call, 0), element_ty, err_tok, 0);
+      c, arg_expr, element_ty, err_tok, 0);
 }
 
 static void validate_map_key_arg(struct oak_compiler_t* c,

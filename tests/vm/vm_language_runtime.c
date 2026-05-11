@@ -124,6 +124,52 @@ OAK_TEST_DECL(RuntimeIterationBreakContinue)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(RuntimeTraits)
+{
+  /* Two concrete types dispatched through a trait parameter. */
+  OAK_CHECK(expect_ok(
+      "trait Shape {\n"
+      "  fn area(self) -> number;\n"
+      "  fn label(self) -> string;\n"
+      "}\n"
+      "record Circle { radius : number; }\n"
+      "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
+      "fn Circle.label(self) -> string { return 'circle'; }\n"
+      "record Rect { w : number; h : number; }\n"
+      "fn Rect.area(self) -> number { return self.w * self.h; }\n"
+      "fn Rect.label(self) -> string { return 'rect'; }\n"
+      "fn print_shape(s: Shape) { print(s.label()); print(s.area()); }\n"
+      "print_shape(new Circle { radius: 3 });\n"
+      "print_shape(new Rect { w: 4, h: 5 });\n") == OAK_TEST_OK);
+
+  /* Heterogeneous trait array with for-in and index access. */
+  OAK_CHECK(expect_ok(
+      "trait Shape { fn area(self) -> number; }\n"
+      "record Circle { radius : number; }\n"
+      "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
+      "record Rect { w : number; h : number; }\n"
+      "fn Rect.area(self) -> number { return self.w * self.h; }\n"
+      "let mut shapes = [] as Shape[];\n"
+      "shapes.push(new Circle { radius: 2 });\n"
+      "shapes.push(new Rect { w: 3, h: 4 });\n"
+      "let mut total = 0;\n"
+      "for s in shapes { total += s.area(); }\n"
+      "print(total);\n"
+      "print(shapes[0].area());\n") == OAK_TEST_OK);
+
+  /* Passing a trait object on to another trait-typed parameter. */
+  OAK_CHECK(expect_ok(
+      "trait Shape { fn area(self) -> number; }\n"
+      "record Circle { radius : number; }\n"
+      "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
+      "fn inner(s: Shape) -> number { return s.area(); }\n"
+      "fn outer(s: Shape) -> number { return inner(s); }\n"
+      "let c = new Circle { radius: 5 };\n"
+      "print(outer(c));\n") == OAK_TEST_OK);
+
+  return OAK_TEST_OK;
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -135,6 +181,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(RuntimeMaps),
     OAK_TEST_ENTRY(RuntimeRecords),
     OAK_TEST_ENTRY(RuntimeIterationBreakContinue),
+    OAK_TEST_ENTRY(RuntimeTraits),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
 }

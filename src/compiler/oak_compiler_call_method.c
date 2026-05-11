@@ -529,7 +529,35 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
 
   oak_compiler_emit_constant(c, m->const_idx, call_loc);
   oak_compiler_compile_node(c, receiver);
-  oak_compiler_compile_call_args_after_callee(c, node);
+
+  /* For arrays with a trait element type, coerce each user arg. */
+  const struct oak_registered_trait_t* _elem_tr =
+      recv_ty.kind == OAK_TYPE_KIND_ARRAY
+          ? oakc_trait_find_by_id(&c->traits, recv_ty.id)
+          : null;
+  if (_elem_tr)
+  {
+    const struct oak_type_t _want = { .id = _elem_tr->trait_id,
+                                      .kind = OAK_TYPE_KIND_TRAIT };
+    const struct oak_list_entry_t* _first = node->children.next;
+    for (struct oak_list_entry_t* _p = _first->next;
+         _p != &node->children;
+         _p = _p->next)
+    {
+      const struct oak_ast_node_t* _arg =
+          oak_container_of(_p, struct oak_ast_node_t, link);
+      oakc_compile_call_arg(c, _arg);
+      const struct oak_ast_node_t* _expr =
+          _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
+      oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+      if (c->has_error)
+        return;
+    }
+  }
+  else
+  {
+    oak_compiler_compile_call_args_after_callee(c, node);
+  }
 
   oak_compiler_emit_op(
       c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)m->total_arity));

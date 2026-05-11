@@ -166,6 +166,45 @@ OAK_TEST_DECL(DuplicateTraitRejected)
       "trait Shape { fn area(self) -> number; }\n");
 }
 
+/* =========================================================================
+ * Trait arrays
+ * ========================================================================= */
+
+OAK_TEST_DECL(TraitArrayPushAndIterateOk)
+{
+  return expect_ok(
+      TRAIT_SHAPE
+      RECORD_CIRCLE
+      "record Rect { w : number; h : number; }\n"
+      "fn Rect.area(self) -> number { return self.w * self.h; }\n"
+      "fn Rect.describe(self) -> string { return 'rect'; }\n"
+      "let mut shapes = [] as Shape[];\n"
+      "shapes.push(new Circle { radius: 3 });\n"
+      "shapes.push(new Rect { w: 2, h: 5 });\n"
+      "let mut total = 0;\n"
+      "for s in shapes { total += s.area(); }\n"
+      "print(total);\n");
+}
+
+OAK_TEST_DECL(TraitArrayIndexOk)
+{
+  return expect_ok(
+      TRAIT_SHAPE
+      RECORD_CIRCLE
+      "let mut shapes = [] as Shape[];\n"
+      "shapes.push(new Circle { radius: 4 });\n"
+      "print(shapes[0].area());\n");
+}
+
+OAK_TEST_DECL(TraitArrayPushNonConformingRejected)
+{
+  return expect_compile_error(
+      TRAIT_SHAPE
+      "record Plain { x : number; }\n"
+      "let mut shapes = [] as Shape[];\n"
+      "shapes.push(new Plain { x: 1 });\n");
+}
+
 OAK_TEST_DECL(MethodCoercionInMethodCallOk)
 {
   return expect_ok(
@@ -196,6 +235,9 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(VirtualCallTooFewArgsRejected),
     OAK_TEST_ENTRY(VirtualCallTooManyArgsRejected),
     OAK_TEST_ENTRY(DuplicateTraitRejected),
+    OAK_TEST_ENTRY(TraitArrayPushAndIterateOk),
+    OAK_TEST_ENTRY(TraitArrayIndexOk),
+    OAK_TEST_ENTRY(TraitArrayPushNonConformingRejected),
     OAK_TEST_ENTRY(MethodCoercionInMethodCallOk),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
