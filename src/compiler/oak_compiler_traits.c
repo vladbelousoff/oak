@@ -221,7 +221,11 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
 
     const struct oak_ast_node_t* body = oakc_fn_block(item);
     if (!body || body->kind != OAK_NODE_BLOCK)
+    {
+      if (!c->allow_bodyless_fns)
+        oak_compiler_error_at(c, item->token, "method has no body");
       continue;
+    }
 
     const struct oak_ast_node_t* type_ident = oakc_method_decl_type_ident(item);
     if (!type_ident)

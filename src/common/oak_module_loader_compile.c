@@ -80,6 +80,7 @@ static int validate_imported_module_body(
     {
       case OAK_NODE_IMPORT_DECL:
       case OAK_NODE_FN_DECL:
+      case OAK_NODE_METHOD_DECL:
       case OAK_NODE_RECORD_DECL:
       case OAK_NODE_ENUM_DECL:
         continue;
