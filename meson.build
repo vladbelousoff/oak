@@ -156,6 +156,7 @@ else
     'compiler_native_fn_binding': 'tests/compiler/compiler_native_fn_binding.c',
     'compiler_native_type_binding': 'tests/compiler/compiler_native_type_binding.c',
     'compiler_semantic_errors': 'tests/compiler/compiler_semantic_errors.c',
+    'compiler_traits': 'tests/compiler/compiler_traits.c',
     'compiler_type_binding': 'tests/compiler/compiler_type_binding.c',
     'compiler_type_field_binding': 'tests/compiler/compiler_type_field_binding.c',
     'compiler_void_fn': 'tests/compiler/compiler_void_fn.c',
