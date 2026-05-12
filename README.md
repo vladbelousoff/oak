@@ -248,6 +248,134 @@ Single-word names (`x`, `radius`, `done`) are lowercase by default and need no s
 
 ---
 
+## Native C bindings
+
+The embedding API (`include/oak_bind.h`) lets C code expose types, functions, and enums to Oak source without modifying the compiler or VM.
+
+All registrations go into an `oak_compile_options_t` before calling `oak_compile_ex()`:
+
+```c
+struct oak_compile_options_t opts;
+oak_compile_options_init(&opts);
+
+/* ... register types, functions, enums ... */
+
+struct oak_compile_result_t result;
+oak_compile_ex(ast_root, &opts, &result);
+oak_compile_options_free(&opts);
+```
+
+### Registering a type
+
+`oak_bind_type()` creates a native record type visible to Oak as a regular record. `oak_bind_type_in_module()` scopes it under a module name so it appears as `module.Type` after an `import module;`.
+
+```c
+struct oak_bind_type_t* t =
+    oak_bind_type_in_module(&opts, "io", OAK_BIND_TYPE_RECORD, "File");
+```
+
+Fields are registered with `oak_bind_field()`. Each field needs a getter (and an optional setter; `NULL` makes the field read-only):
+
+```c
+oak_bind_field(t, &(struct oak_bind_field_t){
+    .name = "size",
+    .field_type_id = OAK_TYPE_NUMBER,
+    .getter = my_size_getter,
+    .setter = NULL,   /* read-only */
+});
+```
+
+Inside a getter or setter, `oak_native_instance()` retrieves the underlying C pointer:
+
+```c
+static oak_value_t my_size_getter(oak_value_t self) {
+    MyType* p = oak_native_instance(self);
+    return OAK_VALUE_F64((double)p->size);
+}
+```
+
+Wrap a C pointer in an Oak value with `oak_native_record_new()`. When the Oak side releases its last reference, the optional `destructor` callback runs:
+
+```c
+t->destructor = my_type_free;   /* called with the raw C pointer */
+*out = oak_native_record_new(t, my_ptr);
+```
+
+### Registering functions
+
+`oak_bind_fn()` covers three cases:
+
+| `kind`                      | Called from Oak as        | `receiver_type_id`   |
+|-----------------------------|---------------------------|----------------------|
+| `OAK_BIND_FN_GLOBAL`        | `fn(args)`                | `OAK_TYPE_VOID`      |
+| `OAK_BIND_FN_STATIC_METHOD` | `Type.fn(args)`           | the type's `type_id` |
+| `OAK_BIND_FN_INSTANCE_METHOD` | `obj.fn(args)`          | the type's `type_id` |
+
+```c
+/* Static method: File.open(path, mode) -> File */
+oak_bind_fn(&opts, &(struct oak_bind_fn_t){
+    .kind            = OAK_BIND_FN_STATIC_METHOD,
+    .receiver_type_id = t->type_id,
+    .name            = "open",
+    .impl            = file_open,
+    .arity           = 2,
+    .return_type_id  = t->type_id,
+});
+
+/* Instance method: f.readAll() -> string */
+oak_bind_fn(&opts, &(struct oak_bind_fn_t){
+    .kind            = OAK_BIND_FN_INSTANCE_METHOD,
+    .receiver_type_id = t->type_id,
+    .name            = "readAll",
+    .impl            = file_read_all,
+    .arity           = 0,
+    .return_type_id  = OAK_TYPE_STRING,
+});
+```
+
+For `INSTANCE_METHOD`, `arity` excludes the implicit `self`; the compiler adds one automatically.
+
+The native function signature is always:
+
+```c
+enum oak_fn_call_result_t my_fn(struct oak_native_ctx_t* ctx,
+                                const struct oak_value_t* args,
+                                int argc,
+                                struct oak_value_t* out);
+```
+
+Return `OAK_FN_CALL_OK` and write the return value into `*out`, or return `OAK_FN_CALL_RUNTIME_ERROR` to raise a runtime error.
+
+### Registering enums
+
+`oak_bind_enum()` / `oak_bind_enum_in_module()` create an Oak enum backed by C integer constants:
+
+```c
+struct oak_bind_enum_t* mode =
+    oak_bind_enum_in_module(&opts, "io", "FileMode");
+oak_bind_enum_variant(mode, "Read",   0);
+oak_bind_enum_variant(mode, "Write",  1);
+oak_bind_enum_variant(mode, "Append", 2);
+```
+
+In Oak: `io.FileMode.Read`, `io.FileMode.Write`, etc.
+
+### Oak-side stub file
+
+When a native type lives in a module, provide a matching `.oak` stub file (e.g. `stdlib/io.oak`) that declares the type and method signatures without bodies. The loader validates that every bodyless declaration has a corresponding native binding:
+
+```oak
+record File {}
+
+fn File.open(path : string, mode : number) -> File;
+fn File.readAll(self) -> string;
+fn File.close(self);
+```
+
+The stub is what Oak `import` resolves; the C binding supplies the actual implementation.
+
+---
+
 ## Architecture
 
 ```
