@@ -10,6 +10,11 @@ void oak_fn_registry_init(struct oak_fn_registry_t* r)
 
 void oak_fn_registry_free(struct oak_fn_registry_t* r)
 {
+  for (int i = 0; i < r->entries.count; ++i)
+  {
+    if (r->entries.items[i].attrs)
+      oak_free(r->entries.items[i].attrs, OAK_SRC_LOC);
+  }
   oak_htable_free(&r->by_name);
   oak_dynarr_free(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
@@ -63,6 +68,7 @@ record_decl_type_ident(const struct oak_ast_node_t* record_decl)
 }
 
 static void register_regular_fn_decl(struct oak_compiler_t* c,
+                                     const struct oak_ast_node_t* raw_item,
                                      const struct oak_ast_node_t* item)
 {
   const struct oak_ast_node_t* name_node = oakc_fn_name_node(item);
@@ -95,17 +101,22 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity, mid);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
+  int attr_count = 0;
+  const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
   struct oak_registered_fn_t entry = {
     .name = name,
     .name_len = name_len,
     .const_idx = idx,
     .arity = explicit_arity,
     .decl = item,
+    .attrs = attrs,
+    .attr_count = attr_count,
   };
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
 void oakc_register_method_on_record(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* raw_item,
                                     const struct oak_ast_node_t* item,
                                     struct oak_registered_record_t* sd)
 {
@@ -130,6 +141,9 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
     }
   }
 
+  int attr_count = 0;
+  const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+
   struct oak_registered_fn_t slot = { 0 };
   slot.name = name;
   slot.name_len = name_len;
@@ -137,6 +151,8 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
   slot.return_type_id = OAK_TYPE_VOID;
   slot.is_static = (self_param == null);
   slot.decl = item;
+  slot.attrs = attrs;
+  slot.attr_count = attr_count;
 
   const int total_arity = self_param ? explicit_arity + 1 : explicit_arity;
   const u16 mid =
@@ -157,11 +173,12 @@ void oakc_register_program_fns(
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item =
+    const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_FN_DECL)
+    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    if (!item || item->kind != OAK_NODE_FN_DECL)
       continue;
-    register_regular_fn_decl(c, item);
+    register_regular_fn_decl(c, raw_item, item);
     if (c->has_error)
       return;
   }

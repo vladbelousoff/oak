@@ -128,6 +128,9 @@ static void compile_program_items(struct oak_compiler_t* c,
       continue;
     if (item->kind == OAK_NODE_METHOD_DECL)
       continue;
+    /* Attributed declarations (@Attr fn/record/enum) are handled by pre-passes. */
+    if (item->kind == OAK_NODE_ATTR_DECL)
+      continue;
     oak_compiler_compile_node(c, item);
     /* Recover after a top-level statement error so subsequent items are also
      * checked and all errors are reported in a single compilation pass. */

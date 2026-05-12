@@ -13,6 +13,8 @@ u16 oakc_intern_native_const(struct oak_compiler_t* c,
   return oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
+static const char* k_native_attr_names[] = { "Native" };
+
 static void register_native_fn(struct oak_compiler_t* c,
                                const struct oak_native_binding_t* binding)
 {
@@ -26,6 +28,8 @@ static void register_native_fn(struct oak_compiler_t* c,
     .arity = binding->arity,
     .return_type_id = binding->return_type_id,
     .decl = null,
+    .attrs = oakc_alloc_attrs(k_native_attr_names, 1),
+    .attr_count = 1,
   };
   oak_fn_registry_insert(&c->fns, &entry);
 }

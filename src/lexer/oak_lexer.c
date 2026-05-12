@@ -163,6 +163,7 @@ static const struct single_char_op_t single_char_ops[] = {
   { '[', OAK_TOKEN_LBRACKET },  { ']', OAK_TOKEN_RBRACKET },
   { '>', OAK_TOKEN_GREATER },   { '<', OAK_TOKEN_LESS },
   { '.', OAK_TOKEN_DOT },       { '?', OAK_TOKEN_QUESTION },
+  { '@', OAK_TOKEN_AT },
 };
 
 static enum oak_lex_status_t scan_op(const struct oak_lexer_ctx_t* ctx,

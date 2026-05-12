@@ -13,12 +13,17 @@ void oak_record_registry_free(struct oak_record_registry_t* r)
   oak_htable_free(&r->by_name);
   for (int i = 0; i < r->entries.count; ++i)
   {
-    oak_dynarr_free(&r->entries.items[i].fields,
-                    &r->entries.items[i].field_count,
-                    &r->entries.items[i].field_capacity);
-    oak_dynarr_free(&r->entries.items[i].methods.items,
-                    &r->entries.items[i].methods.count,
-                    &r->entries.items[i].methods.capacity);
+    struct oak_registered_record_t* e = &r->entries.items[i];
+    if (e->attrs)
+      oak_free(e->attrs, OAK_SRC_LOC);
+    for (int j = 0; j < e->methods.count; ++j)
+    {
+      if (e->methods.items[j].attrs)
+        oak_free(e->methods.items[j].attrs, OAK_SRC_LOC);
+    }
+    oak_dynarr_free(&e->fields, &e->field_count, &e->field_capacity);
+    oak_dynarr_free(&e->methods.items, &e->methods.count,
+                    &e->methods.capacity);
   }
   oak_dynarr_free(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }

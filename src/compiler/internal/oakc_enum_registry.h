@@ -28,6 +28,26 @@ struct oak_enum_variant_vec_t
   int capacity;
 };
 
+/* Per-enum metadata (attributes). Variants are stored separately in
+ * oak_enum_variant_vec_t; this struct holds enum-level information. */
+struct oak_registered_enum_t
+{
+  const char* name;
+  usize name_len;
+  oak_type_id_t type_id;
+  /* Attribute names.  Always heap-allocated; oak_free when non-NULL. */
+  const char** attrs;
+  int attr_count;
+};
+
+/* Concrete dynamic-array type for registered enums. */
+struct oak_registered_enum_vec_t
+{
+  struct oak_registered_enum_t* items;
+  int count;
+  int capacity;
+};
+
 /* Unbounded registry of enum variants.
  * by_name gives O(1) unqualified variant lookup.
  * enum_names gives O(1) existence check for enum type names.
@@ -37,6 +57,7 @@ struct oak_enum_registry_t
   struct oak_htable_t by_name;    /* variant name → index into variants */
   struct oak_htable_t enum_names; /* enum type name → 1 (set)           */
   struct oak_enum_variant_vec_t variants;
+  struct oak_registered_enum_vec_t enums; /* one entry per enum type */
 };
 
 /* ---------- Lifecycle ---------- */
@@ -67,3 +88,7 @@ oakc_enums_find_qualified(const struct oak_enum_registry_t* r,
 int oakc_is_enum_name(const struct oak_enum_registry_t* r,
                                    const char* name,
                                    usize len);
+
+/* O(n) lookup by name. Returns null if not found. */
+const struct oak_registered_enum_t* oakc_enum_find(
+    const struct oak_enum_registry_t* r, const char* name, usize len);

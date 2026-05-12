@@ -156,6 +156,24 @@ const struct oak_method_binding_t* oakc_find_number_method(
 const struct oak_method_binding_t* oakc_find_record_builtin_method(
     struct oak_compiler_t* c, const char* name, usize len);
 
+/* ---------- oak_compiler_attrs.c ---------- */
+
+/* If item is OAK_NODE_ATTR_DECL, returns the actual declaration node
+ * (the last non-ATTR child).  Otherwise returns item unchanged. */
+const struct oak_ast_node_t* oakc_unwrap_decl(
+    const struct oak_ast_node_t* item);
+
+/* Allocate and fill an array of attribute name strings from an ATTR_DECL
+ * node's ATTR children.  *out_count is set to the number of attributes.
+ * Returns a heap-allocated array (must be oak_free'd) or NULL if item is
+ * not ATTR_DECL or has no attributes. */
+const char** oakc_extract_attrs(const struct oak_ast_node_t* item,
+                                int* out_count);
+
+/* Allocate a copy of a static attribute name list.  Used by native
+ * registration so every attrs array is uniformly heap-owned. */
+const char** oakc_alloc_attrs(const char* const* names, int count);
+
 /* ---------- oak_compiler_enums.c ---------- */
 
 void oakc_register_program_enums(struct oak_compiler_t* c,
@@ -289,8 +307,10 @@ void oakc_register_program_methods(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* prog);
 
 /* Register a single FN_DECL or METHOD_DECL as an instance/static method on
- * `sd`.  Shared between record-body registration and fn TypeName.method passes. */
+ * `sd`.  raw_item may be an ATTR_DECL wrapping `item`; pass null if no
+ * attributes are available (native registrations, trait methods). */
 void oakc_register_method_on_record(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* raw_item,
                                     const struct oak_ast_node_t* item,
                                     struct oak_registered_record_t* sd);
 

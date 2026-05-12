@@ -59,6 +59,7 @@ oak_core_sources = files(
   'src/compiler/oak_compiler_method_builtins.c',
   'src/compiler/oak_compiler_method_table.c',
   'src/compiler/oak_compiler_emit.c',
+  'src/compiler/oak_compiler_attrs.c',
   'src/compiler/oak_compiler_enums.c',
   'src/compiler/oak_compiler_expr.c',
   'src/compiler/oak_compiler_expr_assign.c',

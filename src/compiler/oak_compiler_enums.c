@@ -11,14 +11,34 @@ void oak_enum_registry_init(struct oak_enum_registry_t* r)
   oak_htable_init(&r->enum_names);
   oak_dynarr_init(
       &r->variants.items, &r->variants.count, &r->variants.capacity);
+  oak_dynarr_init(&r->enums.items, &r->enums.count, &r->enums.capacity);
 }
 
 void oak_enum_registry_free(struct oak_enum_registry_t* r)
 {
+  for (int i = 0; i < r->enums.count; ++i)
+  {
+    struct oak_registered_enum_t* e = &r->enums.items[i];
+    if (e->attrs)
+      oak_free(e->attrs, OAK_SRC_LOC);
+  }
   oak_htable_free(&r->by_name);
   oak_htable_free(&r->enum_names);
   oak_dynarr_free(
       &r->variants.items, &r->variants.count, &r->variants.capacity);
+  oak_dynarr_free(&r->enums.items, &r->enums.count, &r->enums.capacity);
+}
+
+const struct oak_registered_enum_t* oakc_enum_find(
+    const struct oak_enum_registry_t* r, const char* name, usize len)
+{
+  for (int i = 0; i < r->enums.count; ++i)
+  {
+    if (r->enums.items[i].name_len == len &&
+        strncmp(r->enums.items[i].name, name, len) == 0)
+      return &r->enums.items[i];
+  }
+  return null;
 }
 
 struct oak_enum_variant_t*
@@ -90,6 +110,8 @@ int oakc_is_enum_name(const struct oak_enum_registry_t* r,
   return oak_htable_get(&r->enum_names, name, len) >= 0;
 }
 
+static const char* k_native_attr_names[] = { "Native" };
+
 void oakc_register_native_enums(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
@@ -121,6 +143,22 @@ void oakc_register_native_enums(
       oak_compiler_error_at(
           c, null, "failed to register native enum '%s' as a type", ne->name);
       return;
+    }
+
+    /* Register enum-level metadata with @Native attribute. */
+    {
+      struct oak_registered_enum_t re = {
+        .name = ne->name,
+        .name_len = ne->name_len,
+        .type_id = enum_type_id,
+        .attrs = oakc_alloc_attrs(k_native_attr_names, 1),
+        .attr_count = 1,
+      };
+      oak_dynarr_push(&c->enums.enums.items,
+                      &c->enums.enums.count,
+                      &c->enums.enums.capacity,
+                      &re,
+                      sizeof(re));
     }
 
     for (int vi = 0; vi < ne->variant_count; ++vi)
@@ -162,9 +200,10 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item =
+    const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_ENUM_DECL)
+    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    if (!item || item->kind != OAK_NODE_ENUM_DECL)
       continue;
 
     /* ENUM_DECL is BINARY: lhs = IDENT (name), rhs = ENUM_VARIANTS. */
@@ -183,6 +222,24 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
       oak_compiler_error_at(
           c, name_node->token, "failed to register enum as a type");
       return;
+    }
+
+    /* Register enum-level metadata (name, type_id, attributes). */
+    {
+      int attr_count = 0;
+      const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+      struct oak_registered_enum_t re = {
+        .name = oak_token_text(name_node->token),
+        .name_len = oak_token_length(name_node->token),
+        .type_id = enum_type_id,
+        .attrs = attrs,
+        .attr_count = attr_count,
+      };
+      oak_dynarr_push(&c->enums.enums.items,
+                      &c->enums.enums.count,
+                      &c->enums.enums.capacity,
+                      &re,
+                      sizeof(re));
     }
 
     int ordinal = 0;

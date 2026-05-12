@@ -109,6 +109,13 @@ enum oak_node_kind_t
   OAK_NODE_METHOD_DECL,
   OAK_NODE_METHOD_PROTO,
   OAK_NODE_METHOD_HEAD,
+  /* @AttributeName syntax for records, enums, and functions.
+   * ATTR: unary, child = IDENT (the attribute name after '@').
+   * ATTR_DECL: sequence, children = ATTR... followed by the declaration node.
+   * ATTR_DECL_BODY: choice node (transparent — resolved to the actual decl). */
+  OAK_NODE_ATTR,
+  OAK_NODE_ATTR_DECL,
+  OAK_NODE_ATTR_DECL_BODY,
 };
 
 struct oak_ast_node_t

@@ -42,11 +42,12 @@ void oakc_register_program_records(struct oak_compiler_t* c,
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item =
+    const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
+    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
 
-    const int is_empty = item->kind == OAK_NODE_RECORD_DECL_EMPTY;
-    if (item->kind != OAK_NODE_RECORD_DECL && !is_empty)
+    const int is_empty = item && item->kind == OAK_NODE_RECORD_DECL_EMPTY;
+    if (!item || (item->kind != OAK_NODE_RECORD_DECL && !is_empty))
       continue;
 
     /* RECORD_DECL_EMPTY: child = TYPE_NAME
@@ -81,6 +82,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     proto.fields = null;
     proto.field_count = 0;
     proto.field_capacity = 0;
+    proto.attrs = oakc_extract_attrs(raw_item, &proto.attr_count);
 
     if (proto.type_id < 0)
     {

@@ -249,6 +249,26 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "IMPORT_DECL";
     case OAK_NODE_IMPORT_PATH:
       return "IMPORT_PATH";
+    case OAK_NODE_TRAIT_DECL:
+      return "TRAIT_DECL";
+    case OAK_NODE_TRAIT_MEMBERS:
+      return "TRAIT_MEMBERS";
+    case OAK_NODE_IMPL_DECL:
+      return "IMPL_DECL";
+    case OAK_NODE_IMPL_MEMBERS:
+      return "IMPL_MEMBERS";
+    case OAK_NODE_METHOD_DECL:
+      return "METHOD_DECL";
+    case OAK_NODE_METHOD_PROTO:
+      return "METHOD_PROTO";
+    case OAK_NODE_METHOD_HEAD:
+      return "METHOD_HEAD";
+    case OAK_NODE_ATTR:
+      return "ATTR";
+    case OAK_NODE_ATTR_DECL:
+      return "ATTR_DECL";
+    case OAK_NODE_ATTR_DECL_BODY:
+      return "ATTR_DECL_BODY";
   }
   return "UNKNOWN";
 }

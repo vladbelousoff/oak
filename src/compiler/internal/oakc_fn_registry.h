@@ -29,6 +29,10 @@ struct oak_registered_fn_t
       return_kind; /* SCALAR or ARRAY for native; else SCALAR */
   int is_static;   /* 1 = static method, 0 = instance/global */
   const struct oak_ast_node_t* decl; /* null for native */
+  /* Attribute names (e.g. "Native", "Deprecated").
+   * Always heap-allocated; oak_free when non-NULL. */
+  const char** attrs;
+  int attr_count;
 };
 
 /* Concrete dynamic-array type for registered functions. */

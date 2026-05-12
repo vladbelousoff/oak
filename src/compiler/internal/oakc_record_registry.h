@@ -24,6 +24,9 @@ struct oak_registered_record_t
   /* Instance and static methods share one growable array, distinguished by
    * `is_static` on each entry. Freed by oak_record_registry_free. */
   struct oak_registered_fn_vec_t methods;
+  /* Attribute names.  Always heap-allocated; oak_free when non-NULL. */
+  const char** attrs;
+  int attr_count;
 };
 
 /* Concrete dynamic-array type for registered records. */

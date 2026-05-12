@@ -1,5 +1,9 @@
 #include "internal/oak_compiler.h"
 
+/* Shared attribute storage for all native items — borrowed by every
+ * oak_registered_*_t that is registered from the C binding API. */
+static const char* k_native_attr_names[] = { "Native" };
+
 /* ---------- Native type registration ---------- */
 
 void oakc_register_native_types(
@@ -46,6 +50,8 @@ void oakc_register_native_types(
     proto.fields = null;
     proto.field_count = 0;
     proto.field_capacity = 0;
+    proto.attrs = oakc_alloc_attrs(k_native_attr_names, 1);
+    proto.attr_count = 1;
 
     for (int fi = 0; fi < nt->field_count; ++fi)
     {
@@ -112,6 +118,8 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
                             ? OAK_TYPE_KIND_ARRAY
                             : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
+    entry.attrs = oakc_alloc_attrs(k_native_attr_names, 1);
+    entry.attr_count = 1;
 
     if (oak_fn_registry_find(&c->fns, b->name, name_len))
     {
@@ -145,6 +153,8 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
                             ? OAK_TYPE_KIND_ARRAY
                             : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
+    entry.attrs = oakc_alloc_attrs(k_native_attr_names, 1);
+    entry.attr_count = 1;
 
     struct oak_registered_record_t* sd =
         (struct oak_registered_record_t*)oakc_records_find_by_id(

@@ -158,10 +158,11 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> IMPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
+  // PROGRAM_ITEM -> ATTR_DECL | IMPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
+      OAK_NODE_ATTR_DECL,
       OAK_NODE_IMPORT_DECL,
       OAK_NODE_METHOD_DECL,
       OAK_NODE_FN_DECL,
@@ -791,6 +792,38 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
       OAK_TOKEN_DOT | OAK_RULE_TOKEN,
       OAK_NODE_IDENT,
+    },
+  },
+  // ATTR -> '@' IDENT
+  //   (unary: child = IDENT — the attribute name)
+  [OAK_NODE_ATTR] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_AT | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
+    },
+  },
+  // ATTR_DECL -> ATTR ATTR* (METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL)
+  //   Sequence node; children: one or more ATTR nodes followed by the declaration node.
+  //   The required first ATTR ensures ATTR_DECL fails immediately if no '@' is present,
+  //   preventing it from accidentally consuming plain declarations.
+  [OAK_NODE_ATTR_DECL] = {
+    .rules = {
+      OAK_NODE_ATTR,                    /* required: at least one @Attr */
+      OAK_NODE_ATTR | OAK_RULE_REPEAT,  /* zero or more additional @Attrs */
+      OAK_NODE_ATTR_DECL_BODY,          /* the actual declaration */
+    },
+  },
+  // ATTR_DECL_BODY -> METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL
+  //   Transparent choice — returns the matched declaration node directly.
+  [OAK_NODE_ATTR_DECL_BODY] = {
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_METHOD_DECL,
+      OAK_NODE_FN_DECL,
+      OAK_NODE_RECORD_DECL_EMPTY,
+      OAK_NODE_RECORD_DECL,
+      OAK_NODE_ENUM_DECL,
     },
   },
 };

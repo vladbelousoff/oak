@@ -200,6 +200,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "TRAIT";
     case OAK_TOKEN_IMPL:
       return "IMPL";
+    case OAK_TOKEN_AT:
+      return "@";
     default:
       return null;
   }

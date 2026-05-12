@@ -194,9 +194,10 @@ void oakc_register_method_decls(struct oak_compiler_t* c,
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item =
+    const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_METHOD_DECL)
+    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    if (!item || item->kind != OAK_NODE_METHOD_DECL)
       continue;
 
     const struct oak_ast_node_t* type_ident = oakc_method_decl_type_ident(item);
@@ -227,7 +228,7 @@ void oakc_register_method_decls(struct oak_compiler_t* c,
       return;
     }
 
-    oakc_register_method_on_record(c, item, sd);
+    oakc_register_method_on_record(c, raw_item, item, sd);
     if (c->has_error)
       return;
   }
@@ -242,8 +243,8 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
   oak_list_for_each(pos, &program->children)
   {
     const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_METHOD_DECL)
+        oakc_unwrap_decl(oak_container_of(pos, struct oak_ast_node_t, link));
+    if (!item || item->kind != OAK_NODE_METHOD_DECL)
       continue;
 
     const struct oak_ast_node_t* body = oakc_fn_block(item);
