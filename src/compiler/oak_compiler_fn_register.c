@@ -99,10 +99,16 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
   struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity, mid);
+  char* name_copy = oak_alloc(name_len + 1u, OAK_SRC_LOC);
+  memcpy(name_copy, name, name_len);
+  name_copy[name_len] = 0;
+  fn_obj->name = name_copy;
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
   int attr_count = 0;
   const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_FN);
+  oakc_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   struct oak_registered_fn_t entry = {
     .name = name,
     .name_len = name_len,
@@ -143,6 +149,7 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
 
   int attr_count = 0;
   const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_METHOD);
 
   struct oak_registered_fn_t slot = { 0 };
   slot.name = name;
@@ -158,6 +165,11 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
   struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity, mid);
+  char* method_name_copy = oak_alloc(name_len + 1u, OAK_SRC_LOC);
+  memcpy(method_name_copy, name, name_len);
+  method_name_copy[name_len] = 0;
+  fn_obj->name = method_name_copy;
+  oakc_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
   slot.arity = total_arity;
   oak_dynarr_push(&sd->methods.items,

@@ -83,6 +83,8 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     proto.field_count = 0;
     proto.field_capacity = 0;
     proto.attrs = oakc_extract_attrs(raw_item, &proto.attr_count);
+    oakc_dispatch_compile_attr_cbs(
+        c, proto.attrs, proto.attr_count, name, OAK_ATTR_TARGET_RECORD);
 
     if (proto.type_id < 0)
     {

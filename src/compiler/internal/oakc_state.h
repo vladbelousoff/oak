@@ -1,6 +1,8 @@
 #pragma once
 
 #include "oakc_defs.h"
+
+struct oak_compile_options_t; /* defined in oak_bind.h */
 #include "oakc_enum_registry.h"
 #include "oakc_fn_registry.h"
 #include "oakc_method_table.h"
@@ -86,4 +88,7 @@ struct oak_compiler_t
   /* Index into c->enums.variants where user-defined enum variants begin.
    * Set just before register_program_enums.  -1 means unset. */
   int user_enum_start;
+  /* Compile options (borrowed; NULL when compiling standalone). Used by
+   * attribute callback dispatch to look up named attribute bindings. */
+  const struct oak_compile_options_t* opts;
 };

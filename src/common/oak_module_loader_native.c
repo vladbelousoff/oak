@@ -178,9 +178,12 @@ void apply_native_module_function_exports(
       continue;
     struct oak_obj_native_fn_t* native =
         oak_native_fn_new(fn->impl, fn->arity, fn->name);
+    struct oak_module_export_fn_t* exp = &mod->exports_fn.items[eidx];
+    if (exp->stub_attrs && exp->stub_attr_count > 0)
+      oak_apply_attr_hooks(
+          opts, null, native, exp->stub_attrs, exp->stub_attr_count);
     const u16 const_idx =
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
-    struct oak_module_export_fn_t* exp = &mod->exports_fn.items[eidx];
     exp->const_idx = const_idx;
     exp->arity = fn->arity;
     exp->return_type_node = null;
@@ -189,6 +192,24 @@ void apply_native_module_function_exports(
                            ? OAK_TYPE_KIND_ARRAY
                            : OAK_TYPE_KIND_SCALAR;
   }
+}
+
+/* Strips an OAK_NODE_ATTR_DECL wrapper, returning the inner declaration node.
+ * Returns the node unchanged if it is not an attribute declaration. */
+const struct oak_ast_node_t*
+loader_unwrap_decl(const struct oak_ast_node_t* item)
+{
+  if (!item || item->kind != OAK_NODE_ATTR_DECL)
+    return item;
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &item->children)
+  {
+    const struct oak_ast_node_t* child =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (child->kind != OAK_NODE_ATTR)
+      return child;
+  }
+  return null;
 }
 
 static const struct oak_ast_node_t*
@@ -344,7 +365,9 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
   oak_list_for_each(pos, &root->children)
   {
     const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+        loader_unwrap_decl(oak_container_of(pos, struct oak_ast_node_t, link));
+    if (!item)
+      continue;
     if (item->kind == OAK_NODE_FN_DECL && loader_fn_decl_is_bodyless(item))
     {
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(item);
@@ -401,7 +424,9 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
     oak_list_for_each(mpos, &item->rhs->children)
     {
       const struct oak_ast_node_t* member =
-          oak_container_of(mpos, struct oak_ast_node_t, link);
+          loader_unwrap_decl(oak_container_of(mpos, struct oak_ast_node_t, link));
+      if (!member)
+        continue;
       if (member->kind != OAK_NODE_FN_DECL || !loader_fn_decl_is_bodyless(member))
         continue;
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(member);
@@ -491,6 +516,7 @@ struct oak_module_t* create_native_module(
     exp.name = type->name;
     exp.name_len = type->name_len;
     oak_dynarr_init(&exp.fields, &exp.field_count, &exp.field_capacity);
+    oak_dynarr_init(&exp.methods, &exp.method_count, &exp.method_capacity);
     for (int fi = 0; fi < type->field_count; ++fi)
     {
       struct oak_module_export_record_field_t field = {

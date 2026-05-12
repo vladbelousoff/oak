@@ -46,14 +46,25 @@ static void oak_module_free(struct oak_module_t* mod)
                   &mod->import_modules.count,
                   &mod->import_modules.capacity);
   oak_htable_free(&mod->exports_fn.by_name);
+  for (int i = 0; i < mod->exports_fn.count; ++i)
+    if (mod->exports_fn.items[i].stub_attrs)
+      oak_free(mod->exports_fn.items[i].stub_attrs, OAK_SRC_LOC);
   oak_dynarr_free(&mod->exports_fn.items,
                   &mod->exports_fn.count,
                   &mod->exports_fn.capacity);
   oak_htable_free(&mod->exports_record.by_name);
   for (int i = 0; i < mod->exports_record.count; ++i)
+  {
     oak_dynarr_free(&mod->exports_record.items[i].fields,
                     &mod->exports_record.items[i].field_count,
                     &mod->exports_record.items[i].field_capacity);
+    for (int mi = 0; mi < mod->exports_record.items[i].method_count; ++mi)
+      if (mod->exports_record.items[i].methods[mi].stub_attrs)
+        oak_free(mod->exports_record.items[i].methods[mi].stub_attrs, OAK_SRC_LOC);
+    oak_dynarr_free(&mod->exports_record.items[i].methods,
+                    &mod->exports_record.items[i].method_count,
+                    &mod->exports_record.items[i].method_capacity);
+  }
   oak_dynarr_free(&mod->exports_record.items,
                   &mod->exports_record.count,
                   &mod->exports_record.capacity);

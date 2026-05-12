@@ -1,8 +1,52 @@
 #include "internal/oak_compiler.h"
 
+#include <string.h>
+
 /* Shared attribute storage for all native items — borrowed by every
  * oak_registered_*_t that is registered from the C binding API. */
-static const char* k_native_attr_names[] = { "Native" };
+
+/* Find the oak_bind_type_t whose type_id matches, or null. */
+static const struct oak_bind_type_t*
+find_bind_type_by_id(const struct oak_compile_options_t* opts,
+                     oak_type_id_t type_id)
+{
+  for (int i = 0; i < opts->native_types.count; ++i)
+  {
+    const struct oak_bind_type_t* t = opts->native_types.items[i];
+    if (t && t->type_id == type_id)
+      return t;
+  }
+  return null;
+}
+
+/* Find a compiled module by its dotted name (linear scan). */
+static const struct oak_module_t*
+find_module_by_dotted(const struct oak_module_registry_t* reg,
+                      const char* dotted)
+{
+  if (!reg || !dotted)
+    return null;
+  for (int i = 0; i < reg->modules.count; ++i)
+  {
+    const struct oak_module_t* m = reg->modules.items[i];
+    if (m && m->dotted_name && strcmp(m->dotted_name, dotted) == 0)
+      return m;
+  }
+  return null;
+}
+
+/* Find a method export entry by name in a record export. */
+static const struct oak_module_export_record_method_t*
+find_method_export(const struct oak_module_export_record_t* rec,
+                   const char* name,
+                   usize name_len)
+{
+  for (int i = 0; i < rec->method_count; ++i)
+    if (rec->methods[i].name_len == name_len &&
+        strncmp(rec->methods[i].name, name, name_len) == 0)
+      return &rec->methods[i];
+  return null;
+}
 
 /* ---------- Native type registration ---------- */
 
@@ -50,8 +94,8 @@ void oakc_register_native_types(
     proto.fields = null;
     proto.field_count = 0;
     proto.field_capacity = 0;
-    proto.attrs = oakc_alloc_attrs(k_native_attr_names, 1);
-    proto.attr_count = 1;
+    proto.attrs = null;
+    proto.attr_count = 0;
 
     for (int fi = 0; fi < nt->field_count; ++fi)
     {
@@ -106,7 +150,10 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
       continue;
 
     const usize name_len = strlen(b->name);
-    const u16 idx = oakc_intern_native_const(c, b->impl, b->arity, b->name);
+    struct oak_obj_native_fn_t* native =
+        oak_native_fn_new(b->impl, b->arity, b->name);
+    const u16 idx =
+        oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
     struct oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
@@ -118,8 +165,8 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
                             ? OAK_TYPE_KIND_ARRAY
                             : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
-    entry.attrs = oakc_alloc_attrs(k_native_attr_names, 1);
-    entry.attr_count = 1;
+    entry.attrs = null;
+    entry.attr_count = 0;
 
     if (oak_fn_registry_find(&c->fns, b->name, name_len))
     {
@@ -141,7 +188,41 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
     const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
                              ? b->arity + 1
                              : b->arity;
-    const u16 idx = oakc_intern_native_const(c, b->impl, vm_arity, b->name);
+    struct oak_obj_native_fn_t* native =
+        oak_native_fn_new(b->impl, vm_arity, b->name);
+
+    /* Apply runtime attribute hooks from the module stub, if the receiver type
+     * belongs to a module that has a compiled stub with attributed methods. */
+    if (c->module_registry && c->opts)
+    {
+      const struct oak_bind_type_t* bind_type =
+          find_bind_type_by_id(opts, b->receiver_type_id);
+      if (bind_type && bind_type->module_name)
+      {
+        const struct oak_module_t* stub_mod =
+            find_module_by_dotted(c->module_registry, bind_type->module_name);
+        if (stub_mod)
+        {
+          const struct oak_module_export_record_t* rec_exp =
+              oak_module_find_export_record(
+                  stub_mod, bind_type->name, bind_type->name_len);
+          if (rec_exp)
+          {
+            const struct oak_module_export_record_method_t* mexp =
+                find_method_export(rec_exp, b->name, name_len);
+            if (mexp && mexp->stub_attr_count > 0)
+              oak_apply_attr_hooks(c->opts,
+                                   null,
+                                   native,
+                                   mexp->stub_attrs,
+                                   mexp->stub_attr_count);
+          }
+        }
+      }
+    }
+
+    const u16 idx =
+        oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
     struct oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
@@ -153,8 +234,8 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
                             ? OAK_TYPE_KIND_ARRAY
                             : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
-    entry.attrs = oakc_alloc_attrs(k_native_attr_names, 1);
-    entry.attr_count = 1;
+    entry.attrs = null;
+    entry.attr_count = 0;
 
     struct oak_registered_record_t* sd =
         (struct oak_registered_record_t*)oakc_records_find_by_id(

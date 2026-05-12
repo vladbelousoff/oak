@@ -153,6 +153,37 @@ struct oak_bind_enum_t
   int variant_capacity;
 };
 
+/* ---------- Attribute callbacks ---------- */
+
+/* Target kind of a declaration bearing an attribute. */
+enum oak_attr_target_t
+{
+  OAK_ATTR_TARGET_FN,
+  OAK_ATTR_TARGET_METHOD,
+  OAK_ATTR_TARGET_RECORD,
+  OAK_ATTR_TARGET_ENUM,
+};
+
+/* Context passed to compile-time attribute callbacks. */
+struct oak_attr_compile_ctx_t
+{
+  enum oak_attr_target_t target;
+  const char* decl_name; /* name of the declaration bearing this attribute */
+  void* user_data;
+};
+
+typedef void (*oak_attr_compile_cb_t)(const struct oak_attr_compile_ctx_t* ctx);
+
+/* oak_attr_runtime_cb_t is defined in oak_value.h (included above). */
+
+struct oak_bind_attr_t
+{
+  const char* name;               /* e.g. "Deprecated" */
+  oak_attr_compile_cb_t on_decl;  /* NULL = no compile-time action */
+  oak_attr_runtime_cb_t on_call;  /* NULL = no pre-call action */
+  void* user_data;                /* forwarded to both callbacks */
+};
+
 /* ---------- Concrete dynamic-array types for compile options ---------- */
 
 struct oak_bind_type_ptr_vec_t
@@ -179,6 +210,12 @@ struct oak_bind_enum_ptr_vec_t
   int count;
   int capacity;
 };
+struct oak_bind_attr_vec_t
+{
+  struct oak_bind_attr_t* items;
+  int count;
+  int capacity;
+};
 
 /* ---------- Compilation options ---------- */
 
@@ -199,6 +236,9 @@ struct oak_compile_options_t
   /* Native enums (owned; populated by oak_bind_enum / oak_bind_enum_variant).
    */
   struct oak_bind_enum_ptr_vec_t native_enums;
+
+  /* Named attribute bindings (owned; populated by oak_bind_attr). */
+  struct oak_bind_attr_vec_t native_attrs;
 
   /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
    * oak_compile_options_init and incremented by each oak_bind_type call. */
@@ -288,6 +328,33 @@ struct oak_bind_enum_t* oak_bind_enum_in_module(
 int oak_bind_enum_variant(struct oak_bind_enum_t* e,
                           const char* name,
                           int value);
+
+/* Match attrs[] against opts->native_attrs and fire on_decl for each
+ * matching binding that has one.  target and decl_name identify the
+ * declaration.  Safe to call with empty attrs or no bindings. */
+void oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
+                                   const char** attrs,
+                                   int attr_count,
+                                   const char* decl_name,
+                                   enum oak_attr_target_t target);
+
+/* Match attrs[] against opts->native_attrs and attach all bindings whose
+ * on_call is non-NULL as a heap-allocated hooks array on fn_obj or native_obj
+ * (exactly one must be non-NULL).  Safe to call with no matches. */
+void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
+                          struct oak_obj_fn_t* fn_obj,
+                          struct oak_obj_native_fn_t* native_obj,
+                          const char** attrs,
+                          int attr_count);
+
+/* Register a named attribute with optional compile-time and runtime callbacks.
+ * on_decl fires once per declaration during the compilation pass.
+ * on_call fires before every call to a function bearing the attribute;
+ * returning OAK_FN_CALL_RUNTIME_ERROR aborts the call.
+ * Either callback may be NULL. Returns 0 on success, -1 on invalid arguments.
+ */
+int oak_bind_attr(struct oak_compile_options_t* opts,
+                  const struct oak_bind_attr_t* params);
 
 /* ---------- Runtime helpers ---------- */
 

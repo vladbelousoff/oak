@@ -57,6 +57,33 @@ struct oak_obj_string_t
   char chars[];
 };
 
+/* Defined here (before any use in typedefs below) so that consumers can
+ * include this header without seeing a forward-referenced enum return type,
+ * which is undefined behaviour under strict C17. */
+enum oak_fn_call_result_t
+{
+  OAK_FN_CALL_OK = 0,
+  OAK_FN_CALL_RUNTIME_ERROR,
+};
+
+/* Forward declarations needed by oak_attr_runtime_cb_t below. */
+struct oak_value_t;      /* fully defined later in this header */
+struct oak_native_ctx_t; /* defined in oak_vm.h */
+
+typedef enum oak_fn_call_result_t (*oak_attr_runtime_cb_t)(
+    struct oak_native_ctx_t* ctx,
+    const char* fn_name,
+    const struct oak_value_t* args,
+    int argc,
+    void* user_data);
+
+/* One entry in the per-function hook list (populated at compile time). */
+struct oak_attr_hook_entry_t
+{
+  oak_attr_runtime_cb_t cb;
+  void* ud;
+};
+
 struct oak_obj_fn_t
 {
   struct oak_obj_t obj;
@@ -65,6 +92,13 @@ struct oak_obj_fn_t
   /* Module that owns this fn's bytecode. OAK_MODULE_ID_NONE (0xFFFF) for
    * fns compiled in single-file mode (no module registry). */
   u16 module_id;
+  /* Heap-allocated copy of the function's source name; used by attr hooks.
+   * NULL when no name is set.  Freed by oak_obj_decref. */
+  const char* name;
+  /* Heap-allocated array of pre-call hooks (one per matched attribute with
+   * on_call).  NULL when empty. Freed by oak_obj_decref. */
+  struct oak_attr_hook_entry_t* attr_hooks;
+  int attr_hook_count;
 };
 
 struct oak_value_t;
@@ -152,12 +186,6 @@ struct oak_obj_trait_object_t
   struct oak_obj_array_t* vtable;    /* function values in trait-method order */
 };
 
-enum oak_fn_call_result_t
-{
-  OAK_FN_CALL_OK = 0,
-  OAK_FN_CALL_RUNTIME_ERROR,
-};
-
 struct oak_vm_t;
 
 /* Passed to every native (C) callback: VM handle for runtime helpers. */
@@ -180,6 +208,9 @@ struct oak_obj_native_fn_t
   int arity;
   /* Debug label (e.g. registered name); not owned, may be null. */
   const char* name;
+  /* Heap-allocated array of pre-call hooks (see oak_obj_fn_t.attr_hooks). */
+  struct oak_attr_hook_entry_t* attr_hooks;
+  int attr_hook_count;
 };
 
 #define OAK_VALUE_BOOL(_b)                                                     \

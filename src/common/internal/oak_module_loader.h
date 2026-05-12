@@ -59,6 +59,13 @@ char* dotted_name_from_path(const struct oak_ast_node_t* path_node);
 const struct oak_ast_node_t* dotted_path_last_segment(
     const struct oak_ast_node_t* path_node);
 
+/* ---------- AST helpers shared across loader translation units ---------- */
+
+/* Strips an OAK_NODE_ATTR_DECL wrapper and returns the inner declaration.
+ * Returns the node unchanged when it is not an attribute declaration. */
+const struct oak_ast_node_t* loader_unwrap_decl(
+    const struct oak_ast_node_t* item);
+
 /* ---------- Native module helpers (oak_module_loader_native.c) ---------- */
 
 int opts_has_native_module(const struct oak_compile_options_t* opts,

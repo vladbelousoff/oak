@@ -75,7 +75,9 @@ static int validate_imported_module_body(
   oak_list_for_each(pos, &root->children)
   {
     const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+        loader_unwrap_decl(oak_container_of(pos, struct oak_ast_node_t, link));
+    if (!item)
+      continue;
     switch (item->kind)
     {
       case OAK_NODE_IMPORT_DECL:

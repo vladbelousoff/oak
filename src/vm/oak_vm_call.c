@@ -16,6 +16,20 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
     return OAK_VM_RUNTIME_ERROR;
   }
 
+  for (int hi = 0; hi < native->attr_hook_count; ++hi)
+  {
+    struct oak_native_ctx_t hook_ctx = { .vm = vm };
+    const enum oak_fn_call_result_t r = native->attr_hooks[hi].cb(
+        &hook_ctx, native->name, arg_base, (int)argc, native->attr_hooks[hi].ud);
+    if (r != OAK_FN_CALL_OK)
+    {
+      oak_vm_runtime_error(vm,
+                           "attribute hook aborted call to '%s'",
+                           native->name ? native->name : "<anonymous>");
+      return OAK_VM_RUNTIME_ERROR;
+    }
+  }
+
   struct oak_native_ctx_t nctx = { .vm = vm };
   struct oak_value_t result;
   const enum oak_fn_call_result_t err =
@@ -51,6 +65,19 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
                          fn->arity,
                          (unsigned)argc);
     return OAK_VM_RUNTIME_ERROR;
+  }
+
+  for (int hi = 0; hi < fn->attr_hook_count; ++hi)
+  {
+    struct oak_value_t* arg_base = vm->stack + fn_slot + 1;
+    struct oak_native_ctx_t hook_ctx = { .vm = vm };
+    const enum oak_fn_call_result_t r = fn->attr_hooks[hi].cb(
+        &hook_ctx, fn->name, arg_base, (int)argc, fn->attr_hooks[hi].ud);
+    if (r != OAK_FN_CALL_OK)
+    {
+      oak_vm_runtime_error(vm, "attribute hook aborted function call");
+      return OAK_VM_RUNTIME_ERROR;
+    }
   }
 
   if (vm->frame_count >= OAK_FRAMES_MAX)

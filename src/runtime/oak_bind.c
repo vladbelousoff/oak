@@ -27,6 +27,9 @@ void oak_compile_options_init(struct oak_compile_options_t* opts)
   oak_dynarr_init(&opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity);
+  oak_dynarr_init(&opts->native_attrs.items,
+                  &opts->native_attrs.count,
+                  &opts->native_attrs.capacity);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
   opts->emit_debug_info = 1;
   opts->module_registry = null;
@@ -63,6 +66,9 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
   oak_dynarr_free(&opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity);
+  oak_dynarr_free(&opts->native_attrs.items,
+                  &opts->native_attrs.count,
+                  &opts->native_attrs.capacity);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
 }
 
@@ -250,4 +256,109 @@ struct oak_value_t oak_native_record_new(const struct oak_bind_type_t* type,
 void* oak_native_instance(const struct oak_value_t value)
 {
   return oak_as_native_record(value)->instance;
+}
+
+void oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
+                                   const char** attrs,
+                                   int attr_count,
+                                   const char* decl_name,
+                                   enum oak_attr_target_t target)
+{
+  if (!opts || opts->native_attrs.count == 0 || attr_count == 0)
+    return;
+  for (int bi = 0; bi < opts->native_attrs.count; ++bi)
+  {
+    const struct oak_bind_attr_t* b = &opts->native_attrs.items[bi];
+    if (!b->on_decl)
+      continue;
+    for (int ai = 0; ai < attr_count; ++ai)
+    {
+      if (strcmp(b->name, attrs[ai]) == 0)
+      {
+        struct oak_attr_compile_ctx_t ctx = {
+          .target = target,
+          .decl_name = decl_name,
+          .user_data = b->user_data,
+        };
+        b->on_decl(&ctx);
+        break;
+      }
+    }
+  }
+}
+
+void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
+                          struct oak_obj_fn_t* fn_obj,
+                          struct oak_obj_native_fn_t* native_obj,
+                          const char** attrs,
+                          int attr_count)
+{
+  if (!opts || opts->native_attrs.count == 0 || attr_count == 0)
+    return;
+
+  int match_count = 0;
+  for (int bi = 0; bi < opts->native_attrs.count; ++bi)
+  {
+    const struct oak_bind_attr_t* b = &opts->native_attrs.items[bi];
+    if (!b->on_call)
+      continue;
+    for (int ai = 0; ai < attr_count; ++ai)
+    {
+      if (strcmp(b->name, attrs[ai]) == 0)
+      {
+        ++match_count;
+        break;
+      }
+    }
+  }
+  if (match_count == 0)
+    return;
+
+  struct oak_attr_hook_entry_t* hooks = oak_alloc(
+      (usize)match_count * sizeof(struct oak_attr_hook_entry_t), OAK_SRC_LOC);
+  int idx = 0;
+  for (int bi = 0; bi < opts->native_attrs.count; ++bi)
+  {
+    const struct oak_bind_attr_t* b = &opts->native_attrs.items[bi];
+    if (!b->on_call)
+      continue;
+    for (int ai = 0; ai < attr_count; ++ai)
+    {
+      if (strcmp(b->name, attrs[ai]) == 0)
+      {
+        hooks[idx].cb = b->on_call;
+        hooks[idx].ud = b->user_data;
+        ++idx;
+        break;
+      }
+    }
+  }
+
+  if (fn_obj)
+  {
+    fn_obj->attr_hooks = hooks;
+    fn_obj->attr_hook_count = match_count;
+  }
+  else if (native_obj)
+  {
+    native_obj->attr_hooks = hooks;
+    native_obj->attr_hook_count = match_count;
+  }
+  else
+  {
+    oak_free(hooks, OAK_SRC_LOC);
+  }
+}
+
+int oak_bind_attr(struct oak_compile_options_t* opts,
+                  const struct oak_bind_attr_t* params)
+{
+  if (!opts || !params || !params->name)
+    return -1;
+  oak_dynarr_push(&opts->native_attrs.items,
+                  &opts->native_attrs.count,
+                  &opts->native_attrs.capacity,
+                  params,
+                  sizeof(*params));
+  return 0;
 }

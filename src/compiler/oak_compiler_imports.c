@@ -125,6 +125,8 @@ void populate_module_exports(struct oak_compiler_t* c)
       .return_type_node = oakc_fn_return_type_node(e->decl),
       .return_type_id = OAK_TYPE_VOID,
       .return_kind = OAK_TYPE_KIND_SCALAR,
+      .stub_attrs = oakc_alloc_attrs(e->attrs, e->attr_count),
+      .stub_attr_count = e->attr_count,
     };
     const int idx = mod->exports_fn.count;
     oak_dynarr_push(&mod->exports_fn.items,
@@ -162,6 +164,27 @@ void populate_module_exports(struct oak_compiler_t* c)
                       &exp.field_capacity,
                       &field,
                       sizeof(field));
+    }
+    /* Export per-method stub attrs for bodyless native stub methods so that
+     * calling modules can wire runtime hooks onto the native fn objects they
+     * create via oakc_register_native_fns. */
+    oak_dynarr_init(&exp.methods, &exp.method_count, &exp.method_capacity);
+    for (int mi = 0; mi < r->methods.count; ++mi)
+    {
+      const struct oak_registered_fn_t* m = &r->methods.items[mi];
+      if (m->attr_count == 0)
+        continue;
+      struct oak_module_export_record_method_t mexp = {
+        .name = m->name,
+        .name_len = m->name_len,
+        .stub_attrs = oakc_alloc_attrs(m->attrs, m->attr_count),
+        .stub_attr_count = m->attr_count,
+      };
+      oak_dynarr_push(&exp.methods,
+                      &exp.method_count,
+                      &exp.method_capacity,
+                      &mexp,
+                      sizeof(mexp));
     }
     exp.layout_id = 0; /* populated on first cross-module new when needed */
     const int idx = mod->exports_record.count;

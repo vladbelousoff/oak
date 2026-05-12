@@ -230,6 +230,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
 {
   struct oak_compiler_t compiler = { 0 };
   struct oak_chunk_t* chunk = compiler_init(&compiler, out);
+  compiler.opts = opts;
   const int want_debug = !opts || opts->emit_debug_info;
   if (want_debug)
     oak_chunk_enable_debug(chunk, opts ? opts->source_name : null);

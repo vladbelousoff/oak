@@ -25,6 +25,12 @@ struct oak_module_export_fn_t
   const struct oak_ast_node_t* return_type_node;
   oak_type_id_t return_type_id;
   enum oak_type_kind_t return_kind;
+  /* Heap-allocated pointer array; each element points into the module's lexer
+   * arena.  Populated for bodyless stubs so apply_native_module_function_exports
+   * can carry attributes onto the replacement native function object.
+   * NULL when attr_count == 0.  Freed by oak_module_free. */
+  const char** stub_attrs;
+  int stub_attr_count;
 };
 
 struct oak_module_export_record_field_t
@@ -39,6 +45,17 @@ struct oak_module_export_record_field_t
   usize type_name_len;
 };
 
+/* Per-method metadata for bodyless native stub methods that carry attributes.
+ * Populated by populate_module_exports; consulted by oakc_register_native_fns
+ * in calling modules to wire runtime attribute hooks onto native fn objects. */
+struct oak_module_export_record_method_t
+{
+  const char* name;        /* borrowed from lexer arena */
+  usize name_len;
+  const char** stub_attrs; /* heap-allocated array; elements from lexer arena */
+  int stub_attr_count;
+};
+
 struct oak_module_export_record_t
 {
   const char* name; /* borrowed from lexer arena */
@@ -47,6 +64,9 @@ struct oak_module_export_record_t
   int field_count;
   int field_capacity;
   u16 layout_id; /* const-pool slot in this module's chunk (for new mod.T{}) */
+  struct oak_module_export_record_method_t* methods;
+  int method_count;
+  int method_capacity;
 };
 
 /* One variant entry for an exported enum. */

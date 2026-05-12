@@ -183,6 +183,20 @@ print('{0}+{1}={2}'.format([2, 3, 5]));   /* 2+3=5 */
 print('{}{}'.format(['a', 'b']));         /* ab */
 ```
 
+### Attributes
+
+Declarations can carry compile-time metadata via `@CamelCaseName` annotations placed before the declaration:
+
+```oak
+@Deprecated
+fn legacyCalc(x : number) -> number { return x; }
+
+@Deprecated
+record OldPoint { x : number; y : number; }
+```
+
+Multiple attributes are listed on separate lines. Attributes have no built-in effect — their meaning is defined by embedding C code (see *Registering attributes* in the Native C bindings section).
+
 ### Modules and imports
 
 A program can pull in other `.oak` files relative to its own directory:
@@ -383,6 +397,45 @@ oak_bind_enum_variant(mode, "Append", 2);
 ```
 
 In Oak: `io.FileMode.Read`, `io.FileMode.Write`, etc.
+
+### Registering attributes
+
+`oak_bind_attr()` associates a named attribute with optional compile-time and runtime callbacks:
+
+```c
+static void on_deprecated_decl(const struct oak_attr_compile_ctx_t* ctx)
+{
+  fprintf(stderr, "warning: '%s' is deprecated\n", ctx->decl_name);
+}
+
+static enum oak_fn_call_result_t on_deprecated_call(
+    struct oak_native_ctx_t* ctx,
+    const char* fn_name,
+    const struct oak_value_t* args, int argc,
+    void* user_data)
+{
+  (void)ctx; (void)args; (void)argc; (void)user_data;
+  fprintf(stderr, "error: '%s' is deprecated and has been removed\n", fn_name);
+  return OAK_FN_CALL_RUNTIME_ERROR;
+}
+
+oak_bind_attr(&opts, &(struct oak_bind_attr_t){
+  .name      = "Deprecated",
+  .on_decl   = on_deprecated_decl,
+  .on_call   = on_deprecated_call,
+  .user_data = NULL,
+});
+```
+
+`on_decl` fires once per decorated declaration during the compilation pass. `on_call` fires before every call to a decorated function; returning `OAK_FN_CALL_RUNTIME_ERROR` aborts the call. Either callback may be NULL.
+
+The compile-time context exposes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `target` | `enum oak_attr_target_t` | `OAK_ATTR_TARGET_FN`, `_METHOD`, `_RECORD`, or `_ENUM` |
+| `decl_name` | `const char*` | Name of the decorated declaration |
+| `user_data` | `void*` | Value passed to `oak_bind_attr` |
 
 ### Oak-side stub file
 

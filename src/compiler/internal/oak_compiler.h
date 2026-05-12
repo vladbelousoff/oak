@@ -174,6 +174,22 @@ const char** oakc_extract_attrs(const struct oak_ast_node_t* item,
  * registration so every attrs array is uniformly heap-owned. */
 const char** oakc_alloc_attrs(const char* const* names, int count);
 
+/* Fire on_decl callbacks for any registered attribute that matches an entry in
+ * attrs[].  No-op when c->opts has no native_attrs or attr_count == 0. */
+void oakc_dispatch_compile_attr_cbs(struct oak_compiler_t* c,
+                                    const char** attrs,
+                                    int attr_count,
+                                    const char* decl_name,
+                                    enum oak_attr_target_t target);
+
+/* Set fn_obj->attr_hook (or native_obj->attr_hook) to the on_call of the first
+ * registered attribute that matches attrs[].  No-op if nothing matches. */
+void oakc_apply_runtime_attr_hook(struct oak_compiler_t* c,
+                                  struct oak_obj_fn_t* fn_obj,
+                                  struct oak_obj_native_fn_t* native_obj,
+                                  const char** attrs,
+                                  int attr_count);
+
 /* ---------- oak_compiler_enums.c ---------- */
 
 void oakc_register_program_enums(struct oak_compiler_t* c,

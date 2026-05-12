@@ -110,7 +110,6 @@ int oakc_is_enum_name(const struct oak_enum_registry_t* r,
   return oak_htable_get(&r->enum_names, name, len) >= 0;
 }
 
-static const char* k_native_attr_names[] = { "Native" };
 
 void oakc_register_native_enums(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
@@ -145,14 +144,13 @@ void oakc_register_native_enums(
       return;
     }
 
-    /* Register enum-level metadata with @Native attribute. */
     {
       struct oak_registered_enum_t re = {
         .name = ne->name,
         .name_len = ne->name_len,
         .type_id = enum_type_id,
-        .attrs = oakc_alloc_attrs(k_native_attr_names, 1),
-        .attr_count = 1,
+        .attrs = null,
+        .attr_count = 0,
       };
       oak_dynarr_push(&c->enums.enums.items,
                       &c->enums.enums.count,
@@ -228,8 +226,11 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
     {
       int attr_count = 0;
       const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+      const char* enum_name = oak_token_text(name_node->token);
+      oakc_dispatch_compile_attr_cbs(
+          c, attrs, attr_count, enum_name, OAK_ATTR_TARGET_ENUM);
       struct oak_registered_enum_t re = {
-        .name = oak_token_text(name_node->token),
+        .name = enum_name,
         .name_len = oak_token_length(name_node->token),
         .type_id = enum_type_id,
         .attrs = attrs,

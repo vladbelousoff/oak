@@ -72,3 +72,23 @@ const char** oakc_alloc_attrs(const char* const* names, int count)
     arr[i] = names[i];
   return arr;
 }
+
+void oakc_dispatch_compile_attr_cbs(struct oak_compiler_t* c,
+                                    const char** attrs,
+                                    int attr_count,
+                                    const char* decl_name,
+                                    enum oak_attr_target_t target)
+{
+  oak_dispatch_compile_attr_cbs(c->opts, attrs, attr_count, decl_name, target);
+}
+
+void oakc_apply_runtime_attr_hook(struct oak_compiler_t* c,
+                                  struct oak_obj_fn_t* fn_obj,
+                                  struct oak_obj_native_fn_t* native_obj,
+                                  const char** attrs,
+                                  int attr_count)
+{
+  if (!c->opts)
+    return;
+  oak_apply_attr_hooks(c->opts, fn_obj, native_obj, attrs, attr_count);
+}

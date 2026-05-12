@@ -59,6 +59,20 @@ void oak_obj_decref(struct oak_obj_t* obj)
     oak_value_decref(to->value);
     oak_obj_decref((struct oak_obj_t*)to->vtable);
   }
+  else if (obj->type == OAK_OBJ_FN)
+  {
+    struct oak_obj_fn_t* fn = (struct oak_obj_fn_t*)obj;
+    if (fn->name)
+      oak_free((void*)fn->name, OAK_SRC_LOC);
+    if (fn->attr_hooks)
+      oak_free(fn->attr_hooks, OAK_SRC_LOC);
+  }
+  else if (obj->type == OAK_OBJ_NATIVE_FN)
+  {
+    struct oak_obj_native_fn_t* nfn = (struct oak_obj_native_fn_t*)obj;
+    if (nfn->attr_hooks)
+      oak_free(nfn->attr_hooks, OAK_SRC_LOC);
+  }
 
   oak_free(obj, OAK_SRC_LOC);
 }
@@ -96,6 +110,9 @@ oak_fn_new(const usize code_offset, const int arity, const u16 module_id)
   fn->code_offset = code_offset;
   fn->arity = arity;
   fn->module_id = module_id;
+  fn->name = null;
+  fn->attr_hooks = null;
+  fn->attr_hook_count = 0;
   return fn;
 }
 
@@ -109,6 +126,8 @@ oak_native_fn_new(const oak_native_fn_t fn, const int arity, const char* name)
   native->fn = fn;
   native->arity = arity;
   native->name = name;
+  native->attr_hooks = null;
+  native->attr_hook_count = 0;
   return native;
 }
 
