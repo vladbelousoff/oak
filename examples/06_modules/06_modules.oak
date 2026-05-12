@@ -6,10 +6,10 @@ print(stats.sum(values));
 print(stats.average(values));
 
 let high = project.Priority.High;
-let mut task = project.make_task('ship examples', 8, high);
+let mut task = project.makeTask('ship examples', 8, high);
 print(task.title);
 print(task.points);
-print(project.priority_name(task.priority));
+print(project.priorityName(task.priority));
 print(task.done);
 
 project.finish(task);

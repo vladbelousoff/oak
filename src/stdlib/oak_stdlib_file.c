@@ -227,7 +227,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
                   .receiver_type_id = t->type_id,
-                  .name = "read_all",
+                  .name = "readAll",
                   .impl = file_read_all,
                   .arity = 0,
                   .return_type_id = OAK_TYPE_STRING,

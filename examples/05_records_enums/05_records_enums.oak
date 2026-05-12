@@ -9,12 +9,12 @@ fn Point.sum(self) -> number {
   return self.x + self.y;
 }
 
-fn Point.move_by(mut self, dx : number, dy : number) {
+fn Point.moveBy(mut self, dx : number, dy : number) {
   self.x = self.x + dx;
   self.y = self.y + dy;
 }
 
-fn Point.dist_sq(self, other : Point) -> number {
+fn Point.distSq(self, other : Point) -> number {
   let dx = self.x - other.x;
   let dy = self.y - other.y;
   return dx * dx + dy * dy;
@@ -30,7 +30,7 @@ fn Job.label(self) -> string {
   return self.title;
 }
 
-fn status_name(status : Status) -> string {
+fn statusName(status : Status) -> string {
   if status == Status.Planned {
     return 'planned';
   }
@@ -43,9 +43,9 @@ fn status_name(status : Status) -> string {
 let origin = new Point { x : 0, y : 0 };
 let mut p = new Point { x : 3, y : 4 };
 print(p.sum());
-print(p.dist_sq(origin));
+print(p.distSq(origin));
 
-p.move_by(10, -2);
+p.moveBy(10, -2);
 print(p.x);
 print(p.y);
 
@@ -56,11 +56,11 @@ let job = new Job {
 };
 
 print(job.label());
-print(status_name(job.status));
+print(statusName(job.status));
 let done = new Job {
   title : 'archive',
   status : Status.Done,
   location : origin
 };
-print(status_name(done.status));
+print(statusName(done.status));
 print(job.location.x);

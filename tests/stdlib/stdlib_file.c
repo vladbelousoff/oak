@@ -18,7 +18,7 @@ OAK_TEST_DECL(StdlibFileWriteReadRoundTrip)
       "w.write('hello line\\nline two\\n');\n"
       "w.close();\n"
       "let r = File.open('oak_vm_file_test.tmp', 0);\n"
-      "let t = r.read_all();\n"
+      "let t = r.readAll();\n"
       "let e = r.eof();\n"
       "r.close();\n"
       "print(t);\n";

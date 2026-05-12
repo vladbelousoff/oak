@@ -138,9 +138,9 @@ OAK_TEST_DECL(RuntimeTraits)
       "record Rect { w : number; h : number; }\n"
       "fn Rect.area(self) -> number { return self.w * self.h; }\n"
       "fn Rect.label(self) -> string { return 'rect'; }\n"
-      "fn print_shape(s: Shape) { print(s.label()); print(s.area()); }\n"
-      "print_shape(new Circle { radius: 3 });\n"
-      "print_shape(new Rect { w: 4, h: 5 });\n") == OAK_TEST_OK);
+      "fn printShape(s: Shape) { print(s.label()); print(s.area()); }\n"
+      "printShape(new Circle { radius: 3 });\n"
+      "printShape(new Rect { w: 4, h: 5 });\n") == OAK_TEST_OK);
 
   /* Heterogeneous trait array with for-in and index access. */
   OAK_CHECK(expect_ok(

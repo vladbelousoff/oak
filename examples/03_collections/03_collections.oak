@@ -29,8 +29,8 @@ print(inventory.has('apples'));
 print(inventory.delete('plums'));
 print(inventory.has('plums'));
 
-let mut fruit_total = 0;
+let mut fruitTotal = 0;
 for name, count in inventory {
-  fruit_total += count;
+  fruitTotal += count;
 }
-print(fruit_total);
+print(fruitTotal);
