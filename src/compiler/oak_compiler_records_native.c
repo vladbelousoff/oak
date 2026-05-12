@@ -90,37 +90,50 @@ static void record_append_method(struct oak_registered_record_t* sd,
 void oakc_register_native_fns(struct oak_compiler_t* c,
                                       const struct oak_compile_options_t* opts)
 {
-  if (!opts || opts->native_fns.count == 0)
+  if (!opts)
     return;
+
+  for (int i = 0; i < opts->native_global_fns.count; ++i)
+  {
+    const struct oak_bind_global_fn_t* b = &opts->native_global_fns.items[i];
+    if (!b->name || !b->impl || b->module_name)
+      continue;
+
+    const usize name_len = strlen(b->name);
+    const u16 idx = oakc_intern_native_const(c, b->impl, b->arity, b->name);
+
+    struct oak_registered_fn_t entry = { 0 };
+    entry.name = b->name;
+    entry.name_len = name_len;
+    entry.const_idx = idx;
+    entry.arity = b->arity;
+    entry.return_type_id = b->return_type_id;
+    entry.return_kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
+                            ? OAK_TYPE_KIND_ARRAY
+                            : OAK_TYPE_KIND_SCALAR;
+    entry.decl = null;
+
+    if (oak_fn_registry_find(&c->fns, b->name, name_len))
+    {
+      oak_compiler_error_at(c, null, "duplicate native function '%s'", b->name);
+      return;
+    }
+    oak_fn_registry_insert(&c->fns, &entry);
+    if (c->has_error)
+      return;
+  }
 
   for (int i = 0; i < opts->native_fns.count; ++i)
   {
     const struct oak_bind_fn_t* b = &opts->native_fns.items[i];
     if (!b->name || !b->impl)
       continue;
-    if (b->kind == OAK_BIND_FN_GLOBAL && b->module_name)
-      continue;
 
     const usize name_len = strlen(b->name);
-
-    int vm_arity;
-    switch (b->kind)
-    {
-      case OAK_BIND_FN_GLOBAL:
-        vm_arity = b->arity;
-        break;
-      case OAK_BIND_FN_INSTANCE_METHOD:
-        vm_arity = b->arity + 1;
-        break;
-      case OAK_BIND_FN_STATIC_METHOD:
-        vm_arity = b->arity;
-        break;
-      default:
-        continue;
-    }
-
-    const u16 idx =
-        oakc_intern_native_const(c, b->impl, vm_arity, b->name);
+    const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
+                             ? b->arity + 1
+                             : b->arity;
+    const u16 idx = oakc_intern_native_const(c, b->impl, vm_arity, b->name);
 
     struct oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
@@ -133,53 +146,39 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
                             : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
 
-    if (b->kind == OAK_BIND_FN_GLOBAL)
+    struct oak_registered_record_t* sd =
+        (struct oak_registered_record_t*)oakc_records_find_by_id(
+            &c->records, b->receiver_type_id);
+    if (!sd)
     {
-      entry.arity = b->arity;
-      if (oak_fn_registry_find(&c->fns, b->name, name_len))
-      {
-        oak_compiler_error_at(
-            c, null, "duplicate native function '%s'", b->name);
-        return;
-      }
-      oak_fn_registry_insert(&c->fns, &entry);
+      oak_compiler_error_at(c,
+                            null,
+                            "native method '%s': no record registered for "
+                            "receiver type id %d",
+                            b->name,
+                            b->receiver_type_id);
+      return;
     }
-    else
+    const int is_static = (b->kind == OAK_BIND_FN_STATIC_METHOD);
+    entry.arity = vm_arity;
+    entry.is_static = is_static;
+    for (int j = 0; j < sd->methods.count; ++j)
     {
-      struct oak_registered_record_t* sd =
-          (struct oak_registered_record_t*)oakc_records_find_by_id(
-              &c->records, b->receiver_type_id);
-      if (!sd)
+      if (strcmp(sd->methods.items[j].name, b->name) == 0)
       {
         oak_compiler_error_at(c,
                               null,
-                              "native method '%s': no record registered for "
-                              "receiver type id %d",
+                              is_static
+                                  ? "duplicate native static method '%s' on "
+                                    "record '%s'"
+                                  : "duplicate native method '%s' on record "
+                                    "'%s'",
                               b->name,
-                              b->receiver_type_id);
+                              sd->name);
         return;
       }
-      const int is_static = (b->kind == OAK_BIND_FN_STATIC_METHOD);
-      entry.arity = vm_arity;
-      entry.is_static = is_static;
-      for (int j = 0; j < sd->methods.count; ++j)
-      {
-        if (strcmp(sd->methods.items[j].name, b->name) == 0)
-        {
-          oak_compiler_error_at(c,
-                                null,
-                                is_static
-                                    ? "duplicate native static method '%s' on "
-                                      "record '%s'"
-                                    : "duplicate native method '%s' on record "
-                                      "'%s'",
-                                b->name,
-                                sd->name);
-          return;
-        }
-      }
-      record_append_method(sd, &entry);
     }
+    record_append_method(sd, &entry);
     if (c->has_error)
       return;
   }

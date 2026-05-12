@@ -66,17 +66,15 @@ static void bind_math_module_fn(struct oak_compile_options_t* opts,
                                 oak_native_fn_t impl,
                                 int arity)
 {
-  oak_bind_fn(opts,
-              &(struct oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_GLOBAL,
-                  .module_name = "math",
-                  .receiver_type_id = OAK_TYPE_VOID,
-                  .name = name,
-                  .impl = impl,
-                  .arity = arity,
-                  .return_type_id = OAK_TYPE_NUMBER,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
-              });
+  oak_bind_fn_global(opts,
+                     &(struct oak_bind_global_fn_t){
+                         .module_name = "math",
+                         .name = name,
+                         .impl = impl,
+                         .arity = arity,
+                         .return_type_id = OAK_TYPE_NUMBER,
+                         .return_shape = OAK_BIND_SHAPE_SCALAR,
+                     });
 }
 
 void oak_stdlib_register_math(struct oak_compile_options_t* opts)

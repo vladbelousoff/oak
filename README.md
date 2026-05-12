@@ -307,33 +307,53 @@ t->destructor = my_type_free;   /* called with the raw C pointer */
 
 ### Registering functions
 
-`oak_bind_fn()` covers three cases:
+Global and module-scoped functions use `oak_bind_fn_global()`:
 
-| `kind`                      | Called from Oak as        | `receiver_type_id`   |
-|-----------------------------|---------------------------|----------------------|
-| `OAK_BIND_FN_GLOBAL`        | `fn(args)`                | `OAK_TYPE_VOID`      |
-| `OAK_BIND_FN_STATIC_METHOD` | `Type.fn(args)`           | the type's `type_id` |
-| `OAK_BIND_FN_INSTANCE_METHOD` | `obj.fn(args)`          | the type's `type_id` |
+```c
+/* Top-level global: sqrt(x) */
+oak_bind_fn_global(&opts, &(struct oak_bind_global_fn_t){
+    .name           = "sqrt",
+    .impl           = math_sqrt,
+    .arity          = 1,
+    .return_type_id = OAK_TYPE_NUMBER,
+});
+
+/* Module-scoped: math.sqrt(x) — requires 'import math;' */
+oak_bind_fn_global(&opts, &(struct oak_bind_global_fn_t){
+    .module_name    = "math",
+    .name           = "sqrt",
+    .impl           = math_sqrt,
+    .arity          = 1,
+    .return_type_id = OAK_TYPE_NUMBER,
+});
+```
+
+Methods on native types use `oak_bind_fn()`:
+
+| `kind`                        | Called from Oak as      |
+|-------------------------------|-------------------------|
+| `OAK_BIND_FN_STATIC_METHOD`   | `Type.fn(args)`         |
+| `OAK_BIND_FN_INSTANCE_METHOD` | `obj.fn(args)`          |
 
 ```c
 /* Static method: File.open(path, mode) -> File */
 oak_bind_fn(&opts, &(struct oak_bind_fn_t){
-    .kind            = OAK_BIND_FN_STATIC_METHOD,
+    .kind             = OAK_BIND_FN_STATIC_METHOD,
     .receiver_type_id = t->type_id,
-    .name            = "open",
-    .impl            = file_open,
-    .arity           = 2,
-    .return_type_id  = t->type_id,
+    .name             = "open",
+    .impl             = file_open,
+    .arity            = 2,
+    .return_type_id   = t->type_id,
 });
 
 /* Instance method: f.readAll() -> string */
 oak_bind_fn(&opts, &(struct oak_bind_fn_t){
-    .kind            = OAK_BIND_FN_INSTANCE_METHOD,
+    .kind             = OAK_BIND_FN_INSTANCE_METHOD,
     .receiver_type_id = t->type_id,
-    .name            = "readAll",
-    .impl            = file_read_all,
-    .arity           = 0,
-    .return_type_id  = OAK_TYPE_STRING,
+    .name             = "readAll",
+    .impl             = file_read_all,
+    .arity            = 0,
+    .return_type_id   = OAK_TYPE_STRING,
 });
 ```
 

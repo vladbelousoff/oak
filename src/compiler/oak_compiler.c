@@ -265,7 +265,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
 
   /* Register native functions and methods after types (receiver ids need to
    * be in the record registry first). */
-  if (opts && opts->native_fns.count > 0)
+  if (opts && (opts->native_fns.count > 0 || opts->native_global_fns.count > 0))
   {
     oakc_register_native_fns(&compiler, opts);
     if (compiler.has_error)

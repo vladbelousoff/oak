@@ -17,10 +17,9 @@ enum oak_bind_type_kind_t
   OAK_BIND_TYPE_RECORD,
 };
 
-/* Where a native function is bound in Oak (see oak_bind_fn). */
+/* Where a native method is bound on its receiver type (see oak_bind_fn). */
 enum oak_bind_fn_kind_t
 {
-  OAK_BIND_FN_GLOBAL,
   OAK_BIND_FN_INSTANCE_METHOD,
   OAK_BIND_FN_STATIC_METHOD,
 };
@@ -91,29 +90,41 @@ struct oak_bind_type_t
   oak_bind_destructor_t destructor;
 };
 
-/* ---------- Native function binding descriptor ---------- */
+/* ---------- Native global function descriptor ---------- */
 
-struct oak_bind_fn_t
+/* Use oak_bind_fn_global() to register a free function or module-scoped
+ * function (e.g. math.sqrt).  Global functions are not attached to any type. */
+struct oak_bind_global_fn_t
 {
-  enum oak_bind_fn_kind_t kind;
-  /* Optional native module name for global functions. A global function with
-   * module_name = "math" is called as `math.sqrt(...)` after `import math;`.
-   * Instance/static methods still bind to their receiver type. */
+  /* NULL for a top-level global; "math" to scope it as `math.fn()`. */
   const char* module_name;
   usize module_name_len;
-  /* OAK_TYPE_VOID = global (only with OAK_BIND_FN_GLOBAL).  Otherwise the
-   * native record type_id for instance or static methods on that type. */
+  const char* name;
+  oak_native_fn_t impl;
+  int arity;
+  /* Return type: OAK_TYPE_VOID, OAK_TYPE_NUMBER, OAK_TYPE_STRING,
+   * OAK_TYPE_BOOL, or a native type's type_id. */
+  oak_type_id_t return_type_id;
+  enum oak_bind_shape_t return_shape;
+};
+
+/* ---------- Native method binding descriptor ---------- */
+
+/* Use oak_bind_fn() to register instance or static methods on a native type.
+ * For global or module-scoped functions use oak_bind_fn_global() instead. */
+struct oak_bind_fn_t
+{
+  enum oak_bind_fn_kind_t kind; /* INSTANCE_METHOD or STATIC_METHOD */
+  /* The native record type_id for the receiver type. */
   oak_type_id_t receiver_type_id;
   const char* name;
   oak_native_fn_t impl;
-  /* User-visible arity: for GLOBAL and STATIC_METHOD, full argument count;
+  /* User-visible arity: for STATIC_METHOD, full argument count;
    * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM). */
   int arity;
   /* Return type: OAK_TYPE_VOID, OAK_TYPE_NUMBER, OAK_TYPE_STRING,
    * OAK_TYPE_BOOL, or a native type's type_id. */
   oak_type_id_t return_type_id;
-  /* If OAK_BIND_SHAPE_ARRAY, the return is return_type_id[]; otherwise void
-   * and scalar returns use OAK_BIND_SHAPE_SCALAR. */
   enum oak_bind_shape_t return_shape;
 };
 
@@ -156,6 +167,12 @@ struct oak_bind_fn_vec_t
   int count;
   int capacity;
 };
+struct oak_bind_global_fn_vec_t
+{
+  struct oak_bind_global_fn_t* items;
+  int count;
+  int capacity;
+};
 struct oak_bind_enum_ptr_vec_t
 {
   struct oak_bind_enum_t** items;
@@ -173,8 +190,11 @@ struct oak_compile_options_t
   /* Native record types (owned; populated by oak_bind_type). */
   struct oak_bind_type_ptr_vec_t native_types;
 
-  /* Native function / method bindings (owned; populated by oak_bind_fn). */
+  /* Native method bindings (owned; populated by oak_bind_fn). */
   struct oak_bind_fn_vec_t native_fns;
+
+  /* Native global and module-scoped functions (owned; populated by oak_bind_fn_global). */
+  struct oak_bind_global_fn_vec_t native_global_fns;
 
   /* Native enums (owned; populated by oak_bind_enum / oak_bind_enum_variant).
    */
@@ -233,17 +253,18 @@ struct oak_bind_type_t* oak_bind_type_in_module(
 int oak_bind_field(struct oak_bind_type_t* type,
                    const struct oak_bind_field_t* params);
 
-/* Register a native function, instance method, or static method.
- * `params` must not be NULL; it supplies kind, receiver_type_id, name, impl,
- * arity, return_type_id, and return_shape (see struct oak_bind_fn_t).
- *   OAK_BIND_FN_GLOBAL: receiver_type_id must be OAK_TYPE_VOID; `arity` is the
- *     full VM argument count.
- *   OAK_BIND_FN_INSTANCE_METHOD: receiver_type_id is the record's type_id;
- *     `arity` is the user-visible count excluding `self` (VM adds one).
- *   OAK_BIND_FN_STATIC_METHOD: same receiver_type_id as the record; `arity` is
- *     the full argument count (no `self`); called as TypeName.name(...).
- *   return_shape: OAK_BIND_SHAPE_ARRAY means the function returns
- *     return_type_id[] (return_type_id is the element type).
+/* Register a global or module-scoped native function.
+ * Use this for free functions like `toInt(v)` or `math.sqrt(v)`.
+ * Returns 0 on success, -1 on invalid arguments. */
+int oak_bind_fn_global(struct oak_compile_options_t* opts,
+                       const struct oak_bind_global_fn_t* params);
+
+/* Register a native instance or static method on a native type.
+ * `params->kind` must be OAK_BIND_FN_INSTANCE_METHOD or OAK_BIND_FN_STATIC_METHOD.
+ * `params->receiver_type_id` must be a type_id from a prior oak_bind_type() call.
+ *   INSTANCE_METHOD: `arity` excludes implicit self (compiler adds +1 for VM).
+ *   STATIC_METHOD: `arity` is the full argument count; called as TypeName.name(...).
+ *   return_shape: OAK_BIND_SHAPE_ARRAY means return_type_id[].
  * Returns 0 on success, -1 on invalid arguments. */
 int oak_bind_fn(struct oak_compile_options_t* opts,
                 const struct oak_bind_fn_t* params);

@@ -21,6 +21,9 @@ void oak_compile_options_init(struct oak_compile_options_t* opts)
   oak_dynarr_init(&opts->native_fns.items,
                   &opts->native_fns.count,
                   &opts->native_fns.capacity);
+  oak_dynarr_init(&opts->native_global_fns.items,
+                  &opts->native_global_fns.count,
+                  &opts->native_global_fns.capacity);
   oak_dynarr_init(&opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity);
@@ -47,6 +50,9 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
   oak_dynarr_free(&opts->native_fns.items,
                   &opts->native_fns.count,
                   &opts->native_fns.capacity);
+  oak_dynarr_free(&opts->native_global_fns.items,
+                  &opts->native_global_fns.count,
+                  &opts->native_global_fns.capacity);
   for (int i = 0; i < opts->native_enums.count; ++i)
   {
     oak_dynarr_free(&opts->native_enums.items[i]->variants,
@@ -128,6 +134,27 @@ int oak_bind_field(struct oak_bind_type_t* type,
   return 0;
 }
 
+int oak_bind_fn_global(struct oak_compile_options_t* opts,
+                       const struct oak_bind_global_fn_t* p)
+{
+  if (!opts || !p)
+    return -1;
+  if (!p->name || !p->impl || p->arity < 0)
+    return -1;
+  if (p->return_shape != OAK_BIND_SHAPE_SCALAR &&
+      p->return_shape != OAK_BIND_SHAPE_ARRAY)
+    return -1;
+  struct oak_bind_global_fn_t entry = *p;
+  if (entry.module_name && entry.module_name_len == 0u)
+    entry.module_name_len = strlen(entry.module_name);
+  oak_dynarr_push(&opts->native_global_fns.items,
+                  &opts->native_global_fns.count,
+                  &opts->native_global_fns.capacity,
+                  &entry,
+                  sizeof(entry));
+  return 0;
+}
+
 int oak_bind_fn(struct oak_compile_options_t* opts,
                 const struct oak_bind_fn_t* p)
 {
@@ -138,24 +165,13 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
   if (p->return_shape != OAK_BIND_SHAPE_SCALAR &&
       p->return_shape != OAK_BIND_SHAPE_ARRAY)
     return -1;
-  if (p->kind == OAK_BIND_FN_GLOBAL)
-  {
-    if (p->receiver_type_id != OAK_TYPE_VOID)
-      return -1;
-  }
-  else if (p->kind == OAK_BIND_FN_INSTANCE_METHOD ||
-           p->kind == OAK_BIND_FN_STATIC_METHOD)
-  {
-    if (p->receiver_type_id == OAK_TYPE_VOID)
-      return -1;
-  }
-  else
+  if (p->kind != OAK_BIND_FN_INSTANCE_METHOD &&
+      p->kind != OAK_BIND_FN_STATIC_METHOD)
+    return -1;
+  if (p->receiver_type_id == OAK_TYPE_VOID)
     return -1;
 
   struct oak_bind_fn_t copy = *p;
-  if (copy.module_name && copy.module_name_len == 0u)
-    copy.module_name_len = strlen(copy.module_name);
-
   oak_dynarr_push(&opts->native_fns.items,
                   &opts->native_fns.count,
                   &opts->native_fns.capacity,

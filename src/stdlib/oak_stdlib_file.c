@@ -192,17 +192,15 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
     oak_bind_enum_variant(mode, "Append", OAK_FILE_MODE_APPEND);
   }
 
-  oak_bind_fn(opts,
-              &(struct oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_GLOBAL,
-                  .module_name = "io",
-                  .receiver_type_id = OAK_TYPE_VOID,
-                  .name = "open",
-                  .impl = file_open,
-                  .arity = 2,
-                  .return_type_id = t->type_id,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
-              });
+  oak_bind_fn_global(opts,
+                     &(struct oak_bind_global_fn_t){
+                         .module_name = "io",
+                         .name = "open",
+                         .impl = file_open,
+                         .arity = 2,
+                         .return_type_id = t->type_id,
+                         .return_shape = OAK_BIND_SHAPE_SCALAR,
+                     });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_STATIC_METHOD,

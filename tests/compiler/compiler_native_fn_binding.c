@@ -113,30 +113,27 @@ static enum oak_test_status_t run_ok(const char* source,
  * Section 1 — oak_bind_fn C API
  * ========================================================================= */
 
-/* oak_bind_fn(&opts, &(struct oak_bind_fn_t){ kind, ... }) registers a global.
- */
+/* oak_bind_fn_global() registers a global function in opts. */
 OAK_TEST_DECL(BindFnGlobalRegisters)
 {
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(
+  const int r = oak_bind_fn_global(
       &opts,
-      &(struct oak_bind_fn_t){ .kind = OAK_BIND_FN_GLOBAL,
-                               .receiver_type_id = OAK_TYPE_VOID,
+      &(struct oak_bind_global_fn_t){
                                .name = "my_global",
                                .impl = stub_fn,
                                .arity = 1,
                                .return_type_id = OAK_TYPE_NUMBER,
                                .return_shape = OAK_BIND_SHAPE_SCALAR });
   OAK_CHECK(r == 0);
-  OAK_CHECK(opts.native_fns.count == 1);
-  OAK_CHECK(strcmp(opts.native_fns.items[0].name, "my_global") == 0);
-  OAK_CHECK(opts.native_fns.items[0].receiver_type_id == OAK_TYPE_VOID);
-  OAK_CHECK(opts.native_fns.items[0].arity == 1);
-  OAK_CHECK(opts.native_fns.items[0].return_type_id == OAK_TYPE_NUMBER);
-  OAK_CHECK(opts.native_fns.items[0].return_shape == OAK_BIND_SHAPE_SCALAR);
-  OAK_CHECK(opts.native_fns.items[0].impl == stub_fn);
+  OAK_CHECK(opts.native_global_fns.count == 1);
+  OAK_CHECK(strcmp(opts.native_global_fns.items[0].name, "my_global") == 0);
+  OAK_CHECK(opts.native_global_fns.items[0].arity == 1);
+  OAK_CHECK(opts.native_global_fns.items[0].return_type_id == OAK_TYPE_NUMBER);
+  OAK_CHECK(opts.native_global_fns.items[0].return_shape == OAK_BIND_SHAPE_SCALAR);
+  OAK_CHECK(opts.native_global_fns.items[0].impl == stub_fn);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -176,17 +173,16 @@ OAK_TEST_DECL(BindFnNullNameRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(
+  const int r = oak_bind_fn_global(
       &opts,
-      &(struct oak_bind_fn_t){ .kind = OAK_BIND_FN_GLOBAL,
-                               .receiver_type_id = OAK_TYPE_VOID,
+      &(struct oak_bind_global_fn_t){
                                .name = null,
                                .impl = stub_fn,
                                .arity = 0,
                                .return_type_id = OAK_TYPE_NUMBER,
                                .return_shape = OAK_BIND_SHAPE_SCALAR });
   OAK_CHECK(r == -1);
-  OAK_CHECK(opts.native_fns.count == 0);
+  OAK_CHECK(opts.native_global_fns.count == 0);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -198,17 +194,16 @@ OAK_TEST_DECL(BindFnNullImplRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(
+  const int r = oak_bind_fn_global(
       &opts,
-      &(struct oak_bind_fn_t){ .kind = OAK_BIND_FN_GLOBAL,
-                               .receiver_type_id = OAK_TYPE_VOID,
+      &(struct oak_bind_global_fn_t){
                                .name = "foo",
                                .impl = null,
                                .arity = 0,
                                .return_type_id = OAK_TYPE_NUMBER,
                                .return_shape = OAK_BIND_SHAPE_SCALAR });
   OAK_CHECK(r == -1);
-  OAK_CHECK(opts.native_fns.count == 0);
+  OAK_CHECK(opts.native_global_fns.count == 0);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -220,10 +215,9 @@ OAK_TEST_DECL(BindFnNegativeArityRejected)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  const int r = oak_bind_fn(
+  const int r = oak_bind_fn_global(
       &opts,
-      &(struct oak_bind_fn_t){ .kind = OAK_BIND_FN_GLOBAL,
-                               .receiver_type_id = OAK_TYPE_VOID,
+      &(struct oak_bind_global_fn_t){
                                .name = "foo",
                                .impl = stub_fn,
                                .arity = -1,
@@ -241,34 +235,28 @@ OAK_TEST_DECL(BindFnMultipleRegistrations)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "a",
                             .impl = stub_fn,
                             .arity = 0,
                             .return_type_id = OAK_TYPE_VOID,
                             .return_shape = OAK_BIND_SHAPE_SCALAR }) == 0);
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "b",
                             .impl = stub_fn,
                             .arity = 1,
                             .return_type_id = OAK_TYPE_NUMBER,
                             .return_shape = OAK_BIND_SHAPE_SCALAR }) == 0);
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "c",
                             .impl = stub_fn,
                             .arity = 2,
                             .return_type_id = OAK_TYPE_BOOL,
                             .return_shape = OAK_BIND_SHAPE_SCALAR }) == 0);
-  OAK_CHECK(opts.native_fns.count == 3);
+  OAK_CHECK(opts.native_global_fns.count == 3);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -284,10 +272,8 @@ OAK_TEST_DECL(GlobalNativeFnCallCompiles)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "native_add",
                             .impl = add_fn,
                             .arity = 2,
@@ -308,10 +294,8 @@ OAK_TEST_DECL(GlobalNativeFnWrongArgCountFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "native_add2",
                             .impl = add_fn,
                             .arity = 2,
@@ -331,19 +315,15 @@ OAK_TEST_DECL(GlobalNativeFnDuplicateFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "dup_fn",
                             .impl = stub_fn,
                             .arity = 0,
                             .return_type_id = OAK_TYPE_VOID,
                             .return_shape = OAK_BIND_SHAPE_SCALAR }) == 0);
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "dup_fn",
                             .impl = stub_fn,
                             .arity = 0,
@@ -365,10 +345,8 @@ OAK_TEST_DECL(GlobalNativeFnReturnTypeInferred)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "get_num",
                             .impl = stub_fn,
                             .arity = 0,
@@ -391,10 +369,8 @@ OAK_TEST_DECL(GlobalNativeFnReturnTypeWrongArgFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "get_num2",
                             .impl = stub_fn,
                             .arity = 0,
@@ -597,10 +573,8 @@ OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
                                             .setter = null }) == 0);
 
   /* Global factory function */
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "make_unit_rect",
                             .impl = stub_fn,
                             .arity = 0,
@@ -638,10 +612,8 @@ OAK_TEST_DECL(GlobalNativeFnTooManyArgsFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "one_arg",
                             .impl = stub_fn,
                             .arity = 1,
@@ -693,10 +665,8 @@ OAK_TEST_DECL(ZeroArityNativeFnCallOk)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "noop",
                             .impl = stub_fn,
                             .arity = 0,
@@ -715,10 +685,8 @@ OAK_TEST_DECL(ZeroArityNativeFnWithArgFails)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "noop2",
                             .impl = stub_fn,
                             .arity = 0,
@@ -773,10 +741,8 @@ OAK_TEST_DECL(NativeFnRunsOk)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "double_it",
                             .impl = add_fn,
                             .arity = 1,
@@ -795,10 +761,8 @@ OAK_TEST_DECL(NativeFnTwoArgsRunsOk)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts);
 
-  OAK_CHECK(oak_bind_fn(&opts,
-                        &(struct oak_bind_fn_t){
-                            .kind = OAK_BIND_FN_GLOBAL,
-                            .receiver_type_id = OAK_TYPE_VOID,
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
                             .name = "native_sum",
                             .impl = add_fn,
                             .arity = 2,

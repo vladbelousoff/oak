@@ -10,11 +10,10 @@ int opts_has_native_module(const struct oak_compile_options_t* opts,
 {
   if (!opts || !dotted)
     return 0;
-  for (int i = 0; i < opts->native_fns.count; ++i)
+  for (int i = 0; i < opts->native_global_fns.count; ++i)
   {
-    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
-    if (fn->kind == OAK_BIND_FN_GLOBAL &&
-        native_module_name_eq(fn->module_name, dotted))
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    if (native_module_name_eq(fn->module_name, dotted))
       return 1;
   }
   for (int i = 0; i < opts->native_types.count; ++i)
@@ -87,6 +86,9 @@ void module_loader_filter_native_decls(
       &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
   oak_dynarr_init(
       &opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
+  oak_dynarr_init(&opts->native_global_fns.items,
+                  &opts->native_global_fns.count,
+                  &opts->native_global_fns.capacity);
   oak_dynarr_init(&opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity);
@@ -106,15 +108,23 @@ void module_loader_filter_native_decls(
   for (int i = 0; i < base_opts->native_fns.count; ++i)
   {
     const struct oak_bind_fn_t* fn = &base_opts->native_fns.items[i];
-    if (fn->kind == OAK_BIND_FN_GLOBAL &&
-        native_module_name_eq(fn->module_name, dotted))
-      continue;
-    if (fn->receiver_type_id != OAK_TYPE_VOID &&
-        native_type_in_module(base_opts, fn->receiver_type_id, dotted))
+    if (native_type_in_module(base_opts, fn->receiver_type_id, dotted))
       continue;
     oak_dynarr_push(&opts->native_fns.items,
                     &opts->native_fns.count,
                     &opts->native_fns.capacity,
+                    fn,
+                    sizeof(*fn));
+  }
+
+  for (int i = 0; i < base_opts->native_global_fns.count; ++i)
+  {
+    const struct oak_bind_global_fn_t* fn = &base_opts->native_global_fns.items[i];
+    if (native_module_name_eq(fn->module_name, dotted))
+      continue;
+    oak_dynarr_push(&opts->native_global_fns.items,
+                    &opts->native_global_fns.count,
+                    &opts->native_global_fns.capacity,
                     fn,
                     sizeof(*fn));
   }
@@ -143,6 +153,9 @@ void module_loader_free_filtered_native_decls(
       &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
   oak_dynarr_free(
       &opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
+  oak_dynarr_free(&opts->native_global_fns.items,
+                  &opts->native_global_fns.count,
+                  &opts->native_global_fns.capacity);
   oak_dynarr_free(&opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity);
@@ -154,11 +167,10 @@ void apply_native_module_function_exports(
 {
   if (!mod || !mod->chunk || !opts || !opts_has_native_module(opts, mod->dotted_name))
     return;
-  for (int i = 0; i < opts->native_fns.count; ++i)
+  for (int i = 0; i < opts->native_global_fns.count; ++i)
   {
-    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
-    if (fn->kind != OAK_BIND_FN_GLOBAL ||
-        !native_module_name_eq(fn->module_name, mod->dotted_name))
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    if (!native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const int eidx =
         oak_htable_get(&mod->exports_fn.by_name, fn->name, strlen(fn->name));
@@ -290,11 +302,10 @@ static int native_global_fn_decl_exists(const struct oak_compile_options_t* opts
                                         const char* name,
                                         int arity)
 {
-  for (int i = 0; opts && i < opts->native_fns.count; ++i)
+  for (int i = 0; opts && i < opts->native_global_fns.count; ++i)
   {
-    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
-    if (fn->kind == OAK_BIND_FN_GLOBAL &&
-        native_module_name_eq(fn->module_name, dotted) &&
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    if (native_module_name_eq(fn->module_name, dotted) &&
         strcmp(fn->name, name) == 0 && fn->arity == arity)
       return 1;
   }
@@ -442,11 +453,10 @@ struct oak_module_t* create_native_module(
   oak_chunk_init(mod->chunk);
   mod->chunk->module_id = mod->module_id;
 
-  for (int i = 0; i < opts->native_fns.count; ++i)
+  for (int i = 0; i < opts->native_global_fns.count; ++i)
   {
-    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
-    if (fn->kind != OAK_BIND_FN_GLOBAL ||
-        !native_module_name_eq(fn->module_name, dotted))
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    if (!native_module_name_eq(fn->module_name, dotted))
       continue;
     struct oak_obj_native_fn_t* native =
         oak_native_fn_new(fn->impl, fn->arity, fn->name);
