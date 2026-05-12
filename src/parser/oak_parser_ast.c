@@ -85,6 +85,8 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "PROGRAM_ITEM";
     case OAK_NODE_RECORD_DECL:
       return "RECORD_DECL";
+    case OAK_NODE_RECORD_DECL_EMPTY:
+      return "RECORD_DECL_EMPTY";
     case OAK_NODE_TYPE_NAME:
       return "TYPE_NAME";
     case OAK_NODE_RECORD_FIELD_DECL:

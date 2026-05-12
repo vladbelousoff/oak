@@ -79,10 +79,10 @@ OAK_TEST_DECL(WrongReturnTypeRejected)
 {
   return expect_compile_error(
       "trait Shape { fn area(self) -> number; }\n"
-      "record Bad { }\n"
+      "record Bad;\n"
       "fn Bad.area(self) -> string { return 'oops'; }\n"
       "fn use_shape(s: Shape) { print(s.area()); }\n"
-      "let b = new Bad { };\n"
+      "let b = new Bad {};\n"
       "use_shape(b);\n");
 }
 
@@ -101,10 +101,10 @@ OAK_TEST_DECL(WrongArityRejected)
 {
   return expect_compile_error(
       "trait Shape { fn area(self) -> number; }\n"
-      "record Bad { }\n"
+      "record Bad;\n"
       "fn Bad.area(self, extra: number) -> number { return extra; }\n"
       "fn use_shape(s: Shape) { print(s.area()); }\n"
-      "let b = new Bad { };\n"
+      "let b = new Bad {};\n"
       "use_shape(b);\n");
 }
 
@@ -210,9 +210,9 @@ OAK_TEST_DECL(MethodCoercionInMethodCallOk)
   return expect_ok(
       TRAIT_SHAPE
       RECORD_CIRCLE
-      "record Renderer { }\n"
+      "record Renderer;\n"
       "fn Renderer.render(self, s: Shape) { print(s.area()); }\n"
-      "let r = new Renderer { };\n"
+      "let r = new Renderer {};\n"
       "let c = new Circle { radius: 4 };\n"
       "r.render(c);\n");
 }

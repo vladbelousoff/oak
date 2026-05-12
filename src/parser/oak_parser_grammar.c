@@ -158,13 +158,14 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> IMPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
+  // PROGRAM_ITEM -> IMPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_IMPORT_DECL,
       OAK_NODE_METHOD_DECL,
       OAK_NODE_FN_DECL,
+      OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
       OAK_NODE_TRAIT_DECL,
@@ -187,6 +188,16 @@ struct oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_IMPORT_PATH] = {
     .rules = {
       OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_DOT_SEP,
+    },
+  },
+  // RECORD_DECL_EMPTY -> 'record' TYPE_NAME ';'
+  //   (unary: child = TYPE_NAME)
+  [OAK_NODE_RECORD_DECL_EMPTY] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_RECORD | OAK_RULE_TOKEN,
+      OAK_NODE_TYPE_NAME,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
   // RECORD_DECL -> 'record' TYPE_NAME '{' RECORD_FIELDS '}'

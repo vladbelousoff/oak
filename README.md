@@ -114,13 +114,17 @@ print(add(1, 2));  /* 3 */
 
 ### Records
 
-Records are plain data. Methods are declared separately with `fn TypeName.method(...)`:
+Records are plain data. Methods are declared separately with `fn TypeName.method(...)`.
+
+Use `record Name;` (no braces) for records with no fields, and `record Name { ... }` for records that have fields:
 
 ```oak
 record Point {
   x : number;
   y : number;
 }
+
+record Tag;   /* no fields — use semicolon form, not empty braces */
 
 fn Point.distSq(self, other : Point) -> number {
   let dx = self.x - other.x;
@@ -365,7 +369,7 @@ In Oak: `io.FileMode.Read`, `io.FileMode.Write`, etc.
 When a native type lives in a module, provide a matching `.oak` stub file (e.g. `stdlib/io.oak`) that declares the type and method signatures without bodies. The loader validates that every bodyless declaration has a corresponding native binding:
 
 ```oak
-record File {}
+record File;
 
 fn File.open(path : string, mode : number) -> File;
 fn File.readAll(self) -> string;

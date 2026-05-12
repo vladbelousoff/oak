@@ -115,6 +115,8 @@ static void compile_program_items(struct oak_compiler_t* c,
     /* Record and enum declarations are processed in pre-passes; no code. */
     if (item->kind == OAK_NODE_RECORD_DECL)
       continue;
+    if (item->kind == OAK_NODE_RECORD_DECL_EMPTY)
+      continue;
     if (item->kind == OAK_NODE_ENUM_DECL)
       continue;
     /* Imports are resolved by the module loader and the imports pre-pass;

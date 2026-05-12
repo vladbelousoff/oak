@@ -9,6 +9,33 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 /* Walk all top-level record declarations and register each in the compiler's
  * record registry. The record's type id is interned into the type registry so
  * later passes (function param types, record literals) can resolve them. */
+/* Resolve the TYPE_NAME child to an IDENT for a record declaration. */
+static const struct oak_ast_node_t* record_decl_name_ident(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* item,
+    const struct oak_ast_node_t* type_name_node)
+{
+  const struct oak_ast_node_t* name_ident = type_name_node;
+  if (name_ident->kind == OAK_NODE_TYPE_NAME)
+  {
+    const struct oak_list_entry_t* tn_first = name_ident->children.next;
+    if (tn_first == &name_ident->children)
+    {
+      oak_compiler_error_at(
+          c, item->token, "record type name must be an identifier");
+      return null;
+    }
+    name_ident = oak_container_of(tn_first, struct oak_ast_node_t, link);
+  }
+  if (name_ident->kind != OAK_NODE_IDENT)
+  {
+    oak_compiler_error_at(
+        c, item->token, "record type name must be an identifier");
+    return null;
+  }
+  return name_ident;
+}
+
 void oakc_register_program_records(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* program)
 {
@@ -17,34 +44,25 @@ void oakc_register_program_records(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_RECORD_DECL)
+
+    const int is_empty = item->kind == OAK_NODE_RECORD_DECL_EMPTY;
+    if (item->kind != OAK_NODE_RECORD_DECL && !is_empty)
       continue;
 
-    if (!item->lhs || !item->rhs)
+    /* RECORD_DECL_EMPTY: child = TYPE_NAME
+     * RECORD_DECL:       lhs   = TYPE_NAME, rhs = RECORD_FIELDS */
+    const struct oak_ast_node_t* type_name_node =
+        is_empty ? item->child : item->lhs;
+    if (!type_name_node || (!is_empty && !item->rhs))
     {
       oak_compiler_error_at(c, item->token, "malformed record declaration");
       return;
     }
 
-    /* lhs = TYPE_NAME; for a plain user record it nests an IDENT child. */
-    const struct oak_ast_node_t* name_ident = item->lhs;
-    if (name_ident->kind == OAK_NODE_TYPE_NAME)
-    {
-      const struct oak_list_entry_t* tn_first = name_ident->children.next;
-      if (tn_first == &name_ident->children)
-      {
-        oak_compiler_error_at(
-            c, item->token, "record type name must be an identifier");
-        return;
-      }
-      name_ident = oak_container_of(tn_first, struct oak_ast_node_t, link);
-    }
-    if (name_ident->kind != OAK_NODE_IDENT)
-    {
-      oak_compiler_error_at(
-          c, item->token, "record type name must be an identifier");
+    const struct oak_ast_node_t* name_ident =
+        record_decl_name_ident(c, item, type_name_node);
+    if (!name_ident || c->has_error)
       return;
-    }
 
     const char* name = oak_token_text(name_ident->token);
     const usize name_len = oak_token_length(name_ident->token);
@@ -71,9 +89,11 @@ void oakc_register_program_records(struct oak_compiler_t* c,
       return;
     }
 
-    /* Insert into registry first so the pointer is stable. */
     struct oak_registered_record_t* slot =
         oak_record_registry_insert(&c->records, &proto);
+
+    if (is_empty)
+      continue; /* no fields to register */
 
     const struct oak_ast_node_t* fields_wrap = item->rhs;
     if (fields_wrap->kind != OAK_NODE_RECORD_FIELDS)
@@ -81,6 +101,17 @@ void oakc_register_program_records(struct oak_compiler_t* c,
       oak_compiler_error_at(c, item->token, "malformed record declaration");
       return;
     }
+
+    /* Reject 'record Foo {}' — use 'record Foo;' for empty records. */
+    if (fields_wrap->children.next == &fields_wrap->children)
+    {
+      oak_compiler_error_at(
+          c, name_ident->token,
+          "record '%s' has no fields; use 'record %s;' instead of '{}'",
+          name, name);
+      return;
+    }
+
     if (!register_record_field_decls(c, slot, fields_wrap, name, item->token) ||
         c->has_error)
       return;

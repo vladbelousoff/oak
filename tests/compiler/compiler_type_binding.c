@@ -24,8 +24,8 @@ OAK_TEST_DECL(SingleFieldTypeBindingOk)
 /* An empty record (no fields) is a valid type declaration. */
 OAK_TEST_DECL(EmptyStructTypeBindingOk)
 {
-  return expect_ok("record Empty { }\n"
-                   "let e = new Empty { };\n");
+  return expect_ok("record Empty;\n"
+                   "let e = new Empty {};\n");
 }
 
 /* =========================================================================

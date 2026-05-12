@@ -12,6 +12,8 @@ enum oak_node_kind_t
   OAK_NODE_PROGRAM,
   OAK_NODE_PROGRAM_ITEM,
   OAK_NODE_RECORD_DECL,
+  /* record Name;  — bodyless record (no fields) */
+  OAK_NODE_RECORD_DECL_EMPTY,
   OAK_NODE_TYPE_NAME,
   OAK_NODE_RECORD_FIELD_DECL,
   OAK_NODE_RECORD_MEMBER,

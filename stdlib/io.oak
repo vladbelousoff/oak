@@ -1,6 +1,6 @@
 enum FileMode { Read, Write, Append }
 
-record File {}
+record File;
 
 fn File.open(path : string, mode : FileMode) -> File;
 fn File.read(self) -> string;

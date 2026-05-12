@@ -106,7 +106,7 @@ OAK_TEST_DECL(ParseSyntaxErrors)
   OAK_CHECK(parse_error("if true {") == OAK_TEST_OK);
   OAK_CHECK(parse_error("fn f() -> number { return 1;") == OAK_TEST_OK);
   OAK_CHECK(parse_error("record Point") == OAK_TEST_OK);
-  OAK_CHECK(parse_error("record Point;") == OAK_TEST_OK);
+  OAK_CHECK(parse_error("record Point {") == OAK_TEST_OK);
   OAK_CHECK(parse_error("1 + ;") == OAK_TEST_OK);
   return OAK_TEST_OK;
 }
