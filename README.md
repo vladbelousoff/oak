@@ -102,7 +102,7 @@ continue;
 
 ### Functions
 
-Functions can live at module level, or as methods inside a record. Both recursive and mutually recursive calls work.
+Functions live at module level. Both recursive and mutually recursive calls work.
 
 ```oak
 fn add(a : number, b : number) -> number {
@@ -114,31 +114,33 @@ print(add(1, 2));  /* 3 */
 
 ### Records
 
+Records are plain data. Methods are declared separately with `fn TypeName.method(...)`:
+
 ```oak
 record Point {
   x : number;
   y : number;
+}
 
-  fn dist_sq(self, other : Point) -> number {
-    let dx = self.x - other.x;
-    let dy = self.y - other.y;
-    return dx * dx + dy * dy;
-  }
+fn Point.distSq(self, other : Point) -> number {
+  let dx = self.x - other.x;
+  let dy = self.y - other.y;
+  return dx * dx + dy * dy;
+}
 
-  fn translate(mut self, dx : number, dy : number) {
-    self.x = self.x + dx;
-    self.y = self.y + dy;
-  }
+fn Point.translate(mut self, dx : number, dy : number) {
+  self.x = self.x + dx;
+  self.y = self.y + dy;
 }
 
 let p = new Point { x: 3, y: 4 };
-print(p.dist_sq(new Point { x: 0, y: 0 }));
+print(p.distSq(new Point { x: 0, y: 0 }));
 
 let mut q = new Point { x: 1, y: 1 };
 q.translate(2, 3);
 ```
 
-`self` is read-only; `mut self` lets the method mutate its receiver. Records can also be nested inside other records.
+`self` is read-only; `mut self` lets the method mutate its receiver. Static methods (no `self`) are called as `TypeName.method(...)`. Records can also be nested inside other records.
 
 ### Enums
 
@@ -205,16 +207,16 @@ Module names use dots for path separators; `as` gives an alias. Cycles are detec
 
 Number helpers. Import `math` before using the `math.*` functions.
 
-| Function      | What it does                                      |
-|---------------|---------------------------------------------------|
-| `to_int(v)`   | convert a number to an integer                    |
-| `to_float(v)` | convert a number to a float                       |
-| `is_int(v)`   | is the value stored as an integer number          |
-| `is_float(v)` | is the value stored as a floating-point number    |
-| `math.sqrt(v)` | square root                                      |
-| `math.sin(v)`  | sine, in radians                                 |
-| `math.cos(v)`  | cosine, in radians                               |
-| `math.tan(v)`  | tangent, in radians                              |
+| Function       | What it does                                      |
+|----------------|---------------------------------------------------|
+| `toInt(v)`     | convert a number to an integer                    |
+| `toFloat(v)`   | convert a number to a float                       |
+| `isInt(v)`     | is the value stored as an integer number          |
+| `isFloat(v)`   | is the value stored as a floating-point number    |
+| `math.sqrt(v)` | square root                                       |
+| `math.sin(v)`  | sine, in radians                                  |
+| `math.cos(v)`  | cosine, in radians                                |
+| `math.tan(v)`  | tangent, in radians                               |
 
 There's also a small `File` type:
 
@@ -222,12 +224,27 @@ There's also a small `File` type:
 import io;
 
 let f = io.File.open('notes.txt', io.FileMode.Read);
-let text = f.read_all();
+let text = f.readAll();
 f.close();
 print(text);
 ```
 
-`io.File` supports `open` as a static method and `read`, `read_all`, `write`, `eof`, and `close` on instances. `io.File.open` takes an `io.FileMode` enum value as its second argument: `io.FileMode.Read`, `io.FileMode.Write`, or `io.FileMode.Append`.
+`io.File` supports `open` as a static method and `read`, `readAll`, `write`, `eof`, and `close` on instances. `io.File.open` takes an `io.FileMode` enum value as its second argument: `io.FileMode.Read`, `io.FileMode.Write`, or `io.FileMode.Append`.
+
+---
+
+## Naming conventions
+
+| Thing | Convention | Examples |
+|---|---|---|
+| Variables and bindings | camelCase | `fruitTotal`, `isPrime` |
+| Functions and methods | camelCase | `fn collectPrimes(...)`, `fn Point.distSq(...)` |
+| Record fields | camelCase | `pointCount`, `firstName` |
+| Record types | PascalCase | `record Point`, `record FileHandle` |
+| Enum types | PascalCase | `enum FileMode` |
+| Enum variants | PascalCase | `FileMode.Read`, `Priority.High` |
+
+Single-word names (`x`, `radius`, `done`) are lowercase by default and need no special treatment.
 
 ---
 
