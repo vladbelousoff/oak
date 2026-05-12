@@ -61,7 +61,7 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
   oak_record_registry_init(&c->records);
   oak_enum_registry_init(&c->enums);
   oak_htable_init(&c->module_scope_names);
-  c->traits = (struct oak_trait_registry_t){ 0 };
+  oak_trait_registry_init(&c->traits);
   c->user_record_start = 0;
   c->user_enum_start = -1;
 
@@ -74,6 +74,8 @@ static void compiler_teardown(struct oak_compiler_t* c)
   oak_fn_registry_free(&c->fns);
   oak_record_registry_free(&c->records);
   oak_enum_registry_free(&c->enums);
+  oak_trait_registry_free(&c->traits);
+  oak_type_registry_free(&c->types);
 }
 
 /* Only direct module-scope `let` items (not lets nested in if/while/for). */

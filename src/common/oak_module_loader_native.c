@@ -480,15 +480,20 @@ struct oak_module_t* create_native_module(
     struct oak_module_export_record_t exp = { 0 };
     exp.name = type->name;
     exp.name_len = type->name_len;
-    exp.field_count = type->field_count > OAK_MODULE_MAX_RECORD_FIELDS
-                          ? OAK_MODULE_MAX_RECORD_FIELDS
-                          : type->field_count;
-    for (int fi = 0; fi < exp.field_count; ++fi)
+    oak_dynarr_init(&exp.fields, &exp.field_count, &exp.field_capacity);
+    for (int fi = 0; fi < type->field_count; ++fi)
     {
-      exp.fields[fi].name = type->fields[fi].name;
-      exp.fields[fi].name_len = type->fields[fi].name_len;
-      exp.fields[fi].type_name = builtin_type_name(type->fields[fi].field_type_id);
-      exp.fields[fi].type_name_len = strlen(exp.fields[fi].type_name);
+      struct oak_module_export_record_field_t field = {
+        .name = type->fields[fi].name,
+        .name_len = type->fields[fi].name_len,
+        .type_name = builtin_type_name(type->fields[fi].field_type_id),
+      };
+      field.type_name_len = strlen(field.type_name);
+      oak_dynarr_push(&exp.fields,
+                      &exp.field_count,
+                      &exp.field_capacity,
+                      &field,
+                      sizeof(field));
     }
     const int idx = mod->exports_record.count;
     oak_dynarr_push(&mod->exports_record.items,
@@ -508,14 +513,19 @@ struct oak_module_t* create_native_module(
     struct oak_module_export_enum_t exp = { 0 };
     exp.name = e->name;
     exp.name_len = e->name_len;
-    exp.variant_count = e->variant_count > OAK_MODULE_MAX_ENUM_VARIANTS
-                            ? OAK_MODULE_MAX_ENUM_VARIANTS
-                            : e->variant_count;
-    for (int vi = 0; vi < exp.variant_count; ++vi)
+    oak_dynarr_init(&exp.variants, &exp.variant_count, &exp.variant_capacity);
+    for (int vi = 0; vi < e->variant_count; ++vi)
     {
-      exp.variants[vi].name = e->variants[vi].name;
-      exp.variants[vi].name_len = e->variants[vi].name_len;
-      exp.variants[vi].value = e->variants[vi].value;
+      struct oak_module_export_enum_variant_t variant = {
+        .name = e->variants[vi].name,
+        .name_len = e->variants[vi].name_len,
+        .value = e->variants[vi].value,
+      };
+      oak_dynarr_push(&exp.variants,
+                      &exp.variant_count,
+                      &exp.variant_capacity,
+                      &variant,
+                      sizeof(variant));
     }
     const int idx = mod->exports_enum.count;
     oak_dynarr_push(&mod->exports_enum.items,

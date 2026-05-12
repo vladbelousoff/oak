@@ -3,8 +3,6 @@
 #include "oak_type_id.h"
 #include "oak_types.h"
 
-#define OAK_MAX_TYPES 64
-
 /* Discriminates the three shapes a compile-time type slot can have. The
  * default (zero) value is OAK_TYPE_KIND_SCALAR so that zero-initialised
  * oak_type_t structs are valid scalar types without explicit assignment. */
@@ -38,12 +36,14 @@ struct oak_type_entry_t
 
 struct oak_type_registry_t
 {
-  struct oak_type_entry_t entries[OAK_MAX_TYPES];
+  struct oak_type_entry_t* entries;
   int count;
+  int capacity;
 };
 
 /* Initializes the registry and pre-populates the built-in type ids. */
 void oak_type_registry_init(struct oak_type_registry_t* reg);
+void oak_type_registry_free(struct oak_type_registry_t* reg);
 
 /* Returns the id of an existing entry, or -1 if not found. */
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
@@ -51,7 +51,7 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
                                        usize len);
 
 /* Returns the id of an existing entry, or registers a new one. Returns
- * -1 if the registry is full or `name` is null/empty. */
+ * -1 if `name` is null/empty. */
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
                                        const char* name,
                                        usize len);
@@ -62,7 +62,7 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
  * matches those ids exactly.
  * `id` must be >= OAK_TYPE_FIRST_USER.
  * Returns `id` on success, or -1 if the slot is already occupied by a
- * different name or `id` is out of range. */
+ * different name or `id` is invalid. */
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const char* name,
                                                usize len,

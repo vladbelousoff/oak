@@ -312,10 +312,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       struct oak_loop_frame_t* loop = c->scope.current_loop;
       oakc_emit_loop_jump(
           c,
-          is_break ? loop->break_jumps : loop->continue_jumps,
+          is_break ? &loop->break_jumps : &loop->continue_jumps,
           is_break ? &loop->break_count : &loop->continue_count,
-          is_break ? loop->exit_depth : loop->continue_depth,
-          keyword);
+          is_break ? &loop->break_capacity : &loop->continue_capacity,
+          is_break ? loop->exit_depth : loop->continue_depth);
       break;
     }
     default:

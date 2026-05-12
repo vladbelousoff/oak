@@ -18,8 +18,9 @@ struct oak_registered_record_t
   const char* name;
   usize name_len;
   oak_type_id_t type_id;
+  struct oak_record_field_t* fields;
   int field_count;
-  struct oak_record_field_t fields[OAK_MAX_RECORD_FIELDS];
+  int field_capacity;
   /* Instance and static methods share one growable array, distinguished by
    * `is_static` on each entry. Freed by oak_record_registry_free. */
   struct oak_registered_fn_vec_t methods;

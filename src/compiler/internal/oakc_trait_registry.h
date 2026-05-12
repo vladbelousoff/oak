@@ -3,10 +3,6 @@
 #include "oakc_defs.h"
 #include "oak_type.h"
 
-#define OAK_MAX_TRAITS         32
-#define OAK_MAX_TRAIT_METHODS  16
-#define OAK_MAX_TRAIT_IMPLS    128
-
 struct oak_ast_node_t;
 
 struct oak_trait_method_t
@@ -23,8 +19,9 @@ struct oak_registered_trait_t
   const char* name;
   usize name_len;
   oak_type_id_t trait_id;
+  struct oak_trait_method_t* methods;
   int method_count;
-  struct oak_trait_method_t methods[OAK_MAX_TRAIT_METHODS];
+  int method_capacity;
 };
 
 /* One entry per (concrete record, trait) impl pair.
@@ -35,18 +32,24 @@ struct oak_trait_impl_t
 {
   oak_type_id_t trait_id;
   oak_type_id_t record_type_id;
-  u16 vtable[OAK_MAX_TRAIT_METHODS];
+  u16* vtable;
+  int vtable_count;
   u16 vtable_array_const_idx; /* set during oak_compiler_build_vtables() */
   int vtable_built;
 };
 
 struct oak_trait_registry_t
 {
-  struct oak_registered_trait_t traits[OAK_MAX_TRAITS];
+  struct oak_registered_trait_t* traits;
   int trait_count;
-  struct oak_trait_impl_t impls[OAK_MAX_TRAIT_IMPLS];
+  int trait_capacity;
+  struct oak_trait_impl_t* impls;
   int impl_count;
+  int impl_capacity;
 };
+
+void oak_trait_registry_init(struct oak_trait_registry_t* r);
+void oak_trait_registry_free(struct oak_trait_registry_t* r);
 
 /* ---------- Lookups ---------- */
 

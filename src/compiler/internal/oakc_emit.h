@@ -66,7 +66,7 @@ void oak_compiler_emit_pops(struct oak_compiler_t* c,
                             struct oak_code_loc_t loc);
 
 void oakc_emit_loop_jump(struct oak_compiler_t* c,
-                                         usize* jumps,
-                                         int* count,
-                                         int target_depth,
-                                         const char* keyword);
+                         usize** jumps,
+                         int* count,
+                         int* capacity,
+                         int target_depth);

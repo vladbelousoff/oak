@@ -77,18 +77,25 @@ void register_imported_records(struct oak_compiler_t* c)
       proto.name = exp->name;
       proto.name_len = exp->name_len;
       proto.type_id = tid;
-      proto.field_count = exp->field_count;
+      oak_dynarr_init(&proto.fields, &proto.field_count, &proto.field_capacity);
       oak_dynarr_init(
           &proto.methods.items, &proto.methods.count, &proto.methods.capacity);
       for (int fi = 0; fi < exp->field_count; ++fi)
       {
-        proto.fields[fi].name = exp->fields[fi].name;
-        proto.fields[fi].name_len = exp->fields[fi].name_len;
-        oak_type_clear(&proto.fields[fi].type);
-        proto.fields[fi].type.id =
+        struct oak_record_field_t field = {
+          .name = exp->fields[fi].name,
+          .name_len = exp->fields[fi].name_len,
+        };
+        oak_type_clear(&field.type);
+        field.type.id =
             oak_type_registry_intern(&c->types,
                                      exp->fields[fi].type_name,
                                      exp->fields[fi].type_name_len);
+        oak_dynarr_push(&proto.fields,
+                        &proto.field_count,
+                        &proto.field_capacity,
+                        &field,
+                        sizeof(field));
       }
       oak_record_registry_insert(&c->records, &proto);
     }
@@ -132,26 +139,29 @@ void populate_module_exports(struct oak_compiler_t* c)
   for (int i = c->user_record_start; i < c->records.entries.count; ++i)
   {
     const struct oak_registered_record_t* r = &c->records.entries.items[i];
-    if (mod->exports_record.count >= OAK_MODULE_MAX_RECORD_FIELDS)
-      break; /* guard; in practice record counts are small */
     struct oak_module_export_record_t exp = { 0 };
     exp.name = r->name;
     exp.name_len = r->name_len;
-    exp.field_count = r->field_count > OAK_MODULE_MAX_RECORD_FIELDS
-                          ? OAK_MODULE_MAX_RECORD_FIELDS
-                          : r->field_count;
-    for (int fi = 0; fi < exp.field_count; ++fi)
+    oak_dynarr_init(&exp.fields, &exp.field_count, &exp.field_capacity);
+    for (int fi = 0; fi < r->field_count; ++fi)
     {
-      exp.fields[fi].name = r->fields[fi].name;
-      exp.fields[fi].name_len = r->fields[fi].name_len;
+      struct oak_module_export_record_field_t field = {
+        .name = r->fields[fi].name,
+        .name_len = r->fields[fi].name_len,
+      };
       /* Resolve type_id back to a name via the type registry so the importing
        * module can re-intern it using its own registry. */
       if (r->fields[fi].type.id >= 0 && r->fields[fi].type.id < c->types.count)
       {
-        exp.fields[fi].type_name = c->types.entries[r->fields[fi].type.id].name;
-        exp.fields[fi].type_name_len =
+        field.type_name = c->types.entries[r->fields[fi].type.id].name;
+        field.type_name_len =
             c->types.entries[r->fields[fi].type.id].len;
       }
+      oak_dynarr_push(&exp.fields,
+                      &exp.field_count,
+                      &exp.field_capacity,
+                      &field,
+                      sizeof(field));
     }
     exp.layout_id = 0; /* populated on first cross-module new when needed */
     const int idx = mod->exports_record.count;
@@ -188,13 +198,16 @@ void populate_module_exports(struct oak_compiler_t* c)
             &mod->exports_enum.by_name, ee.name, ee.name_len, eidx);
       }
       struct oak_module_export_enum_t* ee = &mod->exports_enum.items[eidx];
-      if (ee->variant_count < OAK_MODULE_MAX_ENUM_VARIANTS)
-      {
-        ee->variants[ee->variant_count].name = v->name;
-        ee->variants[ee->variant_count].name_len = v->name_len;
-        ee->variants[ee->variant_count].value = v->value;
-        ++ee->variant_count;
-      }
+      struct oak_module_export_enum_variant_t variant = {
+        .name = v->name,
+        .name_len = v->name_len,
+        .value = v->value,
+      };
+      oak_dynarr_push(&ee->variants,
+                      &ee->variant_count,
+                      &ee->variant_capacity,
+                      &variant,
+                      sizeof(variant));
     }
   }
 }

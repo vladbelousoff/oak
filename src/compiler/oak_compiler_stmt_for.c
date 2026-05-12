@@ -61,8 +61,12 @@ void oakc_compile_for_from(struct oak_compiler_t* c,
     .loop_start = c->chunk->count,
     .exit_depth = c->scope.stack_depth - 2,
     .continue_depth = c->scope.stack_depth,
+    .break_jumps = null,
     .break_count = 0,
+    .break_capacity = 0,
+    .continue_jumps = null,
     .continue_count = 0,
+    .continue_capacity = 0,
   };
 
   c->scope.current_loop = &loop;
@@ -98,6 +102,9 @@ void oakc_compile_for_from(struct oak_compiler_t* c,
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
   c->scope.current_loop = loop.enclosing;
+  oak_dynarr_free(&loop.break_jumps, &loop.break_count, &loop.break_capacity);
+  oak_dynarr_free(
+      &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
 }
 
 /* Iterates over an array or map.
@@ -278,8 +285,12 @@ void oakc_compile_for_in(struct oak_compiler_t* c,
     .loop_start = c->chunk->count,
     .exit_depth = base_depth,
     .continue_depth = base_depth + 3,
+    .break_jumps = null,
     .break_count = 0,
+    .break_capacity = 0,
+    .continue_jumps = null,
     .continue_count = 0,
+    .continue_capacity = 0,
   };
   c->scope.current_loop = &loop;
 
@@ -314,4 +325,7 @@ void oakc_compile_for_in(struct oak_compiler_t* c,
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
   c->scope.current_loop = loop.enclosing;
+  oak_dynarr_free(&loop.break_jumps, &loop.break_count, &loop.break_capacity);
+  oak_dynarr_free(
+      &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
 }

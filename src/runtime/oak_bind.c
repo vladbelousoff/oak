@@ -35,7 +35,12 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
   if (!opts)
     return;
   for (int i = 0; i < opts->native_types.count; ++i)
+  {
+    oak_dynarr_free(&opts->native_types.items[i]->fields,
+                    &opts->native_types.items[i]->field_count,
+                    &opts->native_types.items[i]->field_capacity);
     oak_free(opts->native_types.items[i], OAK_SRC_LOC);
+  }
   oak_dynarr_free(&opts->native_types.items,
                   &opts->native_types.count,
                   &opts->native_types.capacity);
@@ -43,7 +48,12 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
                   &opts->native_fns.count,
                   &opts->native_fns.capacity);
   for (int i = 0; i < opts->native_enums.count; ++i)
+  {
+    oak_dynarr_free(&opts->native_enums.items[i]->variants,
+                    &opts->native_enums.items[i]->variant_count,
+                    &opts->native_enums.items[i]->variant_capacity);
     oak_free(opts->native_enums.items[i], OAK_SRC_LOC);
+  }
   oak_dynarr_free(&opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity);
@@ -68,9 +78,6 @@ struct oak_bind_type_t* oak_bind_type_in_module(
   if (!opts || !name)
     return null;
 
-  if (opts->next_type_id >= OAK_MAX_TYPES)
-    return null;
-
   struct oak_bind_type_t* t =
       oak_alloc(sizeof(struct oak_bind_type_t), OAK_SRC_LOC);
   t->module_name = module_name;
@@ -79,7 +86,7 @@ struct oak_bind_type_t* oak_bind_type_in_module(
   t->name = name;
   t->name_len = strlen(name);
   t->type_id = opts->next_type_id++;
-  t->field_count = 0;
+  oak_dynarr_init(&t->fields, &t->field_count, &t->field_capacity);
   t->destructor = null;
 
   oak_dynarr_push(&opts->native_types.items,
@@ -97,8 +104,6 @@ int oak_bind_field(struct oak_bind_type_t* type,
     return -1;
   if (!p->name || !p->getter)
     return -1;
-  if (type->field_count >= OAK_BIND_MAX_FIELDS)
-    return -1;
 
   /* Reject duplicate field names. */
   for (int i = 0; i < type->field_count; ++i)
@@ -107,13 +112,19 @@ int oak_bind_field(struct oak_bind_type_t* type,
       return -1;
   }
 
-  struct oak_bind_field_t* f = &type->fields[type->field_count++];
-  f->name = p->name;
-  f->name_len = strlen(p->name);
-  f->field_type_id = p->field_type_id;
-  f->shape = p->shape;
-  f->getter = p->getter;
-  f->setter = p->setter;
+  struct oak_bind_field_t f = {
+    .name = p->name,
+    .name_len = strlen(p->name),
+    .field_type_id = p->field_type_id,
+    .shape = p->shape,
+    .getter = p->getter,
+    .setter = p->setter,
+  };
+  oak_dynarr_push(&type->fields,
+                  &type->field_count,
+                  &type->field_capacity,
+                  &f,
+                  sizeof(f));
   return 0;
 }
 
@@ -173,7 +184,7 @@ struct oak_bind_enum_t* oak_bind_enum_in_module(
   e->module_name_len = module_name ? strlen(module_name) : 0u;
   e->name = name;
   e->name_len = strlen(name);
-  e->variant_count = 0;
+  oak_dynarr_init(&e->variants, &e->variant_count, &e->variant_capacity);
 
   oak_dynarr_push(&opts->native_enums.items,
                   &opts->native_enums.count,
@@ -189,8 +200,6 @@ int oak_bind_enum_variant(struct oak_bind_enum_t* e,
 {
   if (!e || !name)
     return -1;
-  if (e->variant_count >= OAK_BIND_MAX_ENUM_VARIANTS)
-    return -1;
 
   for (int i = 0; i < e->variant_count; ++i)
   {
@@ -198,10 +207,16 @@ int oak_bind_enum_variant(struct oak_bind_enum_t* e,
       return -1;
   }
 
-  struct oak_bind_enum_variant_t* v = &e->variants[e->variant_count++];
-  v->name = name;
-  v->name_len = strlen(name);
-  v->value = value;
+  struct oak_bind_enum_variant_t v = {
+    .name = name,
+    .name_len = strlen(name),
+    .value = value,
+  };
+  oak_dynarr_push(&e->variants,
+                  &e->variant_count,
+                  &e->variant_capacity,
+                  &v,
+                  sizeof(v));
   return 0;
 }
 

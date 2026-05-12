@@ -137,25 +137,16 @@ void oak_compiler_emit_pops(struct oak_compiler_t* c,
 }
 
 void oakc_emit_loop_jump(struct oak_compiler_t* c,
-                                         usize* jumps,
-                                         int* count,
-                                         const int target_depth,
-                                         const char* keyword)
+                         usize** jumps,
+                         int* count,
+                         int* capacity,
+                         const int target_depth)
 {
   const int saved_depth = c->scope.stack_depth;
   oak_compiler_emit_pops(
       c, c->scope.stack_depth - target_depth, OAK_LOC_SYNTHETIC);
 
-  if (*count >= OAK_MAX_LOOP_BRANCHES)
-  {
-    oak_compiler_error_at(c,
-                          null,
-                          "too many '%s' statements in loop (max %d)",
-                          keyword,
-                          OAK_MAX_LOOP_BRANCHES);
-    c->scope.stack_depth = saved_depth;
-    return;
-  }
-  jumps[(*count)++] = oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
+  const usize jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
+  oak_dynarr_push(jumps, count, capacity, &jump, sizeof(jump));
   c->scope.stack_depth = saved_depth;
 }

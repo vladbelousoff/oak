@@ -27,9 +27,6 @@ struct oak_module_export_fn_t
   enum oak_type_kind_t return_kind;
 };
 
-/* Maximum record fields mirrored here so oak_module.h is self-contained. */
-#define OAK_MODULE_MAX_RECORD_FIELDS 32
-
 struct oak_module_export_record_field_t
 {
   const char* name; /* borrowed from lexer arena */
@@ -46,8 +43,9 @@ struct oak_module_export_record_t
 {
   const char* name; /* borrowed from lexer arena */
   usize name_len;
+  struct oak_module_export_record_field_t* fields;
   int field_count;
-  struct oak_module_export_record_field_t fields[OAK_MODULE_MAX_RECORD_FIELDS];
+  int field_capacity;
   u16 layout_id; /* const-pool slot in this module's chunk (for new mod.T{}) */
 };
 
@@ -59,15 +57,13 @@ struct oak_module_export_enum_variant_t
   int value; /* ordinal (0, 1, 2, …) */
 };
 
-#define OAK_MODULE_MAX_ENUM_VARIANTS 64
-
 struct oak_module_export_enum_t
 {
   const char* name; /* enum type name, borrowed from lexer arena */
   usize name_len;
+  struct oak_module_export_enum_variant_t* variants;
   int variant_count;
-  struct oak_module_export_enum_variant_t
-      variants[OAK_MODULE_MAX_ENUM_VARIANTS];
+  int variant_capacity;
 };
 
 /* ----- Dynamic-array type for module-id lists ----- */

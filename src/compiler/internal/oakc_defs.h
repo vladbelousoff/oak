@@ -1,8 +1,6 @@
 #pragma once
 
 #define OAK_MAX_LOCALS 256
-/* Max recorded forward jumps (break or continue) per loop. */
-#define OAK_MAX_LOOP_BRANCHES 64
 
 #define OAK_LOC_SYNTHETIC ((struct oak_code_loc_t){ .line = 0, .column = 1 })
 
@@ -20,4 +18,3 @@
 #define OAK_MAX_BOOL_METHODS           4
 #define OAK_MAX_NUMBER_METHODS         4
 #define OAK_MAX_RECORD_BUILTIN_METHODS 4
-#define OAK_MAX_RECORD_FIELDS          32

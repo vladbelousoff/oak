@@ -37,10 +37,12 @@ struct oak_loop_frame_t
   usize loop_start;
   int exit_depth;
   int continue_depth;
-  usize break_jumps[OAK_MAX_LOOP_BRANCHES];
+  usize* break_jumps;
   int break_count;
-  usize continue_jumps[OAK_MAX_LOOP_BRANCHES];
+  int break_capacity;
+  usize* continue_jumps;
   int continue_count;
+  int continue_capacity;
 };
 
 /* State that is reset for every fn body being compiled. */

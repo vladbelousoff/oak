@@ -43,32 +43,30 @@ void oakc_register_native_types(
     proto.name = nt->name;
     proto.name_len = nt->name_len;
     proto.type_id = tid;
-    proto.field_count = nt->field_count;
-
-    if (nt->field_count > OAK_MAX_RECORD_FIELDS)
-    {
-      oak_compiler_error_at(c,
-                            null,
-                            "native type '%s' has too many fields (max %d)",
-                            nt->name,
-                            OAK_MAX_RECORD_FIELDS);
-      return;
-    }
+    proto.fields = null;
+    proto.field_count = 0;
+    proto.field_capacity = 0;
 
     for (int fi = 0; fi < nt->field_count; ++fi)
     {
       const struct oak_bind_field_t* nf = &nt->fields[fi];
-      struct oak_record_field_t* sf = &proto.fields[fi];
-      sf->name = nf->name;
-      sf->name_len = nf->name_len;
-      oak_type_clear(&sf->type);
+      struct oak_record_field_t sf = {
+        .name = nf->name,
+        .name_len = nf->name_len,
+      };
+      oak_type_clear(&sf.type);
       if (nf->shape == OAK_BIND_SHAPE_ARRAY)
       {
-        sf->type.kind = OAK_TYPE_KIND_ARRAY;
-        sf->type.id = nf->field_type_id;
+        sf.type.kind = OAK_TYPE_KIND_ARRAY;
+        sf.type.id = nf->field_type_id;
       }
       else
-        sf->type.id = nf->field_type_id;
+        sf.type.id = nf->field_type_id;
+      oak_dynarr_push(&proto.fields,
+                      &proto.field_count,
+                      &proto.field_capacity,
+                      &sf,
+                      sizeof(sf));
     }
 
     oak_record_registry_insert(&c->records, &proto);

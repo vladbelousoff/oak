@@ -1,6 +1,8 @@
 #include "oak_type.h"
 
+#include "oak_dynarr.h"
 #include "oak_log.h"
+#include "oak_mem.h"
 #include "oak_str.h"
 
 #include <string.h>
@@ -25,29 +27,35 @@ static const struct oak_builtin_type_t builtin_types[] = {
 
 void oak_type_registry_init(struct oak_type_registry_t* reg)
 {
-  for (int i = 0; i < OAK_MAX_TYPES; ++i)
-  {
-    reg->entries[i].name = null;
-    reg->entries[i].len = 0;
-  }
+  oak_dynarr_init(&reg->entries, &reg->count, &reg->capacity);
 
   /* Slot 0 is OAK_TYPE_VOID; pre-register it so name lookup finds "void". */
-  reg->entries[OAK_TYPE_VOID].name = "void";
-  reg->entries[OAK_TYPE_VOID].len = 4;
-
-  /* Sequential builtins start at slot 1; count begins at 1 so the first
-   * intern'd id is OAK_TYPE_FIRST_USER once the built-ins are placed. */
-  reg->count = 1;
+  struct oak_type_entry_t void_entry = { .name = "void", .len = 4 };
+  oak_dynarr_push(
+      &reg->entries, &reg->count, &reg->capacity, &void_entry, sizeof(void_entry));
 
   for (int i = 0; i < OAK_BUILTIN_COUNT; ++i)
   {
     const struct oak_builtin_type_t* b = &builtin_types[i];
     oak_assert(b->id == reg->count);
-    reg->entries[b->id].name = b->name;
-    reg->entries[b->id].len = strlen(b->name);
-    reg->count++;
+    struct oak_type_entry_t entry = {
+      .name = b->name,
+      .len = strlen(b->name),
+    };
+    oak_dynarr_push(
+        &reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
   }
   oak_assert(reg->count == OAK_TYPE_FIRST_USER);
+  for (int i = reg->count; i < reg->capacity; ++i)
+  {
+    reg->entries[i].name = null;
+    reg->entries[i].len = 0;
+  }
+}
+
+void oak_type_registry_free(struct oak_type_registry_t* reg)
+{
+  oak_dynarr_free(&reg->entries, &reg->count, &reg->capacity);
 }
 
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
@@ -75,16 +83,33 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
   if (existing >= 0)
     return existing;
 
-  if (reg->count >= OAK_MAX_TYPES)
-    return -1;
-
   /* The pointer is borrowed from the source buffer (lexer arena outlives
    * compilation); the registry never frees it. */
-  const oak_type_id_t id = (oak_type_id_t)reg->count;
-  reg->entries[id].name = name;
-  reg->entries[id].len = len;
-  reg->count++;
+  struct oak_type_entry_t entry = { .name = name, .len = len };
+  oak_dynarr_push(&reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
+  const oak_type_id_t id = (oak_type_id_t)(reg->count - 1);
   return id;
+}
+
+static void oak_type_registry_ensure_slot(struct oak_type_registry_t* reg,
+                                          const oak_type_id_t id)
+{
+  if (id < reg->capacity)
+    return;
+
+  int new_capacity = reg->capacity < 8 ? 8 : reg->capacity;
+  while (id >= new_capacity)
+    new_capacity *= 2;
+
+  reg->entries = oak_realloc(reg->entries,
+                             (usize)new_capacity * sizeof(*reg->entries),
+                             OAK_SRC_LOC);
+  for (int i = reg->capacity; i < new_capacity; ++i)
+  {
+    reg->entries[i].name = null;
+    reg->entries[i].len = 0;
+  }
+  reg->capacity = new_capacity;
 }
 
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
@@ -94,13 +119,23 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
 {
   if (!name || len == 0)
     return -1;
-  if (id < OAK_TYPE_FIRST_USER || id >= OAK_MAX_TYPES)
+  if (id < OAK_TYPE_FIRST_USER)
     return -1;
 
   /* If already registered under the same name, return it. */
   const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
   if (existing >= 0)
     return existing == id ? existing : -1;
+
+  oak_type_registry_ensure_slot(reg, id);
+  if (id >= reg->count)
+  {
+    for (int i = reg->count; i <= id; ++i)
+    {
+      reg->entries[i].name = null;
+      reg->entries[i].len = 0;
+    }
+  }
 
   /* The target slot must be empty. */
   if (reg->entries[id].name != null)

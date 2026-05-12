@@ -10,12 +10,6 @@
 struct oak_module_registry_t;
 struct oak_module_t;
 
-/* Maximum number of fields a native type may expose to Oak. */
-#define OAK_BIND_MAX_FIELDS 32
-
-/* Maximum number of variants a native enum may expose to Oak. */
-#define OAK_BIND_MAX_ENUM_VARIANTS 64
-
 /* ---------- Kind discriminants ---------- */
 
 enum oak_bind_type_kind_t
@@ -91,8 +85,9 @@ struct oak_bind_type_t
    * Use this value as field_type_id or receiver_type_id when referencing
    * this type from another binding. */
   oak_type_id_t type_id;
-  struct oak_bind_field_t fields[OAK_BIND_MAX_FIELDS];
+  struct oak_bind_field_t* fields;
   int field_count;
+  int field_capacity;
   oak_bind_destructor_t destructor;
 };
 
@@ -142,8 +137,9 @@ struct oak_bind_enum_t
   usize module_name_len;
   const char* name;
   usize name_len;
-  struct oak_bind_enum_variant_t variants[OAK_BIND_MAX_ENUM_VARIANTS];
+  struct oak_bind_enum_variant_t* variants;
   int variant_count;
+  int variant_capacity;
 };
 
 /* ---------- Concrete dynamic-array types for compile options ---------- */
@@ -217,8 +213,7 @@ void oak_compile_options_free(struct oak_compile_options_t* opts);
  * opts->next_type_id, register it in opts, and return a pointer for
  * subsequent oak_bind_field calls.  The descriptor is owned by opts and
  * freed by oak_compile_options_free; do not free it separately.
- * Returns NULL if opts or name is NULL, or if the type-id space is
- * exhausted (max OAK_MAX_TYPES total types). */
+ * Returns NULL if opts or name is NULL. */
 struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
                                       enum oak_bind_type_kind_t kind,
                                       const char* name);
@@ -234,8 +229,7 @@ struct oak_bind_type_t* oak_bind_type_in_module(
  * `params` must not be NULL; it supplies name, field_type_id, getter, and
  * optional setter (same shape as struct oak_bind_field_t).  `name_len` in
  * params is ignored; it is set from `strlen(name)`.
- * Returns 0 on success, -1 if the field limit (OAK_BIND_MAX_FIELDS) is
- * reached or if a field with the same name already exists. */
+ * Returns 0 on success, -1 if a field with the same name already exists. */
 int oak_bind_field(struct oak_bind_type_t* type,
                    const struct oak_bind_field_t* params);
 
@@ -268,8 +262,8 @@ struct oak_bind_enum_t* oak_bind_enum_in_module(
 
 /* Append a variant to a native enum.  Variant values must be unique within
  * an enum is not enforced — they are forwarded as-is to Oak as integer
- * constants.  Returns 0 on success, -1 if the variant cap is reached or a
- * variant with the same name already exists in this enum. */
+ * constants.  Returns 0 on success, -1 if a variant with the same name
+ * already exists in this enum. */
 int oak_bind_enum_variant(struct oak_bind_enum_t* e,
                           const char* name,
                           int value);

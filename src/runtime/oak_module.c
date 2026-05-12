@@ -50,10 +50,18 @@ static void oak_module_free(struct oak_module_t* mod)
                   &mod->exports_fn.count,
                   &mod->exports_fn.capacity);
   oak_htable_free(&mod->exports_record.by_name);
+  for (int i = 0; i < mod->exports_record.count; ++i)
+    oak_dynarr_free(&mod->exports_record.items[i].fields,
+                    &mod->exports_record.items[i].field_count,
+                    &mod->exports_record.items[i].field_capacity);
   oak_dynarr_free(&mod->exports_record.items,
                   &mod->exports_record.count,
                   &mod->exports_record.capacity);
   oak_htable_free(&mod->exports_enum.by_name);
+  for (int i = 0; i < mod->exports_enum.count; ++i)
+    oak_dynarr_free(&mod->exports_enum.items[i].variants,
+                    &mod->exports_enum.items[i].variant_count,
+                    &mod->exports_enum.items[i].variant_capacity);
   oak_dynarr_free(&mod->exports_enum.items,
                   &mod->exports_enum.count,
                   &mod->exports_enum.capacity);

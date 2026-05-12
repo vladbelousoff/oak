@@ -88,8 +88,12 @@ void oakc_compile_while(struct oak_compiler_t* c,
     .loop_start = c->chunk->count,
     .exit_depth = c->scope.stack_depth,
     .continue_depth = c->scope.stack_depth,
+    .break_jumps = null,
     .break_count = 0,
+    .break_capacity = 0,
+    .continue_jumps = null,
     .continue_count = 0,
+    .continue_capacity = 0,
   };
 
   /* current_loop points at a stack-allocated frame; reset before return. */
@@ -99,6 +103,9 @@ void oakc_compile_while(struct oak_compiler_t* c,
   if (c->has_error)
   {
     c->scope.current_loop = loop.enclosing;
+    oak_dynarr_free(&loop.break_jumps, &loop.break_count, &loop.break_capacity);
+    oak_dynarr_free(
+        &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
     return;
   }
 
@@ -114,4 +121,7 @@ void oakc_compile_while(struct oak_compiler_t* c,
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
   c->scope.current_loop = loop.enclosing;
+  oak_dynarr_free(&loop.break_jumps, &loop.break_count, &loop.break_capacity);
+  oak_dynarr_free(
+      &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
 }

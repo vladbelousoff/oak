@@ -60,7 +60,9 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     proto.name = name;
     proto.name_len = name_len;
     proto.type_id = oak_type_registry_intern(&c->types, name, name_len);
+    proto.fields = null;
     proto.field_count = 0;
+    proto.field_capacity = 0;
 
     if (proto.type_id < 0)
     {
@@ -103,16 +105,6 @@ static int register_record_field_decls(struct oak_compiler_t* c,
       oak_compiler_error_at(c, err_ctx_token, "malformed record field");
       return 0;
     }
-    if (slot->field_count >= OAK_MAX_RECORD_FIELDS)
-    {
-      oak_compiler_error_at(c,
-                            fdecl->lhs->token,
-                            "too many fields in record '%s' (max %d)",
-                            record_name,
-                            OAK_MAX_RECORD_FIELDS);
-      return 0;
-    }
-
     const struct oak_ast_node_t* fname = fdecl->lhs;
     const struct oak_ast_node_t* ftype = fdecl->rhs;
     if (fname->kind != OAK_NODE_IDENT || ftype->kind != OAK_NODE_IDENT)
@@ -137,11 +129,17 @@ static int register_record_field_decls(struct oak_compiler_t* c,
       }
     }
 
-    struct oak_record_field_t* f = &slot->fields[slot->field_count++];
-    f->name = fn_name;
-    f->name_len = fn_len;
-    oak_type_clear(&f->type);
-    f->type.id = oakc_intern_type_tok(c, ftype->token);
+    struct oak_record_field_t f = {
+      .name = fn_name,
+      .name_len = fn_len,
+    };
+    oak_type_clear(&f.type);
+    f.type.id = oakc_intern_type_tok(c, ftype->token);
+    oak_dynarr_push(&slot->fields,
+                    &slot->field_count,
+                    &slot->field_capacity,
+                    &f,
+                    sizeof(f));
   }
   return 1;
 }

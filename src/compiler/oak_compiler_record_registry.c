@@ -13,6 +13,9 @@ void oak_record_registry_free(struct oak_record_registry_t* r)
   oak_htable_free(&r->by_name);
   for (int i = 0; i < r->entries.count; ++i)
   {
+    oak_dynarr_free(&r->entries.items[i].fields,
+                    &r->entries.items[i].field_count,
+                    &r->entries.items[i].field_capacity);
     oak_dynarr_free(&r->entries.items[i].methods.items,
                     &r->entries.items[i].methods.count,
                     &r->entries.items[i].methods.capacity);

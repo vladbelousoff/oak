@@ -59,7 +59,11 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     return;
   }
 
-  const struct oak_ast_node_t* exprs[OAK_MAX_RECORD_FIELDS] = { 0 };
+  const struct oak_ast_node_t** exprs =
+      oak_alloc((usize)sd->field_count * sizeof(*exprs), OAK_SRC_LOC);
+  for (int i = 0; i < sd->field_count; ++i)
+    exprs[i] = null;
+
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &fields_node->children)
   {
@@ -69,7 +73,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     {
       oak_compiler_error_at(
           c, entry->token, "malformed record field initializer");
-      return;
+      goto cleanup_exprs;
     }
     const struct oak_ast_node_t* fname = entry->lhs;
     /* Shorthand `{ foo }` desugars to `{ foo: foo }` — use the name node as
@@ -79,7 +83,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     {
       oak_compiler_error_at(
           c, fname->token, "record field name must be an identifier");
-      return;
+      goto cleanup_exprs;
     }
 
     const usize fname_len = oak_token_length(fname->token);
@@ -92,7 +96,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
                             "no such field '%s' on record '%s'",
                             oak_token_text(fname->token),
                             sd->name);
-      return;
+      goto cleanup_exprs;
     }
     if (exprs[idx])
     {
@@ -100,7 +104,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
                             fname->token,
                             "duplicate field '%s' in record literal",
                             oak_token_text(fname->token));
-      return;
+      goto cleanup_exprs;
     }
 
     struct oak_type_t got;
@@ -114,7 +118,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
           sd->fields[idx].name,
           oakc_type_full_name(c, sd->fields[idx].type),
           oakc_type_full_name(c, got));
-      return;
+      goto cleanup_exprs;
     }
 
     exprs[idx] = fexpr;
@@ -129,13 +133,14 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
                             "missing field '%s' in '%s' literal",
                             sd->fields[i].name,
                             sd->name);
-      return;
+      goto cleanup_exprs;
     }
   }
 
   {
-    const char* fptr[OAK_MAX_RECORD_FIELDS];
-    usize flen[OAK_MAX_RECORD_FIELDS];
+    const char** fptr =
+        oak_alloc((usize)sd->field_count * sizeof(*fptr), OAK_SRC_LOC);
+    usize* flen = oak_alloc((usize)sd->field_count * sizeof(*flen), OAK_SRC_LOC);
     for (int i = 0; i < sd->field_count; ++i)
     {
       fptr[i] = sd->fields[i].name;
@@ -147,8 +152,16 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     {
       oak_compiler_error_at(
           c, name_node->token, "internal error: could not add record layout");
-      return;
+      if (fptr)
+        oak_free(fptr, OAK_SRC_LOC);
+      if (flen)
+        oak_free(flen, OAK_SRC_LOC);
+      goto cleanup_exprs;
     }
+    if (fptr)
+      oak_free(fptr, OAK_SRC_LOC);
+    if (flen)
+      oak_free(flen, OAK_SRC_LOC);
 
     struct oak_obj_string_t* type_name_obj =
         oak_string_new(sd->name, sd->name_len);
@@ -160,7 +173,9 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     /* Track which source bindings each refcounted-typed initializer reads
      * from, so we can MOVE exclusive sources into the new record after
      * compilation. */
-    int src_idx_for_field[OAK_MAX_RECORD_FIELDS];
+    int* src_idx_for_field =
+        oak_alloc((usize)sd->field_count * sizeof(*src_idx_for_field),
+                  OAK_SRC_LOC);
     for (int i = 0; i < sd->field_count; ++i)
     {
       const struct oak_ast_node_t* fexpr = exprs[i];
@@ -175,7 +190,11 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     {
       oak_compiler_compile_node(c, exprs[i]);
       if (c->has_error)
-        return;
+      {
+        if (src_idx_for_field)
+          oak_free(src_idx_for_field, OAK_SRC_LOC);
+        goto cleanup_exprs;
+      }
     }
 
     /* Apply moves now that all initializer reads have been emitted. */
@@ -195,5 +214,11 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
                          OAK_ARG_U8((u8)sd->field_count),
                          OAK_ARG_U16((u16)layout_id));
     c->scope.stack_depth -= sd->field_count;
+    if (src_idx_for_field)
+      oak_free(src_idx_for_field, OAK_SRC_LOC);
   }
+
+cleanup_exprs:
+  if (exprs)
+    oak_free(exprs, OAK_SRC_LOC);
 }

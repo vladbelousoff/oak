@@ -2,6 +2,30 @@
 
 #include <string.h>
 
+void oak_trait_registry_init(struct oak_trait_registry_t* r)
+{
+  oak_dynarr_init(&r->traits, &r->trait_count, &r->trait_capacity);
+  oak_dynarr_init(&r->impls, &r->impl_count, &r->impl_capacity);
+}
+
+void oak_trait_registry_free(struct oak_trait_registry_t* r)
+{
+  for (int i = 0; i < r->trait_count; ++i)
+    oak_dynarr_free(&r->traits[i].methods,
+                    &r->traits[i].method_count,
+                    &r->traits[i].method_capacity);
+  oak_dynarr_free(&r->traits, &r->trait_count, &r->trait_capacity);
+
+  for (int i = 0; i < r->impl_count; ++i)
+  {
+    if (r->impls[i].vtable)
+      oak_free(r->impls[i].vtable, OAK_SRC_LOC);
+    r->impls[i].vtable = null;
+    r->impls[i].vtable_count = 0;
+  }
+  oak_dynarr_free(&r->impls, &r->impl_count, &r->impl_capacity);
+}
+
 /* ---------- Trait coercion emission ---------- */
 
 void oakc_emit_trait_coerce(struct oak_compiler_t* c,
@@ -88,23 +112,28 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
       return;
     }
 
-    if (c->traits.trait_count >= OAK_MAX_TRAITS)
-    {
-      oak_compiler_error_at(c, item->lhs->token, "too many traits (max %d)", OAK_MAX_TRAITS);
-      return;
-    }
+    struct oak_registered_trait_t proto = {
+      .name = tname,
+      .name_len = tname_len,
+      .trait_id = oak_type_registry_intern(&c->types, tname, tname_len),
+      .methods = null,
+      .method_count = 0,
+      .method_capacity = 0,
+    };
 
-    struct oak_registered_trait_t* tr = &c->traits.traits[c->traits.trait_count++];
-    tr->name = tname;
-    tr->name_len = tname_len;
-    tr->trait_id = oak_type_registry_intern(&c->types, tname, tname_len);
-    tr->method_count = 0;
-
-    if (tr->trait_id < 0)
+    if (proto.trait_id < 0)
     {
       oak_compiler_error_at(c, item->lhs->token, "type registry full");
       return;
     }
+
+    oak_dynarr_push(&c->traits.traits,
+                    &c->traits.trait_count,
+                    &c->traits.trait_capacity,
+                    &proto,
+                    sizeof(proto));
+    struct oak_registered_trait_t* tr =
+        &c->traits.traits[c->traits.trait_count - 1];
 
     /* Walk trait members — each must be a FN_DECL. */
     const struct oak_ast_node_t* members = item->rhs;
@@ -116,13 +145,6 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
           oak_container_of(mp, struct oak_ast_node_t, link);
       if (mdecl->kind != OAK_NODE_FN_DECL)
         continue;
-
-      if (tr->method_count >= OAK_MAX_TRAIT_METHODS)
-      {
-        oak_compiler_error_at(
-            c, mdecl->token, "too many methods in trait '%s'", tname);
-        return;
-      }
 
       const struct oak_ast_node_t* name_node = oakc_fn_name_node(mdecl);
       if (!name_node)
@@ -137,16 +159,21 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
       const struct oak_ast_node_t* self_p = oakc_fn_self_param(mdecl);
       const int total_arity = self_p ? explicit_arity + 1 : explicit_arity;
 
-      struct oak_trait_method_t* tm = &tr->methods[tr->method_count++];
-      tm->name = mname;
-      tm->name_len = mname_len;
-      tm->arity = total_arity;
-      tm->sig_decl = mdecl;
-
       /* If the body is a real BLOCK (not just ';'), record the decl for
        * later compilation as a default implementation. */
       const struct oak_ast_node_t* body = oakc_fn_block(mdecl);
-      tm->decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null;
+      struct oak_trait_method_t tm = {
+        .name = mname,
+        .name_len = mname_len,
+        .arity = total_arity,
+        .sig_decl = mdecl,
+        .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null,
+      };
+      oak_dynarr_push(&tr->methods,
+                      &tr->method_count,
+                      &tr->method_capacity,
+                      &tm,
+                      sizeof(tm));
     }
   }
 }
@@ -342,23 +369,28 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
 
   if (!impl)
   {
-    if (c->traits.impl_count >= OAK_MAX_TRAIT_IMPLS)
-    {
-      oak_compiler_error_at(c, null, "too many trait impls (max %d)", OAK_MAX_TRAIT_IMPLS);
-      return 0;
-    }
-    impl = &c->traits.impls[c->traits.impl_count++];
-    impl->trait_id = tr->trait_id;
-    impl->record_type_id = sd->type_id;
-    impl->vtable_built = 0;
+    struct oak_trait_impl_t proto = {
+      .trait_id = tr->trait_id,
+      .record_type_id = sd->type_id,
+      .vtable = oak_alloc((usize)tr->method_count * sizeof(u16), OAK_SRC_LOC),
+      .vtable_count = tr->method_count,
+      .vtable_array_const_idx = 0,
+      .vtable_built = 0,
+    };
 
     for (int i = 0; i < tr->method_count; ++i)
     {
       const struct oak_trait_method_t* tm = &tr->methods[i];
       const struct oak_registered_fn_t* sm =
           oakc_find_record_method(sd, tm->name, tm->name_len, 0);
-      impl->vtable[i] = sm ? sm->const_idx : 0;
+      proto.vtable[i] = sm ? sm->const_idx : 0;
     }
+    oak_dynarr_push(&c->traits.impls,
+                    &c->traits.impl_count,
+                    &c->traits.impl_capacity,
+                    &proto,
+                    sizeof(proto));
+    impl = &c->traits.impls[c->traits.impl_count - 1];
   }
 
   if (impl->vtable_built)
