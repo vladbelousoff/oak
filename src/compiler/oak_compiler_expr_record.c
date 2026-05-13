@@ -109,7 +109,8 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
 
     struct oak_type_t got;
     oakc_infer_type(c, fexpr, &got);
-    if (oak_type_is_known(&got) && !oak_type_equal(&sd->fields[idx].type, &got))
+    if (oak_type_is_known(&got) &&
+        !oakc_type_accepts(&sd->fields[idx].type, &got))
     {
       oak_compiler_error_at(
           c,
@@ -173,6 +174,18 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     for (int i = 0; i < sd->field_count; ++i)
     {
       oak_compiler_compile_node(c, exprs[i]);
+      if (c->has_error)
+        goto cleanup_exprs;
+      oakc_emit_trait_coerce(c,
+                             exprs[i],
+                             sd->fields[i].type,
+                             OAK_LOC_SYNTHETIC);
+      if (c->has_error)
+        goto cleanup_exprs;
+      oakc_emit_weak_coerce(c,
+                            exprs[i],
+                            sd->fields[i].type,
+                            OAK_LOC_SYNTHETIC);
       if (c->has_error)
         goto cleanup_exprs;
     }

@@ -117,6 +117,39 @@ OAK_TEST_DECL(TypeBindingAsFieldTypeOk)
                    "print(o.inner.z);\n");
 }
 
+OAK_TEST_DECL(WeakRecordFieldAndFnParamOk)
+{
+  return expect_ok("record Node { value : number; }\n"
+                   "record Link { target : Node weak; }\n"
+                   "fn read(target : Node weak) -> number {\n"
+                   "  return target.value;\n"
+                   "}\n"
+                   "let n = new Node { value : 7 };\n"
+                   "let l = new Link { target : n };\n"
+                   "print(read(n));\n"
+                   "print(l.target.value);\n");
+}
+
+OAK_TEST_DECL(WeakFieldDoesNotAcceptTemporaryFails)
+{
+  return expect_compile_error(
+      "record Node { value : number; }\n"
+      "record Link { target : Node weak; }\n"
+      "let l = new Link { target : new Node { value : 1 } };\n");
+}
+
+OAK_TEST_DECL(WeakValueDoesNotPassToStrongParamFails)
+{
+  return expect_compile_error("record Node { value : number; }\n"
+                              "record Link { target : Node weak; }\n"
+                              "fn read(target : Node) -> number {\n"
+                              "  return target.value;\n"
+                              "}\n"
+                              "let n = new Node { value : 7 };\n"
+                              "let l = new Link { target : n };\n"
+                              "print(read(l.target));\n");
+}
+
 /* Providing a record of the wrong type for a record-typed field is rejected. */
 OAK_TEST_DECL(TypeBindingWrongStructFieldTypeFails)
 {
@@ -206,6 +239,9 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(TypeBindingInReturnTypeOk),
     /* type binding as field type */
     OAK_TEST_ENTRY(TypeBindingAsFieldTypeOk),
+    OAK_TEST_ENTRY(WeakRecordFieldAndFnParamOk),
+    OAK_TEST_ENTRY(WeakFieldDoesNotAcceptTemporaryFails),
+    OAK_TEST_ENTRY(WeakValueDoesNotPassToStrongParamFails),
     OAK_TEST_ENTRY(TypeBindingWrongStructFieldTypeFails),
     OAK_TEST_ENTRY(TypeBindingDeepNestingOk),
     /* record literal value type mismatch */

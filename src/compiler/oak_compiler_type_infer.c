@@ -88,29 +88,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
       const struct oak_ast_node_t* type_node = expr->rhs;
       if (!type_node)
         return;
-      if (type_node->kind == OAK_NODE_TYPE_ARRAY)
-      {
-        const struct oak_ast_node_t* elem = type_node->child;
-        if (!elem || elem->kind != OAK_NODE_IDENT)
-          return;
-        out->id = oakc_intern_type_tok(c, elem->token);
-        out->kind = OAK_TYPE_KIND_ARRAY;
-        return;
-      }
-      if (type_node->kind == OAK_NODE_TYPE_MAP)
-      {
-        const struct oak_ast_node_t* key = type_node->lhs;
-        const struct oak_ast_node_t* val = type_node->rhs;
-        if (!key || !val || key->kind != OAK_NODE_IDENT ||
-            val->kind != OAK_NODE_IDENT)
-          return;
-        out->key_id = oakc_intern_type_tok(c, key->token);
-        out->id = oakc_intern_type_tok(c, val->token);
-        out->kind = OAK_TYPE_KIND_MAP;
-        return;
-      }
-      if (type_node->kind == OAK_NODE_IDENT)
-        out->id = oakc_intern_type_tok(c, type_node->token);
+      oakc_lower_type_node(c, type_node, out);
       return;
     }
     case OAK_NODE_EXPR_ARRAY_LITERAL:
@@ -269,14 +247,21 @@ const char* oakc_type_full_name(struct oak_compiler_t* c,
   {
     snprintf(buf,
              128,
-             "[%s:%s]",
+             "[%s:%s]%s",
              oak_type_registry_name(&c->types, t.key_id),
-             oak_type_registry_name(&c->types, t.id));
+             oak_type_registry_name(&c->types, t.id),
+             t.is_weak ? " weak" : "");
     return buf;
   }
   if (t.kind == OAK_TYPE_KIND_ARRAY)
   {
-    snprintf(buf, 128, "%s[]", oakc_type_kind_name(c, t));
+    snprintf(buf, 128, "%s[]%s", oakc_type_kind_name(c, t),
+             t.is_weak ? " weak" : "");
+    return buf;
+  }
+  if (t.is_weak)
+  {
+    snprintf(buf, 128, "%s weak", oakc_type_kind_name(c, t));
     return buf;
   }
   return oakc_type_kind_name(c, t);

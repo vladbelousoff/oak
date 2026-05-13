@@ -9,6 +9,20 @@ void oakc_compile_call_arg(struct oak_compiler_t* c,
     oak_compiler_compile_node(c, arg);
 }
 
+void oakc_compile_call_arg_for_type(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* arg,
+                                    struct oak_type_t want,
+                                    struct oak_code_loc_t loc)
+{
+  oakc_compile_call_arg(c, arg);
+  const struct oak_ast_node_t* expr =
+      arg->kind == OAK_NODE_FN_CALL_ARG ? arg->child : arg;
+  oakc_emit_trait_coerce(c, expr, want, loc);
+  if (c->has_error)
+    return;
+  oakc_emit_weak_coerce(c, expr, want, loc);
+}
+
 /* Children: callee, then each argument. */
 void oak_compiler_compile_call_args_after_callee(struct oak_compiler_t* c,
                                                  const struct oak_ast_node_t* call)

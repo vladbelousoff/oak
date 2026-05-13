@@ -61,6 +61,7 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
     { "return", OAK_TOKEN_RETURN }, { "self", OAK_TOKEN_SELF },
     { "record", OAK_TOKEN_RECORD }, { "to", OAK_TOKEN_TO },
     { "trait", OAK_TOKEN_TRAIT },   { "impl", OAK_TOKEN_IMPL },
+    { "weak", OAK_TOKEN_WEAK },
     { "true", OAK_TOKEN_TRUE },     { "while", OAK_TOKEN_WHILE },
   };
 
@@ -200,6 +201,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "TRAIT";
     case OAK_TOKEN_IMPL:
       return "IMPL";
+    case OAK_TOKEN_WEAK:
+      return "WEAK";
     case OAK_TOKEN_AT:
       return "@";
     default:

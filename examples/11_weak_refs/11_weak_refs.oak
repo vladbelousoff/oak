@@ -1,0 +1,22 @@
+record Person {
+  name : string;
+}
+
+record Badge {
+  label : string;
+  holder : Person weak;
+}
+
+fn printHolder(holder : Person weak) {
+  print(holder.name);
+}
+
+let ada = new Person { name : 'Ada' };
+let badge = new Badge {
+  label : 'compiler team',
+  holder : ada
+};
+
+print(badge.label);
+printHolder(ada);
+print(badge.holder.name);

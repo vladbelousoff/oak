@@ -116,7 +116,7 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
       return;
     }
     if (oak_type_is_known(&val_ty) &&
-        !oak_type_equal(&sd->fields[idx].type, &val_ty))
+        !oakc_type_accepts(&sd->fields[idx].type, &val_ty))
     {
       oak_compiler_error_at(
           c,
@@ -134,6 +134,18 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
 
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, rhs);
+    oakc_emit_trait_coerce(c,
+                           rhs,
+                           sd->fields[idx].type,
+                           oak_compiler_loc_from_token(fname->token));
+    if (c->has_error)
+      return;
+    oakc_emit_weak_coerce(c,
+                          rhs,
+                          sd->fields[idx].type,
+                          oak_compiler_loc_from_token(fname->token));
+    if (c->has_error)
+      return;
     oak_compiler_emit_op(c,
                          OAK_OP_SET_FIELD,
                          oak_compiler_loc_from_token(fname->token),

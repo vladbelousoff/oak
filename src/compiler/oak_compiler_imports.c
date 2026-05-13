@@ -91,6 +91,7 @@ void register_imported_records(struct oak_compiler_t* c)
             oak_type_registry_intern(&c->types,
                                      exp->fields[fi].type_name,
                                      exp->fields[fi].type_name_len);
+        field.type.is_weak = exp->fields[fi].is_weak;
         oak_dynarr_push(&proto.fields,
                         &proto.field_count,
                         &proto.field_capacity,
@@ -150,6 +151,7 @@ void populate_module_exports(struct oak_compiler_t* c)
       struct oak_module_export_record_field_t field = {
         .name = r->fields[fi].name,
         .name_len = r->fields[fi].name_len,
+        .is_weak = r->fields[fi].type.is_weak,
       };
       /* Resolve type_id back to a name via the type registry so the importing
        * module can re-intern it using its own registry. */

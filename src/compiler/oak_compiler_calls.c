@@ -64,8 +64,8 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* arg =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    oakc_compile_call_arg(c, arg);
 
+    int compiled = 0;
     if (entry->decl)
     {
       const struct oak_ast_node_t* param = oakc_fn_param_at(entry->decl, arg_idx);
@@ -76,14 +76,15 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
         {
           struct oak_type_t want;
           oakc_lower_type_node(c, type_node, &want);
-          const struct oak_ast_node_t* arg_expr =
-              arg->kind == OAK_NODE_FN_CALL_ARG ? arg->child : arg;
-          oakc_emit_trait_coerce(c, arg_expr, want, call_loc);
+          oakc_compile_call_arg_for_type(c, arg, want, call_loc);
+          compiled = 1;
           if (c->has_error)
             return;
         }
       }
     }
+    if (!compiled)
+      oakc_compile_call_arg(c, arg);
   }
 
   oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)argc));

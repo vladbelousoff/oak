@@ -142,7 +142,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
     }
     const struct oak_ast_node_t* fname = fdecl->lhs;
     const struct oak_ast_node_t* ftype = fdecl->rhs;
-    if (fname->kind != OAK_NODE_IDENT || ftype->kind != OAK_NODE_IDENT)
+    if (fname->kind != OAK_NODE_IDENT)
     {
       oak_compiler_error_at(
           c, fdecl->lhs->token, "record field must be 'name : type'");
@@ -169,7 +169,16 @@ static int register_record_field_decls(struct oak_compiler_t* c,
       .name_len = fn_len,
     };
     oak_type_clear(&f.type);
-    f.type.id = oakc_intern_type_tok(c, ftype->token);
+    oakc_lower_type_node(c, ftype, &f.type);
+    if (c->has_error)
+      return 0;
+    if (!oak_type_is_known(&f.type))
+    {
+      oak_compiler_error_at(
+          c, ftype->token ? ftype->token : fname->token,
+          "record field must be 'name : type'");
+      return 0;
+    }
     oak_dynarr_push(&slot->fields,
                     &slot->field_count,
                     &slot->field_capacity,

@@ -33,7 +33,7 @@ void oakc_emit_trait_coerce(struct oak_compiler_t* c,
                             struct oak_type_t want,
                             struct oak_code_loc_t loc)
 {
-  if (want.kind != OAK_TYPE_KIND_TRAIT)
+  if (want.kind != OAK_TYPE_KIND_TRAIT || want.is_weak)
     return;
 
   const struct oak_registered_trait_t* tr =
@@ -81,6 +81,34 @@ void oakc_emit_trait_coerce(struct oak_compiler_t* c,
     return;
   oak_compiler_emit_op(c, OAK_OP_MAKE_TRAIT_OBJECT, loc,
                        OAK_ARG_U16(vtable_idx));
+}
+
+void oakc_emit_weak_coerce(struct oak_compiler_t* c,
+                           const struct oak_ast_node_t* arg_expr,
+                           struct oak_type_t want,
+                           struct oak_code_loc_t loc)
+{
+  if (!want.is_weak)
+    return;
+
+  struct oak_type_t got;
+  oakc_infer_type(c, arg_expr, &got);
+  if (!oak_type_is_known(&got) || got.is_weak)
+    return;
+
+  if (!oak_type_equal_base(&want, &got))
+    return;
+
+  if (!oakc_expr_is_reference_place(c, arg_expr))
+  {
+    oak_compiler_error_at(
+        c,
+        arg_expr ? arg_expr->token : null,
+        "cannot create weak reference from a temporary value");
+    return;
+  }
+
+  oak_compiler_emit_op(c, OAK_OP_WEAKEN, loc);
 }
 
 /* ---------- Trait registration ---------- */

@@ -66,6 +66,7 @@ enum oak_token_kind_t
   OAK_TOKEN_IMPORT,
   OAK_TOKEN_TRAIT,
   OAK_TOKEN_IMPL,
+  OAK_TOKEN_WEAK,
   OAK_TOKEN_AT,
 };
 

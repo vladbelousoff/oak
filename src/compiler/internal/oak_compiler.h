@@ -97,11 +97,17 @@ int oakc_ident_local(const struct oak_compiler_t* c,
 int oakc_place_root_local(const struct oak_compiler_t* c,
                                             const struct oak_ast_node_t* expr);
 
+int oakc_expr_is_reference_place(const struct oak_compiler_t* c,
+                                 const struct oak_ast_node_t* expr);
+
 /* ---------- oak_compiler_types.c ---------- */
 
 void oakc_lower_type_node(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* type_node,
                                     struct oak_type_t* out);
+
+int oakc_type_accepts(const struct oak_type_t* want,
+                      const struct oak_type_t* got);
 
 /* Fails compilation if the expression is typed as void (e.g. call to a void
  * fn). No-op for null or not-yet-inferrable types. */
@@ -233,6 +239,11 @@ void oakc_emit_trait_coerce(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* arg_expr,
                             struct oak_type_t want,
                             struct oak_code_loc_t loc);
+
+void oakc_emit_weak_coerce(struct oak_compiler_t* c,
+                           const struct oak_ast_node_t* arg_expr,
+                           struct oak_type_t want,
+                           struct oak_code_loc_t loc);
 
 /* ---------- oak_compiler_record_registry.c ---------- */
 
@@ -402,6 +413,11 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
 
 void oakc_compile_call_arg(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* arg);
+
+void oakc_compile_call_arg_for_type(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* arg,
+                                    struct oak_type_t want,
+                                    struct oak_code_loc_t loc);
 
 void oak_compiler_compile_call_args_after_callee(struct oak_compiler_t* c,
                                                  const struct oak_ast_node_t* call);

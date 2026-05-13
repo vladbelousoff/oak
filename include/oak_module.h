@@ -43,6 +43,7 @@ struct oak_module_export_record_field_t
    * and lives for the module's lifetime. */
   const char* type_name;
   usize type_name_len;
+  int is_weak;
 };
 
 /* Per-method metadata for bodyless native stub methods that carry attributes.

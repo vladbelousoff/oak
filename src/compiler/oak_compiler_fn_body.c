@@ -34,7 +34,7 @@ void oakc_compile_return(struct oak_compiler_t* c,
       struct oak_type_t got;
       oakc_infer_type(c, expr, &got);
       if (oak_type_is_known(&got) &&
-          !oak_type_equal(&c->scope.declared_return_type, &got))
+          !oakc_type_accepts(&c->scope.declared_return_type, &got))
       {
         oak_compiler_error_at(
             c,
@@ -45,6 +45,18 @@ void oakc_compile_return(struct oak_compiler_t* c,
       }
     }
     oak_compiler_compile_node(c, expr);
+    if (c->has_error)
+      return;
+    oakc_emit_trait_coerce(c,
+                           expr,
+                           c->scope.declared_return_type,
+                           OAK_LOC_SYNTHETIC);
+    if (c->has_error)
+      return;
+    oakc_emit_weak_coerce(c,
+                          expr,
+                          c->scope.declared_return_type,
+                          OAK_LOC_SYNTHETIC);
     if (c->has_error)
       return;
     oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);

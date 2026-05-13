@@ -37,7 +37,7 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX(
       "let mut if else while for in break continue return true false and or not "
-      "fn record enum import as from to new self");
+      "fn record enum import as from to new self weak");
 
   static struct oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_LET, .line = 1, .column = 1, .offset = 1 },
@@ -64,6 +64,7 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
     { .kind = OAK_TOKEN_TO, .line = 1, .column = 104, .offset = 104 },
     { .kind = OAK_TOKEN_NEW, .line = 1, .column = 107, .offset = 107 },
     { .kind = OAK_TOKEN_SELF, .line = 1, .column = 111, .offset = 111 },
+    { .kind = OAK_TOKEN_WEAK, .line = 1, .column = 116, .offset = 116 },
   };
 
   const enum oak_test_status_t result =

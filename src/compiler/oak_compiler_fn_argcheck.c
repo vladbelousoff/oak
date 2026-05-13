@@ -67,7 +67,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
 
     /* Structural trait coercion: a concrete record satisfying the trait is
      * accepted without an exact type match. */
-    if (want.kind == OAK_TYPE_KIND_TRAIT)
+    if (want.kind == OAK_TYPE_KIND_TRAIT && !want.is_weak)
     {
       const struct oak_registered_trait_t* tr =
           oakc_trait_find_by_id(&c->traits, want.id);
@@ -101,7 +101,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       }
     }
 
-    if (!oak_type_equal(&want, &got))
+    if (!oakc_type_accepts(&want, &got))
     {
       const struct oak_token_t* err_tok =
           arg_expr_error_token(arg_expr, arg_wrap);

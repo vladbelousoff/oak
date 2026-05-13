@@ -78,7 +78,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
         {
           const struct oak_ast_node_t* _arg =
               oak_container_of(_p, struct oak_ast_node_t, link);
-          oakc_compile_call_arg(c, _arg);
+          int _compiled = 0;
           if (sm->decl)
           {
             const struct oak_ast_node_t* _param =
@@ -91,14 +91,15 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
               {
                 struct oak_type_t _want;
                 oakc_lower_type_node(c, _tnode, &_want);
-                const struct oak_ast_node_t* _expr =
-                    _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
-                oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+                oakc_compile_call_arg_for_type(c, _arg, _want, call_loc);
+                _compiled = 1;
                 if (c->has_error)
                   return;
               }
             }
           }
+          if (!_compiled)
+            oakc_compile_call_arg(c, _arg);
         }
       }
       oak_compiler_emit_op(
@@ -186,7 +187,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
             {
               const struct oak_ast_node_t* _arg =
                   oak_container_of(_p, struct oak_ast_node_t, link);
-              oakc_compile_call_arg(c, _arg);
+              int _compiled = 0;
               if (sm->decl)
               {
                 const struct oak_ast_node_t* _param =
@@ -199,14 +200,15 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                   {
                     struct oak_type_t _want;
                     oakc_lower_type_node(c, _tnode, &_want);
-                    const struct oak_ast_node_t* _expr =
-                        _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
-                    oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+                    oakc_compile_call_arg_for_type(c, _arg, _want, call_loc);
+                    _compiled = 1;
                     if (c->has_error)
                       return;
                   }
                 }
               }
+              if (!_compiled)
+                oakc_compile_call_arg(c, _arg);
             }
           }
           oak_compiler_emit_op(
@@ -333,7 +335,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
           {
             const struct oak_ast_node_t* _arg =
                 oak_container_of(_p, struct oak_ast_node_t, link);
-            oakc_compile_call_arg(c, _arg);
+            int _compiled = 0;
             if (sm->decl)
             {
               const struct oak_ast_node_t* _param =
@@ -346,14 +348,15 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                 {
                   struct oak_type_t _want;
                   oakc_lower_type_node(c, _tnode, &_want);
-                  const struct oak_ast_node_t* _expr =
-                      _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
-                  oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+                  oakc_compile_call_arg_for_type(c, _arg, _want, call_loc);
+                  _compiled = 1;
                   if (c->has_error)
                     return;
                 }
               }
             }
+            if (!_compiled)
+              oakc_compile_call_arg(c, _arg);
           }
         }
         oak_compiler_emit_op(

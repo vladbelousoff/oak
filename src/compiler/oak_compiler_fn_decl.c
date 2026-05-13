@@ -110,7 +110,8 @@ oakc_fn_param_type_node(const struct oak_ast_node_t* param)
       }
       return ch;
     }
-    if (ch->kind == OAK_NODE_TYPE_ARRAY || ch->kind == OAK_NODE_TYPE_MAP)
+    if (ch->kind == OAK_NODE_TYPE_ARRAY || ch->kind == OAK_NODE_TYPE_MAP ||
+        ch->kind == OAK_NODE_TYPE_WEAK)
       return ch;
   }
   return null;

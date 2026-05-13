@@ -76,6 +76,7 @@ OAK_TEST_DECL(ParseFunctionsRecordsEnumsAndModules)
                      "record Task {\n"
                      "  title : string;\n"
                      "  points : number;\n"
+                     "  parent : Task weak;\n"
                      "}\n"
                      "fn Task.finish(mut self) { self.points = 0; }\n"
                      "fn Task.label(self) -> string { return self.title; }\n"

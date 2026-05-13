@@ -272,6 +272,7 @@ static u32 hash_value(const struct oak_value_t v)
       }
       return (u32)oak_as_i32(v) * 2654435761u;
     case OAK_VAL_OBJ:
+    case OAK_VAL_WEAK_OBJ:
       if (oak_is_string(v))
         return oak_as_string(v)->hash;
       return (u32)(uintptr_t)oak_as_obj(v) * 2654435761u;
@@ -477,6 +478,25 @@ int oak_is_truthy(const struct oak_value_t value)
 
 int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
 {
+  if (oak_is_obj(a) && oak_is_obj(b))
+  {
+    if (oak_is_string(a) && oak_is_string(b))
+    {
+      const struct oak_obj_string_t* str_a = oak_as_string(a);
+      const struct oak_obj_string_t* str_b = oak_as_string(b);
+      if (str_a->length != str_b->length)
+        return 0;
+      if (str_a->hash != str_b->hash)
+        return 0;
+      return memcmp(str_a->chars, str_b->chars, str_a->length) == 0;
+    }
+    if (oak_is_fn(a) && oak_is_fn(b))
+      return oak_as_obj(a) == oak_as_obj(b);
+    if (oak_is_native_fn(a) && oak_is_native_fn(b))
+      return oak_as_obj(a) == oak_as_obj(b);
+    return oak_as_obj(a) == oak_as_obj(b);
+  }
+
   if (a.type != b.type)
     return 0;
 
@@ -491,21 +511,8 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
         return oak_as_f32(a) == oak_as_f32(b);
       return oak_as_i32(a) == oak_as_i32(b);
     case OAK_VAL_OBJ:
-      if (oak_is_string(a) && oak_is_string(b))
-      {
-        const struct oak_obj_string_t* str_a = oak_as_string(a);
-        const struct oak_obj_string_t* str_b = oak_as_string(b);
-        if (str_a->length != str_b->length)
-          return 0;
-        if (str_a->hash != str_b->hash)
-          return 0;
-        return memcmp(str_a->chars, str_b->chars, str_a->length) == 0;
-      }
-      if (oak_is_fn(a) && oak_is_fn(b))
-        return oak_as_obj(a) == oak_as_obj(b);
-      if (oak_is_native_fn(a) && oak_is_native_fn(b))
-        return oak_as_obj(a) == oak_as_obj(b);
-      return oak_as_obj(a) == oak_as_obj(b);
+    case OAK_VAL_WEAK_OBJ:
+      return 0;
   }
 
   return 0;

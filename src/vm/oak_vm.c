@@ -58,6 +58,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_POP_N:
       case OAK_OP_GET_LOCAL:
       case OAK_OP_SET_LOCAL:
+      case OAK_OP_WEAKEN:
       case OAK_OP_INC_LOCAL:
       case OAK_OP_DEC_LOCAL:
       {

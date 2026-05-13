@@ -22,6 +22,7 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_POP_N] = { "OP_POP_N", OAK_OP_FMT_ARGC, 0 },
   [OAK_OP_GET_LOCAL] = { "OP_GET_LOCAL", OAK_OP_FMT_SLOT, 1 },
   [OAK_OP_SET_LOCAL] = { "OP_SET_LOCAL", OAK_OP_FMT_SLOT, -1 },
+  [OAK_OP_WEAKEN] = { "OP_WEAKEN", OAK_OP_FMT_NONE, 0 },
   [OAK_OP_INC_LOCAL] = { "OP_INC_LOCAL", OAK_OP_FMT_SLOT, 0 },
   [OAK_OP_DEC_LOCAL] = { "OP_DEC_LOCAL", OAK_OP_FMT_SLOT, 0 },
   [OAK_OP_BINARY] = { "OP_BINARY", OAK_OP_FMT_BINOP, -1 },

@@ -20,6 +20,8 @@ enum oak_opcode_t
   OAK_OP_POP_N,
   OAK_OP_GET_LOCAL,
   OAK_OP_SET_LOCAL,
+  /* Converts the top stack value to a non-owning weak reference. */
+  OAK_OP_WEAKEN,
   OAK_OP_INC_LOCAL,
   OAK_OP_DEC_LOCAL,
   /* Binary arithmetic / comparison / equality. The operation is encoded in

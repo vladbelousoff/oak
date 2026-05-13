@@ -66,6 +66,21 @@ enum oak_vm_result_t vm_stack_dispatch(struct oak_vm_t* vm,
       oak_value_decref(old_val);
       break;
     }
+    case OAK_OP_WEAKEN:
+    {
+      oak_assert(vm->sp > vm->stack);
+      const struct oak_value_t value = vm->sp[-1];
+      if (!oak_is_obj(value))
+      {
+        oak_vm_runtime_error(
+            vm, "weak reference requires an object, got %s",
+            oak_vm_value_kind_desc(value));
+        return OAK_VM_RUNTIME_ERROR;
+      }
+      vm->sp[-1] = oak_value_weaken(value);
+      oak_value_decref(value);
+      break;
+    }
     case OAK_OP_INC_LOCAL:
     case OAK_OP_DEC_LOCAL:
     {

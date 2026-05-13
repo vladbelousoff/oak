@@ -219,13 +219,13 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_RECORD_FIELD_DECL | OAK_RULE_REPEAT,
     },
   },
-  // RECORD_FIELD_DECL -> IDENT ':' IDENT ';'
+  // RECORD_FIELD_DECL -> IDENT ':' TYPE_NAME ';'
   [OAK_NODE_RECORD_FIELD_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_NODE_IDENT,
       OAK_TOKEN_COLON | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT,
+      OAK_NODE_TYPE_NAME,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
@@ -247,8 +247,25 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
     },
   },
-  // TYPE_NAME -> TYPE_ARRAY | TYPE_MAP | IDENT
+  // TYPE_NAME -> TYPE_WEAK | TYPE_ARRAY | TYPE_MAP | IDENT
   [OAK_NODE_TYPE_NAME] = {
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_TYPE_WEAK,
+      OAK_NODE_TYPE_ARRAY,
+      OAK_NODE_TYPE_MAP,
+      OAK_NODE_IDENT,
+    },
+  },
+  // TYPE_WEAK -> (TYPE_ARRAY | TYPE_MAP | IDENT) 'weak'
+  [OAK_NODE_TYPE_WEAK] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_NODE_TYPE_WEAK_BASE,
+      OAK_TOKEN_WEAK | OAK_RULE_TOKEN,
+    },
+  },
+  [OAK_NODE_TYPE_WEAK_BASE] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_TYPE_ARRAY,

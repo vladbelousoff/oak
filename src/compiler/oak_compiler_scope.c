@@ -118,6 +118,12 @@ int oakc_place_root_local(const struct oak_compiler_t* c,
   return oakc_ident_local(c, expr);
 }
 
+int oakc_expr_is_reference_place(const struct oak_compiler_t* c,
+                                 const struct oak_ast_node_t* expr)
+{
+  return oakc_place_root_local(c, expr) >= 0;
+}
+
 int oakc_compile_assign_target(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* lhs,
                                        const char* non_ident_msg)

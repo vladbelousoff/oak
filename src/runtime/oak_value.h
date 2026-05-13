@@ -10,6 +10,7 @@ enum oak_value_type_t
   OAK_VAL_BOOL,
   OAK_VAL_NUMBER,
   OAK_VAL_OBJ,
+  OAK_VAL_WEAK_OBJ,
 };
 
 enum oak_obj_type_t
@@ -244,6 +245,12 @@ struct oak_obj_native_fn_t
       .as.obj = (struct oak_obj_t*)(_obj),                                     \
   })
 
+#define OAK_VALUE_WEAK_OBJ(_obj)                                               \
+  ((struct oak_value_t){                                                       \
+      .type = OAK_VAL_WEAK_OBJ,                                                \
+      .as.obj = (struct oak_obj_t*)(_obj),                                     \
+  })
+
 struct oak_obj_string_t* oak_string_new(const char* chars, usize length);
 
 struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
@@ -301,7 +308,12 @@ static inline int oak_is_number(const struct oak_value_t value)
 
 static inline int oak_is_obj(const struct oak_value_t value)
 {
-  return value.type == OAK_VAL_OBJ;
+  return value.type == OAK_VAL_OBJ || value.type == OAK_VAL_WEAK_OBJ;
+}
+
+static inline int oak_is_weak_obj(const struct oak_value_t value)
+{
+  return value.type == OAK_VAL_WEAK_OBJ;
 }
 
 static inline int oak_is_string(const struct oak_value_t value)
@@ -446,14 +458,21 @@ void oak_obj_decref(struct oak_obj_t* obj);
 
 static inline void oak_value_incref(const struct oak_value_t value)
 {
-  if (oak_is_obj(value))
+  if (value.type == OAK_VAL_OBJ)
     oak_obj_incref(value.as.obj);
 }
 
 static inline void oak_value_decref(const struct oak_value_t value)
 {
-  if (oak_is_obj(value))
+  if (value.type == OAK_VAL_OBJ)
     oak_obj_decref(value.as.obj);
+}
+
+static inline struct oak_value_t oak_value_weaken(const struct oak_value_t value)
+{
+  if (oak_is_obj(value))
+    return OAK_VALUE_WEAK_OBJ(value.as.obj);
+  return value;
 }
 
 /* Returns an Oak string representing the value.

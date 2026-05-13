@@ -213,6 +213,10 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "STMT_MOD_ASSIGN";
     case OAK_NODE_MEMBER_ACCESS:
       return "MEMBER_ACCESS";
+    case OAK_NODE_TYPE_WEAK:
+      return "TYPE_WEAK";
+    case OAK_NODE_TYPE_WEAK_BASE:
+      return "TYPE_WEAK_BASE";
     case OAK_NODE_TYPE_ARRAY:
       return "TYPE_ARRAY";
     case OAK_NODE_TYPE_MAP:
