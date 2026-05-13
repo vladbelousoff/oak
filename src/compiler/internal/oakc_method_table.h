@@ -27,6 +27,7 @@ struct oak_method_binding_t
   int total_arity;
   /* Compile-time return type of this method (always a built-in id). */
   oak_type_id_t return_type_id;
+  int mutates_receiver;
   /* Optional. Called after arity is verified, before bytecode is emitted. */
   oak_method_validate_args_fn validate_args;
 };
@@ -59,6 +60,7 @@ struct oak_builtin_method_def_t
   /* Total arity, including the implicit receiver. */
   int total_arity;
   oak_type_id_t return_type_id;
+  int mutates_receiver;
   oak_method_validate_args_fn validate_args;
 };
 

@@ -76,6 +76,13 @@ int oakc_compile_assign_target(struct oak_compiler_t* c,
 int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* expr);
 
+int oakc_reject_immutable_ref_for_mutable_storage(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* expr,
+    struct oak_type_t ty,
+    const struct oak_token_t* err_tok,
+    const char* target);
+
 /* Returns the local-table index (NOT slot) of the local with the given slot,
  * or -1 if no such local is in scope. */
 int oakc_local_at_slot(const struct oak_compiler_t* c, int slot);
@@ -357,7 +364,7 @@ void oakc_check_method_args(
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* m);
 
-/* Validate argument types and aliasing directly against an AST decl node.
+/* Validate argument types directly against an AST decl node.
  * Used for virtual dispatch where only the trait sig_decl is available. */
 void oakc_check_args_against_decl(struct oak_compiler_t* c,
                                    const struct oak_ast_node_t* call,

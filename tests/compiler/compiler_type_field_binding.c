@@ -137,8 +137,8 @@ OAK_TEST_DECL(FieldAssignStringOk)
                    "print(n.label);\n");
 }
 
-/* Chained field assignment is rejected at compile time to prevent mutation of
- * potentially shared record references. */
+/* Chained field assignment is rejected when it would mutate through an
+ * immutable reference stored in a mutable record. */
 OAK_TEST_DECL(FieldAssignChainedFails)
 {
   return expect_compile_error("record Inner { v : number; }\n"
@@ -159,18 +159,16 @@ OAK_TEST_DECL(FieldAssignChainedBypassesConstFails)
                               "bar.foo.abc = 100;\n");
 }
 
-/* Even when intermediate records are constructed inline (no immutable name in
- * the chain to trigger the literal-time check), a chained field assignment is
- * still rejected — the assignment itself is the rule, not the source binding.
- */
-OAK_TEST_DECL(FieldAssignChainedInlineLiteralFails)
+/* Chained field assignment is allowed when the chain is rooted at a mutable
+ * binding and does not contain immutable references. */
+OAK_TEST_DECL(FieldAssignChainedInlineLiteralOk)
 {
-  return expect_compile_error("record A { n : number; }\n"
-                              "record B { a : A; }\n"
-                              "record C { b : B; }\n"
-                              "let a = new A { n : 123 };\n"
-                              "let mut c = new C { b : new B { a } };\n"
-                              "c.b.a.n = 100;\n");
+  return expect_ok(
+      "record A { n : number; }\n"
+      "record B { a : A; }\n"
+      "record C { b : B; }\n"
+      "let mut c = new C { b : new B { a : new A { n : 123 } } };\n"
+      "c.b.a.n = 100;\n");
 }
 
 /* =========================================================================
@@ -282,7 +280,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(FieldAssignStringOk),
     OAK_TEST_ENTRY(FieldAssignChainedFails),
     OAK_TEST_ENTRY(FieldAssignChainedBypassesConstFails),
-    OAK_TEST_ENTRY(FieldAssignChainedInlineLiteralFails),
+    OAK_TEST_ENTRY(FieldAssignChainedInlineLiteralOk),
     /* field assignment — type mismatch */
     OAK_TEST_ENTRY(FieldAssignStringToNumberFails),
     OAK_TEST_ENTRY(FieldAssignNumberToStringFails),

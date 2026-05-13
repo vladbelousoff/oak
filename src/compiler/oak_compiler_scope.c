@@ -46,8 +46,6 @@ void oak_compiler_add_local(struct oak_compiler_t* c,
   local->is_mutable = is_mutable;
   local->depth = c->scope.scope_depth;
   local->type = type;
-  local->alive = 1;
-  local->frozen_by_slot = -1;
 
   oak_chunk_add_debug_local(c->chunk, slot, name, length);
 }
@@ -64,15 +62,6 @@ void oak_compiler_end_scope(struct oak_compiler_t* c)
          c->scope.locals[c->scope.local_count - 1].depth ==
              c->scope.scope_depth)
   {
-    /* The departing local may have been freezing some other (still-in-scope)
-     * binding via shared reborrow. Release that freeze so the source becomes
-     * writable again after this scope ends. */
-    const int leaving_slot = c->scope.locals[c->scope.local_count - 1].slot;
-    for (int i = 0; i < c->scope.local_count - 1; ++i)
-    {
-      if (c->scope.locals[i].frozen_by_slot == leaving_slot)
-        c->scope.locals[i].frozen_by_slot = -1;
-    }
     pops++;
     c->scope.local_count--;
   }
@@ -163,26 +152,6 @@ int oakc_compile_assign_target(struct oak_compiler_t* c,
         c, lhs->token, "cannot assign to immutable variable '%s'", name);
     return -1;
   }
-  const int li = oakc_local_at_slot(c, slot);
-  if (li >= 0)
-  {
-    const struct oak_local_t* l = &c->scope.locals[li];
-    if (!l->alive)
-    {
-      oak_compiler_error_at(
-          c, lhs->token, "cannot assign to '%s': value was moved out", name);
-      return -1;
-    }
-    if (l->frozen_by_slot >= 0)
-    {
-      oak_compiler_error_at(
-          c,
-          lhs->token,
-          "cannot assign to '%s': it is currently borrowed (read-only)",
-          name);
-      return -1;
-    }
-  }
   return slot;
 }
 
@@ -197,13 +166,115 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
     if (idx < 0)
       return 0;
     const struct oak_local_t* l = &c->scope.locals[idx];
-    /* A binding is usable as a mutable place iff it was declared `mut`,
-     * has not been moved out, and is not currently shared-reborrowed
-     * (a shared reborrow freezes the source for write). */
-    return l->is_mutable && l->alive && l->frozen_by_slot < 0;
+    return l->is_mutable;
   }
   if (expr->kind == OAK_NODE_MEMBER_ACCESS ||
       expr->kind == OAK_NODE_INDEX_ACCESS)
     return oak_compiler_expr_is_mutable_place(c, expr->lhs);
+  return 1;
+}
+
+static int
+oakc_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
+                                          const struct oak_ast_node_t* expr,
+                                          const char* target)
+{
+  if (!expr)
+    return 0;
+
+  if (expr->kind == OAK_NODE_EXPR_RECORD_LITERAL && expr->rhs)
+  {
+    struct oak_list_entry_t* pos;
+    oak_list_for_each(pos, &expr->rhs->children)
+    {
+      const struct oak_ast_node_t* field =
+          oak_container_of(pos, struct oak_ast_node_t, link);
+      if (field->kind != OAK_NODE_RECORD_LITERAL_FIELD || !field->rhs)
+        continue;
+      struct oak_type_t fty;
+      oak_type_clear(&fty);
+      oakc_infer_type(c, field->rhs, &fty);
+      if (oakc_reject_immutable_ref_for_mutable_storage(
+              c,
+              field->rhs,
+              fty,
+              field->lhs ? field->lhs->token : field->token,
+              target))
+        return 1;
+    }
+    return 0;
+  }
+
+  if (expr->kind == OAK_NODE_EXPR_ARRAY_LITERAL)
+  {
+    struct oak_list_entry_t* pos;
+    oak_list_for_each(pos, &expr->children)
+    {
+      const struct oak_ast_node_t* wrap =
+          oak_container_of(pos, struct oak_ast_node_t, link);
+      const struct oak_ast_node_t* elem =
+          wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
+      struct oak_type_t ety;
+      oak_type_clear(&ety);
+      oakc_infer_type(c, elem, &ety);
+      if (oakc_reject_immutable_ref_for_mutable_storage(
+              c, elem, ety, elem ? elem->token : wrap->token, target))
+        return 1;
+    }
+    return 0;
+  }
+
+  if (expr->kind == OAK_NODE_EXPR_MAP_LITERAL)
+  {
+    const struct oak_ast_node_t* first = expr->lhs;
+    if (first && first->kind == OAK_NODE_MAP_LITERAL_ENTRY && first->rhs)
+    {
+      struct oak_type_t vty;
+      oak_type_clear(&vty);
+      oakc_infer_type(c, first->rhs, &vty);
+      if (oakc_reject_immutable_ref_for_mutable_storage(
+              c, first->rhs, vty, first->rhs->token, target))
+        return 1;
+    }
+    if (expr->rhs)
+    {
+      struct oak_list_entry_t* pos;
+      oak_list_for_each(pos, &expr->rhs->children)
+      {
+        const struct oak_ast_node_t* entry =
+            oak_container_of(pos, struct oak_ast_node_t, link);
+        if (entry->kind != OAK_NODE_MAP_LITERAL_ENTRY || !entry->rhs)
+          continue;
+        struct oak_type_t vty;
+        oak_type_clear(&vty);
+        oakc_infer_type(c, entry->rhs, &vty);
+        if (oakc_reject_immutable_ref_for_mutable_storage(
+                c, entry->rhs, vty, entry->rhs->token, target))
+          return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+int oakc_reject_immutable_ref_for_mutable_storage(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* expr,
+    struct oak_type_t ty,
+    const struct oak_token_t* err_tok,
+    const char* target)
+{
+  if (!oak_type_is_refcounted(&ty))
+    return 0;
+  if (oakc_reject_immutable_refs_inside_literal(c, expr, target))
+    return 1;
+  if (oak_compiler_expr_is_mutable_place(c, expr))
+    return 0;
+  oak_compiler_error_at(c,
+                        err_tok ? err_tok : (expr ? expr->token : null),
+                        "cannot store immutable reference in mutable %s; "
+                        "declare the source as 'mut' first",
+                        target);
   return 1;
 }

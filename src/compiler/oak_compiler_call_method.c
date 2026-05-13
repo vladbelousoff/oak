@@ -254,6 +254,16 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
       return;
     }
     const struct oak_trait_method_t* tm = &tr->methods[slot];
+    const struct oak_ast_node_t* self_p = oakc_fn_self_param(tm->sig_decl);
+    if (self_p && oakc_self_is_mut(self_p) &&
+        !oak_compiler_expr_is_mutable_place(c, receiver))
+    {
+      oak_compiler_error_at(c,
+                            receiver->token,
+                            "cannot call mutable method on an immutable "
+                            "receiver");
+      return;
+    }
     oakc_check_args_against_decl(c, node, tm->sig_decl);
     if (c->has_error)
       return;
@@ -369,6 +379,15 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                               mname,
                               expected_user_argc,
                               user_argc);
+        return;
+      }
+      if (bm->mutates_receiver &&
+          !oak_compiler_expr_is_mutable_place(c, receiver))
+      {
+        oak_compiler_error_at(c,
+                              receiver->token,
+                              "cannot call mutable method on an immutable "
+                              "receiver");
         return;
       }
       oak_compiler_emit_constant(c, bm->const_idx, call_loc);
@@ -525,6 +544,15 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
     m->validate_args(c, node, recv_ty, method->token);
     if (c->has_error)
       return;
+  }
+
+  if (m->mutates_receiver && !oak_compiler_expr_is_mutable_place(c, receiver))
+  {
+    oak_compiler_error_at(c,
+                          receiver->token,
+                          "cannot call mutable method on an immutable "
+                          "receiver");
+    return;
   }
 
   oak_compiler_emit_constant(c, m->const_idx, call_loc);

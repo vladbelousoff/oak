@@ -52,6 +52,10 @@ OAK_TEST_DECL(RuntimeArrays)
                                  "arr.push('oops');\n") == OAK_TEST_OK);
   OAK_CHECK(expect_compile_error("let mut arr = [1, 2, 3];\n"
                                  "arr[0] = 'oops';\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_compile_error("let arr = [1, 2, 3];\n"
+                                 "arr.push(4);\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_compile_error("let arr = [1, 2, 3];\n"
+                                 "arr[0] = 4;\n") == OAK_TEST_OK);
   OAK_CHECK(expect_compile_error("fn first(arr : number[]) -> number { return arr[0]; }\n"
                                  "first(42);\n") == OAK_TEST_OK);
   return OAK_TEST_OK;
@@ -85,6 +89,10 @@ OAK_TEST_DECL(RuntimeMaps)
                                  "m['c'] = 'oops';\n") == OAK_TEST_OK);
   OAK_CHECK(expect_compile_error("let mut m = [:] as [string:number];\n"
                                  "m.has(1);\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_compile_error("let m = ['x': 1];\n"
+                                 "m['x'] = 2;\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_compile_error("let m = ['x': 1];\n"
+                                 "m.delete('x');\n") == OAK_TEST_OK);
   return OAK_TEST_OK;
 }
 

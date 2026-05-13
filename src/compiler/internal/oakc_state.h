@@ -22,15 +22,6 @@ struct oak_local_t
   int is_mutable;
   int depth;
   struct oak_type_t type;
-  /* Borrow state.
-   *  alive = 0 means this binding has been moved out (e.g. `let mut y = x`
-   *  where x was exclusive). Any further read/write is rejected.
-   *  frozen_by_slot >= 0 means this exclusive binding is currently being
-   *  shared-reborrowed by the local at that slot. Reads are still allowed
-   *  (the freeze is read-only); writes are rejected. The freeze is released
-   *  when the freezing local goes out of scope. */
-  int alive;
-  int frozen_by_slot;
 };
 
 struct oak_loop_frame_t

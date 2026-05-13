@@ -137,13 +137,6 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       const int slot = oak_compiler_find_local(c, name, len, null);
       if (slot >= 0)
       {
-        const int li = oakc_local_at_slot(c, slot);
-        if (li >= 0 && !c->scope.locals[li].alive)
-        {
-          oak_compiler_error_at(
-              c, node->token, "use of '%s' after it was moved", name);
-          return;
-        }
         oak_compiler_emit_op(c,
                              OAK_OP_GET_LOCAL,
                              oak_compiler_loc_from_token(node->token),
@@ -169,13 +162,6 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       {
         oak_compiler_error_at(
             c, node->token, "'self' is only valid inside a method body");
-        return;
-      }
-      const int li = oakc_local_at_slot(c, slot);
-      if (li >= 0 && !c->scope.locals[li].alive)
-      {
-        oak_compiler_error_at(
-            c, node->token, "use of 'self' after it was moved");
         return;
       }
       oak_compiler_emit_op(c,

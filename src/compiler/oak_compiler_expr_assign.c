@@ -8,6 +8,15 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
 
   if (lhs->kind == OAK_NODE_INDEX_ACCESS)
   {
+    if (!oak_compiler_expr_is_mutable_place(c, lhs->lhs))
+    {
+      oak_compiler_error_at(c,
+                            lhs->token,
+                            "cannot assign to indexed value of immutable "
+                            "collection");
+      return;
+    }
+
     struct oak_type_t coll_ty;
     oakc_infer_type(c, lhs->lhs, &coll_ty);
     if (coll_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&coll_ty))
@@ -61,6 +70,10 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
       }
     }
 
+    if (oakc_reject_immutable_ref_for_mutable_storage(
+            c, rhs, val_ty, rhs->token, "indexed value"))
+      return;
+
     oak_compiler_compile_node(c, lhs->lhs);
     oak_compiler_compile_node(c, lhs->rhs);
     oak_compiler_compile_node(c, rhs);
@@ -76,24 +89,6 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
     {
       oak_compiler_error_at(
           c, lhs->token, "field assignment requires 'expr.field = expr'");
-      return;
-    }
-    if (recv->kind == OAK_NODE_MEMBER_ACCESS ||
-        recv->kind == OAK_NODE_INDEX_ACCESS)
-    {
-      /* Chained field assignment stays rejected even when the root is
-       * exclusive: an intermediate field may still alias a separate live
-       * binding (e.g. `let mut c = new C { b : new B { a } }` where `a`
-       * is a separate const binding), so writing through the chain can
-       * surprise that holder. Lifting this requires recursive ownership
-       * tracking, which is out of scope for the current borrow checker. */
-      oak_compiler_error_at(c,
-                            fname->token,
-                            "cannot assign to field '%.*s' through a chained "
-                            "access; bind the intermediate record to a mutable "
-                            "variable first",
-                            (int)oak_token_length(fname->token),
-                            oak_token_text(fname->token));
       return;
     }
     const struct oak_registered_record_t* sd = null;
@@ -133,13 +128,9 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
       return;
     }
 
-    /* If the RHS names an exclusive binding, storing it into the record
-     * field MOVES it: the source binding becomes unusable. Shared/fresh
-     * RHSs are unaffected. */
-    const int rhs_src_idx =
-        oak_type_is_refcounted(&val_ty)
-            ? oakc_ident_local(c, rhs)
-            : -1;
+    if (oakc_reject_immutable_ref_for_mutable_storage(
+            c, rhs, val_ty, rhs->token ? rhs->token : fname->token, "field"))
+      return;
 
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, rhs);
@@ -147,13 +138,6 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
                          OAK_OP_SET_FIELD,
                          oak_compiler_loc_from_token(fname->token),
                          OAK_ARG_U8((u8)idx));
-
-    if (rhs_src_idx >= 0)
-    {
-      struct oak_local_t* src = &c->scope.locals[rhs_src_idx];
-      if (src->is_mutable && src->alive && src->frozen_by_slot < 0)
-        src->alive = 0;
-    }
     return;
   }
 
@@ -164,6 +148,15 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
 
   oakc_reject_void(c, rhs);
   if (c->has_error)
+    return;
+
+  struct oak_type_t rhs_ty;
+  oakc_infer_type(c, rhs, &rhs_ty);
+  const int target_idx = oakc_local_at_slot(c, slot);
+  if (target_idx >= 0 &&
+      oak_type_is_refcounted(&c->scope.locals[target_idx].type) &&
+      oakc_reject_immutable_ref_for_mutable_storage(
+          c, rhs, rhs_ty, rhs->token, "binding"))
     return;
 
   oak_compiler_compile_node(c, rhs);
@@ -210,11 +203,10 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
                        oak_compiler_loc_from_token(lhs->token),
                        OAK_ARG_U8((u8)slot));
   oak_compiler_compile_node(c, node->rhs);
-  oak_compiler_emit_op(
-      c,
-      OAK_OP_BINARY,
-      oak_compiler_loc_from_token(lhs->token),
-      OAK_ARG_U8(oakc_binop_for_node(node->kind)));
+  oak_compiler_emit_op(c,
+                       OAK_OP_BINARY,
+                       oak_compiler_loc_from_token(lhs->token),
+                       OAK_ARG_U8(oakc_binop_for_node(node->kind)));
   oak_compiler_emit_op(c,
                        OAK_OP_SET_LOCAL,
                        oak_compiler_loc_from_token(lhs->token),
@@ -238,83 +230,20 @@ void oak_compiler_compile_let_assignment(struct oak_compiler_t* c,
   const struct oak_ast_node_t* ident = assign->lhs;
   const struct oak_ast_node_t* rhs = assign->rhs;
 
-  struct oak_type_t rhs_ty;
-  oakc_infer_type(c, rhs, &rhs_ty);
-
-  if (is_mutable && oak_type_is_refcounted(&rhs_ty) &&
-      !oak_compiler_expr_is_mutable_place(c, rhs))
-  {
-    oak_compiler_error_at(c,
-                          rhs->token,
-                          "cannot create a mutable binding from an "
-                          "immutable expression");
-    return;
-  }
-
-  if (is_mutable && rhs && rhs->kind == OAK_NODE_EXPR_RECORD_LITERAL &&
-      rhs->rhs)
-  {
-    struct oak_list_entry_t* pos;
-    oak_list_for_each(pos, &rhs->rhs->children)
-    {
-      const struct oak_ast_node_t* field =
-          oak_container_of(pos, struct oak_ast_node_t, link);
-      if (field->kind != OAK_NODE_RECORD_LITERAL_FIELD || !field->rhs)
-        continue;
-      struct oak_type_t fty;
-      oak_type_clear(&fty);
-      oakc_infer_type(c, field->rhs, &fty);
-      if (oak_type_is_refcounted(&fty) &&
-          !oak_compiler_expr_is_mutable_place(c, field->rhs))
-      {
-        oak_compiler_error_at(
-            c,
-            field->lhs ? field->lhs->token : field->token,
-            "cannot store immutable record reference in field '%.*s' of a "
-            "mutable record; declare the source as 'mut' first",
-            field->lhs ? (int)oak_token_length(field->lhs->token) : 0,
-            field->lhs ? oak_token_text(field->lhs->token) : "");
-        return;
-      }
-    }
-  }
-
   oakc_reject_void(c, rhs);
   if (c->has_error)
     return;
 
-  /* Capture the source binding (if RHS is a bare ident or `self`)
-   * before compiling, so we can apply move/reborrow state changes
-   * after the new local is in place. Only refcounted (heap) types
-   * carry borrow state; value types (number/bool/enum) are copied. */
-  const int src_local_idx =
-      oak_type_is_refcounted(&rhs_ty)
-          ? oakc_ident_local(c, rhs)
-          : -1;
+  struct oak_type_t rhs_ty;
+  oakc_infer_type(c, rhs, &rhs_ty);
+
+  if (is_mutable && oakc_reject_immutable_ref_for_mutable_storage(
+                        c, rhs, rhs_ty, rhs->token, "binding"))
+    return;
 
   oak_compiler_compile_node(c, rhs);
   const char* name = oak_token_text(ident->token);
   const usize name_len = oak_token_length(ident->token);
   oak_compiler_add_local(
       c, name, name_len, c->scope.stack_depth - 1, is_mutable, rhs_ty);
-
-  if (src_local_idx >= 0)
-  {
-    struct oak_local_t* src = &c->scope.locals[src_local_idx];
-    if (src->is_mutable && src->alive && src->frozen_by_slot < 0)
-    {
-      if (is_mutable)
-      {
-        /* Move: exclusivity transfers to the new binding. */
-        src->alive = 0;
-      }
-      else
-      {
-        /* Shared reborrow: the source is frozen (read-only) for
-         * the lifetime of the new binding. */
-        const int new_slot = c->scope.locals[c->scope.local_count - 1].slot;
-        src->frozen_by_slot = new_slot;
-      }
-    }
-  }
 }

@@ -170,42 +170,11 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     oak_compiler_emit_constant(
         c, name_idx, oak_compiler_loc_from_token(name_node->token));
 
-    /* Track which source bindings each refcounted-typed initializer reads
-     * from, so we can MOVE exclusive sources into the new record after
-     * compilation. */
-    int* src_idx_for_field =
-        oak_alloc((usize)sd->field_count * sizeof(*src_idx_for_field),
-                  OAK_SRC_LOC);
-    for (int i = 0; i < sd->field_count; ++i)
-    {
-      const struct oak_ast_node_t* fexpr = exprs[i];
-      if (oak_type_is_refcounted(&sd->fields[i].type))
-        src_idx_for_field[i] =
-            oakc_ident_local(c, fexpr);
-      else
-        src_idx_for_field[i] = -1;
-    }
-
     for (int i = 0; i < sd->field_count; ++i)
     {
       oak_compiler_compile_node(c, exprs[i]);
       if (c->has_error)
-      {
-        if (src_idx_for_field)
-          oak_free(src_idx_for_field, OAK_SRC_LOC);
         goto cleanup_exprs;
-      }
-    }
-
-    /* Apply moves now that all initializer reads have been emitted. */
-    for (int i = 0; i < sd->field_count; ++i)
-    {
-      const int li = src_idx_for_field[i];
-      if (li < 0)
-        continue;
-      struct oak_local_t* src = &c->scope.locals[li];
-      if (src->is_mutable && src->alive && src->frozen_by_slot < 0)
-        src->alive = 0;
     }
 
     oak_compiler_emit_op(c,
@@ -214,8 +183,6 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
                          OAK_ARG_U8((u8)sd->field_count),
                          OAK_ARG_U16((u16)layout_id));
     c->scope.stack_depth -= sd->field_count;
-    if (src_idx_for_field)
-      oak_free(src_idx_for_field, OAK_SRC_LOC);
   }
 
 cleanup_exprs:
