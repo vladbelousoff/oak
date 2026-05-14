@@ -1,38 +1,68 @@
-record Person {
+record Node {
   name : string;
+  links : Edge[];
 }
 
-record Team {
-  name : string;
-  lead : Person;
-}
-
-record Badge {
+record Edge {
   label : string;
-  holder : Person weak;
+  target : Node weak;
 }
 
-fn printBadge(badge : Badge) {
-  print(badge.label);
-  print(badge.holder.name);
+record Graph {
+  name : string;
+  nodes : Node[];
+  entry : Node weak;
 }
 
-fn printBorrowedPerson(person : Person weak) {
-  print(person.name);
+fn printLinks(node : Node weak) {
+  print(node.name);
+  for edge in node.links {
+    print(edge.label);
+    print(edge.target.name);
+  }
 }
 
-let ada = new Person { name : 'Ada' };
-let team = new Team {
-  name : 'compiler team',
-  lead : ada
+let mut lexer = new Node {
+  name : 'lexer',
+  links : [] as Edge[]
+};
+let mut parser = new Node {
+  name : 'parser',
+  links : [] as Edge[]
+};
+let mut compiler = new Node {
+  name : 'compiler',
+  links : [] as Edge[]
+};
+let mut vm = new Node {
+  name : 'vm',
+  links : [] as Edge[]
 };
 
-let badge = new Badge {
-  label : 'team lead',
-  holder : ada
+lexer.links.push(new Edge {
+  label : 'tokens',
+  target : parser
+});
+parser.links.push(new Edge {
+  label : 'ast',
+  target : compiler
+});
+compiler.links.push(new Edge {
+  label : 'bytecode',
+  target : vm
+});
+vm.links.push(new Edge {
+  label : 'debug trace',
+  target : compiler
+});
+
+let pipeline = new Graph {
+  name : 'oak pipeline',
+  nodes : [lexer, parser, compiler, vm],
+  entry : lexer
 };
 
-print(team.name);
-print(team.lead.name);
-printBadge(badge);
-printBorrowedPerson(ada);
+print(pipeline.name);
+print(pipeline.nodes.size());
+printLinks(pipeline.entry);
+printLinks(vm);
