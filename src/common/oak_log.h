@@ -1,5 +1,7 @@
 #pragma once
 
+#include "oak_export.h"
+
 #if defined(_MSC_VER)
 #define oak_debug_break() __debugbreak()
 #elif defined(__clang__) || defined(__GNUC__)
@@ -24,7 +26,7 @@
   } while (0)
 #endif
 
-const char* oak_path_basename(const char* path);
+OAK_API const char* oak_path_basename(const char* path);
 
 enum oak_log_level_t
 {
@@ -34,7 +36,7 @@ enum oak_log_level_t
   OAK_LOG_ERROR,
 };
 
-void _oak_log_printf(enum oak_log_level_t lvl,
+OAK_API void _oak_log_printf(enum oak_log_level_t lvl,
 #ifdef OAK_DEBUG_LOGGING
                      const char* file,
                      unsigned line,

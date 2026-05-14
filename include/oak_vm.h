@@ -1,6 +1,7 @@
 #pragma once
 
 #include "oak_chunk.h"
+#include "oak_export.h"
 #include "oak_mem.h"
 #include "oak_value.h"
 
@@ -40,14 +41,15 @@ struct oak_vm_t
   struct oak_module_registry_t* modules;
 };
 
-void oak_vm_init(struct oak_vm_t* vm);
-void oak_vm_free(struct oak_vm_t* vm);
+OAK_API void oak_vm_init(struct oak_vm_t* vm);
+OAK_API void oak_vm_free(struct oak_vm_t* vm);
 
-void oak_vm_set_module_registry(struct oak_vm_t* vm,
-                                struct oak_module_registry_t* modules);
+OAK_API void oak_vm_set_module_registry(struct oak_vm_t* vm,
+                                        struct oak_module_registry_t* modules);
 
-enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk);
+OAK_API enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm,
+                                        struct oak_chunk_t* chunk);
 
 /* For native callbacks: `oak_alloc` / `oak_free` site as the current Oak call
  * (chunk source_name and CALL line; file is null if unset or on error). */
-struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm);
+OAK_API struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm);

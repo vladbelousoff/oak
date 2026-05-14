@@ -1,5 +1,7 @@
 #pragma once
 
+#include "oak_export.h"
+
 /*
  * Generic dynamic-array push / free helpers.
  *
@@ -23,12 +25,12 @@
  *   for (int i = 0; i < arr.count; ++i) { ... arr.items[i] ... }
  */
 
-void oak_dynarr_init(void* items_field_ptr, int* count, int* capacity);
+OAK_API void oak_dynarr_init(void* items_field_ptr, int* count, int* capacity);
 
-void oak_dynarr_push(void* items_field_ptr,
-                     int* count,
-                     int* capacity,
-                     const void* item,
-                     int item_size);
+OAK_API void oak_dynarr_push(void* items_field_ptr,
+                             int* count,
+                             int* capacity,
+                             const void* item,
+                             int item_size);
 
-void oak_dynarr_free(void* items_field_ptr, int* count, int* capacity);
+OAK_API void oak_dynarr_free(void* items_field_ptr, int* count, int* capacity);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_export.h"
 #include "oak_list.h"
 
 struct oak_src_loc_t
@@ -31,9 +32,9 @@ struct oak_mem_header_t
   usize size;
 };
 
-void* oak_alloc(usize size, struct oak_src_loc_t src_loc);
-void* oak_realloc(void* ptr, usize size, struct oak_src_loc_t src_loc);
-void oak_free(void* ptr, struct oak_src_loc_t src_loc);
+OAK_API void* oak_alloc(usize size, struct oak_src_loc_t src_loc);
+OAK_API void* oak_realloc(void* ptr, usize size, struct oak_src_loc_t src_loc);
+OAK_API void oak_free(void* ptr, struct oak_src_loc_t src_loc);
 
-void oak_mem_init(void);
-void oak_mem_shutdown(void);
+OAK_API void oak_mem_init(void);
+OAK_API void oak_mem_shutdown(void);

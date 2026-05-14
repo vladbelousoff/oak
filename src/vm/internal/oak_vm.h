@@ -1,12 +1,13 @@
 #pragma once
 
 #include "oak_bind.h"
+#include "oak_export.h"
 #include "oak_log.h"
 #include "oak_module.h"
 #include "oak_value.h"
 #include <oak_vm.h>
 
-void oak_vm_report_stack_overflow(const struct oak_vm_t* vm);
+OAK_API void oak_vm_report_stack_overflow(const struct oak_vm_t* vm);
 
 static inline enum oak_vm_result_t oak_vm_push(struct oak_vm_t* vm,
                                                const struct oak_value_t value)

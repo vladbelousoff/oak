@@ -3,6 +3,7 @@
 #include "oak_chunk.h"
 #include "oak_diagnostic.h"
 #include "oak_dynarr.h"
+#include "oak_export.h"
 #include "oak_file_map.h"
 #include "oak_htable.h"
 #include "oak_parser.h"
@@ -174,33 +175,33 @@ struct oak_module_registry_t
 
 /* ----- Lifecycle ----- */
 
-void oak_module_registry_init(struct oak_module_registry_t* reg);
-void oak_module_registry_free(struct oak_module_registry_t* reg);
+OAK_API void oak_module_registry_init(struct oak_module_registry_t* reg);
+OAK_API void oak_module_registry_free(struct oak_module_registry_t* reg);
 
 /* O(1) lookup. Returns null if no module with that id. */
-struct oak_module_t*
+OAK_API struct oak_module_t*
 oak_module_registry_get(const struct oak_module_registry_t* reg, u16 module_id);
 
 /* O(1) lookup by canonical path. Returns null if not present. */
-struct oak_module_t*
+OAK_API struct oak_module_t*
 oak_module_registry_find_by_path(const struct oak_module_registry_t* reg,
                                  const char* canonical_path);
 
 /* Allocate a module, append to registry, assign it a module_id. The strings
  * `canonical_path` and `dotted_name` are duplicated. */
-struct oak_module_t*
+OAK_API struct oak_module_t*
 oak_module_registry_create(struct oak_module_registry_t* reg,
                            const char* canonical_path,
                            const char* dotted_name);
 
 /* Look up a function export. Returns null if not found. */
-const struct oak_module_export_fn_t* oak_module_find_export_fn(
+OAK_API const struct oak_module_export_fn_t* oak_module_find_export_fn(
     const struct oak_module_t* mod, const char* name, usize name_len);
 
 /* Look up a record export. Returns null if not found. */
-const struct oak_module_export_record_t* oak_module_find_export_record(
+OAK_API const struct oak_module_export_record_t* oak_module_find_export_record(
     const struct oak_module_t* mod, const char* name, usize name_len);
 
 /* Look up an enum export. Returns null if not found. */
-const struct oak_module_export_enum_t* oak_module_find_export_enum(
+OAK_API const struct oak_module_export_enum_t* oak_module_find_export_enum(
     const struct oak_module_t* mod, const char* name, usize name_len);

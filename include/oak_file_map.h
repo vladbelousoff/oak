@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_export.h"
 #include "oak_types.h"
 
 struct oak_file_map_t
@@ -13,5 +14,5 @@ struct oak_file_map_t
 #endif
 };
 
-int oak_file_map(const char* path, struct oak_file_map_t* out);
-void oak_file_unmap(struct oak_file_map_t* map);
+OAK_API int oak_file_map(const char* path, struct oak_file_map_t* out);
+OAK_API void oak_file_unmap(struct oak_file_map_t* map);

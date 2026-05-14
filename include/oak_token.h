@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_export.h"
 #include "oak_list.h"
 #include "oak_log.h"
 
@@ -89,14 +90,15 @@ struct oak_token_t
   char text[];
 };
 
-enum oak_token_kind_t oak_token_kind(const struct oak_token_t* token);
-int oak_token_line(const struct oak_token_t* token);
-int oak_token_column(const struct oak_token_t* token);
-int oak_token_offset(const struct oak_token_t* token);
-usize oak_token_length(const struct oak_token_t* token);
-const char* oak_token_text(const struct oak_token_t* token);
-int oak_token_as_i32(const struct oak_token_t* token);
-float oak_token_as_f32(const struct oak_token_t* token);
+OAK_API enum oak_token_kind_t oak_token_kind(const struct oak_token_t* token);
+OAK_API int oak_token_line(const struct oak_token_t* token);
+OAK_API int oak_token_column(const struct oak_token_t* token);
+OAK_API int oak_token_offset(const struct oak_token_t* token);
+OAK_API usize oak_token_length(const struct oak_token_t* token);
+OAK_API const char* oak_token_text(const struct oak_token_t* token);
+OAK_API int oak_token_as_i32(const struct oak_token_t* token);
+OAK_API float oak_token_as_f32(const struct oak_token_t* token);
 
-enum oak_token_kind_t oak_keyword_lookup(const char* ident, usize length);
-const char* oak_token_name(enum oak_token_kind_t token_kind);
+OAK_API enum oak_token_kind_t oak_keyword_lookup(const char* ident,
+                                                 usize length);
+OAK_API const char* oak_token_name(enum oak_token_kind_t token_kind);

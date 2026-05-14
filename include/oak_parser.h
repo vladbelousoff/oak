@@ -2,6 +2,7 @@
 
 #include "oak_arena.h"
 #include "oak_diagnostic.h"
+#include "oak_export.h"
 #include "oak_lexer.h"
 #include "oak_token.h"
 #include "oak_types.h"
@@ -147,22 +148,22 @@ struct oak_parser_result_t
   int error_count;
 };
 
-void oak_parse(const struct oak_lexer_result_t* lexer,
-               enum oak_node_kind_t kind,
-               struct oak_parser_result_t* out);
-struct oak_ast_node_t*
+OAK_API void oak_parse(const struct oak_lexer_result_t* lexer,
+                       enum oak_node_kind_t kind,
+                       struct oak_parser_result_t* out);
+OAK_API struct oak_ast_node_t*
 oak_parser_root(const struct oak_parser_result_t* result);
-int oak_parser_error_count(const struct oak_parser_result_t* result);
-const struct oak_diagnostic_t*
+OAK_API int oak_parser_error_count(const struct oak_parser_result_t* result);
+OAK_API const struct oak_diagnostic_t*
 oak_parser_errors(const struct oak_parser_result_t* result);
-void oak_parser_free(struct oak_parser_result_t* result);
+OAK_API void oak_parser_free(struct oak_parser_result_t* result);
 
-int oak_node_is_unary_op(enum oak_node_kind_t kind);
-int oak_node_is_binary_op(enum oak_node_kind_t kind);
-int oak_node_is_token_terminal(enum oak_node_kind_t kind);
+OAK_API int oak_node_is_unary_op(enum oak_node_kind_t kind);
+OAK_API int oak_node_is_binary_op(enum oak_node_kind_t kind);
+OAK_API int oak_node_is_token_terminal(enum oak_node_kind_t kind);
 
-usize oak_ast_node_child_count(const struct oak_ast_node_t* node);
-struct oak_ast_node_t* oak_ast_node_child_at(const struct oak_ast_node_t* node,
-                                             usize index);
+OAK_API usize oak_ast_node_child_count(const struct oak_ast_node_t* node);
+OAK_API struct oak_ast_node_t*
+oak_ast_node_child_at(const struct oak_ast_node_t* node, usize index);
 
-const char* oak_ast_node_kind_name(enum oak_node_kind_t kind);
+OAK_API const char* oak_ast_node_kind_name(enum oak_node_kind_t kind);

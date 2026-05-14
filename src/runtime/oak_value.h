@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_export.h"
 #include "oak_log.h"
 #include "oak_refcount.h"
 
@@ -251,50 +252,57 @@ struct oak_obj_native_fn_t
       .as.obj = (struct oak_obj_t*)(_obj),                                     \
   })
 
-struct oak_obj_string_t* oak_string_new(const char* chars, usize length);
+OAK_API struct oak_obj_string_t* oak_string_new(const char* chars,
+                                                usize length);
 
-struct oak_obj_string_t* oak_string_concat(const struct oak_obj_string_t* a,
-                                           const struct oak_obj_string_t* b);
+OAK_API struct oak_obj_string_t*
+oak_string_concat(const struct oak_obj_string_t* a,
+                  const struct oak_obj_string_t* b);
 
-struct oak_obj_fn_t* oak_fn_new(usize code_offset, int arity, u16 module_id);
+OAK_API struct oak_obj_fn_t* oak_fn_new(usize code_offset,
+                                        int arity,
+                                        u16 module_id);
 
-struct oak_obj_native_fn_t*
+OAK_API struct oak_obj_native_fn_t*
 oak_native_fn_new(oak_native_fn_t fn, int arity, const char* name);
 
-struct oak_obj_array_t* oak_array_new(void);
-void oak_array_push(struct oak_obj_array_t* arr, struct oak_value_t value);
+OAK_API struct oak_obj_array_t* oak_array_new(void);
+OAK_API void oak_array_push(struct oak_obj_array_t* arr,
+                            struct oak_value_t value);
 
-struct oak_obj_record_t* oak_record_new(
+OAK_API struct oak_obj_record_t* oak_record_new(
     int field_count,
     const char* type_name,
     const char* const* field_names, /* if NULL, JSON keys are "0", "1", … */
     const usize* field_name_len);   /* if NULL, strlen(field_names[i]) */
 
-struct oak_obj_native_record_t*
+OAK_API struct oak_obj_native_record_t*
 oak_obj_native_record_new(const struct oak_bind_type_t* type, void* instance);
 
-struct oak_obj_trait_object_t*
+OAK_API struct oak_obj_trait_object_t*
 oak_trait_object_new(struct oak_value_t value, struct oak_obj_array_t* vtable);
 
-struct oak_obj_map_t* oak_map_new(void);
+OAK_API struct oak_obj_map_t* oak_map_new(void);
 /* Returns 1 and writes the value into *out if found; 0 otherwise. */
-int oak_map_get(const struct oak_obj_map_t* map,
-                struct oak_value_t key,
-                struct oak_value_t* out);
+OAK_API int oak_map_get(const struct oak_obj_map_t* map,
+                        struct oak_value_t key,
+                        struct oak_value_t* out);
 /* Inserts or replaces the value for `key`. Increments refcounts as needed. */
-void oak_map_set(struct oak_obj_map_t* map,
-                 struct oak_value_t key,
-                 struct oak_value_t value);
-int oak_map_has(const struct oak_obj_map_t* map, struct oak_value_t key);
+OAK_API void oak_map_set(struct oak_obj_map_t* map,
+                         struct oak_value_t key,
+                         struct oak_value_t value);
+OAK_API int oak_map_has(const struct oak_obj_map_t* map,
+                        struct oak_value_t key);
 /* Removes the entry with the given key. Returns 1 if removed, 0 otherwise. */
-int oak_map_delete(struct oak_obj_map_t* map, struct oak_value_t key);
-struct oak_value_t oak_map_key_at(const struct oak_obj_map_t* map, usize index);
-struct oak_value_t oak_map_value_at(const struct oak_obj_map_t* map,
-                                    usize index);
+OAK_API int oak_map_delete(struct oak_obj_map_t* map, struct oak_value_t key);
+OAK_API struct oak_value_t oak_map_key_at(const struct oak_obj_map_t* map,
+                                          usize index);
+OAK_API struct oak_value_t oak_map_value_at(const struct oak_obj_map_t* map,
+                                            usize index);
 
-int oak_native_fn_format(char* buf,
-                         usize size,
-                         const struct oak_obj_native_fn_t* native);
+OAK_API int oak_native_fn_format(char* buf,
+                                 usize size,
+                                 const struct oak_obj_native_fn_t* native);
 
 static inline int oak_is_bool(const struct oak_value_t value)
 {
@@ -450,11 +458,11 @@ static inline char* oak_as_cstring(const struct oak_value_t value)
   return oak_as_string(value)->chars;
 }
 
-int oak_is_truthy(struct oak_value_t value);
-int oak_value_equal(struct oak_value_t a, struct oak_value_t b);
+OAK_API int oak_is_truthy(struct oak_value_t value);
+OAK_API int oak_value_equal(struct oak_value_t a, struct oak_value_t b);
 
-void oak_obj_incref(struct oak_obj_t* obj);
-void oak_obj_decref(struct oak_obj_t* obj);
+OAK_API void oak_obj_incref(struct oak_obj_t* obj);
+OAK_API void oak_obj_decref(struct oak_obj_t* obj);
 
 static inline void oak_value_incref(const struct oak_value_t value)
 {
@@ -479,12 +487,15 @@ static inline struct oak_value_t oak_value_weaken(const struct oak_value_t value
  * Strings return themselves (incref'd); booleans and numbers return a decimal
  * string; arrays, maps, and records return a JSON string.
  * Caller owns the returned reference. Returns null on allocation failure. */
-struct oak_obj_string_t* oak_value_to_string(struct oak_value_t value);
+OAK_API struct oak_obj_string_t* oak_value_to_string(struct oak_value_t value);
 
-void oak_value_println(struct oak_value_t value);
+OAK_API void oak_value_println(struct oak_value_t value);
 
 /* Writes a short human-readable representation (not JSON). Returns bytes
  * written (excluding NUL), or negative on failure. Never writes past size. */
-int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value);
+OAK_API int oak_value_snprint_repr(char* buf,
+                                   usize size,
+                                   struct oak_value_t value);
 
-struct oak_obj_string_t* oak_string_from_value_repr(struct oak_value_t value);
+OAK_API struct oak_obj_string_t*
+oak_string_from_value_repr(struct oak_value_t value);

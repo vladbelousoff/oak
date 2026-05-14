@@ -2,6 +2,7 @@
 
 #include "oak_compiler.h"
 #include "oak_dynarr.h"
+#include "oak_export.h"
 #include "oak_parser.h"
 #include "oak_type_id.h"
 #include "oak_types.h"
@@ -264,8 +265,8 @@ struct oak_compile_options_t
 
 /* ---------- Compile-options lifecycle ---------- */
 
-void oak_compile_options_init(struct oak_compile_options_t* opts);
-void oak_compile_options_free(struct oak_compile_options_t* opts);
+OAK_API void oak_compile_options_init(struct oak_compile_options_t* opts);
+OAK_API void oak_compile_options_free(struct oak_compile_options_t* opts);
 
 /* ---------- Binding API ---------- */
 
@@ -274,11 +275,11 @@ void oak_compile_options_free(struct oak_compile_options_t* opts);
  * subsequent oak_bind_field calls.  The descriptor is owned by opts and
  * freed by oak_compile_options_free; do not free it separately.
  * Returns NULL if opts or name is NULL. */
-struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
-                                      enum oak_bind_type_kind_t kind,
-                                      const char* name);
+OAK_API struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
+                                              enum oak_bind_type_kind_t kind,
+                                              const char* name);
 
-struct oak_bind_type_t* oak_bind_type_in_module(
+OAK_API struct oak_bind_type_t* oak_bind_type_in_module(
     struct oak_compile_options_t* opts,
     const char* module_name,
     enum oak_bind_type_kind_t kind,
@@ -290,14 +291,14 @@ struct oak_bind_type_t* oak_bind_type_in_module(
  * optional setter (same shape as struct oak_bind_field_t).  `name_len` in
  * params is ignored; it is set from `strlen(name)`.
  * Returns 0 on success, -1 if a field with the same name already exists. */
-int oak_bind_field(struct oak_bind_type_t* type,
-                   const struct oak_bind_field_t* params);
+OAK_API int oak_bind_field(struct oak_bind_type_t* type,
+                           const struct oak_bind_field_t* params);
 
 /* Register a global or module-scoped native function.
  * Use this for free functions like `toInt(v)` or `math.sqrt(v)`.
  * Returns 0 on success, -1 on invalid arguments. */
-int oak_bind_fn_global(struct oak_compile_options_t* opts,
-                       const struct oak_bind_global_fn_t* params);
+OAK_API int oak_bind_fn_global(struct oak_compile_options_t* opts,
+                               const struct oak_bind_global_fn_t* params);
 
 /* Register a native instance or static method on a native type.
  * `params->kind` must be OAK_BIND_FN_INSTANCE_METHOD or OAK_BIND_FN_STATIC_METHOD.
@@ -306,17 +307,17 @@ int oak_bind_fn_global(struct oak_compile_options_t* opts,
  *   STATIC_METHOD: `arity` is the full argument count; called as TypeName.name(...).
  *   return_shape: OAK_BIND_SHAPE_ARRAY means return_type_id[].
  * Returns 0 on success, -1 on invalid arguments. */
-int oak_bind_fn(struct oak_compile_options_t* opts,
-                const struct oak_bind_fn_t* params);
+OAK_API int oak_bind_fn(struct oak_compile_options_t* opts,
+                        const struct oak_bind_fn_t* params);
 
 /* Allocate a native enum descriptor and register it in opts.  Returns a
  * pointer for subsequent oak_bind_enum_variant calls; the descriptor is owned
  * by opts and freed by oak_compile_options_free.  Returns NULL on invalid
  * arguments. */
-struct oak_bind_enum_t* oak_bind_enum(struct oak_compile_options_t* opts,
-                                      const char* name);
+OAK_API struct oak_bind_enum_t* oak_bind_enum(struct oak_compile_options_t* opts,
+                                              const char* name);
 
-struct oak_bind_enum_t* oak_bind_enum_in_module(
+OAK_API struct oak_bind_enum_t* oak_bind_enum_in_module(
     struct oak_compile_options_t* opts,
     const char* module_name,
     const char* name);
@@ -325,27 +326,28 @@ struct oak_bind_enum_t* oak_bind_enum_in_module(
  * an enum is not enforced — they are forwarded as-is to Oak as integer
  * constants.  Returns 0 on success, -1 if a variant with the same name
  * already exists in this enum. */
-int oak_bind_enum_variant(struct oak_bind_enum_t* e,
-                          const char* name,
-                          int value);
+OAK_API int oak_bind_enum_variant(struct oak_bind_enum_t* e,
+                                  const char* name,
+                                  int value);
 
 /* Match attrs[] against opts->native_attrs and fire on_decl for each
  * matching binding that has one.  target and decl_name identify the
  * declaration.  Safe to call with empty attrs or no bindings. */
-void oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
-                                   const char** attrs,
-                                   int attr_count,
-                                   const char* decl_name,
-                                   enum oak_attr_target_t target);
+OAK_API void
+oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
+                              const char** attrs,
+                              int attr_count,
+                              const char* decl_name,
+                              enum oak_attr_target_t target);
 
 /* Match attrs[] against opts->native_attrs and attach all bindings whose
  * on_call is non-NULL as a heap-allocated hooks array on fn_obj or native_obj
  * (exactly one must be non-NULL).  Safe to call with no matches. */
-void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
-                          struct oak_obj_fn_t* fn_obj,
-                          struct oak_obj_native_fn_t* native_obj,
-                          const char** attrs,
-                          int attr_count);
+OAK_API void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
+                                  struct oak_obj_fn_t* fn_obj,
+                                  struct oak_obj_native_fn_t* native_obj,
+                                  const char** attrs,
+                                  int attr_count);
 
 /* Register a named attribute with optional compile-time and runtime callbacks.
  * on_decl fires once per declaration during the compilation pass.
@@ -353,8 +355,8 @@ void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
  * returning OAK_FN_CALL_RUNTIME_ERROR aborts the call.
  * Either callback may be NULL. Returns 0 on success, -1 on invalid arguments.
  */
-int oak_bind_attr(struct oak_compile_options_t* opts,
-                  const struct oak_bind_attr_t* params);
+OAK_API int oak_bind_attr(struct oak_compile_options_t* opts,
+                          const struct oak_bind_attr_t* params);
 
 /* ---------- Runtime helpers ---------- */
 
@@ -364,14 +366,14 @@ int oak_bind_attr(struct oak_compile_options_t* opts,
  * (if registered), then the wrapper is freed. If `destructor` is NULL,
  * `instance` is not freed — lifetime is the embedder's responsibility.
  * `instance` may be NULL for sentinel / placeholder values. */
-struct oak_value_t oak_native_record_new(const struct oak_bind_type_t* type,
-                                         void* instance);
+OAK_API struct oak_value_t
+oak_native_record_new(const struct oak_bind_type_t* type, void* instance);
 
 /* Extract the raw C instance pointer from a native record Oak value.
  * Asserts that `value` is actually a native record (OAK_OBJ_NATIVE_RECORD).
  * Intended for use inside getter / setter callbacks:
  *   MyType* p = oak_native_instance(self); */
-void* oak_native_instance(struct oak_value_t value);
+OAK_API void* oak_native_instance(struct oak_value_t value);
 
 /* ---------- Extended compilation ---------- */
 
@@ -379,6 +381,6 @@ void* oak_native_instance(struct oak_value_t value);
  * into the compiler before the first pass so that Oak source code can refer
  * to them by name.
  * `opts` may be NULL, in which case this is identical to oak_compile(). */
-void oak_compile_ex(const struct oak_ast_node_t* root,
-                    const struct oak_compile_options_t* opts,
-                    struct oak_compile_result_t* out);
+OAK_API void oak_compile_ex(const struct oak_ast_node_t* root,
+                            const struct oak_compile_options_t* opts,
+                            struct oak_compile_result_t* out);
