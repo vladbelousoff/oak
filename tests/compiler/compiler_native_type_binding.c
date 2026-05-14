@@ -1,4 +1,3 @@
-#include "internal/oak_vm.h"
 #include "oak_bind.h"
 #include "oak_compiler.h"
 #include "oak_count_of.h"
@@ -552,7 +551,8 @@ run_with_native_instance(const char* source,
   struct oak_vm_t vm;
   oak_vm_init(&vm);
   const struct oak_value_t native_val = oak_native_record_new(nt, instance);
-  oak_vm_push_owned(&vm, native_val);
+  OAK_CHECK(vm.sp < vm.stack + OAK_STACK_MAX);
+  *vm.sp++ = native_val;
   vm.stack_base = 1; /* locals start at slot 1 so slot 0 is our inject */
 
   const enum oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
