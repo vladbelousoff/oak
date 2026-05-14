@@ -2,21 +2,37 @@ record Person {
   name : string;
 }
 
+record Team {
+  name : string;
+  lead : Person;
+}
+
 record Badge {
   label : string;
   holder : Person weak;
 }
 
-fn printHolder(holder : Person weak) {
-  print(holder.name);
+fn printBadge(badge : Badge) {
+  print(badge.label);
+  print(badge.holder.name);
+}
+
+fn printBorrowedPerson(person : Person weak) {
+  print(person.name);
 }
 
 let ada = new Person { name : 'Ada' };
+let team = new Team {
+  name : 'compiler team',
+  lead : ada
+};
+
 let badge = new Badge {
-  label : 'compiler team',
+  label : 'team lead',
   holder : ada
 };
 
-print(badge.label);
-printHolder(ada);
-print(badge.holder.name);
+print(team.name);
+print(team.lead.name);
+printBadge(badge);
+printBorrowedPerson(ada);
