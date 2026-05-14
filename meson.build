@@ -110,14 +110,24 @@ oak_core_sources = files(
   'src/vm/oak_vm_stack.c',
 )
 
-acorn = shared_library(
-  'acorn',
-  oak_core_sources,
-  include_directories: [public_inc, src_inc],
-  c_args: common_c_args + ['-DOAK_BUILDING_ACORN'],
-  dependencies: [yyjson_dep, math_dep],
-  gnu_symbol_visibility: 'hidden',
-)
+if is_emscripten
+  acorn = static_library(
+    'acorn',
+    oak_core_sources,
+    include_directories: [public_inc, src_inc],
+    c_args: common_c_args + ['-DOAK_STATIC'],
+    dependencies: [yyjson_dep, math_dep],
+  )
+else
+  acorn = shared_library(
+    'acorn',
+    oak_core_sources,
+    include_directories: [public_inc, src_inc],
+    c_args: common_c_args + ['-DOAK_BUILDING_ACORN'],
+    dependencies: [yyjson_dep, math_dep],
+    gnu_symbol_visibility: 'hidden',
+  )
+endif
 
 acorn_dep = declare_dependency(
   link_with: acorn,
