@@ -16,7 +16,7 @@
 #include "oak_dynarr.h"
 #include "oak_htable.h"
 #include "oak_log.h"
-#include "oak_mem.h"
+#include "oak_memory.h"
 #include "oak_module.h"
 #include "oak_str.h"
 #include "oak_type.h"

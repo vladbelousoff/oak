@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_mem.h"
+#include "oak_memory.h"
 
 static int register_record_field_decls(struct oak_compiler_t* c,
                                        struct oak_registered_record_t* slot,

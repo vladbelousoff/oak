@@ -2,7 +2,7 @@
 
 #include "oak_count_of.h"
 #include "oak_log.h"
-#include "oak_mem.h"
+#include "oak_memory.h"
 #include "oak_utf8.h"
 
 #include <stdio.h>

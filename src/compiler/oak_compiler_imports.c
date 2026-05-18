@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_mem.h"
+#include "oak_memory.h"
 
 #define OC_FOR_EACH_DEP(c, dep)                                                \
   if ((c)->module_registry && (c)->current_module)                             \

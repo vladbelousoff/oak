@@ -2,7 +2,7 @@
 
 #include "oak_chunk.h"
 #include "oak_export.h"
-#include "oak_mem.h"
+#include "oak_memory.h"
 #include "oak_value.h"
 
 #define OAK_STACK_MAX  256
@@ -53,4 +53,4 @@ OAK_API enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm,
 
 /* For native callbacks: source location of the current Oak call
  * (chunk source_name and CALL line; file is null if unset or on error). */
-OAK_API struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm);
+OAK_API struct oak_src_loc_t oak_vm_oak_memory_src_loc(const struct oak_vm_t* vm);

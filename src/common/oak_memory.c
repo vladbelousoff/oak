@@ -1,4 +1,4 @@
-#include "oak_mem.h"
+#include "oak_memory.h"
 
 #include "oak_allocator.h"
 
@@ -23,13 +23,13 @@ void oak_free(void* ptr, const struct oak_src_loc_t src_loc)
   g_allocator->free(g_allocator, ptr, src_loc.file, src_loc.line);
 }
 
-void oak_mem_init(void)
+void oak_memory_init(void)
 {
   oak_tracking_allocator_init(&g_allocator_storage);
   g_allocator = &g_allocator_storage;
 }
 
-void oak_mem_shutdown(void)
+void oak_memory_shutdown(void)
 {
   g_allocator->shutdown(g_allocator);
   g_allocator = &oak_system_allocator;

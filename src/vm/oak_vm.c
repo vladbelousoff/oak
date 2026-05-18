@@ -242,7 +242,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
   }
 }
 
-struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
+struct oak_src_loc_t oak_vm_oak_memory_src_loc(const struct oak_vm_t* vm)
 {
   if (!vm || !vm->chunk || !vm->chunk->bytecode || !vm->chunk->debug ||
       !vm->chunk->debug->locations)

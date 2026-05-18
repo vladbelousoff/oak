@@ -19,5 +19,5 @@ OAK_API void* oak_alloc(usize size, struct oak_src_loc_t src_loc);
 OAK_API void* oak_realloc(void* ptr, usize size, struct oak_src_loc_t src_loc);
 OAK_API void oak_free(void* ptr, struct oak_src_loc_t src_loc);
 
-OAK_API void oak_mem_init(void);
-OAK_API void oak_mem_shutdown(void);
+OAK_API void oak_memory_init(void);
+OAK_API void oak_memory_shutdown(void);
