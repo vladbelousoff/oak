@@ -1,10 +1,13 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 /* ---------- oak_record_registry_t lifecycle ---------- */
 
-void oak_record_registry_init(struct oak_record_registry_t* r)
+void oak_record_registry_init(struct oak_record_registry_t* r,
+                              struct oak_allocator_t* allocator)
 {
-  oak_htable_init(&r->by_name);
+  r->allocator = allocator;
+  oak_htable_init(&r->by_name, allocator);
   oak_dynarr_init(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
@@ -15,24 +18,24 @@ void oak_record_registry_free(struct oak_record_registry_t* r)
   {
     struct oak_registered_record_t* e = &r->entries.items[i];
     if (e->attrs)
-      oak_free(e->attrs, OAK_SRC_LOC);
+      OAK_FREE(r->allocator, e->attrs);
     for (int j = 0; j < e->methods.count; ++j)
     {
       if (e->methods.items[j].attrs)
-        oak_free(e->methods.items[j].attrs, OAK_SRC_LOC);
+        OAK_FREE(r->allocator, e->methods.items[j].attrs);
     }
-    oak_dynarr_free(&e->fields, &e->field_count, &e->field_capacity);
-    oak_dynarr_free(&e->methods.items, &e->methods.count,
+    oak_dynarr_free(r->allocator, &e->fields, &e->field_count, &e->field_capacity);
+    oak_dynarr_free(r->allocator, &e->methods.items, &e->methods.count,
                     &e->methods.capacity);
   }
-  oak_dynarr_free(&r->entries.items, &r->entries.count, &r->entries.capacity);
+  oak_dynarr_free(r->allocator, &r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
 struct oak_registered_record_t*
 oak_record_registry_insert(struct oak_record_registry_t* r,
                            const struct oak_registered_record_t* s)
 {
-  oak_dynarr_push(&r->entries.items,
+  oak_dynarr_push(r->allocator, &r->entries.items,
                   &r->entries.count,
                   &r->entries.capacity,
                   s,

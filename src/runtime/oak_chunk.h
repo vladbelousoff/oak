@@ -149,8 +149,11 @@ struct oak_chunk_debug_t
   struct oak_debug_local_t* debug_locals;
 };
 
+struct oak_allocator_t;
+
 struct oak_chunk_t
 {
+  struct oak_allocator_t* allocator;
   usize count;
   usize capacity;
   u8* bytecode;
@@ -167,7 +170,8 @@ struct oak_chunk_t
   u16 module_id;
 };
 
-OAK_API void oak_chunk_init(struct oak_chunk_t* chunk);
+OAK_API void oak_chunk_init(struct oak_chunk_t* chunk,
+                            struct oak_allocator_t* allocator);
 OAK_API void oak_chunk_free(struct oak_chunk_t* chunk);
 
 /* Allocate and attach an empty debug section to the chunk. Idempotent. */

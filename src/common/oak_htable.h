@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_allocator.h"
 #include "oak_types.h"
 
 /* Generic open-addressing hash table.
@@ -27,9 +28,10 @@ struct oak_htable_t
   struct oak_htable_slot_t* slots; /* heap-allocated       */
   int capacity;                    /* always a power of 2, or 0 */
   int count;
+  struct oak_allocator_t* allocator;
 };
 
-void oak_htable_init(struct oak_htable_t* ht);
+void oak_htable_init(struct oak_htable_t* ht, struct oak_allocator_t* allocator);
 void oak_htable_free(struct oak_htable_t* ht);
 
 /* Inserts key → value. Key pointer must stay valid for the table's lifetime.

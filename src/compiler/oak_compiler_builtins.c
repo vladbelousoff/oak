@@ -9,7 +9,7 @@ u16 oakc_intern_native_const(struct oak_compiler_t* c,
                                         const int arity,
                                         const char* name)
 {
-  struct oak_obj_native_fn_t* native = oak_native_fn_new(impl, arity, name);
+  struct oak_obj_native_fn_t* native = oak_native_fn_new(c->allocator, impl, arity, name);
   return oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
@@ -17,7 +17,7 @@ static void register_native_fn(struct oak_compiler_t* c,
                                const struct oak_native_binding_t* binding)
 {
   struct oak_obj_native_fn_t* native =
-      oak_native_fn_new(binding->impl, binding->arity, binding->name);
+      oak_native_fn_new(c->allocator, binding->impl, binding->arity, binding->name);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
   struct oak_registered_fn_t entry = {
@@ -38,10 +38,9 @@ static enum oak_fn_call_result_t builtin_print(struct oak_native_ctx_t* ctx,
                                                int argc,
                                                struct oak_value_t* out_result)
 {
-  (void)ctx;
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_value_println(args[0]);
+  oak_value_println(ctx->allocator, args[0]);
   *out_result = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }

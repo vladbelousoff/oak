@@ -60,7 +60,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
   }
 
   const struct oak_ast_node_t** exprs =
-      oak_alloc((usize)sd->field_count * sizeof(*exprs), OAK_SRC_LOC);
+      OAK_ALLOC(c->allocator, (usize)sd->field_count * sizeof(*exprs));
   for (int i = 0; i < sd->field_count; ++i)
     exprs[i] = null;
 
@@ -140,8 +140,8 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
 
   {
     const char** fptr =
-        oak_alloc((usize)sd->field_count * sizeof(*fptr), OAK_SRC_LOC);
-    usize* flen = oak_alloc((usize)sd->field_count * sizeof(*flen), OAK_SRC_LOC);
+        OAK_ALLOC(c->allocator, (usize)sd->field_count * sizeof(*fptr));
+    usize* flen = OAK_ALLOC(c->allocator, (usize)sd->field_count * sizeof(*flen));
     for (int i = 0; i < sd->field_count; ++i)
     {
       fptr[i] = sd->fields[i].name;
@@ -154,18 +154,18 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
       oak_compiler_error_at(
           c, name_node->token, "internal error: could not add record layout");
       if (fptr)
-        oak_free(fptr, OAK_SRC_LOC);
+        OAK_FREE(c->allocator, fptr);
       if (flen)
-        oak_free(flen, OAK_SRC_LOC);
+        OAK_FREE(c->allocator, flen);
       goto cleanup_exprs;
     }
     if (fptr)
-      oak_free(fptr, OAK_SRC_LOC);
+      OAK_FREE(c->allocator, fptr);
     if (flen)
-      oak_free(flen, OAK_SRC_LOC);
+      OAK_FREE(c->allocator, flen);
 
     struct oak_obj_string_t* type_name_obj =
-        oak_string_new(sd->name, sd->name_len);
+        oak_string_new(c->allocator, sd->name, sd->name_len);
     const u16 name_idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(type_name_obj));
     oak_compiler_emit_constant(
@@ -200,5 +200,5 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
 
 cleanup_exprs:
   if (exprs)
-    oak_free(exprs, OAK_SRC_LOC);
+    OAK_FREE(c->allocator, exprs);
 }

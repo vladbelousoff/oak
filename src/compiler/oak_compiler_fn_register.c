@@ -1,10 +1,13 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 /* ---------- oak_fn_registry_t lifecycle ---------- */
 
-void oak_fn_registry_init(struct oak_fn_registry_t* r)
+void oak_fn_registry_init(struct oak_fn_registry_t* r,
+                          struct oak_allocator_t* allocator)
 {
-  oak_htable_init(&r->by_name);
+  r->allocator = allocator;
+  oak_htable_init(&r->by_name, allocator);
   oak_dynarr_init(&r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
@@ -13,17 +16,17 @@ void oak_fn_registry_free(struct oak_fn_registry_t* r)
   for (int i = 0; i < r->entries.count; ++i)
   {
     if (r->entries.items[i].attrs)
-      oak_free(r->entries.items[i].attrs, OAK_SRC_LOC);
+      OAK_FREE(r->allocator, r->entries.items[i].attrs);
   }
   oak_htable_free(&r->by_name);
-  oak_dynarr_free(&r->entries.items, &r->entries.count, &r->entries.capacity);
+  oak_dynarr_free(r->allocator, &r->entries.items, &r->entries.count, &r->entries.capacity);
 }
 
 struct oak_registered_fn_t*
 oak_fn_registry_insert(struct oak_fn_registry_t* r,
                        const struct oak_registered_fn_t* fn)
 {
-  oak_dynarr_push(&r->entries.items,
+  oak_dynarr_push(r->allocator, &r->entries.items,
                   &r->entries.count,
                   &r->entries.capacity,
                   fn,
@@ -98,15 +101,15 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
 
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
-  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, explicit_arity, mid);
-  char* name_copy = oak_alloc(name_len + 1u, OAK_SRC_LOC);
+  struct oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, explicit_arity, mid);
+  char* name_copy = OAK_ALLOC(c->allocator, name_len + 1u);
   memcpy(name_copy, name, name_len);
   name_copy[name_len] = 0;
   fn_obj->name = name_copy;
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
   int attr_count = 0;
-  const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+  const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
   oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_FN);
   oakc_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   struct oak_registered_fn_t entry = {
@@ -148,7 +151,7 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
   }
 
   int attr_count = 0;
-  const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+  const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
   oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_METHOD);
 
   struct oak_registered_fn_t slot = { 0 };
@@ -164,15 +167,15 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
   const int total_arity = self_param ? explicit_arity + 1 : explicit_arity;
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
-  struct oak_obj_fn_t* fn_obj = oak_fn_new(0, total_arity, mid);
-  char* method_name_copy = oak_alloc(name_len + 1u, OAK_SRC_LOC);
+  struct oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, total_arity, mid);
+  char* method_name_copy = OAK_ALLOC(c->allocator, name_len + 1u);
   memcpy(method_name_copy, name, name_len);
   method_name_copy[name_len] = 0;
   fn_obj->name = method_name_copy;
   oakc_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
   slot.arity = total_arity;
-  oak_dynarr_push(&sd->methods.items,
+  oak_dynarr_push(c->allocator, &sd->methods.items,
                   &sd->methods.count,
                   &sd->methods.capacity,
                   &slot,

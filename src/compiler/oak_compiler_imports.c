@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 #define OC_FOR_EACH_DEP(c, dep)                                                \
   if ((c)->module_registry && (c)->current_module)                             \
@@ -92,7 +93,7 @@ void register_imported_records(struct oak_compiler_t* c)
                                      exp->fields[fi].type_name,
                                      exp->fields[fi].type_name_len);
         field.type.is_weak = exp->fields[fi].is_weak;
-        oak_dynarr_push(&proto.fields,
+        oak_dynarr_push(c->allocator, &proto.fields,
                         &proto.field_count,
                         &proto.field_capacity,
                         &field,
@@ -126,11 +127,11 @@ void populate_module_exports(struct oak_compiler_t* c)
       .return_type_node = oakc_fn_return_type_node(e->decl),
       .return_type_id = OAK_TYPE_VOID,
       .return_kind = OAK_TYPE_KIND_SCALAR,
-      .stub_attrs = oakc_alloc_attrs(e->attrs, e->attr_count),
+      .stub_attrs = oakc_alloc_attrs(c->allocator, e->attrs, e->attr_count),
       .stub_attr_count = e->attr_count,
     };
     const int idx = mod->exports_fn.count;
-    oak_dynarr_push(&mod->exports_fn.items,
+    oak_dynarr_push(c->allocator, &mod->exports_fn.items,
                     &mod->exports_fn.count,
                     &mod->exports_fn.capacity,
                     &exp,
@@ -161,7 +162,7 @@ void populate_module_exports(struct oak_compiler_t* c)
         field.type_name_len =
             c->types.entries[r->fields[fi].type.id].len;
       }
-      oak_dynarr_push(&exp.fields,
+      oak_dynarr_push(c->allocator, &exp.fields,
                       &exp.field_count,
                       &exp.field_capacity,
                       &field,
@@ -179,10 +180,10 @@ void populate_module_exports(struct oak_compiler_t* c)
       struct oak_module_export_record_method_t mexp = {
         .name = m->name,
         .name_len = m->name_len,
-        .stub_attrs = oakc_alloc_attrs(m->attrs, m->attr_count),
+        .stub_attrs = oakc_alloc_attrs(c->allocator, m->attrs, m->attr_count),
         .stub_attr_count = m->attr_count,
       };
-      oak_dynarr_push(&exp.methods,
+      oak_dynarr_push(c->allocator, &exp.methods,
                       &exp.method_count,
                       &exp.method_capacity,
                       &mexp,
@@ -190,7 +191,7 @@ void populate_module_exports(struct oak_compiler_t* c)
     }
     exp.layout_id = 0; /* populated on first cross-module new when needed */
     const int idx = mod->exports_record.count;
-    oak_dynarr_push(&mod->exports_record.items,
+    oak_dynarr_push(c->allocator, &mod->exports_record.items,
                     &mod->exports_record.count,
                     &mod->exports_record.capacity,
                     &exp,
@@ -214,7 +215,7 @@ void populate_module_exports(struct oak_compiler_t* c)
         ee.name = v->enum_name;
         ee.name_len = v->enum_name_len;
         eidx = mod->exports_enum.count;
-        oak_dynarr_push(&mod->exports_enum.items,
+        oak_dynarr_push(c->allocator, &mod->exports_enum.items,
                         &mod->exports_enum.count,
                         &mod->exports_enum.capacity,
                         &ee,
@@ -228,7 +229,7 @@ void populate_module_exports(struct oak_compiler_t* c)
         .name_len = v->name_len,
         .value = v->value,
       };
-      oak_dynarr_push(&ee->variants,
+      oak_dynarr_push(c->allocator, &ee->variants,
                       &ee->variant_count,
                       &ee->variant_capacity,
                       &variant,

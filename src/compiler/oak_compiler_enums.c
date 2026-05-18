@@ -1,14 +1,17 @@
 #include "internal/oak_compiler.h"
 #include "oak_bind.h"
+#include "oak_mem.h"
 
 #include <string.h>
 
 /* ---------- oak_enum_registry_t lifecycle ---------- */
 
-void oak_enum_registry_init(struct oak_enum_registry_t* r)
+void oak_enum_registry_init(struct oak_enum_registry_t* r,
+                            struct oak_allocator_t* allocator)
 {
-  oak_htable_init(&r->by_name);
-  oak_htable_init(&r->enum_names);
+  r->allocator = allocator;
+  oak_htable_init(&r->by_name, allocator);
+  oak_htable_init(&r->enum_names, allocator);
   oak_dynarr_init(
       &r->variants.items, &r->variants.count, &r->variants.capacity);
   oak_dynarr_init(&r->enums.items, &r->enums.count, &r->enums.capacity);
@@ -20,13 +23,13 @@ void oak_enum_registry_free(struct oak_enum_registry_t* r)
   {
     struct oak_registered_enum_t* e = &r->enums.items[i];
     if (e->attrs)
-      oak_free(e->attrs, OAK_SRC_LOC);
+      OAK_FREE(r->allocator, e->attrs);
   }
   oak_htable_free(&r->by_name);
   oak_htable_free(&r->enum_names);
-  oak_dynarr_free(
+  oak_dynarr_free(r->allocator,
       &r->variants.items, &r->variants.count, &r->variants.capacity);
-  oak_dynarr_free(&r->enums.items, &r->enums.count, &r->enums.capacity);
+  oak_dynarr_free(r->allocator, &r->enums.items, &r->enums.count, &r->enums.capacity);
 }
 
 const struct oak_registered_enum_t* oakc_enum_find(
@@ -45,7 +48,7 @@ struct oak_enum_variant_t*
 oak_enum_registry_insert(struct oak_enum_registry_t* r,
                          const struct oak_enum_variant_t* v)
 {
-  oak_dynarr_push(&r->variants.items,
+  oak_dynarr_push(r->allocator, &r->variants.items,
                   &r->variants.count,
                   &r->variants.capacity,
                   v,
@@ -152,7 +155,7 @@ void oakc_register_native_enums(
         .attrs = null,
         .attr_count = 0,
       };
-      oak_dynarr_push(&c->enums.enums.items,
+      oak_dynarr_push(c->allocator, &c->enums.enums.items,
                       &c->enums.enums.count,
                       &c->enums.enums.capacity,
                       &re,
@@ -225,7 +228,7 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
     /* Register enum-level metadata (name, type_id, attributes). */
     {
       int attr_count = 0;
-      const char** attrs = oakc_extract_attrs(raw_item, &attr_count);
+      const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
       const char* enum_name = oak_token_text(name_node->token);
       oakc_dispatch_compile_attr_cbs(
           c, attrs, attr_count, enum_name, OAK_ATTR_TARGET_ENUM);
@@ -236,7 +239,7 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
         .attrs = attrs,
         .attr_count = attr_count,
       };
-      oak_dynarr_push(&c->enums.enums.items,
+      oak_dynarr_push(c->allocator, &c->enums.enums.items,
                       &c->enums.enums.count,
                       &c->enums.enums.capacity,
                       &re,

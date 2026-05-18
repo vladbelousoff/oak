@@ -30,7 +30,7 @@ struct oak_registered_fn_t
   int is_static;   /* 1 = static method, 0 = instance/global */
   const struct oak_ast_node_t* decl; /* null for native */
   /* Attribute names (e.g. "Native", "Deprecated").
-   * Always heap-allocated; oak_free when non-NULL. */
+   * Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;
 };
@@ -47,13 +47,15 @@ struct oak_registered_fn_vec_t
  * Lookup is O(1) via the hash table; entries owns the storage. */
 struct oak_fn_registry_t
 {
+  struct oak_allocator_t* allocator;
   struct oak_htable_t by_name; /* name bytes → index into entries */
   struct oak_registered_fn_vec_t entries;
 };
 
 /* ---------- Lifecycle ---------- */
 
-void oak_fn_registry_init(struct oak_fn_registry_t* r);
+void oak_fn_registry_init(struct oak_fn_registry_t* r,
+                          struct oak_allocator_t* allocator);
 void oak_fn_registry_free(struct oak_fn_registry_t* r);
 
 /* ---------- Operations ---------- */

@@ -1,8 +1,8 @@
+#include "oak_allocator.h"
 #include "oak_bind.h"
 #include "oak_compiler.h"
 #include "oak_lexer.h"
 #include "oak_log.h"
-#include "oak_mem.h"
 #include "oak_parser.h"
 #include "oak_stdlib.h"
 #include "oak_vm.h"
@@ -11,20 +11,21 @@
 
 int oak_run(const char* code)
 {
-  oak_mem_init();
+  struct oak_allocator_t allocator;
+  oak_tracking_allocator_init(&allocator);
 
   struct oak_parser_result_t result = { 0 };
   struct oak_compile_result_t cr = { 0 };
   struct oak_compile_options_t compile_opts;
-  oak_compile_options_init(&compile_opts);
+  oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = "";
   compile_opts.emit_debug_info = 1;
   oak_stdlib_register(&compile_opts);
   int exit_code = 1;
 
   int code_size = (int)strlen(code);
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(code, code_size);
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result);
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(code, code_size, &allocator);
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result, &allocator);
 
   for (int i = 0; i < oak_parser_error_count(&result); i++)
   {
@@ -52,7 +53,7 @@ int oak_run(const char* code)
     if (cr.chunk)
     {
       struct oak_vm_t vm;
-      oak_vm_init(&vm);
+      oak_vm_init(&vm, &allocator);
       exit_code = oak_vm_run(&vm, cr.chunk) != OAK_VM_OK;
       oak_vm_free(&vm);
     }
@@ -62,7 +63,7 @@ int oak_run(const char* code)
   oak_compile_options_free(&compile_opts);
   oak_parser_free(&result);
   oak_lexer_free(lexer);
-  oak_mem_shutdown();
+  allocator.shutdown(&allocator);
 
   return exit_code;
 }

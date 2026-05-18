@@ -1,12 +1,13 @@
 #pragma once
 
 #include "oak_lexer.h"
+#include "oak_mem.h"
 #include "oak_parser.h"
 #include "oak_test_run.h"
 
 #include <string.h>
 
-#define OAK_LEX(S) oak_lexer_tokenize((S), strlen(S))
+#define OAK_LEX(S) oak_lexer_tokenize((S), strlen(S), oak_mem_allocator())
 
 static struct oak_ast_node_t*
 oak_test_ast_child(const struct oak_ast_node_t* node, const usize index)

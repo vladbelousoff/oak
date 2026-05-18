@@ -3,6 +3,8 @@
 #include "oak_type_id.h"
 #include "oak_types.h"
 
+struct oak_allocator_t;
+
 /* Discriminates the three shapes a compile-time type slot can have. The
  * default (zero) value is OAK_TYPE_KIND_SCALAR so that zero-initialised
  * oak_type_t structs are valid scalar types without explicit assignment. */
@@ -38,13 +40,15 @@ struct oak_type_entry_t
 
 struct oak_type_registry_t
 {
+  struct oak_allocator_t* allocator;
   struct oak_type_entry_t* entries;
   int count;
   int capacity;
 };
 
 /* Initializes the registry and pre-populates the built-in type ids. */
-void oak_type_registry_init(struct oak_type_registry_t* reg);
+void oak_type_registry_init(struct oak_type_registry_t* reg,
+                            struct oak_allocator_t* allocator);
 void oak_type_registry_free(struct oak_type_registry_t* reg);
 
 /* Returns the id of an existing entry, or -1 if not found. */

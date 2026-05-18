@@ -1,3 +1,4 @@
+#include "oak_allocator.h"
 #include "oak_bind.h"
 #include "oak_cli.h"
 #include "oak_compiler.h"
@@ -27,16 +28,21 @@ int main(const int argc, const char* argv[])
     return 0;
   }
 
-  oak_mem_init();
+  struct oak_allocator_t allocator;
+  if (cli.track_memory)
+    oak_tracking_allocator_init(&allocator);
+  else
+    oak_system_allocator_init(&allocator);
+  oak_mem_set_allocator(&allocator);
 
   struct oak_compile_options_t compile_opts;
-  oak_compile_options_init(&compile_opts);
+  oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = cli.script_path;
   compile_opts.emit_debug_info = !cli.no_debug;
   oak_stdlib_register(&compile_opts);
 
   struct oak_module_registry_t registry;
-  oak_module_registry_init(&registry);
+  oak_module_registry_init(&registry, &allocator);
   struct oak_module_loader_result_t lr = { 0 };
 
   int exit_code = 1;
@@ -68,7 +74,7 @@ int main(const int argc, const char* argv[])
     else
     {
       struct oak_vm_t vm;
-      oak_vm_init(&vm);
+      oak_vm_init(&vm, &allocator);
       oak_vm_set_module_registry(&vm, &registry);
       exit_code = oak_vm_run(&vm, lr.entry->chunk) != OAK_VM_OK;
       oak_vm_free(&vm);
@@ -77,6 +83,6 @@ int main(const int argc, const char* argv[])
 
   oak_module_registry_free(&registry);
   oak_compile_options_free(&compile_opts);
-  oak_mem_shutdown();
+  allocator.shutdown(&allocator);
   return exit_code;
 }

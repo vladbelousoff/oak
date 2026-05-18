@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_allocator.h"
 #include "oak_export.h"
 #include "oak_types.h"
 
@@ -11,11 +12,14 @@ struct oak_arena_t
 {
   struct oak_arena_block_t* current;
   usize block_size;
+  struct oak_allocator_t* allocator;
 };
 
 /* block_size 0 selects OAK_ARENA_DEFAULT_BLOCK_SIZE. Safe to call again after
  * free. */
-OAK_API void oak_arena_init(struct oak_arena_t* arena, usize block_size);
+OAK_API void oak_arena_init(struct oak_arena_t* arena,
+                            usize block_size,
+                            struct oak_allocator_t* allocator);
 
 /* Returns zero-filled storage, aligned to 2 * sizeof(usize). Null on allocation
  * failure. */

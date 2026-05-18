@@ -216,7 +216,7 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
 
   char tls[OAK_LEXER_TLS_BUF];
   struct oak_growable_buf_t gb;
-  oak_growable_buf_init(&gb, tls);
+  oak_growable_buf_init(&gb, tls, ctx->lexer->allocator);
 
   const char* const end = input + ctx->input_len;
   const char* p = start + 1;
@@ -407,7 +407,7 @@ static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
   const char* p = start;
   char tls[OAK_LEXER_TLS_BUF];
   struct oak_growable_buf_t gb;
-  oak_growable_buf_init(&gb, tls);
+  oak_growable_buf_init(&gb, tls, ctx->lexer->allocator);
 
   while (p < end)
   {
@@ -477,13 +477,14 @@ static enum oak_lex_status_t try_scan(const struct oak_lexer_ctx_t* ctx,
 }
 
 struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
-                                              const usize len)
+                                              const usize len,
+                                              struct oak_allocator_t* allocator)
 {
   if (len > 0 && !input)
     return null;
 
   struct oak_lexer_result_t* result =
-      oak_alloc(sizeof(struct oak_lexer_result_t), OAK_SRC_LOC);
+      OAK_ALLOC(allocator, sizeof(struct oak_lexer_result_t));
   if (!result)
     return null;
 
@@ -494,8 +495,9 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
                                        .cur = &cur,
                                        .input_len = len };
   oak_list_init(&result->tokens);
-  oak_arena_init(&result->arena, 0);
+  oak_arena_init(&result->arena, 0, allocator);
   result->error_count = 0;
+  result->allocator = allocator;
 
   while ((usize)cur.buf_pos < len)
   {
@@ -540,6 +542,7 @@ void oak_lexer_free(struct oak_lexer_result_t* result)
 {
   if (!result)
     return;
+  struct oak_allocator_t* a = result->allocator;
   oak_arena_free(&result->arena);
-  oak_free(result, OAK_SRC_LOC);
+  OAK_FREE(a, result);
 }

@@ -50,7 +50,8 @@ int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
   return 0;
 }
 
-struct oak_obj_string_t* oak_string_from_value_repr(struct oak_value_t value)
+struct oak_obj_string_t* oak_string_from_value_repr(
+    struct oak_allocator_t* allocator, struct oak_value_t value)
 {
   char buf[4096];
   const int n = oak_value_snprint_repr(buf, sizeof(buf), value);
@@ -59,12 +60,13 @@ struct oak_obj_string_t* oak_string_from_value_repr(struct oak_value_t value)
   usize len = (usize)n;
   if (len >= sizeof(buf))
     len = sizeof(buf) - 1u;
-  return oak_string_new(buf, len);
+  return oak_string_new(allocator, buf, len);
 }
 
-void oak_value_println(struct oak_value_t value)
+void oak_value_println(struct oak_allocator_t* allocator,
+                       struct oak_value_t value)
 {
-  struct oak_obj_string_t* s = oak_value_to_string(value);
+  struct oak_obj_string_t* s = oak_value_to_string(allocator, value);
   if (!s)
   {
     fputs("<value unprintable>\n", stdout);

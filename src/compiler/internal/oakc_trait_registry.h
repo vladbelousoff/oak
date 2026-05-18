@@ -40,6 +40,7 @@ struct oak_trait_impl_t
 
 struct oak_trait_registry_t
 {
+  struct oak_allocator_t* allocator;
   struct oak_registered_trait_t* traits;
   int trait_count;
   int trait_capacity;
@@ -48,7 +49,8 @@ struct oak_trait_registry_t
   int impl_capacity;
 };
 
-void oak_trait_registry_init(struct oak_trait_registry_t* r);
+void oak_trait_registry_init(struct oak_trait_registry_t* r,
+                             struct oak_allocator_t* allocator);
 void oak_trait_registry_free(struct oak_trait_registry_t* r);
 
 /* ---------- Lookups ---------- */

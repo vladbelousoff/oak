@@ -25,13 +25,15 @@ static const struct oak_builtin_type_t builtin_types[] = {
 #define OAK_BUILTIN_COUNT                                                      \
   ((int)(sizeof(builtin_types) / sizeof(builtin_types[0])))
 
-void oak_type_registry_init(struct oak_type_registry_t* reg)
+void oak_type_registry_init(struct oak_type_registry_t* reg,
+                            struct oak_allocator_t* allocator)
 {
+  reg->allocator = allocator;
   oak_dynarr_init(&reg->entries, &reg->count, &reg->capacity);
 
   /* Slot 0 is OAK_TYPE_VOID; pre-register it so name lookup finds "void". */
   struct oak_type_entry_t void_entry = { .name = "void", .len = 4 };
-  oak_dynarr_push(
+  oak_dynarr_push(allocator,
       &reg->entries, &reg->count, &reg->capacity, &void_entry, sizeof(void_entry));
 
   for (int i = 0; i < OAK_BUILTIN_COUNT; ++i)
@@ -42,7 +44,7 @@ void oak_type_registry_init(struct oak_type_registry_t* reg)
       .name = b->name,
       .len = strlen(b->name),
     };
-    oak_dynarr_push(
+    oak_dynarr_push(allocator,
         &reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
   }
   oak_assert(reg->count == OAK_TYPE_FIRST_USER);
@@ -55,7 +57,7 @@ void oak_type_registry_init(struct oak_type_registry_t* reg)
 
 void oak_type_registry_free(struct oak_type_registry_t* reg)
 {
-  oak_dynarr_free(&reg->entries, &reg->count, &reg->capacity);
+  oak_dynarr_free(reg->allocator, &reg->entries, &reg->count, &reg->capacity);
 }
 
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
@@ -86,7 +88,7 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
   /* The pointer is borrowed from the source buffer (lexer arena outlives
    * compilation); the registry never frees it. */
   struct oak_type_entry_t entry = { .name = name, .len = len };
-  oak_dynarr_push(&reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
+  oak_dynarr_push(reg->allocator, &reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
   const oak_type_id_t id = (oak_type_id_t)(reg->count - 1);
   return id;
 }
@@ -101,9 +103,8 @@ static void oak_type_registry_ensure_slot(struct oak_type_registry_t* reg,
   while (id >= new_capacity)
     new_capacity *= 2;
 
-  reg->entries = oak_realloc(reg->entries,
-                             (usize)new_capacity * sizeof(*reg->entries),
-                             OAK_SRC_LOC);
+  reg->entries = OAK_REALLOC(reg->allocator, reg->entries,
+                             (usize)new_capacity * sizeof(*reg->entries));
   for (int i = reg->capacity; i < new_capacity; ++i)
   {
     reg->entries[i].name = null;

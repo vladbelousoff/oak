@@ -2,6 +2,7 @@
 
 #include "oakc_defs.h"
 
+struct oak_allocator_t;       /* defined in oak_allocator.h */
 struct oak_compile_options_t; /* defined in oak_bind.h */
 #include "oakc_enum_registry.h"
 #include "oakc_fn_registry.h"
@@ -56,6 +57,7 @@ struct oak_scope_ctx_t
 
 struct oak_compiler_t
 {
+  struct oak_allocator_t* allocator;
   struct oak_chunk_t* chunk;
   struct oak_compile_result_t* result; /* errors written directly here */
   int has_error;

@@ -169,7 +169,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     {
       const u8 count = oak_vm_read_u8(vm);
       oak_assert((usize)(vm->sp - vm->stack) >= (usize)count);
-      struct oak_obj_array_t* arr = oak_array_new();
+      struct oak_obj_array_t* arr = oak_array_new(vm->allocator);
       struct oak_value_t* base = vm->sp - (int)count;
       for (int i = 0; i < (int)count; ++i)
         oak_array_push(arr, base[i]);
@@ -184,7 +184,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       const u8 count = oak_vm_read_u8(vm);
       const usize slots = (usize)count * 2u;
       oak_assert((usize)(vm->sp - vm->stack) >= slots);
-      struct oak_obj_map_t* map = oak_map_new();
+      struct oak_obj_map_t* map = oak_map_new(vm->allocator);
       struct oak_value_t* base = vm->sp - (int)slots;
       for (int i = 0; i < (int)count; ++i)
       {
@@ -239,7 +239,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
         type_name = oak_as_string(type_name_val)->chars;
 
       struct oak_obj_record_t* s = oak_record_new(
-          (int)count, type_name, (const char* const*)lay->name, null);
+          vm->allocator, (int)count, type_name, (const char* const*)lay->name, null);
       for (int i = 0; i < (int)count; ++i)
       {
         oak_value_incref(base[i]);
@@ -392,7 +392,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       }
       struct oak_obj_array_t* vtable = oak_as_array(vtable_val);
       const struct oak_value_t concrete = oak_vm_pop(vm);
-      struct oak_obj_trait_object_t* to = oak_trait_object_new(concrete, vtable);
+      struct oak_obj_trait_object_t* to = oak_trait_object_new(vm->allocator, concrete, vtable);
       oak_value_decref(concrete);
       OAK_VM_TRY(oak_vm_push_owned(vm, OAK_VALUE_OBJ(&to->obj)));
       break;

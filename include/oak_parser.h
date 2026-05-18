@@ -150,7 +150,8 @@ struct oak_parser_result_t
 
 OAK_API void oak_parse(const struct oak_lexer_result_t* lexer,
                        enum oak_node_kind_t kind,
-                       struct oak_parser_result_t* out);
+                       struct oak_parser_result_t* out,
+                       struct oak_allocator_t* allocator);
 OAK_API struct oak_ast_node_t*
 oak_parser_root(const struct oak_parser_result_t* result);
 OAK_API int oak_parser_error_count(const struct oak_parser_result_t* result);

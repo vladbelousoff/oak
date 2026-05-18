@@ -59,7 +59,7 @@ int collect_imports(const struct oak_module_t* mod,
     imp.path = item->lhs;
     imp.alias_node =
         (item->rhs && item->rhs->kind == OAK_NODE_IDENT) ? item->rhs : null;
-    oak_dynarr_push(
+    oak_dynarr_push(mod->allocator,
         &out->items, &out->count, &out->capacity, &imp, sizeof(imp));
   }
   return out->count;
@@ -171,8 +171,9 @@ struct oak_module_t* parse_or_get_module(
     loader_error(out, "could not open '%s'", canonical_path);
     return null;
   }
-  mod->lexer = oak_lexer_tokenize(mod->source.data, mod->source.size);
-  oak_parse(mod->lexer, OAK_NODE_PROGRAM, &mod->parser);
+  mod->lexer = oak_lexer_tokenize(mod->source.data, mod->source.size,
+                                   mod->allocator);
+  oak_parse(mod->lexer, OAK_NODE_PROGRAM, &mod->parser, mod->allocator);
 
   for (int i = 0; i < oak_parser_error_count(&mod->parser) &&
                   out->error_count < OAK_MAX_DIAGNOSTICS;

@@ -116,7 +116,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     {
       const char* chars = oak_token_text(node->token);
       const usize len = oak_token_length(node->token);
-      struct oak_obj_string_t* str = oak_string_new(chars, len);
+      struct oak_obj_string_t* str = oak_string_new(c->allocator, chars, len);
       const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(str));
       oak_compiler_emit_constant(
           c, idx, oak_compiler_loc_from_token(node->token));

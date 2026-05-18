@@ -1,9 +1,12 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 #include <string.h>
 
-void oak_trait_registry_init(struct oak_trait_registry_t* r)
+void oak_trait_registry_init(struct oak_trait_registry_t* r,
+                             struct oak_allocator_t* allocator)
 {
+  r->allocator = allocator;
   oak_dynarr_init(&r->traits, &r->trait_count, &r->trait_capacity);
   oak_dynarr_init(&r->impls, &r->impl_count, &r->impl_capacity);
 }
@@ -11,19 +14,19 @@ void oak_trait_registry_init(struct oak_trait_registry_t* r)
 void oak_trait_registry_free(struct oak_trait_registry_t* r)
 {
   for (int i = 0; i < r->trait_count; ++i)
-    oak_dynarr_free(&r->traits[i].methods,
+    oak_dynarr_free(r->allocator, &r->traits[i].methods,
                     &r->traits[i].method_count,
                     &r->traits[i].method_capacity);
-  oak_dynarr_free(&r->traits, &r->trait_count, &r->trait_capacity);
+  oak_dynarr_free(r->allocator, &r->traits, &r->trait_count, &r->trait_capacity);
 
   for (int i = 0; i < r->impl_count; ++i)
   {
     if (r->impls[i].vtable)
-      oak_free(r->impls[i].vtable, OAK_SRC_LOC);
+      OAK_FREE(r->allocator, r->impls[i].vtable);
     r->impls[i].vtable = null;
     r->impls[i].vtable_count = 0;
   }
-  oak_dynarr_free(&r->impls, &r->impl_count, &r->impl_capacity);
+  oak_dynarr_free(r->allocator, &r->impls, &r->impl_count, &r->impl_capacity);
 }
 
 /* ---------- Trait coercion emission ---------- */
@@ -155,7 +158,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
       return;
     }
 
-    oak_dynarr_push(&c->traits.traits,
+    oak_dynarr_push(c->allocator, &c->traits.traits,
                     &c->traits.trait_count,
                     &c->traits.trait_capacity,
                     &proto,
@@ -197,7 +200,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
         .sig_decl = mdecl,
         .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null,
       };
-      oak_dynarr_push(&tr->methods,
+      oak_dynarr_push(c->allocator, &tr->methods,
                       &tr->method_count,
                       &tr->method_capacity,
                       &tm,
@@ -401,7 +404,7 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
     struct oak_trait_impl_t proto = {
       .trait_id = tr->trait_id,
       .record_type_id = sd->type_id,
-      .vtable = oak_alloc((usize)tr->method_count * sizeof(u16), OAK_SRC_LOC),
+      .vtable = OAK_ALLOC(c->allocator, (usize)tr->method_count * sizeof(u16)),
       .vtable_count = tr->method_count,
       .vtable_array_const_idx = 0,
       .vtable_built = 0,
@@ -414,7 +417,7 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
           oakc_find_record_method(sd, tm->name, tm->name_len, 0);
       proto.vtable[i] = sm ? sm->const_idx : 0;
     }
-    oak_dynarr_push(&c->traits.impls,
+    oak_dynarr_push(c->allocator, &c->traits.impls,
                     &c->traits.impl_count,
                     &c->traits.impl_capacity,
                     &proto,
@@ -426,7 +429,7 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
     return impl->vtable_array_const_idx;
 
   /* Build vtable as an OAK_OBJ_ARRAY of function values. */
-  struct oak_obj_array_t* arr = oak_array_new();
+  struct oak_obj_array_t* arr = oak_array_new(c->allocator);
   for (int i = 0; i < tr->method_count; ++i)
   {
     const struct oak_value_t fn_val = c->chunk->constants[impl->vtable[i]];

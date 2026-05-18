@@ -89,6 +89,7 @@ struct oak_bind_type_t
   int field_count;
   int field_capacity;
   oak_bind_destructor_t destructor;
+  struct oak_allocator_t* allocator;
 };
 
 /* ---------- Native global function descriptor ---------- */
@@ -152,6 +153,7 @@ struct oak_bind_enum_t
   struct oak_bind_enum_variant_t* variants;
   int variant_count;
   int variant_capacity;
+  struct oak_allocator_t* allocator;
 };
 
 /* ---------- Attribute callbacks ---------- */
@@ -222,6 +224,9 @@ struct oak_bind_attr_vec_t
 
 struct oak_compile_options_t
 {
+  /* Allocator used for all compilation and runtime allocations. */
+  struct oak_allocator_t* allocator;
+
   /* Optional: path or label for the Oak source (borrowed). Set on the chunk. */
   const char* source_name;
 
@@ -265,7 +270,8 @@ struct oak_compile_options_t
 
 /* ---------- Compile-options lifecycle ---------- */
 
-OAK_API void oak_compile_options_init(struct oak_compile_options_t* opts);
+OAK_API void oak_compile_options_init(struct oak_compile_options_t* opts,
+                                     struct oak_allocator_t* allocator);
 OAK_API void oak_compile_options_free(struct oak_compile_options_t* opts);
 
 /* ---------- Binding API ---------- */
@@ -367,7 +373,9 @@ OAK_API int oak_bind_attr(struct oak_compile_options_t* opts,
  * `instance` is not freed — lifetime is the embedder's responsibility.
  * `instance` may be NULL for sentinel / placeholder values. */
 OAK_API struct oak_value_t
-oak_native_record_new(const struct oak_bind_type_t* type, void* instance);
+oak_native_record_new(struct oak_allocator_t* allocator,
+                      const struct oak_bind_type_t* type,
+                      void* instance);
 
 /* Extract the raw C instance pointer from a native record Oak value.
  * Asserts that `value` is actually a native record (OAK_OBJ_NATIVE_RECORD).

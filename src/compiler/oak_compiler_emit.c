@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 void oak_compiler_emit_byte(const struct oak_compiler_t* c,
                             const u8 byte,
@@ -147,6 +148,6 @@ void oakc_emit_loop_jump(struct oak_compiler_t* c,
       c, c->scope.stack_depth - target_depth, OAK_LOC_SYNTHETIC);
 
   const usize jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
-  oak_dynarr_push(jumps, count, capacity, &jump, sizeof(jump));
+  oak_dynarr_push(c->allocator, jumps, count, capacity, &jump, sizeof(jump));
   c->scope.stack_depth = saved_depth;
 }

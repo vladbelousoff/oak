@@ -54,6 +54,11 @@ int oak_cli_parse(int argc,
         args->no_debug = 1;
         continue;
       }
+      if (strcmp(a, "--track-memory") == 0)
+      {
+        args->track_memory = 1;
+        continue;
+      }
       args->error = "unknown option";
       return -1;
     }
@@ -86,6 +91,6 @@ int oak_cli_parse(int argc,
 void oak_cli_usage(FILE* out)
 {
   fprintf(out,
-          "usage: oak [--disassemble] [--no-debug] [--help] <script> [script "
-          "args...]\n");
+          "usage: oak [--disassemble] [--no-debug] [--track-memory] [--help] "
+          "<script> [script args...]\n");
 }

@@ -35,7 +35,7 @@ struct oak_registered_enum_t
   const char* name;
   usize name_len;
   oak_type_id_t type_id;
-  /* Attribute names.  Always heap-allocated; oak_free when non-NULL. */
+  /* Attribute names.  Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;
 };
@@ -54,6 +54,7 @@ struct oak_registered_enum_vec_t
  * Qualified lookup (EnumName::Variant) uses a linear scan — it is rare. */
 struct oak_enum_registry_t
 {
+  struct oak_allocator_t* allocator;
   struct oak_htable_t by_name;    /* variant name → index into variants */
   struct oak_htable_t enum_names; /* enum type name → 1 (set)           */
   struct oak_enum_variant_vec_t variants;
@@ -62,7 +63,8 @@ struct oak_enum_registry_t
 
 /* ---------- Lifecycle ---------- */
 
-void oak_enum_registry_init(struct oak_enum_registry_t* r);
+void oak_enum_registry_init(struct oak_enum_registry_t* r,
+                            struct oak_allocator_t* allocator);
 void oak_enum_registry_free(struct oak_enum_registry_t* r);
 
 /* ---------- Operations ---------- */

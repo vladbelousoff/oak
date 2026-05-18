@@ -1,7 +1,7 @@
 #include "oak_chunk.h"
 
+#include "oak_allocator.h"
 #include "oak_count_of.h"
-#include "oak_mem.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -86,8 +86,9 @@ const char* oak_binop_name(const u8 binop)
   return "?";
 }
 
-void oak_chunk_init(struct oak_chunk_t* chunk)
+void oak_chunk_init(struct oak_chunk_t* chunk, struct oak_allocator_t* allocator)
 {
+  chunk->allocator = allocator;
   chunk->count = 0;
   chunk->capacity = 0;
   chunk->bytecode = null;
@@ -109,7 +110,7 @@ void oak_chunk_enable_debug(struct oak_chunk_t* chunk, const char* source_name)
     return;
   }
   struct oak_chunk_debug_t* dbg =
-      oak_alloc(sizeof(struct oak_chunk_debug_t), OAK_SRC_LOC);
+      OAK_ALLOC(chunk->allocator, sizeof(struct oak_chunk_debug_t));
   dbg->source_name = source_name;
   dbg->locations = null;
   dbg->debug_count = 0;
@@ -145,8 +146,8 @@ int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
   {
     const int nc =
         c->field_layout_capacity < 4 ? 4 : c->field_layout_capacity * 2;
-    c->field_layouts = oak_realloc(
-        c->field_layouts, (usize)nc * sizeof *c->field_layouts, OAK_SRC_LOC);
+    c->field_layouts = OAK_REALLOC(c->allocator,
+        c->field_layouts, (usize)nc * sizeof *c->field_layouts);
     c->field_layout_capacity = nc;
   }
   struct oak_chunk_field_layout* const d =
@@ -159,7 +160,7 @@ int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
     const usize a = name_len ? name_len[i] : strlen(names[i]);
     tot += a + 1u;
   }
-  char* const blob = oak_alloc(tot, OAK_SRC_LOC);
+  char* const blob = OAK_ALLOC(c->allocator, tot);
   d->name_blob = blob;
   {
     char* p = blob;
@@ -183,12 +184,11 @@ static void ensure_code_capacity(struct oak_chunk_t* chunk)
   const usize new_cap =
       chunk->capacity == 0 ? CHUNK_INITIAL_CAPACITY : chunk->capacity * 2;
   chunk->bytecode =
-      oak_realloc(chunk->bytecode, new_cap * sizeof(u8), OAK_SRC_LOC);
+      OAK_REALLOC(chunk->allocator, chunk->bytecode, new_cap * sizeof(u8));
   if (chunk->debug)
     chunk->debug->locations =
-        oak_realloc(chunk->debug->locations,
-                    new_cap * sizeof(struct oak_code_loc_t),
-                    OAK_SRC_LOC);
+        OAK_REALLOC(chunk->allocator, chunk->debug->locations,
+                    new_cap * sizeof(struct oak_code_loc_t));
   chunk->capacity = new_cap;
 }
 
@@ -211,8 +211,8 @@ usize oak_chunk_add_constant(struct oak_chunk_t* chunk,
     const usize new_cap = chunk->const_capacity == 0
                               ? CONST_INITIAL_CAPACITY
                               : chunk->const_capacity * 2;
-    chunk->constants = oak_realloc(
-        chunk->constants, new_cap * sizeof(struct oak_value_t), OAK_SRC_LOC);
+    chunk->constants = OAK_REALLOC(chunk->allocator,
+        chunk->constants, new_cap * sizeof(struct oak_value_t));
     chunk->const_capacity = new_cap;
   }
 
@@ -235,13 +235,12 @@ void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
   {
     const usize new_cap = dbg->debug_capacity == 0 ? DEBUG_INITIAL_CAPACITY
                                                    : dbg->debug_capacity * 2;
-    dbg->debug_locals = oak_realloc(dbg->debug_locals,
-                                    new_cap * sizeof(struct oak_debug_local_t),
-                                    OAK_SRC_LOC);
+    dbg->debug_locals = OAK_REALLOC(chunk->allocator, dbg->debug_locals,
+                                    new_cap * sizeof(struct oak_debug_local_t));
     dbg->debug_capacity = new_cap;
   }
 
-  char* buf = oak_alloc(length + 1, OAK_SRC_LOC);
+  char* buf = OAK_ALLOC(chunk->allocator, length + 1);
   memcpy(buf, name, length);
   buf[length] = 0;
 
@@ -259,36 +258,38 @@ void oak_chunk_free(struct oak_chunk_t* chunk)
       oak_value_decref(chunk->constants[i]);
   }
 
+  struct oak_allocator_t* a = chunk->allocator;
+
   if (chunk->debug)
   {
     struct oak_chunk_debug_t* dbg = chunk->debug;
     if (dbg->debug_locals)
     {
       for (usize i = 0; i < dbg->debug_count; ++i)
-        oak_free(dbg->debug_locals[i].name, OAK_SRC_LOC);
-      oak_free(dbg->debug_locals, OAK_SRC_LOC);
+        OAK_FREE(a, dbg->debug_locals[i].name);
+      OAK_FREE(a, dbg->debug_locals);
     }
     if (dbg->locations)
-      oak_free(dbg->locations, OAK_SRC_LOC);
-    oak_free(dbg, OAK_SRC_LOC);
+      OAK_FREE(a, dbg->locations);
+    OAK_FREE(a, dbg);
   }
 
   if (chunk->bytecode)
-    oak_free(chunk->bytecode, OAK_SRC_LOC);
+    OAK_FREE(a, chunk->bytecode);
   if (chunk->constants)
-    oak_free(chunk->constants, OAK_SRC_LOC);
+    OAK_FREE(a, chunk->constants);
 
   if (chunk->field_layouts)
   {
     for (int i = 0; i < chunk->field_layout_count; ++i)
     {
       if (chunk->field_layouts[i].name_blob)
-        oak_free(chunk->field_layouts[i].name_blob, OAK_SRC_LOC);
+        OAK_FREE(a, chunk->field_layouts[i].name_blob);
     }
-    oak_free(chunk->field_layouts, OAK_SRC_LOC);
+    OAK_FREE(a, chunk->field_layouts);
   }
 
-  oak_free(chunk, OAK_SRC_LOC);
+  OAK_FREE(a, chunk);
 }
 
 static const char* opcode_name(const u8 op)

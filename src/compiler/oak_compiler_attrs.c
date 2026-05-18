@@ -23,7 +23,8 @@ const struct oak_ast_node_t* oakc_unwrap_decl(const struct oak_ast_node_t* item)
   return decl;
 }
 
-const char** oakc_extract_attrs(const struct oak_ast_node_t* item,
+const char** oakc_extract_attrs(struct oak_allocator_t* allocator,
+                                const struct oak_ast_node_t* item,
                                 int* out_count)
 {
   *out_count = 0;
@@ -43,7 +44,7 @@ const char** oakc_extract_attrs(const struct oak_ast_node_t* item,
   if (count == 0)
     return null;
 
-  const char** arr = oak_alloc((usize)count * sizeof(const char*), OAK_SRC_LOC);
+  const char** arr = OAK_ALLOC(allocator, (usize)count * sizeof(const char*));
   if (!arr)
     return null;
 
@@ -61,11 +62,13 @@ const char** oakc_extract_attrs(const struct oak_ast_node_t* item,
   return arr;
 }
 
-const char** oakc_alloc_attrs(const char* const* names, int count)
+const char** oakc_alloc_attrs(struct oak_allocator_t* allocator,
+                              const char* const* names,
+                              int count)
 {
   if (count <= 0)
     return null;
-  const char** arr = oak_alloc((usize)count * sizeof(const char*), OAK_SRC_LOC);
+  const char** arr = OAK_ALLOC(allocator, (usize)count * sizeof(const char*));
   if (!arr)
     return null;
   for (int i = 0; i < count; ++i)

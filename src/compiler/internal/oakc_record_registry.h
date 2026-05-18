@@ -24,7 +24,7 @@ struct oak_registered_record_t
   /* Instance and static methods share one growable array, distinguished by
    * `is_static` on each entry. Freed by oak_record_registry_free. */
   struct oak_registered_fn_vec_t methods;
-  /* Attribute names.  Always heap-allocated; oak_free when non-NULL. */
+  /* Attribute names.  Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;
 };
@@ -42,13 +42,15 @@ struct oak_registered_record_vec_t
  * (type_id lookups are infrequent and record counts remain small). */
 struct oak_record_registry_t
 {
+  struct oak_allocator_t* allocator;
   struct oak_htable_t by_name; /* name bytes → index */
   struct oak_registered_record_vec_t entries;
 };
 
 /* ---------- Lifecycle ---------- */
 
-void oak_record_registry_init(struct oak_record_registry_t* r);
+void oak_record_registry_init(struct oak_record_registry_t* r,
+                              struct oak_allocator_t* allocator);
 void oak_record_registry_free(struct oak_record_registry_t* r);
 
 /* ---------- Operations ---------- */

@@ -1,17 +1,17 @@
 #pragma once
 
+#include "oak_allocator.h"
 #include "oak_log.h"
 #include "oak_mem.h"
 #include "oak_test.h"
 
-/**
- * Run an array of tests and return an exit code.
- * Call this from each test executable's main().
- */
 static int oak_test_run(const struct oak_test_t* tests, const int count)
 {
+  struct oak_allocator_t allocator;
+  oak_tracking_allocator_init(&allocator);
+  oak_mem_set_allocator(&allocator);
+
   enum oak_test_status_t result = OAK_TEST_OK;
-  oak_mem_init();
 
   for (int i = 0; i < count; ++i)
   {
@@ -26,7 +26,7 @@ static int oak_test_run(const struct oak_test_t* tests, const int count)
     oak_log(OAK_LOG_INFO, "passed: %s", t->name);
   }
 
-  oak_mem_shutdown();
+  allocator.shutdown(&allocator);
   return result == OAK_TEST_OK ? 0 : (int)result;
 }
 

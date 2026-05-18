@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 void oakc_compile_for_from(struct oak_compiler_t* c,
                                         const struct oak_ast_node_t* node)
@@ -102,8 +103,8 @@ void oakc_compile_for_from(struct oak_compiler_t* c,
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(&loop.break_jumps, &loop.break_count, &loop.break_capacity);
-  oak_dynarr_free(
+  oak_dynarr_free(c->allocator, &loop.break_jumps, &loop.break_count, &loop.break_capacity);
+  oak_dynarr_free(c->allocator,
       &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
 }
 
@@ -325,7 +326,7 @@ void oakc_compile_for_in(struct oak_compiler_t* c,
   oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(&loop.break_jumps, &loop.break_count, &loop.break_capacity);
-  oak_dynarr_free(
+  oak_dynarr_free(c->allocator, &loop.break_jumps, &loop.break_count, &loop.break_capacity);
+  oak_dynarr_free(c->allocator,
       &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
 }

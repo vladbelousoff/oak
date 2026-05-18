@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -35,11 +36,14 @@ void oak_compiler_error_at(struct oak_compiler_t* c,
 /* ---------- Compiler lifecycle helpers ---------- */
 
 static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
-                                         struct oak_compile_result_t* out)
+                                         struct oak_compile_result_t* out,
+                                         struct oak_allocator_t* allocator)
 {
+  c->allocator = allocator;
+
   struct oak_chunk_t* chunk =
-      oak_alloc(sizeof(struct oak_chunk_t), OAK_SRC_LOC);
-  oak_chunk_init(chunk);
+      OAK_ALLOC(allocator, sizeof(struct oak_chunk_t));
+  oak_chunk_init(chunk, allocator);
 
   struct oak_type_t no_return_type;
   oak_type_clear(&no_return_type);
@@ -56,12 +60,12 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
     .fn_depth = 0,
   };
 
-  oak_type_registry_init(&c->types);
-  oak_fn_registry_init(&c->fns);
-  oak_record_registry_init(&c->records);
-  oak_enum_registry_init(&c->enums);
-  oak_htable_init(&c->module_scope_names);
-  oak_trait_registry_init(&c->traits);
+  oak_type_registry_init(&c->types, allocator);
+  oak_fn_registry_init(&c->fns, allocator);
+  oak_record_registry_init(&c->records, allocator);
+  oak_enum_registry_init(&c->enums, allocator);
+  oak_htable_init(&c->module_scope_names, allocator);
+  oak_trait_registry_init(&c->traits, allocator);
   c->user_record_start = 0;
   c->user_enum_start = -1;
 
@@ -229,7 +233,9 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
                     struct oak_compile_result_t* out)
 {
   struct oak_compiler_t compiler = { 0 };
-  struct oak_chunk_t* chunk = compiler_init(&compiler, out);
+  struct oak_allocator_t* allocator =
+      (opts && opts->allocator) ? opts->allocator : oak_mem_allocator();
+  struct oak_chunk_t* chunk = compiler_init(&compiler, out, allocator);
   compiler.opts = opts;
   const int want_debug = !opts || opts->emit_debug_info;
   if (want_debug)

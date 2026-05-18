@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 static int register_record_field_decls(struct oak_compiler_t* c,
                                        struct oak_registered_record_t* slot,
@@ -82,7 +83,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     proto.fields = null;
     proto.field_count = 0;
     proto.field_capacity = 0;
-    proto.attrs = oakc_extract_attrs(raw_item, &proto.attr_count);
+    proto.attrs = oakc_extract_attrs(c->allocator, raw_item, &proto.attr_count);
     oakc_dispatch_compile_attr_cbs(
         c, proto.attrs, proto.attr_count, name, OAK_ATTR_TARGET_RECORD);
 
@@ -179,7 +180,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
           "record field must be 'name : type'");
       return 0;
     }
-    oak_dynarr_push(&slot->fields,
+    oak_dynarr_push(c->allocator, &slot->fields,
                     &slot->field_count,
                     &slot->field_capacity,
                     &f,

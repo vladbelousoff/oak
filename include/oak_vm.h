@@ -39,9 +39,10 @@ struct oak_vm_t
   /* Optional: when set, the VM can resolve cross-module references via
    * OP_GET_MODULE_FN and switch chunks on cross-module CALL/RETURN. */
   struct oak_module_registry_t* modules;
+  struct oak_allocator_t* allocator;
 };
 
-OAK_API void oak_vm_init(struct oak_vm_t* vm);
+OAK_API void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator);
 OAK_API void oak_vm_free(struct oak_vm_t* vm);
 
 OAK_API void oak_vm_set_module_registry(struct oak_vm_t* vm,
@@ -50,6 +51,6 @@ OAK_API void oak_vm_set_module_registry(struct oak_vm_t* vm,
 OAK_API enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm,
                                         struct oak_chunk_t* chunk);
 
-/* For native callbacks: `oak_alloc` / `oak_free` site as the current Oak call
+/* For native callbacks: source location of the current Oak call
  * (chunk source_name and CALL line; file is null if unset or on error). */
 OAK_API struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm);

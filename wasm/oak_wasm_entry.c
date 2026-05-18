@@ -1,5 +1,6 @@
 #include <emscripten/emscripten.h>
 
+#include "oak_allocator.h"
 #include "oak_bind.h"
 #include "oak_log.h"
 #include "oak_mem.h"
@@ -19,16 +20,19 @@ int oak_run_wrapper(const char* code)
 EMSCRIPTEN_KEEPALIVE
 int oak_run_file_wrapper(const char* path)
 {
-  oak_mem_init();
+  struct oak_allocator_t* prev_allocator = oak_mem_allocator();
+  struct oak_allocator_t allocator;
+  oak_tracking_allocator_init(&allocator);
+  oak_mem_set_allocator(&allocator);
 
   struct oak_compile_options_t compile_opts;
-  oak_compile_options_init(&compile_opts);
+  oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = path;
   compile_opts.emit_debug_info = 1;
   oak_stdlib_register(&compile_opts);
 
   struct oak_module_registry_t registry;
-  oak_module_registry_init(&registry);
+  oak_module_registry_init(&registry, &allocator);
   struct oak_module_loader_result_t lr = { 0 };
 
   int exit_code = 1;
@@ -47,7 +51,7 @@ int oak_run_file_wrapper(const char* path)
   if (load_rc == 0 && lr.entry && lr.entry->chunk)
   {
     struct oak_vm_t vm;
-    oak_vm_init(&vm);
+    oak_vm_init(&vm, &allocator);
     oak_vm_set_module_registry(&vm, &registry);
     exit_code = oak_vm_run(&vm, lr.entry->chunk) != OAK_VM_OK;
     oak_vm_free(&vm);
@@ -55,6 +59,7 @@ int oak_run_file_wrapper(const char* path)
 
   oak_module_registry_free(&registry);
   oak_compile_options_free(&compile_opts);
-  oak_mem_shutdown();
+  allocator.shutdown(&allocator);
+  oak_mem_set_allocator(prev_allocator);
   return exit_code;
 }

@@ -1,5 +1,5 @@
 #include "oak_dynarr.h"
-#include "oak_mem.h"
+#include "oak_allocator.h"
 #include "oak_types.h"
 
 #include <string.h>
@@ -17,7 +17,8 @@ void oak_dynarr_init(void* items_field_ptr, int* count, int* capacity)
   *capacity = 0;
 }
 
-void oak_dynarr_push(void* items_field_ptr,
+void oak_dynarr_push(struct oak_allocator_t* a,
+                     void* items_field_ptr,
                      int* count,
                      int* capacity,
                      const void* item,
@@ -29,7 +30,7 @@ void oak_dynarr_push(void* items_field_ptr,
   if (*count >= *capacity)
   {
     const int nc = *capacity < 8 ? 8 : *capacity * 2;
-    items = oak_realloc(items, (usize)nc * (usize)item_size, OAK_SRC_LOC);
+    items = OAK_REALLOC(a, items, (usize)nc * (usize)item_size);
     *capacity = nc;
   }
 
@@ -41,12 +42,15 @@ void oak_dynarr_push(void* items_field_ptr,
   memcpy(items_field_ptr, &items, sizeof(void*));
 }
 
-void oak_dynarr_free(void* items_field_ptr, int* count, int* capacity)
+void oak_dynarr_free(struct oak_allocator_t* a,
+                     void* items_field_ptr,
+                     int* count,
+                     int* capacity)
 {
   void* items;
   memcpy(&items, items_field_ptr, sizeof(void*));
   if (items)
-    oak_free(items, OAK_SRC_LOC);
+    OAK_FREE(a, items);
   items = null;
   memcpy(items_field_ptr, &items, sizeof(void*));
   *count = 0;

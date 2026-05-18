@@ -1,5 +1,6 @@
 #include "oak_bind.h"
 
+#include "oak_allocator.h"
 #include "oak_dynarr.h"
 #include "oak_log.h"
 #include "oak_mem.h"
@@ -10,10 +11,12 @@
 
 /* ---------- Compile-options lifecycle ---------- */
 
-void oak_compile_options_init(struct oak_compile_options_t* opts)
+void oak_compile_options_init(struct oak_compile_options_t* opts,
+                             struct oak_allocator_t* allocator)
 {
   if (!opts)
     return;
+  opts->allocator = allocator;
   opts->source_name = null;
   oak_dynarr_init(&opts->native_types.items,
                   &opts->native_types.count,
@@ -42,31 +45,31 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
     return;
   for (int i = 0; i < opts->native_types.count; ++i)
   {
-    oak_dynarr_free(&opts->native_types.items[i]->fields,
+    oak_dynarr_free(opts->allocator, &opts->native_types.items[i]->fields,
                     &opts->native_types.items[i]->field_count,
                     &opts->native_types.items[i]->field_capacity);
-    oak_free(opts->native_types.items[i], OAK_SRC_LOC);
+    OAK_FREE(opts->allocator, opts->native_types.items[i]);
   }
-  oak_dynarr_free(&opts->native_types.items,
+  oak_dynarr_free(opts->allocator, &opts->native_types.items,
                   &opts->native_types.count,
                   &opts->native_types.capacity);
-  oak_dynarr_free(&opts->native_fns.items,
+  oak_dynarr_free(opts->allocator, &opts->native_fns.items,
                   &opts->native_fns.count,
                   &opts->native_fns.capacity);
-  oak_dynarr_free(&opts->native_global_fns.items,
+  oak_dynarr_free(opts->allocator, &opts->native_global_fns.items,
                   &opts->native_global_fns.count,
                   &opts->native_global_fns.capacity);
   for (int i = 0; i < opts->native_enums.count; ++i)
   {
-    oak_dynarr_free(&opts->native_enums.items[i]->variants,
+    oak_dynarr_free(opts->allocator, &opts->native_enums.items[i]->variants,
                     &opts->native_enums.items[i]->variant_count,
                     &opts->native_enums.items[i]->variant_capacity);
-    oak_free(opts->native_enums.items[i], OAK_SRC_LOC);
+    OAK_FREE(opts->allocator, opts->native_enums.items[i]);
   }
-  oak_dynarr_free(&opts->native_enums.items,
+  oak_dynarr_free(opts->allocator, &opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity);
-  oak_dynarr_free(&opts->native_attrs.items,
+  oak_dynarr_free(opts->allocator, &opts->native_attrs.items,
                   &opts->native_attrs.count,
                   &opts->native_attrs.capacity);
   opts->next_type_id = OAK_TYPE_FIRST_USER;
@@ -91,7 +94,7 @@ struct oak_bind_type_t* oak_bind_type_in_module(
     return null;
 
   struct oak_bind_type_t* t =
-      oak_alloc(sizeof(struct oak_bind_type_t), OAK_SRC_LOC);
+      OAK_ALLOC(opts->allocator, sizeof(struct oak_bind_type_t));
   t->module_name = module_name;
   t->module_name_len = module_name ? strlen(module_name) : 0u;
   t->kind = kind;
@@ -100,8 +103,9 @@ struct oak_bind_type_t* oak_bind_type_in_module(
   t->type_id = opts->next_type_id++;
   oak_dynarr_init(&t->fields, &t->field_count, &t->field_capacity);
   t->destructor = null;
+  t->allocator = opts->allocator;
 
-  oak_dynarr_push(&opts->native_types.items,
+  oak_dynarr_push(opts->allocator, &opts->native_types.items,
                   &opts->native_types.count,
                   &opts->native_types.capacity,
                   &t,
@@ -132,7 +136,7 @@ int oak_bind_field(struct oak_bind_type_t* type,
     .getter = p->getter,
     .setter = p->setter,
   };
-  oak_dynarr_push(&type->fields,
+  oak_dynarr_push(type->allocator, &type->fields,
                   &type->field_count,
                   &type->field_capacity,
                   &f,
@@ -153,7 +157,7 @@ int oak_bind_fn_global(struct oak_compile_options_t* opts,
   struct oak_bind_global_fn_t entry = *p;
   if (entry.module_name && entry.module_name_len == 0u)
     entry.module_name_len = strlen(entry.module_name);
-  oak_dynarr_push(&opts->native_global_fns.items,
+  oak_dynarr_push(opts->allocator, &opts->native_global_fns.items,
                   &opts->native_global_fns.count,
                   &opts->native_global_fns.capacity,
                   &entry,
@@ -178,7 +182,7 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
     return -1;
 
   struct oak_bind_fn_t copy = *p;
-  oak_dynarr_push(&opts->native_fns.items,
+  oak_dynarr_push(opts->allocator, &opts->native_fns.items,
                   &opts->native_fns.count,
                   &opts->native_fns.capacity,
                   &copy,
@@ -201,14 +205,15 @@ struct oak_bind_enum_t* oak_bind_enum_in_module(
     return null;
 
   struct oak_bind_enum_t* e =
-      oak_alloc(sizeof(struct oak_bind_enum_t), OAK_SRC_LOC);
+      OAK_ALLOC(opts->allocator, sizeof(struct oak_bind_enum_t));
   e->module_name = module_name;
   e->module_name_len = module_name ? strlen(module_name) : 0u;
   e->name = name;
   e->name_len = strlen(name);
   oak_dynarr_init(&e->variants, &e->variant_count, &e->variant_capacity);
+  e->allocator = opts->allocator;
 
-  oak_dynarr_push(&opts->native_enums.items,
+  oak_dynarr_push(opts->allocator, &opts->native_enums.items,
                   &opts->native_enums.count,
                   &opts->native_enums.capacity,
                   &e,
@@ -234,7 +239,7 @@ int oak_bind_enum_variant(struct oak_bind_enum_t* e,
     .name_len = strlen(name),
     .value = value,
   };
-  oak_dynarr_push(&e->variants,
+  oak_dynarr_push(e->allocator, &e->variants,
                   &e->variant_count,
                   &e->variant_capacity,
                   &v,
@@ -244,12 +249,13 @@ int oak_bind_enum_variant(struct oak_bind_enum_t* e,
 
 /* ---------- Runtime helpers ---------- */
 
-struct oak_value_t oak_native_record_new(const struct oak_bind_type_t* type,
+struct oak_value_t oak_native_record_new(struct oak_allocator_t* allocator,
+                                         const struct oak_bind_type_t* type,
                                          void* instance)
 {
   oak_assert(type != null);
   struct oak_obj_native_record_t* ns =
-      oak_obj_native_record_new(type, instance);
+      oak_obj_native_record_new(allocator, type, instance);
   return OAK_VALUE_OBJ(&ns->obj);
 }
 
@@ -314,8 +320,13 @@ void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
   if (match_count == 0)
     return;
 
-  struct oak_attr_hook_entry_t* hooks = oak_alloc(
-      (usize)match_count * sizeof(struct oak_attr_hook_entry_t), OAK_SRC_LOC);
+  struct oak_allocator_t* a = fn_obj ? fn_obj->obj.allocator
+                             : native_obj ? native_obj->obj.allocator
+                             : null;
+  if (!a)
+    return;
+  struct oak_attr_hook_entry_t* hooks = OAK_ALLOC(a,
+      (usize)match_count * sizeof(struct oak_attr_hook_entry_t));
   int idx = 0;
   for (int bi = 0; bi < opts->native_attrs.count; ++bi)
   {
@@ -346,7 +357,7 @@ void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
   }
   else
   {
-    oak_free(hooks, OAK_SRC_LOC);
+    OAK_FREE(a, hooks);
   }
 }
 
@@ -355,7 +366,7 @@ int oak_bind_attr(struct oak_compile_options_t* opts,
 {
   if (!opts || !params || !params->name)
     return -1;
-  oak_dynarr_push(&opts->native_attrs.items,
+  oak_dynarr_push(opts->allocator, &opts->native_attrs.items,
                   &opts->native_attrs.count,
                   &opts->native_attrs.capacity,
                   params,

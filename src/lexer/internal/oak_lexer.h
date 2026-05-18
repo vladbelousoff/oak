@@ -10,6 +10,7 @@ struct oak_lexer_result_t
   struct oak_list_entry_t tokens;
   struct oak_arena_t arena;
   int error_count;
+  struct oak_allocator_t* allocator;
 };
 
 struct oak_lexer_cur_t
@@ -35,10 +36,12 @@ struct oak_growable_buf_t
   usize len;
   usize cap;
   int heap;
+  struct oak_allocator_t* allocator;
 };
 
 void oak_growable_buf_init(struct oak_growable_buf_t* b,
-                           char tls[OAK_LEXER_TLS_BUF]);
+                           char tls[OAK_LEXER_TLS_BUF],
+                           struct oak_allocator_t* allocator);
 void oak_growable_buf_free(struct oak_growable_buf_t* b);
 enum oak_lex_status_t oak_growable_buf_reserve(struct oak_growable_buf_t* b,
                                                usize min_cap);

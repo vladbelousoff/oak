@@ -1,4 +1,5 @@
 #include "internal/oak_parser.h"
+#include "oak_mem.h"
 
 #include <stdio.h>
 
@@ -28,9 +29,10 @@ struct oak_ast_node_t* oak_parser_parse_rule(struct oak_parser_t* p,
 
 void oak_parse(const struct oak_lexer_result_t* lexer,
                const enum oak_node_kind_t kind,
-               struct oak_parser_result_t* out)
+               struct oak_parser_result_t* out,
+               struct oak_allocator_t* allocator)
 {
-  oak_arena_init(&out->arena, 0);
+  oak_arena_init(&out->arena, 0, allocator);
 
   const struct oak_list_entry_t* tokens = oak_lexer_tokens(lexer);
   struct oak_parser_t parser = {

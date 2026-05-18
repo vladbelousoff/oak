@@ -33,10 +33,13 @@ enum oak_obj_type_t
   OAK_OBJ_TRAIT_OBJECT,
 };
 
+struct oak_allocator_t;
+
 struct oak_obj_t
 {
   enum oak_obj_type_t type;
   struct oak_refcount_t refcount;
+  struct oak_allocator_t* allocator;
 };
 
 #define OAK_NUMBER_FLAG_FLOAT (1u << 0)
@@ -194,6 +197,7 @@ struct oak_vm_t;
 struct oak_native_ctx_t
 {
   struct oak_vm_t* vm;
+  struct oak_allocator_t* allocator;
 };
 
 /* Native (C) callable: returns OAK_FN_CALL_OK on success. */
@@ -252,37 +256,48 @@ struct oak_obj_native_fn_t
       .as.obj = (struct oak_obj_t*)(_obj),                                     \
   })
 
-OAK_API struct oak_obj_string_t* oak_string_new(const char* chars,
+OAK_API struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
+                                                const char* chars,
                                                 usize length);
 
 OAK_API struct oak_obj_string_t*
-oak_string_concat(const struct oak_obj_string_t* a,
-                  const struct oak_obj_string_t* b);
+oak_string_concat(struct oak_allocator_t* a,
+                  const struct oak_obj_string_t* s1,
+                  const struct oak_obj_string_t* s2);
 
-OAK_API struct oak_obj_fn_t* oak_fn_new(usize code_offset,
+OAK_API struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
+                                        usize code_offset,
                                         int arity,
                                         u16 module_id);
 
 OAK_API struct oak_obj_native_fn_t*
-oak_native_fn_new(oak_native_fn_t fn, int arity, const char* name);
+oak_native_fn_new(struct oak_allocator_t* a,
+                  oak_native_fn_t fn,
+                  int arity,
+                  const char* name);
 
-OAK_API struct oak_obj_array_t* oak_array_new(void);
+OAK_API struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a);
 OAK_API void oak_array_push(struct oak_obj_array_t* arr,
                             struct oak_value_t value);
 
 OAK_API struct oak_obj_record_t* oak_record_new(
+    struct oak_allocator_t* a,
     int field_count,
     const char* type_name,
     const char* const* field_names, /* if NULL, JSON keys are "0", "1", … */
     const usize* field_name_len);   /* if NULL, strlen(field_names[i]) */
 
 OAK_API struct oak_obj_native_record_t*
-oak_obj_native_record_new(const struct oak_bind_type_t* type, void* instance);
+oak_obj_native_record_new(struct oak_allocator_t* a,
+                          const struct oak_bind_type_t* type,
+                          void* instance);
 
 OAK_API struct oak_obj_trait_object_t*
-oak_trait_object_new(struct oak_value_t value, struct oak_obj_array_t* vtable);
+oak_trait_object_new(struct oak_allocator_t* a,
+                     struct oak_value_t value,
+                     struct oak_obj_array_t* vtable);
 
-OAK_API struct oak_obj_map_t* oak_map_new(void);
+OAK_API struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a);
 /* Returns 1 and writes the value into *out if found; 0 otherwise. */
 OAK_API int oak_map_get(const struct oak_obj_map_t* map,
                         struct oak_value_t key,
@@ -487,9 +502,11 @@ static inline struct oak_value_t oak_value_weaken(const struct oak_value_t value
  * Strings return themselves (incref'd); booleans and numbers return a decimal
  * string; arrays, maps, and records return a JSON string.
  * Caller owns the returned reference. Returns null on allocation failure. */
-OAK_API struct oak_obj_string_t* oak_value_to_string(struct oak_value_t value);
+OAK_API struct oak_obj_string_t* oak_value_to_string(
+    struct oak_allocator_t* allocator, struct oak_value_t value);
 
-OAK_API void oak_value_println(struct oak_value_t value);
+OAK_API void oak_value_println(struct oak_allocator_t* allocator,
+                               struct oak_value_t value);
 
 /* Writes a short human-readable representation (not JSON). Returns bytes
  * written (excluding NUL), or negative on failure. Never writes past size. */
@@ -498,4 +515,5 @@ OAK_API int oak_value_snprint_repr(char* buf,
                                    struct oak_value_t value);
 
 OAK_API struct oak_obj_string_t*
-oak_string_from_value_repr(struct oak_value_t value);
+oak_string_from_value_repr(struct oak_allocator_t* allocator,
+                           struct oak_value_t value);

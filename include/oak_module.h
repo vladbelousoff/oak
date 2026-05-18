@@ -127,6 +127,8 @@ struct oak_enum_export_table_t
 
 struct oak_module_t
 {
+  struct oak_allocator_t* allocator;
+
   /* Identity */
   char* canonical_path; /* owned; null-terminated; hash-table key */
   char* dotted_name;    /* owned; e.g. "a.b.c"; for diagnostics only */
@@ -169,13 +171,15 @@ struct oak_module_ptr_vec_t
 
 struct oak_module_registry_t
 {
+  struct oak_allocator_t* allocator;
   struct oak_module_ptr_vec_t modules;   /* index = module_id */
   struct oak_htable_t by_canonical_path; /* path -> module_id */
 };
 
 /* ----- Lifecycle ----- */
 
-OAK_API void oak_module_registry_init(struct oak_module_registry_t* reg);
+OAK_API void oak_module_registry_init(struct oak_module_registry_t* reg,
+                                     struct oak_allocator_t* allocator);
 OAK_API void oak_module_registry_free(struct oak_module_registry_t* reg);
 
 /* O(1) lookup. Returns null if no module with that id. */

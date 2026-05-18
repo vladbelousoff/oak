@@ -1,7 +1,7 @@
 #include "oak_stdlib_file.h"
 
+#include "oak_allocator.h"
 #include "oak_bind.h"
-#include "oak_mem.h"
 #include "oak_value.h"
 #include "oak_vm.h"
 
@@ -49,15 +49,14 @@ static enum oak_fn_call_result_t file_open(struct oak_native_ctx_t* ctx,
   FILE* fp = fopen(oak_as_cstring(args[0]), mode);
   if (!fp)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_src_loc_t loc = oak_vm_oak_mem_src_loc(ctx->vm);
-  oak_file_handle_t* h = oak_alloc(sizeof *h, loc);
+  oak_file_handle_t* h = OAK_ALLOC(ctx->allocator, sizeof *h);
   if (!h)
   {
     fclose(fp);
     return OAK_FN_CALL_RUNTIME_ERROR;
   }
   h->fp = fp;
-  *out = oak_native_record_new(s_file_type, h);
+  *out = oak_native_record_new(ctx->allocator, s_file_type, h);
   return OAK_FN_CALL_OK;
 }
 
@@ -66,7 +65,6 @@ static enum oak_fn_call_result_t file_read(struct oak_native_ctx_t* ctx,
                                            int argc,
                                            struct oak_value_t* out)
 {
-  (void)ctx;
   if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
@@ -75,12 +73,12 @@ static enum oak_fn_call_result_t file_read(struct oak_native_ctx_t* ctx,
   char buf[4096];
   if (!fgets(buf, sizeof buf, h->fp))
   {
-    struct oak_obj_string_t* s = oak_string_new("", 0);
+    struct oak_obj_string_t* s = oak_string_new(ctx->allocator, "", 0);
     *out = OAK_VALUE_OBJ(&s->obj);
     return OAK_FN_CALL_OK;
   }
   const usize len = strlen(buf);
-  struct oak_obj_string_t* s = oak_string_new(buf, len);
+  struct oak_obj_string_t* s = oak_string_new(ctx->allocator, buf, len);
   *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
@@ -90,7 +88,6 @@ static enum oak_fn_call_result_t file_read_all(struct oak_native_ctx_t* ctx,
                                                int argc,
                                                struct oak_value_t* out)
 {
-  (void)ctx;
   if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
@@ -108,18 +105,17 @@ static enum oak_fn_call_result_t file_read_all(struct oak_native_ctx_t* ctx,
   const size_t n = (size_t)(end - pos);
   if (n == 0)
   {
-    struct oak_obj_string_t* s = oak_string_new("", 0);
+    struct oak_obj_string_t* s = oak_string_new(ctx->allocator, "", 0);
     *out = OAK_VALUE_OBJ(&s->obj);
     return OAK_FN_CALL_OK;
   }
-  const struct oak_src_loc_t loc = oak_vm_oak_mem_src_loc(ctx->vm);
-  char* buf = oak_alloc(n + 1u, loc);
+  char* buf = OAK_ALLOC(ctx->allocator, n + 1u);
   if (!buf)
     return OAK_FN_CALL_RUNTIME_ERROR;
   const size_t got = fread(buf, 1u, n, f);
   buf[got] = '\0';
-  struct oak_obj_string_t* s = oak_string_new(buf, got);
-  oak_free(buf, loc);
+  struct oak_obj_string_t* s = oak_string_new(ctx->allocator, buf, got);
+  OAK_FREE(ctx->allocator, buf);
   *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
@@ -166,10 +162,9 @@ static enum oak_fn_call_result_t file_close(struct oak_native_ctx_t* ctx,
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_src_loc_t loc = oak_vm_oak_mem_src_loc(ctx->vm);
   fclose(h->fp);
   h->fp = null;
-  oak_free(h, loc);
+  OAK_FREE(ctx->allocator, h);
   *out = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }

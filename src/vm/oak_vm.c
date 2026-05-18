@@ -1,6 +1,6 @@
 #include "internal/oak_vm.h"
 
-void oak_vm_init(struct oak_vm_t* vm)
+void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator)
 {
   vm->chunk = null;
   vm->ip = null;
@@ -8,6 +8,7 @@ void oak_vm_init(struct oak_vm_t* vm)
   vm->stack_base = 0;
   vm->frame_count = 0;
   vm->modules = null;
+  vm->allocator = allocator;
 }
 
 void oak_vm_set_module_registry(struct oak_vm_t* vm,
@@ -87,7 +88,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
             if (binop == OAK_BINOP_ADD && oak_is_string(a) && oak_is_string(b))
             {
               struct oak_obj_string_t* result =
-                  oak_string_concat(oak_as_string(a), oak_as_string(b));
+                  oak_string_concat(vm->allocator, oak_as_string(a), oak_as_string(b));
               const enum oak_vm_result_t pr =
                   oak_vm_push_owned(vm, OAK_VALUE_OBJ(result));
               oak_value_decref(a);
@@ -243,10 +244,6 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
 
 struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
 {
-#ifndef OAK_TRACK_MEMORY
-  (void)vm;
-  return (struct oak_src_loc_t){ 0 };
-#else
   if (!vm || !vm->chunk || !vm->chunk->bytecode || !vm->chunk->debug ||
       !vm->chunk->debug->locations)
     return (struct oak_src_loc_t){
@@ -281,5 +278,4 @@ struct oak_src_loc_t oak_vm_oak_mem_src_loc(const struct oak_vm_t* vm)
     .file = vm->chunk->debug->source_name,
     .line = cloc.line,
   };
-#endif
 }

@@ -2,8 +2,6 @@
 
 #include <string.h>
 
-#include "oak_mem.h"
-
 struct oak_arena_block_t
 {
   struct oak_arena_block_t* next;
@@ -20,10 +18,11 @@ static usize align_up(usize n)
   return (n + mask) & ~mask;
 }
 
-static struct oak_arena_block_t* arena_new_block(usize capacity)
+static struct oak_arena_block_t* arena_new_block(struct oak_allocator_t* a,
+                                                 usize capacity)
 {
   struct oak_arena_block_t* block =
-      oak_alloc(sizeof(struct oak_arena_block_t) + capacity, OAK_SRC_LOC);
+      OAK_ALLOC(a, sizeof(struct oak_arena_block_t) + capacity);
   if (!block)
     return null;
   block->next = null;
@@ -32,10 +31,13 @@ static struct oak_arena_block_t* arena_new_block(usize capacity)
   return block;
 }
 
-void oak_arena_init(struct oak_arena_t* arena, usize block_size)
+void oak_arena_init(struct oak_arena_t* arena,
+                    usize block_size,
+                    struct oak_allocator_t* allocator)
 {
   arena->block_size = block_size ? block_size : OAK_ARENA_DEFAULT_BLOCK_SIZE;
   arena->current = null;
+  arena->allocator = allocator;
 }
 
 void* oak_arena_alloc(struct oak_arena_t* arena, usize size)
@@ -48,7 +50,7 @@ void* oak_arena_alloc(struct oak_arena_t* arena, usize size)
     usize cap = arena->block_size;
     if (aligned > cap)
       cap = aligned;
-    struct oak_arena_block_t* block = arena_new_block(cap);
+    struct oak_arena_block_t* block = arena_new_block(arena->allocator, cap);
     if (!block)
       return null;
     block->next = arena->current;
@@ -68,7 +70,7 @@ void oak_arena_free(struct oak_arena_t* arena)
   while (block)
   {
     struct oak_arena_block_t* next = block->next;
-    oak_free(block, OAK_SRC_LOC);
+    OAK_FREE(arena->allocator, block);
     block = next;
   }
   arena->current = null;

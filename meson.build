@@ -40,6 +40,7 @@ public_inc = include_directories('include')
 test_inc = include_directories('tests/common')
 
 oak_core_sources = files(
+  'src/common/oak_allocator.c',
   'src/common/oak_arena.c',
   'src/common/oak_dynarr.c',
   'src/common/oak_file_map.c',

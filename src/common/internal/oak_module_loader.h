@@ -6,8 +6,8 @@
 #include "oak_chunk.h"
 #include "oak_dynarr.h"
 #include "oak_lexer.h"
+#include "oak_allocator.h"
 #include "oak_log.h"
-#include "oak_mem.h"
 #include "oak_type.h"
 
 #include <stdarg.h>
@@ -51,11 +51,11 @@ void loader_propagate_diagnostics(struct oak_module_loader_result_t* out,
 
 /* ---------- Path helpers (oak_module_loader_path.c) ---------- */
 
-char* path_dirname_dup(const char* path);
-char* path_resolve_dotted(const char* base_dir, const char* dotted);
-char* path_canonicalize(const char* path);
+char* path_dirname_dup(struct oak_allocator_t* a, const char* path);
+char* path_resolve_dotted(struct oak_allocator_t* a, const char* base_dir, const char* dotted);
+char* path_canonicalize(struct oak_allocator_t* a, const char* path);
 int   path_exists(const char* path);
-char* dotted_name_from_path(const struct oak_ast_node_t* path_node);
+char* dotted_name_from_path(struct oak_allocator_t* a, const struct oak_ast_node_t* path_node);
 const struct oak_ast_node_t* dotted_path_last_segment(
     const struct oak_ast_node_t* path_node);
 

@@ -178,14 +178,17 @@ const struct oak_ast_node_t* oakc_unwrap_decl(
 
 /* Allocate and fill an array of attribute name strings from an ATTR_DECL
  * node's ATTR children.  *out_count is set to the number of attributes.
- * Returns a heap-allocated array (must be oak_free'd) or NULL if item is
+ * Returns a heap-allocated array (caller must free) or NULL if item is
  * not ATTR_DECL or has no attributes. */
-const char** oakc_extract_attrs(const struct oak_ast_node_t* item,
+const char** oakc_extract_attrs(struct oak_allocator_t* allocator,
+                                const struct oak_ast_node_t* item,
                                 int* out_count);
 
 /* Allocate a copy of a static attribute name list.  Used by native
  * registration so every attrs array is uniformly heap-owned. */
-const char** oakc_alloc_attrs(const char* const* names, int count);
+const char** oakc_alloc_attrs(struct oak_allocator_t* allocator,
+                              const char* const* names,
+                              int count);
 
 /* Fire on_decl callbacks for any registered attribute that matches an entry in
  * attrs[].  No-op when c->opts has no native_attrs or attr_count == 0. */

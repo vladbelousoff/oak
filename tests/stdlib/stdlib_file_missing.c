@@ -19,14 +19,14 @@ OAK_TEST_DECL(StdlibFileMissingPathRuntimeError)
       "r.close();\n"
       "print(t);\n";
 
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source));
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_mem_allocator());
   struct oak_parser_result_t pr = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &pr);
+  oak_parse(lexer, OAK_NODE_PROGRAM, &pr, oak_mem_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&pr);
   OAK_CHECK(root != null);
 
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts);
+  oak_compile_options_init(&opts, oak_mem_allocator());
   oak_stdlib_register_file(&opts);
 
   struct oak_compile_result_t cr = { 0 };
@@ -34,7 +34,7 @@ OAK_TEST_DECL(StdlibFileMissingPathRuntimeError)
   OAK_CHECK(cr.chunk != null);
 
   struct oak_vm_t vm;
-  oak_vm_init(&vm);
+  oak_vm_init(&vm, oak_mem_allocator());
   const enum oak_vm_result_t run = oak_vm_run(&vm, cr.chunk);
   oak_vm_free(&vm);
   oak_compile_result_free(&cr);

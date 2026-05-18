@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "oak_mem.h"
 
 #include <string.h>
 
@@ -112,7 +113,7 @@ void oakc_register_native_types(
       }
       else
         sf.type.id = nf->field_type_id;
-      oak_dynarr_push(&proto.fields,
+      oak_dynarr_push(c->allocator, &proto.fields,
                       &proto.field_count,
                       &proto.field_capacity,
                       &sf,
@@ -127,10 +128,11 @@ void oakc_register_native_types(
 
 /* ---------- Native function registration ---------- */
 
-static void record_append_method(struct oak_registered_record_t* sd,
+static void record_append_method(struct oak_allocator_t* allocator,
+                                 struct oak_registered_record_t* sd,
                                  const struct oak_registered_fn_t* m)
 {
-  oak_dynarr_push(&sd->methods.items,
+  oak_dynarr_push(allocator, &sd->methods.items,
                   &sd->methods.count,
                   &sd->methods.capacity,
                   m,
@@ -151,7 +153,7 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
 
     const usize name_len = strlen(b->name);
     struct oak_obj_native_fn_t* native =
-        oak_native_fn_new(b->impl, b->arity, b->name);
+        oak_native_fn_new(c->allocator, b->impl, b->arity, b->name);
     const u16 idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
@@ -189,7 +191,7 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
                              ? b->arity + 1
                              : b->arity;
     struct oak_obj_native_fn_t* native =
-        oak_native_fn_new(b->impl, vm_arity, b->name);
+        oak_native_fn_new(c->allocator, b->impl, vm_arity, b->name);
 
     /* Apply runtime attribute hooks from the module stub, if the receiver type
      * belongs to a module that has a compiled stub with attributed methods. */
@@ -269,7 +271,7 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
         return;
       }
     }
-    record_append_method(sd, &entry);
+    record_append_method(c->allocator, sd, &entry);
     if (c->has_error)
       return;
   }
