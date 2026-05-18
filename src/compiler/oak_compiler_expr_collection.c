@@ -102,6 +102,13 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
                           "cannot infer map key type from first entry");
     return;
   }
+  if (key_ty.id == OAK_TYPE_NONE || key_ty.is_weak)
+  {
+    oak_compiler_error_at(c,
+                          first_entry->lhs->token,
+                          "'none' and weak references cannot be used as map keys");
+    return;
+  }
   if (!oak_type_is_known(&val_ty))
   {
     oak_compiler_error_at(c,

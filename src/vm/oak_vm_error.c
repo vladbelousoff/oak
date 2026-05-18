@@ -5,6 +5,8 @@
 
 const char* oak_vm_value_kind_desc(const struct oak_value_t v)
 {
+  if (oak_is_none_like(v))
+    return "none";
   if (oak_is_bool(v))
     return "bool";
   if (oak_is_number(v))

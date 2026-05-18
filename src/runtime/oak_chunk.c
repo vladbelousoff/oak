@@ -16,6 +16,7 @@ const struct oak_op_info_t oak_op_info[] = {
   [OAK_OP_PUSH_INT8] = { "OP_PUSH_INT8", OAK_OP_FMT_INT8, 1 },
   [OAK_OP_TRUE] = { "OP_TRUE", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_FALSE] = { "OP_FALSE", OAK_OP_FMT_NONE, 1 },
+  [OAK_OP_NONE] = { "OP_NONE", OAK_OP_FMT_NONE, 1 },
   [OAK_OP_BOOL] = { "OP_BOOL", OAK_OP_FMT_NONE, 0 },
   [OAK_OP_POP] = { "OP_POP", OAK_OP_FMT_NONE, -1 },
   /* Variadic stack effect: tracked explicitly at the emit site. */

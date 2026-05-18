@@ -25,6 +25,9 @@ enum oak_vm_result_t vm_stack_dispatch(struct oak_vm_t* vm,
     case OAK_OP_FALSE:
       OAK_VM_TRY(oak_vm_push(vm, OAK_VALUE_BOOL(0)));
       break;
+    case OAK_OP_NONE:
+      OAK_VM_TRY(oak_vm_push_owned(vm, OAK_VALUE_NONE));
+      break;
     case OAK_OP_POP:
     {
       const struct oak_value_t val = oak_vm_pop(vm);
@@ -78,6 +81,7 @@ enum oak_vm_result_t vm_stack_dispatch(struct oak_vm_t* vm,
         return OAK_VM_RUNTIME_ERROR;
       }
       vm->sp[-1] = oak_value_weaken(value);
+      oak_refcount_inc(&value.as.obj->weak_refcount);
       oak_value_decref(value);
       break;
     }

@@ -12,6 +12,7 @@ enum oak_value_type_t
   OAK_VAL_NUMBER,
   OAK_VAL_OBJ,
   OAK_VAL_WEAK_OBJ,
+  OAK_VAL_NONE,
 };
 
 enum oak_obj_type_t
@@ -39,6 +40,7 @@ struct oak_obj_t
 {
   enum oak_obj_type_t type;
   struct oak_refcount_t refcount;
+  struct oak_refcount_t weak_refcount;
   struct oak_allocator_t* allocator;
 };
 
@@ -256,6 +258,11 @@ struct oak_obj_native_fn_t
       .as.obj = (struct oak_obj_t*)(_obj),                                     \
   })
 
+#define OAK_VALUE_NONE                                                         \
+  ((struct oak_value_t){                                                       \
+      .type = OAK_VAL_NONE,                                                    \
+  })
+
 OAK_API struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
                                                 const char* chars,
                                                 usize length);
@@ -303,9 +310,9 @@ OAK_API int oak_map_get(const struct oak_obj_map_t* map,
                         struct oak_value_t key,
                         struct oak_value_t* out);
 /* Inserts or replaces the value for `key`. Increments refcounts as needed. */
-OAK_API void oak_map_set(struct oak_obj_map_t* map,
-                         struct oak_value_t key,
-                         struct oak_value_t value);
+OAK_API int oak_map_set(struct oak_obj_map_t* map,
+                        struct oak_value_t key,
+                        struct oak_value_t value);
 OAK_API int oak_map_has(const struct oak_obj_map_t* map,
                         struct oak_value_t key);
 /* Removes the entry with the given key. Returns 1 if removed, 0 otherwise. */
@@ -331,12 +338,31 @@ static inline int oak_is_number(const struct oak_value_t value)
 
 static inline int oak_is_obj(const struct oak_value_t value)
 {
-  return value.type == OAK_VAL_OBJ || value.type == OAK_VAL_WEAK_OBJ;
+  if (value.type == OAK_VAL_OBJ)
+    return 1;
+  if (value.type == OAK_VAL_WEAK_OBJ)
+    return value.as.obj->refcount.count != 0;
+  return 0;
 }
 
 static inline int oak_is_weak_obj(const struct oak_value_t value)
 {
   return value.type == OAK_VAL_WEAK_OBJ;
+}
+
+static inline int oak_is_none(const struct oak_value_t value)
+{
+  return value.type == OAK_VAL_NONE;
+}
+
+static inline int oak_is_expired_weak(const struct oak_value_t value)
+{
+  return value.type == OAK_VAL_WEAK_OBJ && value.as.obj->refcount.count == 0;
+}
+
+static inline int oak_is_none_like(const struct oak_value_t value)
+{
+  return value.type == OAK_VAL_NONE || oak_is_expired_weak(value);
 }
 
 static inline int oak_is_string(const struct oak_value_t value)
@@ -478,17 +504,22 @@ OAK_API int oak_value_equal(struct oak_value_t a, struct oak_value_t b);
 
 OAK_API void oak_obj_incref(struct oak_obj_t* obj);
 OAK_API void oak_obj_decref(struct oak_obj_t* obj);
+OAK_API void oak_weak_decref(struct oak_obj_t* obj);
 
 static inline void oak_value_incref(const struct oak_value_t value)
 {
   if (value.type == OAK_VAL_OBJ)
     oak_obj_incref(value.as.obj);
+  else if (value.type == OAK_VAL_WEAK_OBJ)
+    oak_refcount_inc(&value.as.obj->weak_refcount);
 }
 
 static inline void oak_value_decref(const struct oak_value_t value)
 {
   if (value.type == OAK_VAL_OBJ)
     oak_obj_decref(value.as.obj);
+  else if (value.type == OAK_VAL_WEAK_OBJ)
+    oak_weak_decref(value.as.obj);
 }
 
 static inline struct oak_value_t oak_value_weaken(const struct oak_value_t value)

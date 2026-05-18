@@ -130,6 +130,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_compiler_emit_op(
           c, OAK_OP_FALSE, oak_compiler_loc_from_token(node->token));
       break;
+    case OAK_NODE_NONE_LITERAL:
+      oak_compiler_emit_op(
+          c, OAK_OP_NONE, oak_compiler_loc_from_token(node->token));
+      break;
     case OAK_NODE_IDENT:
     {
       const char* name = oak_token_text(node->token);

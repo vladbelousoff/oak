@@ -56,7 +56,7 @@ vm.links.push(new Edge {
   target : compiler
 });
 
-let pipeline = new Graph {
+let mut pipeline = new Graph {
   name : 'oak pipeline',
   nodes : [lexer, parser, compiler, vm],
   entry : lexer
@@ -66,3 +66,14 @@ print(pipeline.name);
 print(pipeline.nodes.size());
 printLinks(pipeline.entry);
 printLinks(vm);
+
+let empty_graph = new Graph {
+  name : 'empty',
+  nodes : [] as Node[],
+  entry : none
+};
+print(empty_graph.entry == none);
+print(empty_graph.entry != none);
+
+pipeline.entry = none;
+print(pipeline.entry == none);

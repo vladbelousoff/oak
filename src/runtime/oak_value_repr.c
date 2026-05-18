@@ -6,6 +6,8 @@
 
 int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
 {
+  if (oak_is_none_like(value))
+    return snprintf(buf, size, "none");
   if (oak_is_bool(value))
     return snprintf(buf, size, "%s", oak_as_bool(value) ? "true" : "false");
   if (oak_is_number(value))

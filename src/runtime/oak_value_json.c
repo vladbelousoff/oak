@@ -119,6 +119,8 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
 {
   if (depth > OAK_JSON_MAX_DEPTH)
     return yyjson_mut_null(doc);
+  if (oak_is_none_like(value))
+    return yyjson_mut_null(doc);
   if (oak_is_bool(value))
     return oak_as_bool(value) ? yyjson_mut_true(doc) : yyjson_mut_false(doc);
   if (oak_is_number(value))
@@ -213,8 +215,7 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
         const struct oak_bind_field_t* f = &t->fields[i];
         struct oak_value_t fv = f->getter(self);
         yyjson_mut_val* fj = oak_value_to_yyjson(doc, fv, depth + 1u);
-        if (oak_is_obj(fv))
-          oak_value_decref(fv);
+        oak_value_decref(fv);
         if (!fj)
           return null;
         if (!yyjson_mut_obj_add_val(doc, o, f->name, fj))
@@ -229,6 +230,8 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
 struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
                                              struct oak_value_t value)
 {
+  if (oak_is_none_like(value))
+    return oak_string_new(allocator, "none", 4);
   if (oak_is_bool(value))
   {
     const char* s = oak_as_bool(value) ? "true" : "false";
@@ -248,7 +251,7 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
   }
   if (oak_is_string(value))
   {
-    oak_value_incref(value);
+    oak_obj_incref(value.as.obj);
     return oak_as_string(value);
   }
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);

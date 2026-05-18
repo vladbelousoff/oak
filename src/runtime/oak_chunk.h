@@ -12,6 +12,7 @@ enum oak_opcode_t
   OAK_OP_PUSH_INT8,
   OAK_OP_TRUE,
   OAK_OP_FALSE,
+  OAK_OP_NONE,
   /* Coerce top-of-stack to a boolean: pop value, push bool(truthy(value)). */
   OAK_OP_BOOL,
   OAK_OP_POP,

@@ -54,20 +54,18 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
           c, rhs->token, "cannot assign void to an indexed value");
       return;
     }
-    if (oak_type_is_known(&val_ty))
+    const struct oak_type_t element_ty = { .id = coll_ty.id };
+    if (oak_type_is_known(&val_ty) &&
+        !oakc_type_accepts(&element_ty, &val_ty))
     {
-      const struct oak_type_t element_ty = { .id = coll_ty.id };
-      if (!oak_type_equal(&element_ty, &val_ty))
-      {
-        oak_compiler_error_at(
-            c,
-            rhs->token,
-            "cannot assign value of type '%s' to element of '%s' %s",
-            oakc_type_full_name(c, val_ty),
-            oakc_type_full_name(c, element_ty),
-            coll_ty.kind == OAK_TYPE_KIND_MAP ? "map" : "array");
-        return;
-      }
+      oak_compiler_error_at(
+          c,
+          rhs->token,
+          "cannot assign value of type '%s' to element of '%s' %s",
+          oakc_type_full_name(c, val_ty),
+          oakc_type_full_name(c, element_ty),
+          coll_ty.kind == OAK_TYPE_KIND_MAP ? "map" : "array");
+      return;
     }
 
     if (oakc_reject_immutable_ref_for_mutable_storage(
@@ -77,6 +75,9 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
     oak_compiler_compile_node(c, lhs->lhs);
     oak_compiler_compile_node(c, lhs->rhs);
     oak_compiler_compile_node(c, rhs);
+    oakc_emit_weak_coerce(c, rhs, element_ty, OAK_LOC_SYNTHETIC);
+    if (c->has_error)
+      return;
     oak_compiler_emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
     return;
   }

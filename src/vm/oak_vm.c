@@ -55,6 +55,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       case OAK_OP_PUSH_INT8:
       case OAK_OP_TRUE:
       case OAK_OP_FALSE:
+      case OAK_OP_NONE:
       case OAK_OP_POP:
       case OAK_OP_POP_N:
       case OAK_OP_GET_LOCAL:

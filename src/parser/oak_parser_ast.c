@@ -115,6 +115,8 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "TRUE";
     case OAK_NODE_FALSE:
       return "FALSE";
+    case OAK_NODE_NONE_LITERAL:
+      return "NONE_LITERAL";
     case OAK_NODE_EXPR_PRIMARY:
       return "EXPR_PRIMARY";
     case OAK_NODE_STMT_ASSIGNMENT:

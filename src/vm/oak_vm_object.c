@@ -70,7 +70,15 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
   if (oak_is_map(recv))
   {
     struct oak_obj_map_t* map = oak_as_map(recv);
-    oak_map_set(map, subscript, value);
+    if (!oak_map_set(map, subscript, value))
+    {
+      oak_vm_runtime_error(vm, "invalid map key: %s",
+                           oak_vm_value_kind_desc(subscript));
+      oak_value_decref(recv);
+      oak_value_decref(subscript);
+      oak_value_decref(value);
+      return OAK_VM_RUNTIME_ERROR;
+    }
     oak_value_decref(recv);
     oak_value_decref(subscript);
     oak_value_decref(value);
@@ -190,7 +198,16 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       {
         const struct oak_value_t k = base[i * 2 + 0];
         const struct oak_value_t v = base[i * 2 + 1];
-        oak_map_set(map, k, v);
+        if (!oak_map_set(map, k, v))
+        {
+          oak_vm_runtime_error(vm, "invalid map key: %s",
+                               oak_vm_value_kind_desc(k));
+          for (usize j = 0; j < slots; ++j)
+            oak_value_decref(base[j]);
+          vm->sp -= (int)slots;
+          oak_obj_decref(&map->obj);
+          return OAK_VM_RUNTIME_ERROR;
+        }
       }
       for (usize i = 0; i < slots; ++i)
         oak_value_decref(base[i]);
@@ -256,6 +273,12 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     {
       const u8 idx = oak_vm_read_u8(vm);
       const struct oak_value_t recv = oak_vm_pop(vm);
+      if (oak_is_none_like(recv))
+      {
+        oak_vm_runtime_error(vm, "field access on none (expired weak reference)");
+        oak_value_decref(recv);
+        return OAK_VM_RUNTIME_ERROR;
+      }
       if (oak_is_record(recv))
       {
         const struct oak_obj_record_t* s = oak_as_record(recv);
@@ -302,6 +325,13 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       oak_assert(vm->sp - vm->stack >= 2);
       const struct oak_value_t value = oak_vm_pop(vm);
       const struct oak_value_t recv = oak_vm_pop(vm);
+      if (oak_is_none_like(recv))
+      {
+        oak_vm_runtime_error(vm, "field assignment on none (expired weak reference)");
+        oak_value_decref(recv);
+        oak_value_decref(value);
+        return OAK_VM_RUNTIME_ERROR;
+      }
       if (oak_is_record(recv))
       {
         struct oak_obj_record_t* s = oak_as_record(recv);

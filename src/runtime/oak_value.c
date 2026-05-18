@@ -14,11 +14,8 @@ void oak_obj_incref(struct oak_obj_t* obj)
   oak_refcount_inc(&obj->refcount);
 }
 
-void oak_obj_decref(struct oak_obj_t* obj)
+static void oak_obj_destroy_payload(struct oak_obj_t* obj)
 {
-  if (!oak_refcount_dec(&obj->refcount))
-    return;
-
   struct oak_allocator_t* a = obj->allocator;
 
   if (obj->type == OAK_OBJ_ARRAY)
@@ -76,8 +73,27 @@ void oak_obj_decref(struct oak_obj_t* obj)
     if (nfn->attr_hooks)
       OAK_FREE(a, nfn->attr_hooks);
   }
+}
 
-  OAK_FREE(a, obj);
+void oak_obj_decref(struct oak_obj_t* obj)
+{
+  if (!oak_refcount_dec(&obj->refcount))
+    return;
+
+  oak_refcount_inc(&obj->weak_refcount);
+  oak_obj_destroy_payload(obj);
+  if (!oak_refcount_dec(&obj->weak_refcount))
+    return;
+
+  OAK_FREE(obj->allocator, obj);
+}
+
+void oak_weak_decref(struct oak_obj_t* obj)
+{
+  if (!oak_refcount_dec(&obj->weak_refcount))
+    return;
+  if (obj->refcount.count == 0)
+    OAK_FREE(obj->allocator, obj);
 }
 
 static u32 hash_string(const char* chars, const usize length)
@@ -99,6 +115,7 @@ struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
       OAK_ALLOC(a, sizeof(struct oak_obj_string_t) + length + 1);
   str->obj.type = OAK_OBJ_STRING;
   oak_refcount_init(&str->obj.refcount, 1);
+  oak_refcount_init(&str->obj.weak_refcount, 0);
   str->obj.allocator = a;
   str->length = length;
   memcpy(str->chars, chars, length);
@@ -115,6 +132,7 @@ struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
   struct oak_obj_fn_t* fn = OAK_ALLOC(a, sizeof(struct oak_obj_fn_t));
   fn->obj.type = OAK_OBJ_FN;
   oak_refcount_init(&fn->obj.refcount, 1);
+  oak_refcount_init(&fn->obj.weak_refcount, 0);
   fn->obj.allocator = a;
   fn->code_offset = code_offset;
   fn->arity = arity;
@@ -135,6 +153,7 @@ oak_native_fn_new(struct oak_allocator_t* a,
       OAK_ALLOC(a, sizeof(struct oak_obj_native_fn_t));
   native->obj.type = OAK_OBJ_NATIVE_FN;
   oak_refcount_init(&native->obj.refcount, 1);
+  oak_refcount_init(&native->obj.weak_refcount, 0);
   native->obj.allocator = a;
   native->fn = fn;
   native->arity = arity;
@@ -165,6 +184,7 @@ struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a)
       OAK_ALLOC(a, sizeof(struct oak_obj_array_t));
   arr->obj.type = OAK_OBJ_ARRAY;
   oak_refcount_init(&arr->obj.refcount, 1);
+  oak_refcount_init(&arr->obj.weak_refcount, 0);
   arr->obj.allocator = a;
   arr->length = 0;
   arr->capacity = 0;
@@ -197,6 +217,7 @@ struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
   struct oak_obj_record_t* s = OAK_ALLOC(a, size);
   s->obj.type = OAK_OBJ_RECORD;
   oak_refcount_init(&s->obj.refcount, 1);
+  oak_refcount_init(&s->obj.weak_refcount, 0);
   s->obj.allocator = a;
   s->type_name = type_name;
   s->field_count = field_count;
@@ -241,6 +262,7 @@ oak_obj_native_record_new(struct oak_allocator_t* a,
       OAK_ALLOC(a, sizeof(struct oak_obj_native_record_t));
   ns->obj.type = OAK_OBJ_NATIVE_RECORD;
   oak_refcount_init(&ns->obj.refcount, 1);
+  oak_refcount_init(&ns->obj.weak_refcount, 0);
   ns->obj.allocator = a;
   ns->instance = instance;
   ns->type = type;
@@ -256,6 +278,7 @@ oak_trait_object_new(struct oak_allocator_t* a,
       OAK_ALLOC(a, sizeof(struct oak_obj_trait_object_t));
   to->obj.type = OAK_OBJ_TRAIT_OBJECT;
   oak_refcount_init(&to->obj.refcount, 1);
+  oak_refcount_init(&to->obj.weak_refcount, 0);
   to->obj.allocator = a;
   oak_value_incref(value);
   to->value = value;
@@ -270,6 +293,7 @@ struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
       OAK_ALLOC(a, sizeof(struct oak_obj_map_t));
   map->obj.type = OAK_OBJ_MAP;
   oak_refcount_init(&map->obj.refcount, 1);
+  oak_refcount_init(&map->obj.weak_refcount, 0);
   map->obj.allocator = a;
   map->length = 0;
   map->capacity = 0;
@@ -295,10 +319,13 @@ static u32 hash_value(const struct oak_value_t v)
       }
       return (u32)oak_as_i32(v) * 2654435761u;
     case OAK_VAL_OBJ:
+      if (v.as.obj->type == OAK_OBJ_STRING)
+        return ((struct oak_obj_string_t*)v.as.obj)->hash;
+      return (u32)(uintptr_t)v.as.obj * 2654435761u;
     case OAK_VAL_WEAK_OBJ:
-      if (oak_is_string(v))
-        return oak_as_string(v)->hash;
-      return (u32)(uintptr_t)oak_as_obj(v) * 2654435761u;
+      return (u32)(uintptr_t)v.as.obj * 2654435761u;
+    case OAK_VAL_NONE:
+      return 0x9E3779B9u;
   }
   return 0;
 }
@@ -360,6 +387,8 @@ int oak_map_get(const struct oak_obj_map_t* map,
                 const struct oak_value_t key,
                 struct oak_value_t* out)
 {
+  if (key.type == OAK_VAL_NONE || key.type == OAK_VAL_WEAK_OBJ)
+    return 0;
   if (!map->ht || map->length == 0)
     return 0;
   usize entry_idx;
@@ -373,6 +402,8 @@ int oak_map_get(const struct oak_obj_map_t* map,
 
 int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
 {
+  if (key.type == OAK_VAL_NONE || key.type == OAK_VAL_WEAK_OBJ)
+    return 0;
   if (!map->ht || map->length == 0)
     return 0;
   usize entry_idx;
@@ -382,6 +413,8 @@ int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
 
 int oak_map_delete(struct oak_obj_map_t* map, const struct oak_value_t key)
 {
+  if (key.type == OAK_VAL_NONE || key.type == OAK_VAL_WEAK_OBJ)
+    return 0;
   if (!map->ht || map->length == 0)
     return 0;
 
@@ -431,10 +464,12 @@ struct oak_value_t oak_map_value_at(const struct oak_obj_map_t* map,
   return map->entries[index].value;
 }
 
-void oak_map_set(struct oak_obj_map_t* map,
-                 const struct oak_value_t key,
-                 const struct oak_value_t value)
+int oak_map_set(struct oak_obj_map_t* map,
+                const struct oak_value_t key,
+                const struct oak_value_t value)
 {
+  if (key.type == OAK_VAL_WEAK_OBJ || key.type == OAK_VAL_NONE)
+    return 0;
   if (!map->ht || (map->length + 1u) * 4u > map->ht_capacity * 3u)
   {
     const usize new_cap = map->ht_capacity < 8u ? 8u : map->ht_capacity * 2u;
@@ -450,7 +485,7 @@ void oak_map_set(struct oak_obj_map_t* map,
     oak_value_incref(value);
     oak_value_decref(map->entries[entry_idx].value);
     map->entries[entry_idx].value = value;
-    return;
+    return 1;
   }
 
   if (map->length >= map->capacity)
@@ -467,6 +502,7 @@ void oak_map_set(struct oak_obj_map_t* map,
   map->entries[map->length].value = value;
   map->ht[slot] = map->length;
   map->length++;
+  return 1;
 }
 
 struct oak_obj_string_t* oak_string_concat(struct oak_allocator_t* al,
@@ -478,6 +514,7 @@ struct oak_obj_string_t* oak_string_concat(struct oak_allocator_t* al,
       OAK_ALLOC(al, sizeof(struct oak_obj_string_t) + length + 1);
   str->obj.type = OAK_OBJ_STRING;
   oak_refcount_init(&str->obj.refcount, 1);
+  oak_refcount_init(&str->obj.weak_refcount, 0);
   str->obj.allocator = al;
   str->length = length;
   memcpy(str->chars, a->chars, a->length);
@@ -489,6 +526,8 @@ struct oak_obj_string_t* oak_string_concat(struct oak_allocator_t* al,
 
 int oak_is_truthy(const struct oak_value_t value)
 {
+  if (oak_is_none_like(value))
+    return 0;
   if (oak_is_bool(value))
     return oak_as_bool(value);
   if (oak_is_number(value))
@@ -504,6 +543,11 @@ int oak_is_truthy(const struct oak_value_t value)
 
 int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
 {
+  const int a_none = oak_is_none_like(a);
+  const int b_none = oak_is_none_like(b);
+  if (a_none || b_none)
+    return a_none && b_none;
+
   if (oak_is_obj(a) && oak_is_obj(b))
   {
     if (oak_is_string(a) && oak_is_string(b))
@@ -516,10 +560,6 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
         return 0;
       return memcmp(str_a->chars, str_b->chars, str_a->length) == 0;
     }
-    if (oak_is_fn(a) && oak_is_fn(b))
-      return oak_as_obj(a) == oak_as_obj(b);
-    if (oak_is_native_fn(a) && oak_is_native_fn(b))
-      return oak_as_obj(a) == oak_as_obj(b);
     return oak_as_obj(a) == oak_as_obj(b);
   }
 
@@ -536,10 +576,7 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
       if (oak_is_f32(a))
         return oak_as_f32(a) == oak_as_f32(b);
       return oak_as_i32(a) == oak_as_i32(b);
-    case OAK_VAL_OBJ:
-    case OAK_VAL_WEAK_OBJ:
+    default:
       return 0;
   }
-
-  return 0;
 }

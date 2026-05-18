@@ -45,6 +45,15 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
       oak_type_clear(out);
       return;
     }
+    if (out->id == OAK_TYPE_STRING)
+    {
+      oak_compiler_error_at(
+          c,
+          type_node_token(type_node),
+          "weak cannot be applied to strings");
+      oak_type_clear(out);
+      return;
+    }
     out->is_weak = 1;
     return;
   }
@@ -99,6 +108,8 @@ int oakc_type_accepts(const struct oak_type_t* want,
   if (oak_type_equal(want, got))
     return 1;
   if (want->is_weak && !got->is_weak && oak_type_equal_base(want, got))
+    return 1;
+  if (want->is_weak && got->id == OAK_TYPE_NONE)
     return 1;
   return 0;
 }

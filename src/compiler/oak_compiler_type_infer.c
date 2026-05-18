@@ -49,6 +49,9 @@ void oakc_infer_type(struct oak_compiler_t* c,
     case OAK_NODE_STRING:
       out->id = OAK_TYPE_STRING;
       return;
+    case OAK_NODE_NONE_LITERAL:
+      out->id = OAK_TYPE_NONE;
+      return;
     case OAK_NODE_TRUE:
     case OAK_NODE_FALSE:
     case OAK_NODE_UNARY_NOT:
