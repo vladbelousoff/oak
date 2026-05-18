@@ -47,13 +47,17 @@ static void sys_shutdown(struct oak_allocator_t* self)
   (void)self;
 }
 
+struct oak_allocator_t oak_system_allocator = {
+  .alloc = sys_alloc,
+  .realloc = sys_realloc,
+  .free = sys_free,
+  .shutdown = sys_shutdown,
+  .state = null,
+};
+
 void oak_system_allocator_init(struct oak_allocator_t* a)
 {
-  a->alloc = sys_alloc;
-  a->realloc = sys_realloc;
-  a->free = sys_free;
-  a->shutdown = sys_shutdown;
-  a->state = null;
+  *a = oak_system_allocator;
 }
 
 /* --- Tracking allocator (leak detection) --- */

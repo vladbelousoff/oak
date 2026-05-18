@@ -3,7 +3,6 @@
 #include "oak_allocator.h"
 #include "oak_bind.h"
 #include "oak_log.h"
-#include "oak_mem.h"
 #include "oak_module.h"
 #include "oak_module_loader.h"
 #include "oak_stdlib.h"
@@ -20,10 +19,8 @@ int oak_run_wrapper(const char* code)
 EMSCRIPTEN_KEEPALIVE
 int oak_run_file_wrapper(const char* path)
 {
-  struct oak_allocator_t* prev_allocator = oak_mem_allocator();
   struct oak_allocator_t allocator;
   oak_tracking_allocator_init(&allocator);
-  oak_mem_set_allocator(&allocator);
 
   struct oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts, &allocator);
@@ -60,6 +57,5 @@ int oak_run_file_wrapper(const char* path)
   oak_module_registry_free(&registry);
   oak_compile_options_free(&compile_opts);
   allocator.shutdown(&allocator);
-  oak_mem_set_allocator(prev_allocator);
   return exit_code;
 }

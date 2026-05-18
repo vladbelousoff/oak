@@ -21,5 +21,3 @@ OAK_API void oak_free(void* ptr, struct oak_src_loc_t src_loc);
 
 OAK_API void oak_mem_init(void);
 OAK_API void oak_mem_shutdown(void);
-OAK_API struct oak_allocator_t* oak_mem_allocator(void);
-OAK_API void oak_mem_set_allocator(struct oak_allocator_t* a);

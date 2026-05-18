@@ -3,7 +3,6 @@
 #include "oak_cli.h"
 #include "oak_compiler.h"
 #include "oak_log.h"
-#include "oak_mem.h"
 #include "oak_module.h"
 #include "oak_module_loader.h"
 #include "oak_stdlib.h"
@@ -33,7 +32,6 @@ int main(const int argc, const char* argv[])
     oak_tracking_allocator_init(&allocator);
   else
     oak_system_allocator_init(&allocator);
-  oak_mem_set_allocator(&allocator);
 
   struct oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts, &allocator);

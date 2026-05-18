@@ -2,7 +2,6 @@
 
 #include "oak_compiler.h"
 #include "oak_lexer.h"
-#include "oak_mem.h"
 #include "oak_parser.h"
 #include "oak_test.h"
 #include "oak_test_run.h"
@@ -14,7 +13,7 @@
  * compiles and the VM completes with OAK_VM_OK. */
 static enum oak_test_status_t oak_pipeline_expect_ok(const char* source)
 {
-  struct oak_allocator_t* a = oak_mem_allocator();
+  struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
@@ -26,7 +25,7 @@ static enum oak_test_status_t oak_pipeline_expect_ok(const char* source)
   OAK_CHECK(cr.chunk != null);
 
   struct oak_vm_t vm;
-  oak_vm_init(&vm, oak_mem_allocator());
+  oak_vm_init(&vm, oak_test_allocator());
   const enum oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
   oak_vm_free(&vm);
   oak_compile_result_free(&cr);
@@ -41,7 +40,7 @@ static enum oak_test_status_t oak_pipeline_expect_ok(const char* source)
 static enum oak_test_status_t
 oak_pipeline_expect_compile_error(const char* source)
 {
-  struct oak_allocator_t* a = oak_mem_allocator();
+  struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
@@ -63,7 +62,7 @@ oak_pipeline_expect_compile_error(const char* source)
 static enum oak_test_status_t
 oak_pipeline_expect_parse_or_compile_error(const char* source)
 {
-  struct oak_allocator_t* a = oak_mem_allocator();
+  struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
@@ -90,7 +89,7 @@ oak_pipeline_expect_parse_or_compile_error(const char* source)
 static enum oak_test_status_t
 oak_pipeline_expect_runtime_error(const char* source)
 {
-  struct oak_allocator_t* a = oak_mem_allocator();
+  struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
@@ -102,7 +101,7 @@ oak_pipeline_expect_runtime_error(const char* source)
   OAK_CHECK(cr.chunk != null);
 
   struct oak_vm_t vm;
-  oak_vm_init(&vm, oak_mem_allocator());
+  oak_vm_init(&vm, oak_test_allocator());
   const enum oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
   oak_vm_free(&vm);
   oak_compile_result_free(&cr);

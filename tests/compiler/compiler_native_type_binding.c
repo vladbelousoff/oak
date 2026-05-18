@@ -32,9 +32,9 @@ static void stub_setter(struct oak_value_t self, struct oak_value_t value)
 static enum oak_test_status_t compile_ex_ok(const char* source,
                                             struct oak_compile_options_t* opts)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_mem_allocator());
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
   struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_mem_allocator());
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
@@ -51,9 +51,9 @@ static enum oak_test_status_t compile_ex_ok(const char* source,
 static enum oak_test_status_t
 compile_ex_fails(const char* source, struct oak_compile_options_t* opts)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_mem_allocator());
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
   struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_mem_allocator());
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
@@ -74,7 +74,7 @@ compile_ex_fails(const char* source, struct oak_compile_options_t* opts)
 OAK_TEST_DECL(BindTypeCreatesDescriptor)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec2");
@@ -92,7 +92,7 @@ OAK_TEST_DECL(BindTypeCreatesDescriptor)
 OAK_TEST_DECL(BindTypeNullNameReturnsNull)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, null);
   OAK_CHECK(t == null);
@@ -105,7 +105,7 @@ OAK_TEST_DECL(BindTypeNullNameReturnsNull)
 OAK_TEST_DECL(BindTypeDistinctIds)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* a =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTAlpha");
@@ -128,7 +128,7 @@ OAK_TEST_DECL(BindTypeDistinctIds)
 OAK_TEST_DECL(BindFieldSucceeds)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTPoint");
@@ -155,7 +155,7 @@ OAK_TEST_DECL(BindFieldSucceeds)
 OAK_TEST_DECL(BindFieldReadWriteSucceeds)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTRW");
@@ -178,7 +178,7 @@ OAK_TEST_DECL(BindFieldReadWriteSucceeds)
 OAK_TEST_DECL(BindFieldMultipleFields)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTColor");
@@ -214,7 +214,7 @@ OAK_TEST_DECL(BindFieldMultipleFields)
 OAK_TEST_DECL(BindFieldNullGetterRejected)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNG");
@@ -237,7 +237,7 @@ OAK_TEST_DECL(BindFieldNullGetterRejected)
 OAK_TEST_DECL(BindFieldNullNameRejected)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNN");
@@ -273,7 +273,7 @@ OAK_TEST_DECL(BindFieldNullTypeRejected)
 OAK_TEST_DECL(BindFieldDuplicateNameRejected)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTDup");
@@ -308,7 +308,7 @@ OAK_TEST_DECL(BindFieldDuplicateNameRejected)
 OAK_TEST_DECL(NativeTypeInFnParamCompiles)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec");
@@ -337,7 +337,7 @@ OAK_TEST_DECL(NativeTypeInFnParamCompiles)
 OAK_TEST_DECL(NativeTypeInReturnTypeCompiles)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTHandle");
@@ -361,7 +361,7 @@ OAK_TEST_DECL(NativeTypeInReturnTypeCompiles)
 OAK_TEST_DECL(NativeTypeAsOakStructFieldCompiles)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTTransform");
@@ -387,7 +387,7 @@ OAK_TEST_DECL(NativeTypeAsOakStructFieldCompiles)
 OAK_TEST_DECL(NativeTypeUnknownFieldFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTNode");
@@ -411,7 +411,7 @@ OAK_TEST_DECL(NativeTypeUnknownFieldFails)
 OAK_TEST_DECL(NativeTypeWrongFnArgFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* a =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTFoo");
@@ -445,7 +445,7 @@ OAK_TEST_DECL(NativeTypeWrongFnArgFails)
 OAK_TEST_DECL(NativeTypeVsOakStructTypeFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTWidget");
@@ -472,7 +472,7 @@ OAK_TEST_DECL(NativeTypeVsOakStructTypeFails)
 OAK_TEST_DECL(NativeTypeConflictsWithUserTypeFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Shared");
@@ -490,7 +490,7 @@ OAK_TEST_DECL(NativeTypeConflictsWithUserTypeFails)
 OAK_TEST_DECL(DuplicateNativeTypeRegistrationFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* a =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTDuplicated");
@@ -536,9 +536,9 @@ run_with_native_instance(const char* source,
                          struct oak_bind_type_t* nt,
                          void* instance)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_mem_allocator());
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
   struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_mem_allocator());
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
 
@@ -549,8 +549,8 @@ run_with_native_instance(const char* source,
   /* Wrap the instance and manually push it so that local slot 0 holds it
    * when the program starts executing. */
   struct oak_vm_t vm;
-  oak_vm_init(&vm, oak_mem_allocator());
-  const struct oak_value_t native_val = oak_native_record_new(oak_mem_allocator(), nt, instance);
+  oak_vm_init(&vm, oak_test_allocator());
+  const struct oak_value_t native_val = oak_native_record_new(oak_test_allocator(), nt, instance);
   OAK_CHECK(vm.sp < vm.stack + OAK_STACK_MAX);
   *vm.sp++ = native_val;
   vm.stack_base = 1; /* locals start at slot 1 so slot 0 is our inject */
@@ -573,7 +573,7 @@ run_with_native_instance(const char* source,
 OAK_TEST_DECL(NativeGetterInvokedOnFieldRead)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTSensor");
@@ -588,7 +588,7 @@ OAK_TEST_DECL(NativeGetterInvokedOnFieldRead)
   s_getter_call_count = 0;
 
   /* Compile an Oak function that accepts NTSensor and reads .value. */
-  struct oak_allocator_t* a = oak_mem_allocator();
+  struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
       "fn read_sensor(s : NTSensor) -> number { return s.value; }",
       strlen("fn read_sensor(s : NTSensor) -> number { return s.value; }"), a);
@@ -617,7 +617,7 @@ OAK_TEST_DECL(NativeGetterInvokedOnFieldRead)
 OAK_TEST_DECL(NativeReadOnlyFieldAssignFailsAtRuntime)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTRO");
@@ -632,7 +632,7 @@ OAK_TEST_DECL(NativeReadOnlyFieldAssignFailsAtRuntime)
 
   /* Immutable parameter: assigning to its field is now rejected at compile
    * time because `s` is not declared `mut`. */
-  struct oak_allocator_t* a = oak_mem_allocator();
+  struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
       "fn try_write(s : NTRO) -> number { s.val = 1; return s.val; }",
       strlen("fn try_write(s : NTRO) -> number { s.val = 1; return s.val; }"), a);

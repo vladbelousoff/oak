@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_mem.h"
+#include "oak_allocator.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -234,7 +234,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
 {
   struct oak_compiler_t compiler = { 0 };
   struct oak_allocator_t* allocator =
-      (opts && opts->allocator) ? opts->allocator : oak_mem_allocator();
+      (opts && opts->allocator) ? opts->allocator : &oak_system_allocator;
   struct oak_chunk_t* chunk = compiler_init(&compiler, out, allocator);
   compiler.opts = opts;
   const int want_debug = !opts || opts->emit_debug_info;

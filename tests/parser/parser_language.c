@@ -6,7 +6,7 @@ static enum oak_test_status_t parse_ok(const char* source,
 {
   struct oak_lexer_result_t* lexer = OAK_LEX(source);
   struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, start, &result, oak_mem_allocator());
+  oak_parse(lexer, start, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK(root != null);
   oak_parser_free(&result);
@@ -18,7 +18,7 @@ static enum oak_test_status_t parse_error(const char* source)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX(source);
   struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_mem_allocator());
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   const int error_count = oak_parser_error_count(&result);
   OAK_CHECK(root == null || error_count > 0);
@@ -37,7 +37,7 @@ OAK_TEST_DECL(ParseExpressionPrecedenceAndLvalues)
               "a <= b;\n"
               "a >= b;\n");
   struct oak_parser_result_t result = { 0 };
-  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_mem_allocator());
+  oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
   OAK_CHECK_NODE_KIND(root, OAK_NODE_PROGRAM);
 

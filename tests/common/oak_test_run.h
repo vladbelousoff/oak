@@ -2,14 +2,20 @@
 
 #include "oak_allocator.h"
 #include "oak_log.h"
-#include "oak_mem.h"
 #include "oak_test.h"
+
+static struct oak_allocator_t* g_test_allocator;
+
+static struct oak_allocator_t* oak_test_allocator(void)
+{
+  return g_test_allocator;
+}
 
 static int oak_test_run(const struct oak_test_t* tests, const int count)
 {
   struct oak_allocator_t allocator;
   oak_tracking_allocator_init(&allocator);
-  oak_mem_set_allocator(&allocator);
+  g_test_allocator = &allocator;
 
   enum oak_test_status_t result = OAK_TEST_OK;
 

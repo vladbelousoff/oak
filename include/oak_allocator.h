@@ -27,5 +27,7 @@ struct oak_allocator_t
   ((a)->realloc((a), (ptr), (size), __FILE__, __LINE__))
 #define OAK_FREE(a, ptr) ((a)->free((a), (ptr), __FILE__, __LINE__))
 
+OAK_API extern struct oak_allocator_t oak_system_allocator;
+
 OAK_API void oak_system_allocator_init(struct oak_allocator_t* a);
 OAK_API void oak_tracking_allocator_init(struct oak_allocator_t* a);

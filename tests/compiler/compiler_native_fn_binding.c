@@ -19,9 +19,9 @@
 static enum oak_test_status_t compile_ok(const char* source,
                                          struct oak_compile_options_t* opts)
 {
-  struct oak_lexer_result_t* lex = oak_lexer_tokenize(source, strlen(source), oak_mem_allocator());
+  struct oak_lexer_result_t* lex = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
   struct oak_parser_result_t pr = { 0 };
-  oak_parse(lex, OAK_NODE_PROGRAM, &pr, oak_mem_allocator());
+  oak_parse(lex, OAK_NODE_PROGRAM, &pr, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&pr);
   OAK_CHECK(root != null);
 
@@ -38,9 +38,9 @@ static enum oak_test_status_t compile_ok(const char* source,
 static enum oak_test_status_t compile_fails(const char* source,
                                             struct oak_compile_options_t* opts)
 {
-  struct oak_lexer_result_t* lex = oak_lexer_tokenize(source, strlen(source), oak_mem_allocator());
+  struct oak_lexer_result_t* lex = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
   struct oak_parser_result_t pr = { 0 };
-  oak_parse(lex, OAK_NODE_PROGRAM, &pr, oak_mem_allocator());
+  oak_parse(lex, OAK_NODE_PROGRAM, &pr, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&pr);
   OAK_CHECK(root != null);
 
@@ -87,9 +87,9 @@ static struct oak_value_t stub_getter(struct oak_value_t self)
 static enum oak_test_status_t run_ok(const char* source,
                                      struct oak_compile_options_t* opts)
 {
-  struct oak_lexer_result_t* lex = oak_lexer_tokenize(source, strlen(source), oak_mem_allocator());
+  struct oak_lexer_result_t* lex = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
   struct oak_parser_result_t pr = { 0 };
-  oak_parse(lex, OAK_NODE_PROGRAM, &pr, oak_mem_allocator());
+  oak_parse(lex, OAK_NODE_PROGRAM, &pr, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&pr);
   OAK_CHECK(root != null);
 
@@ -98,7 +98,7 @@ static enum oak_test_status_t run_ok(const char* source,
   OAK_CHECK(cr.chunk != null);
 
   struct oak_vm_t vm;
-  oak_vm_init(&vm, oak_mem_allocator());
+  oak_vm_init(&vm, oak_test_allocator());
   const enum oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
   oak_vm_free(&vm);
   oak_compile_result_free(&cr);
@@ -117,7 +117,7 @@ static enum oak_test_status_t run_ok(const char* source,
 OAK_TEST_DECL(BindFnGlobalRegisters)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   const int r = oak_bind_fn_global(
       &opts,
@@ -143,7 +143,7 @@ OAK_TEST_DECL(BindFnGlobalRegisters)
 OAK_TEST_DECL(BindFnMethodRegisters)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "MyVec");
@@ -171,7 +171,7 @@ OAK_TEST_DECL(BindFnMethodRegisters)
 OAK_TEST_DECL(BindFnNullNameRejected)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   const int r = oak_bind_fn_global(
       &opts,
@@ -192,7 +192,7 @@ OAK_TEST_DECL(BindFnNullNameRejected)
 OAK_TEST_DECL(BindFnNullImplRejected)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   const int r = oak_bind_fn_global(
       &opts,
@@ -213,7 +213,7 @@ OAK_TEST_DECL(BindFnNullImplRejected)
 OAK_TEST_DECL(BindFnNegativeArityRejected)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   const int r = oak_bind_fn_global(
       &opts,
@@ -233,7 +233,7 @@ OAK_TEST_DECL(BindFnNegativeArityRejected)
 OAK_TEST_DECL(BindFnMultipleRegistrations)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -270,7 +270,7 @@ OAK_TEST_DECL(BindFnMultipleRegistrations)
 OAK_TEST_DECL(GlobalNativeFnCallCompiles)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -292,7 +292,7 @@ OAK_TEST_DECL(GlobalNativeFnCallCompiles)
 OAK_TEST_DECL(GlobalNativeFnWrongArgCountFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -313,7 +313,7 @@ OAK_TEST_DECL(GlobalNativeFnWrongArgCountFails)
 OAK_TEST_DECL(GlobalNativeFnDuplicateFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -343,7 +343,7 @@ OAK_TEST_DECL(GlobalNativeFnDuplicateFails)
 OAK_TEST_DECL(GlobalNativeFnReturnTypeInferred)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -367,7 +367,7 @@ OAK_TEST_DECL(GlobalNativeFnReturnTypeInferred)
 OAK_TEST_DECL(GlobalNativeFnReturnTypeWrongArgFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -394,7 +394,7 @@ OAK_TEST_DECL(GlobalNativeFnReturnTypeWrongArgFails)
 OAK_TEST_DECL(NativeMethodCallCompiles)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec3");
@@ -428,7 +428,7 @@ OAK_TEST_DECL(NativeMethodCallCompiles)
 OAK_TEST_DECL(NativeMethodWrongArgCountFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec4");
@@ -460,7 +460,7 @@ OAK_TEST_DECL(NativeMethodWrongArgCountFails)
 OAK_TEST_DECL(NativeMethodReturnTypeInferred)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTShape");
@@ -496,7 +496,7 @@ OAK_TEST_DECL(NativeMethodReturnTypeInferred)
 OAK_TEST_DECL(NativeMethodReturnTypeWrongFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTCircle");
@@ -530,7 +530,7 @@ OAK_TEST_DECL(NativeMethodReturnTypeWrongFails)
 OAK_TEST_DECL(NativeMethodUnknownFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTWidget2");
@@ -554,7 +554,7 @@ OAK_TEST_DECL(NativeMethodUnknownFails)
 OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTRect");
@@ -610,7 +610,7 @@ OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
 OAK_TEST_DECL(GlobalNativeFnTooManyArgsFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -630,7 +630,7 @@ OAK_TEST_DECL(GlobalNativeFnTooManyArgsFails)
 OAK_TEST_DECL(NativeMethodTooManyArgsFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBox");
@@ -663,7 +663,7 @@ OAK_TEST_DECL(NativeMethodTooManyArgsFails)
 OAK_TEST_DECL(ZeroArityNativeFnCallOk)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -683,7 +683,7 @@ OAK_TEST_DECL(ZeroArityNativeFnCallOk)
 OAK_TEST_DECL(ZeroArityNativeFnWithArgFails)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -703,7 +703,7 @@ OAK_TEST_DECL(ZeroArityNativeFnWithArgFails)
 OAK_TEST_DECL(NativeMethodMultiArgCompiles)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   struct oak_bind_type_t* t =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTMat2");
@@ -739,7 +739,7 @@ OAK_TEST_DECL(NativeMethodMultiArgCompiles)
 OAK_TEST_DECL(NativeFnRunsOk)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -759,7 +759,7 @@ OAK_TEST_DECL(NativeFnRunsOk)
 OAK_TEST_DECL(NativeFnTwoArgsRunsOk)
 {
   struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_mem_allocator());
+  oak_compile_options_init(&opts, oak_test_allocator());
 
   OAK_CHECK(oak_bind_fn_global(&opts,
                         &(struct oak_bind_global_fn_t){
@@ -782,7 +782,7 @@ OAK_TEST_DECL(NativeFnTwoArgsRunsOk)
 /* The formatted representation of a native fn uses "arity=N" (not a range). */
 OAK_TEST_DECL(NativeFnFormatSingleArity)
 {
-  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_mem_allocator(), stub_fn, 3, "my_fn");
+  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_test_allocator(), stub_fn, 3, "my_fn");
   OAK_CHECK(fn != null);
 
   char buf[128];
@@ -799,7 +799,7 @@ OAK_TEST_DECL(NativeFnFormatSingleArity)
 /* Anonymous native fn (no name) also uses single-arity format. */
 OAK_TEST_DECL(NativeFnFormatAnonymousSingleArity)
 {
-  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_mem_allocator(), stub_fn, 0, null);
+  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_test_allocator(), stub_fn, 0, null);
   OAK_CHECK(fn != null);
 
   char buf[128];
