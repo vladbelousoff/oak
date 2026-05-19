@@ -1,6 +1,10 @@
 #include "internal/oak_compiler.h"
 
 #include <math.h>
+#include <stdlib.h>
+#include <time.h>
+
+static int s_builtin_rand_seeded;
 
 /* Interns a freshly-allocated native function as a chunk constant and returns
  * its index. The chunk takes ownership of the single allocation reference. */
@@ -154,6 +158,82 @@ static enum oak_fn_call_result_t builtin_tan(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
+static enum oak_fn_call_result_t builtin_abs(struct oak_native_ctx_t* ctx,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (oak_is_i32(args[0]))
+  {
+    int v = oak_as_i32(args[0]);
+    *out_result = OAK_VALUE_I32(v < 0 ? -v : v);
+  }
+  else
+    *out_result = OAK_VALUE_F32(fabsf(oak_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_fmod(struct oak_native_ctx_t* ctx,
+                                              const struct oak_value_t* args,
+                                              int argc,
+                                              struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out_result = OAK_VALUE_F32(
+      fmodf(builtin_number_as_f32(args[0]), builtin_number_as_f32(args[1])));
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_min(struct oak_native_ctx_t* ctx,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  float a = builtin_number_as_f32(args[0]);
+  float b = builtin_number_as_f32(args[1]);
+  *out_result = OAK_VALUE_F32(a < b ? a : b);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_max(struct oak_native_ctx_t* ctx,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  float a = builtin_number_as_f32(args[0]);
+  float b = builtin_number_as_f32(args[1]);
+  *out_result = OAK_VALUE_F32(a > b ? a : b);
+  return OAK_FN_CALL_OK;
+}
+
+static enum oak_fn_call_result_t builtin_random(struct oak_native_ctx_t* ctx,
+                                                const struct oak_value_t* args,
+                                                int argc,
+                                                struct oak_value_t* out_result)
+{
+  (void)ctx;
+  (void)args;
+  (void)argc;
+  if (!s_builtin_rand_seeded)
+  {
+    srand((unsigned)time(NULL));
+    s_builtin_rand_seeded = 1;
+  }
+  *out_result = OAK_VALUE_F32((float)rand() / (float)RAND_MAX);
+  return OAK_FN_CALL_OK;
+}
+
 static const struct oak_native_binding_t native_builtins[] = {
   { "print", builtin_print, 1, OAK_TYPE_VOID },
   { "toInt", builtin_to_int, 1, OAK_TYPE_NUMBER },
@@ -164,6 +244,11 @@ static const struct oak_native_binding_t native_builtins[] = {
   { "sin", builtin_sin, 1, OAK_TYPE_NUMBER },
   { "cos", builtin_cos, 1, OAK_TYPE_NUMBER },
   { "tan", builtin_tan, 1, OAK_TYPE_NUMBER },
+  { "abs", builtin_abs, 1, OAK_TYPE_NUMBER },
+  { "fmod", builtin_fmod, 2, OAK_TYPE_NUMBER },
+  { "min", builtin_min, 2, OAK_TYPE_NUMBER },
+  { "max", builtin_max, 2, OAK_TYPE_NUMBER },
+  { "random", builtin_random, 0, OAK_TYPE_NUMBER },
 };
 
 void oakc_register_native_builtins(struct oak_compiler_t* c)

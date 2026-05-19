@@ -78,6 +78,18 @@ static enum oak_fn_call_result_t add_fn(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
+static enum oak_fn_call_result_t void_fn_no_out(struct oak_native_ctx_t* ctx,
+                                                const struct oak_value_t* args,
+                                                int argc,
+                                                struct oak_value_t* out_result)
+{
+  (void)ctx;
+  (void)args;
+  (void)argc;
+  (void)out_result;
+  return OAK_FN_CALL_OK;
+}
+
 static struct oak_value_t stub_getter(struct oak_value_t self)
 {
   (void)self;
@@ -775,6 +787,27 @@ OAK_TEST_DECL(NativeFnTwoArgsRunsOk)
   return s;
 }
 
+/* A void native fn may omit out_result; the VM must supply none. */
+OAK_TEST_DECL(VoidNativeFnWithoutOutRunsOk)
+{
+  struct oak_compile_options_t opts;
+  oak_compile_options_init(&opts, oak_test_allocator());
+
+  OAK_CHECK(oak_bind_fn_global(&opts,
+                        &(struct oak_bind_global_fn_t){
+                            .name = "native_void",
+                            .impl = void_fn_no_out,
+                            .arity = 0,
+                            .return_type_id = OAK_TYPE_VOID,
+                            .return_shape = OAK_BIND_SHAPE_SCALAR }) == 0);
+
+  const enum oak_test_status_t s =
+      run_ok("for i from 0 to 1000 { native_void(); }", &opts);
+
+  oak_compile_options_free(&opts);
+  return s;
+}
+
 /* =========================================================================
  * Section 6 — oak_native_fn_format: single arity in output
  * ========================================================================= */
@@ -846,6 +879,7 @@ int main(const int argc, char* argv[])
     /* VM execution */
     OAK_TEST_ENTRY(NativeFnRunsOk),
     OAK_TEST_ENTRY(NativeFnTwoArgsRunsOk),
+    OAK_TEST_ENTRY(VoidNativeFnWithoutOutRunsOk),
     /* oak_native_fn_format: single arity in output */
     OAK_TEST_ENTRY(NativeFnFormatSingleArity),
     OAK_TEST_ENTRY(NativeFnFormatAnonymousSingleArity),
