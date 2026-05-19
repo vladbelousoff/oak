@@ -301,7 +301,7 @@ OAK_API int oak_bind_field(struct oak_bind_type_t* type,
                            const struct oak_bind_field_t* params);
 
 /* Register a global or module-scoped native function.
- * Use this for free functions like `toInt(v)` or `math.sqrt(v)`.
+ * Use this for free functions like `to_int(v)` or `math.sqrt(v)`.
  * Returns 0 on success, -1 on invalid arguments. */
 OAK_API int oak_bind_fn_global(struct oak_compile_options_t* opts,
                                const struct oak_bind_global_fn_t* params);

@@ -7,7 +7,7 @@ record Task {
   done : bool;
 }
 
-fn makeTask(title : string, points : number, priority : Priority) -> Task {
+fn make_task(title : string, points : number, priority : Priority) -> Task {
   return new Task {
     title : title,
     points : points,
@@ -16,7 +16,7 @@ fn makeTask(title : string, points : number, priority : Priority) -> Task {
   };
 }
 
-fn priorityName(priority : Priority) -> string {
+fn priority_name(priority : Priority) -> string {
   if priority == Priority.Low {
     return 'low';
   }

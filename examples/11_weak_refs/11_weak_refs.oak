@@ -14,7 +14,7 @@ record Graph {
   entry : Node weak;
 }
 
-fn printLinks(node : Node weak) {
+fn print_links(node : Node weak) {
   print(node.name);
   for edge in node.links {
     print(edge.label);
@@ -64,8 +64,8 @@ let mut pipeline = new Graph {
 
 print(pipeline.name);
 print(pipeline.nodes.size());
-printLinks(pipeline.entry);
-printLinks(vm);
+print_links(pipeline.entry);
+print_links(vm);
 
 let empty_graph = new Graph {
   name : 'empty',

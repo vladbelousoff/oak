@@ -1,4 +1,4 @@
-fn isPrime(n : number) -> bool {
+fn is_prime(n : number) -> bool {
   if n < 2 {
     return false;
   }
@@ -14,17 +14,17 @@ fn isPrime(n : number) -> bool {
   return true;
 }
 
-fn collectPrimes(limit : number) -> number[] {
+fn collect_primes(limit : number) -> number[] {
   let mut primes = [] as number[];
   for n from 2 to limit {
-    if isPrime(n) {
+    if is_prime(n) {
       primes.push(n);
     }
   }
   return primes;
 }
 
-fn insertionSort(mut values : number[]) {
+fn insertion_sort(mut values : number[]) {
   let mut i = 1;
   while i < values.size() {
     let key = values[i];
@@ -38,14 +38,14 @@ fn insertionSort(mut values : number[]) {
   }
 }
 
-let primes = collectPrimes(30);
+let primes = collect_primes(30);
 for prime in primes {
   print(prime);
 }
 print(primes.size());
 
 let mut mixed = [9, 1, 5, 3, 8, 2];
-insertionSort(mixed);
+insertion_sort(mixed);
 for value in mixed {
   print(value);
 }

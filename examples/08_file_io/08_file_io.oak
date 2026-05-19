@@ -1,7 +1,7 @@
 import io;
 
 let file = io.File.open('examples/08_file_io/message.txt', io.FileMode.Read);
-let text = file.readAll();
+let text = file.read_all();
 file.close();
 
 print(text);

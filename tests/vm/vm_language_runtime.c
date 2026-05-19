@@ -15,17 +15,17 @@ OAK_TEST_DECL(RuntimeScalarFunctionsAndStrings)
 OAK_TEST_DECL(RuntimeNumberConversionsAndIntDiv)
 {
   OAK_CHECK(expect_ok("let div = 7 / 2;\n"
-                      "if !isFloat(div) { print([1][3]); }\n"
-                      "if toInt(div) != 3 { print([1][3]); }\n"
+                      "if !is_float(div) { print([1][3]); }\n"
+                      "if to_int(div) != 3 { print([1][3]); }\n"
                       "if 7 // 2 != 3 { print([1][3]); }\n"
-                      "if !isInt(7.9 // 2.0) { print([1][3]); }\n"
-                      "if !isFloat(toFloat(7)) { print([1][3]); }\n"
-                      "if toInt(sqrt(9)) != 3 { print([1][3]); }\n"
-                      "if toInt(sin(0)) != 0 { print([1][3]); }\n"
-                      "if toInt(cos(0)) != 1 { print([1][3]); }\n"
-                      "if toInt(tan(0)) != 0 { print([1][3]); }\n"
-                      "if isInt('x') { print([1][3]); }\n"
-                      "if isFloat('x') { print([1][3]); }\n") == OAK_TEST_OK);
+                      "if !is_int(7.9 // 2.0) { print([1][3]); }\n"
+                      "if !is_float(to_float(7)) { print([1][3]); }\n"
+                      "if to_int(sqrt(9)) != 3 { print([1][3]); }\n"
+                      "if to_int(sin(0)) != 0 { print([1][3]); }\n"
+                      "if to_int(cos(0)) != 1 { print([1][3]); }\n"
+                      "if to_int(tan(0)) != 0 { print([1][3]); }\n"
+                      "if is_int('x') { print([1][3]); }\n"
+                      "if is_float('x') { print([1][3]); }\n") == OAK_TEST_OK);
   return OAK_TEST_OK;
 }
 
@@ -146,9 +146,9 @@ OAK_TEST_DECL(RuntimeTraits)
       "record Rect { w : number; h : number; }\n"
       "fn Rect.area(self) -> number { return self.w * self.h; }\n"
       "fn Rect.label(self) -> string { return 'rect'; }\n"
-      "fn printShape(s: Shape) { print(s.label()); print(s.area()); }\n"
-      "printShape(new Circle { radius: 3 });\n"
-      "printShape(new Rect { w: 4, h: 5 });\n") == OAK_TEST_OK);
+      "fn print_shape(s: Shape) { print(s.label()); print(s.area()); }\n"
+      "print_shape(new Circle { radius: 3 });\n"
+      "print_shape(new Rect { w: 4, h: 5 });\n") == OAK_TEST_OK);
 
   /* Heterogeneous trait array with for-in and index access. */
   OAK_CHECK(expect_ok(

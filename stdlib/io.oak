@@ -4,7 +4,7 @@ record File;
 
 fn File.open(path : string, mode : FileMode) -> File;
 fn File.read(self) -> string;
-fn File.readAll(self) -> string;
+fn File.read_all(self) -> string;
 fn File.write(mut self, value : string);
 fn File.eof(self) -> bool;
 fn File.close(self);

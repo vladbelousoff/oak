@@ -40,7 +40,7 @@ OAK_TEST_DECL(IntDivByZeroRuntime)
 /* Numeric conversions reject non-number operands. */
 OAK_TEST_DECL(NumberConversionTypeRuntime)
 {
-  return expect_runtime_error("print(toInt('x'));\n");
+  return expect_runtime_error("print(to_int('x'));\n");
 }
 
 /* Math helpers reject invalid operands. */

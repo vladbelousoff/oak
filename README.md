@@ -126,7 +126,7 @@ record Point {
 
 record Tag;   /* no fields — use semicolon form, not empty braces */
 
-fn Point.distSq(self, other : Point) -> number {
+fn Point.dist_sq(self, other : Point) -> number {
   let dx = self.x - other.x;
   let dy = self.y - other.y;
   return dx * dx + dy * dy;
@@ -138,7 +138,7 @@ fn Point.translate(mut self, dx : number, dy : number) {
 }
 
 let p = new Point { x: 3, y: 4 };
-print(p.distSq(new Point { x: 0, y: 0 }));
+print(p.dist_sq(new Point { x: 0, y: 0 }));
 
 let mut q = new Point { x: 1, y: 1 };
 q.translate(2, 3);
@@ -189,7 +189,7 @@ Declarations can carry compile-time metadata via `@CamelCaseName` annotations pl
 
 ```oak
 @Deprecated
-fn legacyCalc(x : number) -> number { return x; }
+fn legacy_calc(x : number) -> number { return x; }
 
 @Deprecated
 record OldPoint { x : number; y : number; }
@@ -227,10 +227,10 @@ Number helpers. Import `math` before using the `math.*` functions.
 
 | Function       | What it does                                      |
 |----------------|---------------------------------------------------|
-| `toInt(v)`     | convert a number to an integer                    |
-| `toFloat(v)`   | convert a number to a float                       |
-| `isInt(v)`     | is the value stored as an integer number          |
-| `isFloat(v)`   | is the value stored as a floating-point number    |
+| `to_int(v)`     | convert a number to an integer                    |
+| `to_float(v)`   | convert a number to a float                       |
+| `is_int(v)`     | is the value stored as an integer number          |
+| `is_float(v)`   | is the value stored as a floating-point number    |
 | `math.sqrt(v)` | square root                                       |
 | `math.sin(v)`  | sine, in radians                                  |
 | `math.cos(v)`  | cosine, in radians                                |
@@ -242,12 +242,12 @@ There's also a small `File` type:
 import io;
 
 let f = io.File.open('notes.txt', io.FileMode.Read);
-let text = f.readAll();
+let text = f.read_all();
 f.close();
 print(text);
 ```
 
-`io.File` supports `open` as a static method and `read`, `readAll`, `write`, `eof`, and `close` on instances. `io.File.open` takes an `io.FileMode` enum value as its second argument: `io.FileMode.Read`, `io.FileMode.Write`, or `io.FileMode.Append`.
+`io.File` supports `open` as a static method and `read`, `read_all`, `write`, `eof`, and `close` on instances. `io.File.open` takes an `io.FileMode` enum value as its second argument: `io.FileMode.Read`, `io.FileMode.Write`, or `io.FileMode.Append`.
 
 ---
 
@@ -255,9 +255,9 @@ print(text);
 
 | Thing | Convention | Examples |
 |---|---|---|
-| Variables and bindings | camelCase | `fruitTotal`, `isPrime` |
-| Functions and methods | camelCase | `fn collectPrimes(...)`, `fn Point.distSq(...)` |
-| Record fields | camelCase | `pointCount`, `firstName` |
+| Variables and bindings | snake_case | `fruit_total`, `is_prime` |
+| Functions and methods | snake_case | `fn collect_primes(...)`, `fn Point.dist_sq(...)` |
+| Record fields | snake_case | `point_count`, `first_name` |
 | Record types | PascalCase | `record Point`, `record FileHandle` |
 | Enum types | PascalCase | `enum FileMode` |
 | Enum variants | PascalCase | `FileMode.Read`, `Priority.High` |
@@ -360,11 +360,11 @@ oak_bind_fn(&opts, &(struct oak_bind_fn_t){
     .return_type_id   = t->type_id,
 });
 
-/* Instance method: f.readAll() -> string */
+/* Instance method: f.read_all() -> string */
 oak_bind_fn(&opts, &(struct oak_bind_fn_t){
     .kind             = OAK_BIND_FN_INSTANCE_METHOD,
     .receiver_type_id = t->type_id,
-    .name             = "readAll",
+    .name             = "read_all",
     .impl             = file_read_all,
     .arity            = 0,
     .return_type_id   = OAK_TYPE_STRING,
@@ -445,7 +445,7 @@ When a native type lives in a module, provide a matching `.oak` stub file (e.g. 
 record File;
 
 fn File.open(path : string, mode : number) -> File;
-fn File.readAll(self) -> string;
+fn File.read_all(self) -> string;
 fn File.close(self);
 ```
 
