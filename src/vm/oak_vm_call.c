@@ -183,9 +183,9 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
   return vm_call_bytecode(vm, arity, fn_slot, fn_val);
 }
 
-enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
+enum oak_vm_result_t oak_vm_op_call_with_argc(struct oak_vm_t* vm,
+                                              const u8 argc)
 {
-  const u8 argc = oak_vm_read_u8(vm);
   const usize depth = (usize)(vm->sp - vm->stack);
   if (depth < (usize)argc + 1u)
   {
@@ -205,6 +205,11 @@ enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
     return OAK_VM_RUNTIME_ERROR;
   }
   return vm_call_bytecode(vm, argc, fn_slot, fn_val);
+}
+
+enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
+{
+  return oak_vm_op_call_with_argc(vm, oak_vm_read_u8(vm));
 }
 
 enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)

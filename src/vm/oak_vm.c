@@ -30,12 +30,13 @@ void oak_vm_free(struct oak_vm_t* vm)
 }
 
 /* Sync cached registers back into the VM struct (before calls, returns, and
- * any helper that reads vm->ip / vm->sp). */
+ * any helper that reads vm->ip / vm->sp / vm->chunk). */
 #define SYNC_TO_VM()                                                           \
   do                                                                           \
   {                                                                            \
     vm->ip = ip;                                                               \
     vm->sp = sp;                                                               \
+    vm->chunk = chunk;                                                         \
   } while (0)
 
 /* Reload cached registers from the VM struct (after calls/returns that may
@@ -178,7 +179,11 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         const u8 slot = READ_U8();
         const usize idx = vm->stack_base + (usize)slot;
         CHECK_LOCAL(idx);
-        PUSH_VAL(vm->stack[idx]);
+        const struct oak_value_t v = vm->stack[idx];
+        if (v.tag < OAK_TAG_OBJ)
+          PUSH_OWNED(v);
+        else
+          PUSH_VAL(v);
         break;
       }
       case OAK_OP_SET_LOCAL:
@@ -739,13 +744,89 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         return OAK_VM_RUNTIME_ERROR;
       }
 
-      /* ====== CALLS & RETURNS (delegated, must sync) ====== */
+      /* ====== CALLS & RETURNS ====== */
       case OAK_OP_CALL:
-        DISPATCH_HELPER(oak_vm_op_call(vm));
+      {
+        const u8 argc = READ_U8();
+        const usize depth = (usize)(sp - vm->stack);
+        if (depth < (usize)argc + 1u)
+        {
+          SYNC_TO_VM();
+          oak_vm_runtime_error(vm, "stack underflow in call");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        const usize fn_slot = depth - (usize)argc - 1u;
+        const struct oak_value_t fn_val = vm->stack[fn_slot];
+
+        if (fn_val.tag == OAK_TAG_OBJ &&
+            fn_val.as.obj->type == OAK_OBJ_FN)
+        {
+          struct oak_obj_fn_t* fn = (struct oak_obj_fn_t*)fn_val.as.obj;
+          if (fn->arity == (int)argc &&
+              fn->attr_hook_count == 0 &&
+              vm->frame_count < OAK_FRAMES_MAX &&
+              (fn->module_id == 0xFFFFu ||
+               fn->module_id == chunk->module_id))
+          {
+            struct oak_call_frame_t* frame =
+                &vm->frames[vm->frame_count++];
+            frame->return_ip = ip;
+            frame->caller_stack_base = vm->stack_base;
+            frame->fn_slot = fn_slot;
+            frame->return_chunk = chunk;
+            vm->stack_base = fn_slot + 1u;
+            ip = chunk->bytecode + fn->code_offset;
+            break;
+          }
+        }
+
+        SYNC_TO_VM();
+        {
+          const enum oak_vm_result_t _r =
+              oak_vm_op_call_with_argc(vm, argc);
+          if (_r != OAK_VM_OK)
+            return _r;
+        }
+        SYNC_FROM_VM();
         break;
+      }
       case OAK_OP_RETURN:
-        DISPATCH_HELPER(oak_vm_op_return(vm));
+      {
+        if (vm->frame_count == 0)
+        {
+          SYNC_TO_VM();
+          oak_vm_runtime_error(vm, "'return' outside of a function");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (sp <= vm->stack)
+        {
+          SYNC_TO_VM();
+          oak_vm_runtime_error(vm, "stack underflow in return");
+          return OAK_VM_RUNTIME_ERROR;
+        }
+
+        const struct oak_value_t result = *--sp;
+        struct oak_call_frame_t* frame =
+            &vm->frames[--vm->frame_count];
+        const usize fn_slot = frame->fn_slot;
+        const usize depth_before = (usize)(sp - vm->stack) + 1u;
+
+        for (usize i = fn_slot; i < depth_before - 1u; ++i)
+        {
+          const struct oak_value_t v = vm->stack[i];
+          if (v.tag == OAK_TAG_OBJ)
+            oak_obj_decref(v.as.obj);
+          else if (v.tag == OAK_TAG_WEAK)
+            oak_weak_decref(v.as.obj);
+        }
+
+        vm->stack[fn_slot] = result;
+        sp = vm->stack + fn_slot + 1u;
+        ip = frame->return_ip;
+        vm->stack_base = frame->caller_stack_base;
+        chunk = frame->return_chunk;
         break;
+      }
       case OAK_OP_CALL_VIRTUAL:
         DISPATCH_HELPER(oak_vm_op_call_virtual(vm));
         break;

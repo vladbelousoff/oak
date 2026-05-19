@@ -89,6 +89,7 @@ enum oak_vm_result_t oak_vm_numeric_compare(struct oak_vm_t* vm,
                                             struct oak_value_t b);
 
 enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm);
+enum oak_vm_result_t oak_vm_op_call_with_argc(struct oak_vm_t* vm, u8 argc);
 enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm);
 enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm);
 

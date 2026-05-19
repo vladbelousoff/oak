@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef OAK_ATOMIC_REFCOUNT
+
 struct oak_refcount_t
 {
   volatile int count;
@@ -65,3 +67,27 @@ static inline int oak_refcount_dec(struct oak_refcount_t* rc)
 #else
 #error "Unsupported compiler: need MSVC, GCC, or Clang"
 #endif
+
+#else /* !OAK_ATOMIC_REFCOUNT */
+
+struct oak_refcount_t
+{
+  int count;
+};
+
+static inline void oak_refcount_init(struct oak_refcount_t* rc, const int n)
+{
+  rc->count = n;
+}
+
+static inline void oak_refcount_inc(struct oak_refcount_t* rc)
+{
+  rc->count++;
+}
+
+static inline int oak_refcount_dec(struct oak_refcount_t* rc)
+{
+  return --rc->count == 0;
+}
+
+#endif /* OAK_ATOMIC_REFCOUNT */
