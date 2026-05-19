@@ -217,9 +217,8 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
                        OAK_ARG_U8((u8)slot));
   oak_compiler_compile_node(c, node->rhs);
   oak_compiler_emit_op(c,
-                       OAK_OP_BINARY,
-                       oak_compiler_loc_from_token(lhs->token),
-                       OAK_ARG_U8(oakc_binop_for_node(node->kind)));
+                       oakc_binop_for_node(node->kind),
+                       oak_compiler_loc_from_token(lhs->token));
   oak_compiler_emit_op(c,
                        OAK_OP_SET_LOCAL,
                        oak_compiler_loc_from_token(lhs->token),

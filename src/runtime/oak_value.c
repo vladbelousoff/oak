@@ -305,29 +305,20 @@ struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
 
 static u32 hash_value(const struct oak_value_t v)
 {
-  switch (v.type)
+  if (oak_is_bool(v))
+    return (u32)oak_as_bool(v) * 2654435761u;
+  if (oak_is_i32(v))
+    return (u32)oak_as_i32(v) * 2654435761u;
+  if (oak_is_f32(v))
+    return oak_f32_to_bits(oak_as_f32(v)) * 2654435761u;
+  if (oak_is_none(v))
+    return 0x9E3779B9u;
+  if (oak_is_string(v))
+    return oak_as_string(v)->hash;
   {
-    case OAK_VAL_BOOL:
-      return (u32)oak_as_bool(v) * 2654435761u;
-    case OAK_VAL_NUMBER:
-      if (oak_is_f32(v))
-      {
-        float f = oak_as_f32(v);
-        u32 bits = 0;
-        memcpy(&bits, &f, sizeof(bits));
-        return bits * 2654435761u;
-      }
-      return (u32)oak_as_i32(v) * 2654435761u;
-    case OAK_VAL_OBJ:
-      if (v.as.obj->type == OAK_OBJ_STRING)
-        return ((struct oak_obj_string_t*)v.as.obj)->hash;
-      return (u32)(uintptr_t)v.as.obj * 2654435761u;
-    case OAK_VAL_WEAK_OBJ:
-      return (u32)(uintptr_t)v.as.obj * 2654435761u;
-    case OAK_VAL_NONE:
-      return 0x9E3779B9u;
+    struct oak_obj_t* p = oak_val_obj_ptr(v);
+    return (u32)(uintptr_t)p * 2654435761u;
   }
-  return 0;
 }
 
 static usize ht_probe(const usize* ht,
@@ -387,7 +378,7 @@ int oak_map_get(const struct oak_obj_map_t* map,
                 const struct oak_value_t key,
                 struct oak_value_t* out)
 {
-  if (key.type == OAK_VAL_NONE || key.type == OAK_VAL_WEAK_OBJ)
+  if (oak_is_none(key) || oak_is_weak_obj(key))
     return 0;
   if (!map->ht || map->length == 0)
     return 0;
@@ -402,7 +393,7 @@ int oak_map_get(const struct oak_obj_map_t* map,
 
 int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
 {
-  if (key.type == OAK_VAL_NONE || key.type == OAK_VAL_WEAK_OBJ)
+  if (oak_is_none(key) || oak_is_weak_obj(key))
     return 0;
   if (!map->ht || map->length == 0)
     return 0;
@@ -413,7 +404,7 @@ int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
 
 int oak_map_delete(struct oak_obj_map_t* map, const struct oak_value_t key)
 {
-  if (key.type == OAK_VAL_NONE || key.type == OAK_VAL_WEAK_OBJ)
+  if (oak_is_none(key) || oak_is_weak_obj(key))
     return 0;
   if (!map->ht || map->length == 0)
     return 0;
@@ -468,7 +459,7 @@ int oak_map_set(struct oak_obj_map_t* map,
                 const struct oak_value_t key,
                 const struct oak_value_t value)
 {
-  if (key.type == OAK_VAL_WEAK_OBJ || key.type == OAK_VAL_NONE)
+  if (oak_is_weak_obj(key) || oak_is_none(key))
     return 0;
   if (!map->ht || (map->length + 1u) * 4u > map->ht_capacity * 3u)
   {
@@ -563,20 +554,15 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
     return oak_as_obj(a) == oak_as_obj(b);
   }
 
-  if (a.type != b.type)
+  if (a.tag != b.tag)
     return 0;
 
-  switch (a.type)
+  switch (a.tag)
   {
-    case OAK_VAL_BOOL:
-      return oak_as_bool(a) == oak_as_bool(b);
-    case OAK_VAL_NUMBER:
-      if (oak_is_f32(a) != oak_is_f32(b))
-        return 0;
-      if (oak_is_f32(a))
-        return oak_as_f32(a) == oak_as_f32(b);
-      return oak_as_i32(a) == oak_as_i32(b);
-    default:
-      return 0;
+    case OAK_TAG_BOOL: return oak_as_bool(a) == oak_as_bool(b);
+    case OAK_TAG_I32:  return oak_as_i32(a) == oak_as_i32(b);
+    case OAK_TAG_F32:  return oak_as_f32(a) == oak_as_f32(b);
+    case OAK_TAG_NONE: return 1;
+    default:           return 0;
   }
 }

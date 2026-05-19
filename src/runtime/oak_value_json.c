@@ -251,7 +251,7 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
   }
   if (oak_is_string(value))
   {
-    oak_obj_incref(value.as.obj);
+    oak_obj_incref(oak_val_obj_ptr(value));
     return oak_as_string(value);
   }
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);

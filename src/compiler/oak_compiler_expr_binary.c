@@ -76,9 +76,8 @@ void oak_compiler_compile_binary_op(struct oak_compiler_t* c,
   oak_compiler_compile_node(c, node->rhs);
   oak_compiler_emit_op(
       c,
-      OAK_OP_BINARY,
-      oak_compiler_loc_from_token(node->lhs->token),
-      OAK_ARG_U8(oakc_binop_for_node(node->kind)));
+      oakc_binop_for_node(node->kind),
+      oak_compiler_loc_from_token(node->lhs->token));
 }
 
 void oak_compiler_compile_binary_and(struct oak_compiler_t* c,

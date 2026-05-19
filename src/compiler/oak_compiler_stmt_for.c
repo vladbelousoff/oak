@@ -76,13 +76,10 @@ void oakc_compile_for_from(struct oak_compiler_t* c,
     const struct oak_code_loc_t ident_loc =
         oak_compiler_loc_from_token(ident->token);
     oak_compiler_emit_op(
-        c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
-    oak_compiler_emit_op(
-        c, OAK_OP_GET_LOCAL, ident_loc, OAK_ARG_U8((u8)limit_slot));
-    oak_compiler_emit_op(
-        c, OAK_OP_BINARY, ident_loc, OAK_ARG_U8(OAK_BINOP_LESS));
+        c, OAK_OP_GET_LOCAL_GET_LOCAL, ident_loc,
+        OAK_ARG_U8((u8)loop_var_slot), OAK_ARG_U8((u8)limit_slot));
     const usize exit_jump =
-        oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, ident_loc);
+        oak_compiler_emit_jump(c, OAK_OP_LESS_JUMP_IF_FALSE, ident_loc);
 
     const int merge_stack_depth = c->scope.stack_depth;
 
@@ -91,10 +88,24 @@ void oakc_compile_for_from(struct oak_compiler_t* c,
 
     oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
 
-    oak_compiler_emit_op(
-        c, OAK_OP_INC_LOCAL, ident_loc, OAK_ARG_U8((u8)loop_var_slot));
-
-    oak_compiler_emit_loop(c, loop.loop_start, ident_loc);
+    {
+      oak_compiler_emit_byte(c, OAK_OP_INC_LOCAL_LOOP, ident_loc);
+      oak_compiler_emit_byte(c, (u8)loop_var_slot, ident_loc);
+      const usize jump = c->chunk->count - loop.loop_start + 2;
+      if (jump > 0xFFFFu)
+      {
+        oak_compiler_error_at(
+            c, null,
+            "loop distance %zu exceeds 16-bit limit (max 65535)", jump);
+        oak_compiler_emit_byte(c, 0, ident_loc);
+        oak_compiler_emit_byte(c, 0, ident_loc);
+      }
+      else
+      {
+        oak_compiler_emit_byte(c, (u8)(jump >> 8), ident_loc);
+        oak_compiler_emit_byte(c, (u8)(jump), ident_loc);
+      }
+    }
     oak_compiler_patch_jump(c, exit_jump);
   }
 
@@ -295,11 +306,12 @@ void oakc_compile_for_in(struct oak_compiler_t* c,
   };
   c->scope.current_loop = &loop;
 
-  /* Loop condition: idx < limit. */
-  oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
-  oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)limit_slot));
-  oak_compiler_emit_op(c, OAK_OP_BINARY, loc, OAK_ARG_U8(OAK_BINOP_LESS));
-  const usize exit_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, loc);
+  /* Loop condition: idx < limit (fused compare+branch). */
+  oak_compiler_emit_op(
+      c, OAK_OP_GET_LOCAL_GET_LOCAL, loc,
+      OAK_ARG_U8((u8)idx_slot), OAK_ARG_U8((u8)limit_slot));
+  const usize exit_jump =
+      oak_compiler_emit_jump(c, OAK_OP_LESS_JUMP_IF_FALSE, loc);
 
   /* Per-iteration scope: exposes k, v to the body. */
   oak_compiler_begin_scope(c);

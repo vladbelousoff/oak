@@ -26,9 +26,19 @@ enum oak_opcode_t
   OAK_OP_WEAKEN,
   OAK_OP_INC_LOCAL,
   OAK_OP_DEC_LOCAL,
-  /* Binary arithmetic / comparison / equality. The operation is encoded in
-   * an 8-bit operand byte (oak_binop_t). */
-  OAK_OP_BINARY,
+  /* Binary arithmetic / comparison / equality — dedicated opcodes. */
+  OAK_OP_ADD,
+  OAK_OP_SUBTRACT,
+  OAK_OP_MULTIPLY,
+  OAK_OP_DIVIDE,
+  OAK_OP_INT_DIVIDE,
+  OAK_OP_MODULO,
+  OAK_OP_EQUAL,
+  OAK_OP_NOT_EQUAL,
+  OAK_OP_LESS,
+  OAK_OP_LESS_EQUAL,
+  OAK_OP_GREATER,
+  OAK_OP_GREATER_EQUAL,
   OAK_OP_NEGATE,
   OAK_OP_NOT,
   OAK_OP_JUMP,
@@ -58,9 +68,23 @@ enum oak_opcode_t
    * Operands: vtable_slot (u8), total_arity (u8, including self).
    * Stack: [..., trait_obj, arg1..argN] -> [..., return_value]. */
   OAK_OP_CALL_VIRTUAL,
+
+  /* Fused comparison + conditional branch (avoids intermediate bool push/pop).
+   * Operands: 16-bit big-endian forward jump offset.
+   * Stack: [..., a, b] -> [...]; jumps if comparison is false. */
+  OAK_OP_LESS_JUMP_IF_FALSE,
+  OAK_OP_LESS_EQUAL_JUMP_IF_FALSE,
+  OAK_OP_GREATER_JUMP_IF_FALSE,
+  OAK_OP_GREATER_EQUAL_JUMP_IF_FALSE,
+
+  /* Superinstructions: fused sequences that avoid redundant dispatch. */
+  /* GET_LOCAL slot1, GET_LOCAL slot2 — pushes two locals. */
+  OAK_OP_GET_LOCAL_GET_LOCAL,
+  /* INC_LOCAL slot, LOOP offset — increment then backward jump. */
+  OAK_OP_INC_LOCAL_LOOP,
 };
 
-/* Operand byte for OAK_OP_BINARY. */
+/* Binary operation selector (used internally by the compiler). */
 enum oak_binop_t
 {
   OAK_BINOP_ADD,

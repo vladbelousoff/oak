@@ -23,33 +23,33 @@ u8 oakc_binop_for_node(const enum oak_node_kind_t kind)
   {
     case OAK_NODE_BINARY_ADD:
     case OAK_NODE_STMT_ADD_ASSIGN:
-      return OAK_BINOP_ADD;
+      return OAK_OP_ADD;
     case OAK_NODE_BINARY_SUB:
     case OAK_NODE_STMT_SUB_ASSIGN:
-      return OAK_BINOP_SUBTRACT;
+      return OAK_OP_SUBTRACT;
     case OAK_NODE_BINARY_MUL:
     case OAK_NODE_STMT_MUL_ASSIGN:
-      return OAK_BINOP_MULTIPLY;
+      return OAK_OP_MULTIPLY;
     case OAK_NODE_BINARY_DIV:
     case OAK_NODE_STMT_DIV_ASSIGN:
-      return OAK_BINOP_DIVIDE;
+      return OAK_OP_DIVIDE;
     case OAK_NODE_BINARY_INT_DIV:
-      return OAK_BINOP_INT_DIVIDE;
+      return OAK_OP_INT_DIVIDE;
     case OAK_NODE_BINARY_MOD:
     case OAK_NODE_STMT_MOD_ASSIGN:
-      return OAK_BINOP_MODULO;
+      return OAK_OP_MODULO;
     case OAK_NODE_BINARY_EQ:
-      return OAK_BINOP_EQUAL;
+      return OAK_OP_EQUAL;
     case OAK_NODE_BINARY_NEQ:
-      return OAK_BINOP_NOT_EQUAL;
+      return OAK_OP_NOT_EQUAL;
     case OAK_NODE_BINARY_LESS:
-      return OAK_BINOP_LESS;
+      return OAK_OP_LESS;
     case OAK_NODE_BINARY_LESS_EQ:
-      return OAK_BINOP_LESS_EQUAL;
+      return OAK_OP_LESS_EQUAL;
     case OAK_NODE_BINARY_GREATER:
-      return OAK_BINOP_GREATER;
+      return OAK_OP_GREATER;
     case OAK_NODE_BINARY_GREATER_EQ:
-      return OAK_BINOP_GREATER_EQUAL;
+      return OAK_OP_GREATER_EQUAL;
     default:
       oak_assert(0);
       return 0;

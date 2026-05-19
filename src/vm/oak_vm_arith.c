@@ -130,28 +130,39 @@ enum oak_vm_result_t oak_vm_numeric_compare(struct oak_vm_t* vm,
     return OAK_VM_RUNTIME_ERROR;
   }
 
-  const float fa = coerce_f32(a);
-  const float fb = coerce_f32(b);
-
   int result;
-  switch (binop)
+
+  if (oak_is_i32(a) && oak_is_i32(b))
   {
-    case OAK_BINOP_LESS:
-      result = fa < fb;
-      break;
-    case OAK_BINOP_LESS_EQUAL:
-      result = fa <= fb;
-      break;
-    case OAK_BINOP_GREATER:
-      result = fa > fb;
-      break;
-    case OAK_BINOP_GREATER_EQUAL:
-      result = fa >= fb;
-      break;
-    default:
-      oak_vm_runtime_error(
-          vm, "internal error: unhandled comparison binop (0x%02x)", binop);
-      return OAK_VM_RUNTIME_ERROR;
+    const int ia = oak_as_i32(a);
+    const int ib = oak_as_i32(b);
+    switch (binop)
+    {
+      case OAK_BINOP_LESS:          result = ia < ib;  break;
+      case OAK_BINOP_LESS_EQUAL:    result = ia <= ib; break;
+      case OAK_BINOP_GREATER:       result = ia > ib;  break;
+      case OAK_BINOP_GREATER_EQUAL: result = ia >= ib; break;
+      default:
+        oak_vm_runtime_error(
+            vm, "internal error: unhandled comparison binop (0x%02x)", binop);
+        return OAK_VM_RUNTIME_ERROR;
+    }
+  }
+  else
+  {
+    const float fa = coerce_f32(a);
+    const float fb = coerce_f32(b);
+    switch (binop)
+    {
+      case OAK_BINOP_LESS:          result = fa < fb;  break;
+      case OAK_BINOP_LESS_EQUAL:    result = fa <= fb; break;
+      case OAK_BINOP_GREATER:       result = fa > fb;  break;
+      case OAK_BINOP_GREATER_EQUAL: result = fa >= fb; break;
+      default:
+        oak_vm_runtime_error(
+            vm, "internal error: unhandled comparison binop (0x%02x)", binop);
+        return OAK_VM_RUNTIME_ERROR;
+    }
   }
 
   return oak_vm_push(vm, OAK_VALUE_BOOL(result));

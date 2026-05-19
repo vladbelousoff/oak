@@ -105,10 +105,8 @@ oak_core_sources = files(
   'src/vm/oak_vm.c',
   'src/vm/oak_vm_arith.c',
   'src/vm/oak_vm_call.c',
-  'src/vm/oak_vm_control.c',
   'src/vm/oak_vm_error.c',
   'src/vm/oak_vm_object.c',
-  'src/vm/oak_vm_stack.c',
 )
 
 if is_emscripten
@@ -180,6 +178,7 @@ else
     'vm_language_runtime': 'tests/vm/vm_language_runtime.c',
     'vm_runtime_errors': 'tests/vm/vm_runtime_errors.c',
     'vm_short_circuit': 'tests/vm/vm_short_circuit.c',
+    'vm_value_boxing': 'tests/vm/vm_value_boxing.c',
   }
 
   foreach test_name, test_src : test_sources
