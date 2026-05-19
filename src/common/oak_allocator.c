@@ -42,9 +42,10 @@ static void sys_free(struct oak_allocator_t* self,
   free(ptr);
 }
 
-static void sys_shutdown(struct oak_allocator_t* self)
+static int sys_shutdown(struct oak_allocator_t* self)
 {
   (void)self;
+  return 0;
 }
 
 struct oak_allocator_t oak_system_allocator = {
@@ -168,9 +169,10 @@ static void track_free(struct oak_allocator_t* self,
   }
 }
 
-static void track_shutdown(struct oak_allocator_t* self)
+static int track_shutdown(struct oak_allocator_t* self)
 {
   struct oak_tracking_state_t* st = self->state;
+  int leak_count = 0;
   struct oak_list_entry_t* entry;
   struct oak_list_entry_t* safe;
   oak_list_for_each_safe(entry, safe, &st->allocations)
@@ -185,9 +187,11 @@ static void track_shutdown(struct oak_allocator_t* self)
             (unsigned long)header->size);
     oak_list_remove(&header->link);
     free(header);
+    ++leak_count;
   }
   free(st);
   self->state = null;
+  return leak_count;
 }
 
 void oak_tracking_allocator_init(struct oak_allocator_t* a)

@@ -209,7 +209,7 @@ else
     test(
       'example_' + example_name,
       oak,
-      args: files(script),
+      args: ['--track-memory', files(script)],
       workdir: meson.project_source_root(),
     )
   endforeach

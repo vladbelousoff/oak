@@ -63,7 +63,8 @@ int oak_run(const char* code)
   oak_compile_options_free(&compile_opts);
   oak_parser_free(&result);
   oak_lexer_free(lexer);
-  allocator.shutdown(&allocator);
+  if (allocator.shutdown(&allocator) > 0 && exit_code == 0)
+    exit_code = 2;
 
   return exit_code;
 }

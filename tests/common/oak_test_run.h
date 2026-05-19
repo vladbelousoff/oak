@@ -32,8 +32,10 @@ static int oak_test_run(const struct oak_test_t* tests, const int count)
     oak_log(OAK_LOG_INFO, "passed: %s", t->name);
   }
 
-  allocator.shutdown(&allocator);
-  return result == OAK_TEST_OK ? 0 : (int)result;
+  int exit_code = result == OAK_TEST_OK ? 0 : (int)result;
+  if (allocator.shutdown(&allocator) > 0 && exit_code == 0)
+    exit_code = 2;
+  return exit_code;
 }
 
 /** Convenience macro for the common single-test-per-exe case. */

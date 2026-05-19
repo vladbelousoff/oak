@@ -56,6 +56,7 @@ int oak_run_file_wrapper(const char* path)
 
   oak_module_registry_free(&registry);
   oak_compile_options_free(&compile_opts);
-  allocator.shutdown(&allocator);
+  if (allocator.shutdown(&allocator) > 0 && exit_code == 0)
+    exit_code = 2;
   return exit_code;
 }

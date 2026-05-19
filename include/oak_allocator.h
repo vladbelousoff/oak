@@ -18,7 +18,7 @@ struct oak_allocator_t
                void* ptr,
                const char* file,
                int line);
-  void (*shutdown)(struct oak_allocator_t* self);
+  int (*shutdown)(struct oak_allocator_t* self);
   void* state;
 };
 
