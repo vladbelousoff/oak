@@ -36,3 +36,18 @@ fn summary(task : Task) -> string {
   }
   return task.title + ' open';
 }
+
+fn Task.describe(self) -> string {
+  if self.done {
+    return self.title + ' [done]';
+  }
+  return self.title + ' [open]';
+}
+
+fn Task.mark_done(mut self) {
+  self.done = true;
+}
+
+fn Task.internal_helper(self) -> string {
+  return 'internal';
+}

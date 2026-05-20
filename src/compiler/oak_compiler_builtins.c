@@ -29,10 +29,11 @@ static void register_native_fn(struct oak_compiler_t* c,
     .name_len = strlen(binding->name),
     .const_idx = idx,
     .arity = binding->arity,
-    .return_type_id = binding->return_type_id,
+    .return_type = { .id = binding->return_type_id },
     .decl = null,
     .attrs = null,
     .attr_count = 0,
+    .source_module_id = OAK_MODULE_ID_NONE,
   };
   oak_fn_registry_insert(&c->fns, &entry);
 }

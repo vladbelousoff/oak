@@ -18,6 +18,7 @@ struct oak_registered_record_t
   const char* name;
   usize name_len;
   oak_type_id_t type_id;
+  u16 source_module_id;
   struct oak_record_field_t* fields;
   int field_count;
   int field_capacity;

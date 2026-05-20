@@ -38,8 +38,7 @@ const struct oak_token_t* loader_import_alias_token(
 {
   if (imp->alias_node)
     return imp->alias_node->token;
-  const struct oak_ast_node_t* last = dotted_path_last_segment(imp->path);
-  return last ? last->token : null;
+  return null;
 }
 
 int collect_imports(const struct oak_module_t* mod,
@@ -53,12 +52,21 @@ int collect_imports(const struct oak_module_t* mod,
   {
     const struct oak_ast_node_t* item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_IMPORT_DECL)
+    struct loader_import_t imp = { 0 };
+    if (item->kind == OAK_NODE_IMPORT_SELECTIVE)
+    {
+      imp.path = item->rhs;
+      imp.alias_node = null;
+    }
+    else if (item->kind == OAK_NODE_IMPORT_WILDCARD)
+    {
+      imp.path = item->child;
+      imp.alias_node = null;
+    }
+    else
+    {
       continue;
-    struct loader_import_t imp;
-    imp.path = item->lhs;
-    imp.alias_node =
-        (item->rhs && item->rhs->kind == OAK_NODE_IDENT) ? item->rhs : null;
+    }
     oak_dynarr_push(mod->allocator,
         &out->items, &out->count, &out->capacity, &imp, sizeof(imp));
   }
@@ -80,17 +88,19 @@ static int validate_imported_module_body(
       continue;
     switch (item->kind)
     {
-      case OAK_NODE_IMPORT_DECL:
+      case OAK_NODE_IMPORT_SELECTIVE:
+      case OAK_NODE_IMPORT_WILDCARD:
       case OAK_NODE_FN_DECL:
       case OAK_NODE_METHOD_DECL:
       case OAK_NODE_RECORD_DECL:
       case OAK_NODE_RECORD_DECL_EMPTY:
       case OAK_NODE_ENUM_DECL:
+      case OAK_NODE_TRAIT_DECL:
         continue;
       default:
         loader_error(out,
                      "%s: top-level statement not allowed in imported module "
-                     "(only fn, record, enum, and import are permitted)",
+                     "(only fn, record, enum, trait, and import are permitted)",
                      mod->dotted_name ? mod->dotted_name : mod->canonical_path);
         ok = 0;
         break;

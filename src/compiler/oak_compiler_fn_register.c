@@ -17,6 +17,8 @@ void oak_fn_registry_free(struct oak_fn_registry_t* r)
   {
     if (r->entries.items[i].attrs)
       OAK_FREE(r->allocator, r->entries.items[i].attrs);
+    if (r->entries.items[i].param_types)
+      OAK_FREE(r->allocator, r->entries.items[i].param_types);
   }
   oak_htable_free(&r->by_name);
   oak_dynarr_free(r->allocator, &r->entries.items, &r->entries.count, &r->entries.capacity);
@@ -120,6 +122,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     .decl = item,
     .attrs = attrs,
     .attr_count = attr_count,
+    .source_module_id = OAK_MODULE_ID_NONE,
   };
   oak_fn_registry_insert(&c->fns, &entry);
 }
@@ -158,12 +161,12 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
   slot.name = name;
   slot.name_len = name_len;
   slot.receiver_type_id = sd->type_id;
-  slot.return_type_id = OAK_TYPE_VOID;
+  oak_type_clear(&slot.return_type);
   slot.is_static = (self_param == null);
   slot.decl = item;
   slot.attrs = attrs;
   slot.attr_count = attr_count;
-
+  slot.source_module_id = OAK_MODULE_ID_NONE;
   const int total_arity = self_param ? explicit_arity + 1 : explicit_arity;
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;

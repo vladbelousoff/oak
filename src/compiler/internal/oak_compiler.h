@@ -39,13 +39,6 @@ void oak_compiler_error_at(struct oak_compiler_t* c,
                            const char* fmt,
                            ...);
 
-/* Returns the imported module's id if `name` is a registered alias on the
- * current compilation unit, otherwise -1. Returns -1 when there is no module
- * registry (single-file mode). */
-int oakc_import_alias(const struct oak_compiler_t* c,
-                                     const char* name,
-                                     usize name_len);
-
 /* ---------- oak_compiler_scope.c ---------- */
 
 int oak_compiler_find_local(const struct oak_compiler_t* c,
@@ -171,8 +164,8 @@ const struct oak_method_binding_t* oakc_find_record_builtin_method(
 
 /* ---------- oak_compiler_attrs.c ---------- */
 
-/* If item is OAK_NODE_ATTR_DECL, returns the actual declaration node
- * (the last non-ATTR child).  Otherwise returns item unchanged. */
+/* If item is OAK_NODE_ATTR_DECL, returns the actual declaration node.
+ * Otherwise returns item unchanged. */
 const struct oak_ast_node_t* oakc_unwrap_decl(
     const struct oak_ast_node_t* item);
 
@@ -378,11 +371,18 @@ void oakc_check_method_args(
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* m);
 
-/* Validate argument types directly against an AST decl node.
- * Used for virtual dispatch where only the trait sig_decl is available. */
+/* Validate argument types directly against an AST decl node. */
 void oakc_check_args_against_decl(struct oak_compiler_t* c,
                                    const struct oak_ast_node_t* call,
                                    const struct oak_ast_node_t* decl);
+
+/* Validate argument types for a trait method call.  Uses sig_decl when
+ * available (local trait), falls back to param_types (imported trait). */
+struct oak_trait_method_t;
+void oakc_check_trait_method_args(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* call,
+    const struct oak_trait_method_t* tm);
 
 /* ---------- oak_compiler_stmt.c ---------- */
 

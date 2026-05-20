@@ -23,6 +23,8 @@ void oak_record_registry_free(struct oak_record_registry_t* r)
     {
       if (e->methods.items[j].attrs)
         OAK_FREE(r->allocator, e->methods.items[j].attrs);
+      if (e->methods.items[j].param_types)
+        OAK_FREE(r->allocator, e->methods.items[j].param_types);
     }
     oak_dynarr_free(r->allocator, &e->fields, &e->field_count, &e->field_capacity);
     oak_dynarr_free(r->allocator, &e->methods.items, &e->methods.count,

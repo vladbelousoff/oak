@@ -48,10 +48,17 @@ static void oak_module_free(struct oak_module_t* mod)
   oak_dynarr_free(a, &mod->import_modules.items,
                   &mod->import_modules.count,
                   &mod->import_modules.capacity);
+  oak_type_registry_free(&mod->types);
   oak_htable_free(&mod->exports_fn.by_name);
   for (int i = 0; i < mod->exports_fn.count; ++i)
+  {
     if (mod->exports_fn.items[i].stub_attrs)
       OAK_FREE(a, mod->exports_fn.items[i].stub_attrs);
+    if (mod->exports_fn.items[i].param_types)
+      OAK_FREE(a, mod->exports_fn.items[i].param_types);
+    if (mod->exports_fn.items[i].param_mut_flags)
+      OAK_FREE(a, mod->exports_fn.items[i].param_mut_flags);
+  }
   oak_dynarr_free(a, &mod->exports_fn.items,
                   &mod->exports_fn.count,
                   &mod->exports_fn.capacity);
@@ -62,8 +69,14 @@ static void oak_module_free(struct oak_module_t* mod)
                     &mod->exports_record.items[i].field_count,
                     &mod->exports_record.items[i].field_capacity);
     for (int mi = 0; mi < mod->exports_record.items[i].method_count; ++mi)
+    {
       if (mod->exports_record.items[i].methods[mi].stub_attrs)
         OAK_FREE(a, mod->exports_record.items[i].methods[mi].stub_attrs);
+      if (mod->exports_record.items[i].methods[mi].param_types)
+        OAK_FREE(a, mod->exports_record.items[i].methods[mi].param_types);
+      if (mod->exports_record.items[i].methods[mi].param_mut_flags)
+        OAK_FREE(a, mod->exports_record.items[i].methods[mi].param_mut_flags);
+    }
     oak_dynarr_free(a, &mod->exports_record.items[i].methods,
                     &mod->exports_record.items[i].method_count,
                     &mod->exports_record.items[i].method_capacity);
@@ -79,6 +92,21 @@ static void oak_module_free(struct oak_module_t* mod)
   oak_dynarr_free(a, &mod->exports_enum.items,
                   &mod->exports_enum.count,
                   &mod->exports_enum.capacity);
+  oak_htable_free(&mod->exports_trait.by_name);
+  for (int i = 0; i < mod->exports_trait.count; ++i)
+  {
+    for (int mi = 0; mi < mod->exports_trait.items[i].method_count; ++mi)
+    {
+      if (mod->exports_trait.items[i].methods[mi].param_types)
+        OAK_FREE(a, mod->exports_trait.items[i].methods[mi].param_types);
+    }
+    oak_dynarr_free(a, &mod->exports_trait.items[i].methods,
+                    &mod->exports_trait.items[i].method_count,
+                    &mod->exports_trait.items[i].method_capacity);
+  }
+  oak_dynarr_free(a, &mod->exports_trait.items,
+                  &mod->exports_trait.count,
+                  &mod->exports_trait.capacity);
   if (mod->canonical_path)
     OAK_FREE(a, mod->canonical_path);
   if (mod->dotted_name)
@@ -146,6 +174,10 @@ oak_module_registry_create(struct oak_module_registry_t* reg,
   oak_dynarr_init(&mod->exports_enum.items,
                   &mod->exports_enum.count,
                   &mod->exports_enum.capacity);
+  oak_htable_init(&mod->exports_trait.by_name, a);
+  oak_dynarr_init(&mod->exports_trait.items,
+                  &mod->exports_trait.count,
+                  &mod->exports_trait.capacity);
 
   oak_dynarr_push(a, &reg->modules.items,
                   &reg->modules.count,
@@ -184,4 +216,13 @@ const struct oak_module_export_enum_t* oak_module_find_export_enum(
   if (idx < 0)
     return null;
   return &mod->exports_enum.items[idx];
+}
+
+const struct oak_module_export_trait_t* oak_module_find_export_trait(
+    const struct oak_module_t* mod, const char* name, usize name_len)
+{
+  const int idx = oak_htable_get(&mod->exports_trait.by_name, name, name_len);
+  if (idx < 0)
+    return null;
+  return &mod->exports_trait.items[idx];
 }

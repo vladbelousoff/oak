@@ -14,9 +14,16 @@ void oak_trait_registry_init(struct oak_trait_registry_t* r,
 void oak_trait_registry_free(struct oak_trait_registry_t* r)
 {
   for (int i = 0; i < r->trait_count; ++i)
+  {
+    for (int mi = 0; mi < r->traits[i].method_count; ++mi)
+    {
+      if (r->traits[i].methods[mi].param_types)
+        OAK_FREE(r->allocator, r->traits[i].methods[mi].param_types);
+    }
     oak_dynarr_free(r->allocator, &r->traits[i].methods,
                     &r->traits[i].method_count,
                     &r->traits[i].method_capacity);
+  }
   oak_dynarr_free(r->allocator, &r->traits, &r->trait_count, &r->trait_capacity);
 
   for (int i = 0; i < r->impl_count; ++i)
@@ -122,9 +129,10 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item =
+    const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    if (item->kind != OAK_NODE_TRAIT_DECL)
+    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    if (!item || item->kind != OAK_NODE_TRAIT_DECL)
       continue;
 
     if (!item->lhs || item->lhs->kind != OAK_NODE_IDENT || !item->rhs)
@@ -199,6 +207,9 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
         .arity = total_arity,
         .sig_decl = mdecl,
         .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null,
+        .self_is_mut = (self_p && oakc_self_is_mut(self_p)) ? 1 : 0,
+        .param_types = null,
+        .return_type = { 0 },
       };
       oak_dynarr_push(c->allocator, &tr->methods,
                       &tr->method_count,
@@ -340,44 +351,73 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
     if (sm->arity != tm->arity)
       return 0;
 
-    /* Also compare parameter types and return type when both sides have AST
-     * decls; this catches cases like a record implementing area()->string
-     * when the trait declares area()->number. */
-    if (tm->sig_decl && sm->decl)
+    /* Compare parameter and return types. When both sides have AST decls
+     * (local trait), lower from the AST. When the trait is imported
+     * (sig_decl == null), use the pre-lowered param_types/return_type. */
     {
-      /* Return type. */
-      struct oak_type_t tr_ret, sm_ret;
+      struct oak_type_t tr_ret;
       oak_type_clear(&tr_ret);
+      if (tm->sig_decl)
+      {
+        const struct oak_ast_node_t* rn = oakc_fn_return_type_node(tm->sig_decl);
+        if (rn)
+          oakc_lower_type_node(c, rn, &tr_ret);
+      }
+      else
+      {
+        tr_ret = tm->return_type;
+      }
+      struct oak_type_t sm_ret;
       oak_type_clear(&sm_ret);
-      const struct oak_ast_node_t* tr_ret_node =
-          oakc_fn_return_type_node(tm->sig_decl);
-      const struct oak_ast_node_t* sm_ret_node =
-          oakc_fn_return_type_node(sm->decl);
-      if (tr_ret_node)
-        oakc_lower_type_node(c, tr_ret_node, &tr_ret);
-      if (sm_ret_node)
-        oakc_lower_type_node(c, sm_ret_node, &sm_ret);
+      if (sm->decl)
+      {
+        const struct oak_ast_node_t* rn = oakc_fn_return_type_node(sm->decl);
+        if (rn)
+          oakc_lower_type_node(c, rn, &sm_ret);
+      }
+      else
+      {
+        sm_ret = sm->return_type;
+      }
       if (oak_type_is_known(&tr_ret) && oak_type_is_known(&sm_ret) &&
           !oak_type_equal(&tr_ret, &sm_ret))
         return 0;
 
-      /* Parameter types (excluding self). */
       const int explicit_params = tm->arity - 1;
       for (int j = 0; j < explicit_params; ++j)
       {
-        const struct oak_ast_node_t* tp = oakc_fn_param_at(tm->sig_decl, j);
-        const struct oak_ast_node_t* sp = oakc_fn_param_at(sm->decl, j);
-        if (!tp || !sp)
-          continue;
-        const struct oak_ast_node_t* tp_type = oakc_fn_param_type_node(tp);
-        const struct oak_ast_node_t* sp_type = oakc_fn_param_type_node(sp);
-        if (!tp_type || !sp_type)
-          continue;
-        struct oak_type_t want_p, got_p;
+        struct oak_type_t want_p;
         oak_type_clear(&want_p);
+        if (tm->sig_decl)
+        {
+          const struct oak_ast_node_t* tp = oakc_fn_param_at(tm->sig_decl, j);
+          if (tp)
+          {
+            const struct oak_ast_node_t* tn = oakc_fn_param_type_node(tp);
+            if (tn)
+              oakc_lower_type_node(c, tn, &want_p);
+          }
+        }
+        else if (tm->param_types)
+        {
+          want_p = tm->param_types[j + 1];
+        }
+        struct oak_type_t got_p;
         oak_type_clear(&got_p);
-        oakc_lower_type_node(c, tp_type, &want_p);
-        oakc_lower_type_node(c, sp_type, &got_p);
+        if (sm->decl)
+        {
+          const struct oak_ast_node_t* sp = oakc_fn_param_at(sm->decl, j);
+          if (sp)
+          {
+            const struct oak_ast_node_t* sn = oakc_fn_param_type_node(sp);
+            if (sn)
+              oakc_lower_type_node(c, sn, &got_p);
+          }
+        }
+        else if (sm->param_types)
+        {
+          got_p = sm->param_types[j + 1];
+        }
         if (oak_type_is_known(&want_p) && oak_type_is_known(&got_p) &&
             !oak_type_equal(&want_p, &got_p))
           return 0;
@@ -428,11 +468,30 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
   if (impl->vtable_built)
     return impl->vtable_array_const_idx;
 
-  /* Build vtable as an OAK_OBJ_ARRAY of function values. */
+  /* Build vtable as an OAK_OBJ_ARRAY of function values.
+     For imported methods, resolve the function from the source module. */
   struct oak_obj_array_t* arr = oak_array_new(c->allocator);
   for (int i = 0; i < tr->method_count; ++i)
   {
-    const struct oak_value_t fn_val = c->chunk->constants[impl->vtable[i]];
+    const struct oak_trait_method_t* tm = &tr->methods[i];
+    const struct oak_registered_fn_t* sm =
+        oakc_find_record_method(sd, tm->name, tm->name_len, 0);
+    struct oak_value_t fn_val;
+    if (sm && sm->source_module_id != OAK_MODULE_ID_NONE &&
+        c->module_registry)
+    {
+      const struct oak_module_t* src_mod =
+          oak_module_registry_get(c->module_registry, sm->source_module_id);
+      if (src_mod && src_mod->chunk &&
+          sm->source_const_idx < src_mod->chunk->const_count)
+        fn_val = src_mod->chunk->constants[sm->source_const_idx];
+      else
+        fn_val = c->chunk->constants[impl->vtable[i]];
+    }
+    else
+    {
+      fn_val = c->chunk->constants[impl->vtable[i]];
+    }
     oak_array_push(arr, fn_val);
   }
 

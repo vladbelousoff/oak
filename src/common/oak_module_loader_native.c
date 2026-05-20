@@ -44,21 +44,6 @@ static char* native_canonical_path_dup(struct oak_allocator_t* a,
   return out;
 }
 
-static const char* builtin_type_name(const oak_type_id_t id)
-{
-  switch (id)
-  {
-    case OAK_TYPE_NUMBER:
-      return "number";
-    case OAK_TYPE_STRING:
-      return "string";
-    case OAK_TYPE_BOOL:
-      return "bool";
-    default:
-      return "unknown";
-  }
-}
-
 static int native_type_in_module(const struct oak_compile_options_t* opts,
                                  oak_type_id_t type_id,
                                  const char* dotted)
@@ -187,11 +172,48 @@ void apply_native_module_function_exports(
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
     exp->const_idx = const_idx;
     exp->arity = fn->arity;
-    exp->return_type_node = null;
-    exp->return_type_id = fn->return_type_id;
-    exp->return_kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
-                           ? OAK_TYPE_KIND_ARRAY
-                           : OAK_TYPE_KIND_SCALAR;
+    oak_type_clear(&exp->return_type);
+    exp->return_type.id = fn->return_type_id;
+    exp->return_type.kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
+                                ? OAK_TYPE_KIND_ARRAY
+                                : OAK_TYPE_KIND_SCALAR;
+  }
+  for (int ri = 0; ri < mod->exports_record.count; ++ri)
+  {
+    struct oak_module_export_record_t* rec = &mod->exports_record.items[ri];
+    const oak_type_id_t rec_type_id =
+        oak_type_registry_intern(&mod->types, rec->name, rec->name_len);
+    for (int mi = 0; mi < rec->method_count; ++mi)
+    {
+      struct oak_module_export_record_method_t* me = &rec->methods[mi];
+      for (int fi = 0; fi < opts->native_fns.count; ++fi)
+      {
+        const struct oak_bind_fn_t* fn = &opts->native_fns.items[fi];
+        if (fn->receiver_type_id != rec_type_id)
+          continue;
+        if (!native_type_in_module(opts, fn->receiver_type_id, mod->dotted_name))
+          continue;
+        const int is_instance = !me->is_static;
+        const enum oak_bind_fn_kind_t want_kind =
+            is_instance ? OAK_BIND_FN_INSTANCE_METHOD
+                        : OAK_BIND_FN_STATIC_METHOD;
+        if (fn->kind != want_kind || strcmp(fn->name, me->name) != 0)
+          continue;
+        struct oak_obj_native_fn_t* native =
+            oak_native_fn_new(mod->allocator, fn->impl, me->arity, fn->name);
+        if (me->stub_attrs && me->stub_attr_count > 0)
+          oak_apply_attr_hooks(
+              opts, null, native, me->stub_attrs, me->stub_attr_count);
+        me->const_idx =
+            (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
+        oak_type_clear(&me->return_type);
+        me->return_type.id = fn->return_type_id;
+        me->return_type.kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
+                                   ? OAK_TYPE_KIND_ARRAY
+                                   : OAK_TYPE_KIND_SCALAR;
+        break;
+      }
+    }
   }
 }
 
@@ -494,11 +516,12 @@ struct oak_module_t* create_native_module(
       .name_len = strlen(fn->name),
       .const_idx = const_idx,
       .arity = fn->arity,
-      .return_type_node = null,
-      .return_type_id = fn->return_type_id,
-      .return_kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
-                         ? OAK_TYPE_KIND_ARRAY
-                         : OAK_TYPE_KIND_SCALAR,
+      .return_type = {
+        .id = fn->return_type_id,
+        .kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
+                    ? OAK_TYPE_KIND_ARRAY
+                    : OAK_TYPE_KIND_SCALAR,
+      },
     };
     const int idx = mod->exports_fn.count;
     oak_dynarr_push(a, &mod->exports_fn.items,
@@ -524,9 +547,8 @@ struct oak_module_t* create_native_module(
       struct oak_module_export_record_field_t field = {
         .name = type->fields[fi].name,
         .name_len = type->fields[fi].name_len,
-        .type_name = builtin_type_name(type->fields[fi].field_type_id),
+        .type = { .id = type->fields[fi].field_type_id },
       };
-      field.type_name_len = strlen(field.type_name);
       oak_dynarr_push(a, &exp.fields,
                       &exp.field_count,
                       &exp.field_capacity,
@@ -572,6 +594,17 @@ struct oak_module_t* create_native_module(
                     &exp,
                     sizeof(exp));
     oak_htable_insert(&mod->exports_enum.by_name, exp.name, exp.name_len, idx);
+  }
+
+  oak_type_registry_init(&mod->types, a);
+  for (int i = 0; i < opts->native_types.count; ++i)
+  {
+    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    if (!type || !native_module_name_eq(type->module_name, dotted))
+      continue;
+    if (type->type_id >= OAK_TYPE_FIRST_USER)
+      oak_type_registry_intern_with_id(&mod->types, type->name, type->name_len,
+                                       type->type_id);
   }
 
   mod->state = OAK_MOD_COMPILED;

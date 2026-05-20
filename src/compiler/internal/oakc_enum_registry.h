@@ -35,6 +35,7 @@ struct oak_registered_enum_t
   const char* name;
   usize name_len;
   oak_type_id_t type_id;
+  u16 source_module_id;
   /* Attribute names.  Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;

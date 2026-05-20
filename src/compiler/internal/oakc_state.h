@@ -81,6 +81,7 @@ struct oak_compiler_t
   /* Index into c->enums.variants where user-defined enum variants begin.
    * Set just before register_program_enums.  -1 means unset. */
   int user_enum_start;
+  int user_trait_start;
   /* Compile options (borrowed; NULL when compiling standalone). Used by
    * attribute callback dispatch to look up named attribute bindings. */
   const struct oak_compile_options_t* opts;

@@ -10,8 +10,11 @@ struct oak_trait_method_t
   const char* name;
   usize name_len;
   int arity;  /* total, including self */
-  const struct oak_ast_node_t* sig_decl; /* always set — the trait method declaration */
-  const struct oak_ast_node_t* decl; /* for default impl; NULL = abstract */
+  const struct oak_ast_node_t* sig_decl; /* set for local traits; null for imported */
+  const struct oak_ast_node_t* decl; /* for default impl; null = abstract */
+  int self_is_mut;
+  struct oak_type_t* param_types;
+  struct oak_type_t return_type;
 };
 
 struct oak_registered_trait_t
@@ -19,6 +22,7 @@ struct oak_registered_trait_t
   const char* name;
   usize name_len;
   oak_type_id_t trait_id;
+  u16 source_module_id;
   struct oak_trait_method_t* methods;
   int method_count;
   int method_capacity;

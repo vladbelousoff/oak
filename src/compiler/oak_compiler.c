@@ -68,6 +68,7 @@ static struct oak_chunk_t* compiler_init(struct oak_compiler_t* c,
   oak_trait_registry_init(&c->traits, allocator);
   c->user_record_start = 0;
   c->user_enum_start = -1;
+  c->user_trait_start = 0;
 
   return chunk;
 }
@@ -125,7 +126,9 @@ static void compile_program_items(struct oak_compiler_t* c,
       continue;
     /* Imports are resolved by the module loader and the imports pre-pass;
      * they emit no top-level code. */
-    if (item->kind == OAK_NODE_IMPORT_DECL)
+    if (item->kind == OAK_NODE_IMPORT_SELECTIVE)
+      continue;
+    if (item->kind == OAK_NODE_IMPORT_WILDCARD)
       continue;
     /* Trait and method declarations are processed in pre-passes; no top-level code. */
     if (item->kind == OAK_NODE_TRAIT_DECL)
@@ -146,18 +149,9 @@ static void compile_program_items(struct oak_compiler_t* c,
   }
 }
 
-int oakc_import_alias(const struct oak_compiler_t* c,
-                                     const char* name,
-                                     const usize name_len)
-{
-  if (!c->current_module)
-    return -1;
-  return oak_htable_get(&c->current_module->imports, name, name_len);
-}
-
 /* Defined in oak_compiler_imports.c */
-void register_imported_enums(struct oak_compiler_t* c);
-void register_imported_records(struct oak_compiler_t* c);
+void resolve_new_style_imports(struct oak_compiler_t* c,
+                               const struct oak_ast_node_t* program);
 void populate_module_exports(struct oak_compiler_t* c);
 
 static void compile_program(struct oak_compiler_t* c,
@@ -181,21 +175,19 @@ static void compile_program(struct oak_compiler_t* c,
 
   /* Step 2 — register types in topological order (imported before local) so
    * that IDs are consistent across all modules in the program.
-   * Import alias resolution uses c->current_module->imports, which the loader
-   * already populated; no extra pass is needed here. */
-  register_imported_enums(c);
+   * Selective and wildcard imports pull symbols into the local registries. */
+  resolve_new_style_imports(c, program);
   CHECK_ERROR(c);
   c->user_enum_start = c->enums.variants.count;
   oakc_register_program_enums(c, program);
   CHECK_ERROR(c);
 
-  register_imported_records(c);
-  CHECK_ERROR(c);
   c->user_record_start = c->records.entries.count;
   oakc_register_program_records(c, program);
   CHECK_ERROR(c);
 
   /* Step 2b — register traits (after records so trait method types resolve). */
+  c->user_trait_start = c->traits.trait_count;
   oakc_register_program_traits(c, program);
   CHECK_ERROR(c);
 
@@ -220,6 +212,16 @@ static void compile_program(struct oak_compiler_t* c,
   oakc_compile_method_decl_bodies(c, program);
   CHECK_ERROR(c);
   populate_module_exports(c);
+
+  /* Move the type registry to the module so importing modules can translate
+   * type IDs back to names.  Nulling the compiler copy prevents double-free. */
+  if (c->current_module)
+  {
+    c->current_module->types = c->types;
+    c->types.entries = null;
+    c->types.count = 0;
+    c->types.capacity = 0;
+  }
 }
 
 void oak_compile(const struct oak_ast_node_t* root,

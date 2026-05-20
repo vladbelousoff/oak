@@ -22,17 +22,19 @@ struct oak_registered_fn_t
    * (so user writes N args, stored as N+1). */
   int arity;
   oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
-  oak_type_id_t return_type_id; /* OAK_TYPE_VOID for user-defined (from AST) */
-  /* From native fn binding: array vs scalar return (element type in
-   * return_type_id) */
-  enum oak_type_kind_t
-      return_kind; /* SCALAR or ARRAY for native; else SCALAR */
+  struct oak_type_t return_type; /* void when inferred from decl */
   int is_static;   /* 1 = static method, 0 = instance/global */
-  const struct oak_ast_node_t* decl; /* null for native */
+  const struct oak_ast_node_t* decl; /* null for native and imported fns */
+  /* Per-parameter resolved types and mutability for imported functions (decl is
+   * null).  NULL when the function has no parameters or is locally declared. */
+  struct oak_type_t* param_types;
+  u8* param_mut_flags;
   /* Attribute names (e.g. "Native", "Deprecated").
    * Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;
+  u16 source_module_id;
+  u16 source_const_idx;
 };
 
 /* Concrete dynamic-array type for registered functions. */

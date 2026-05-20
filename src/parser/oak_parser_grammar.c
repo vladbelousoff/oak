@@ -158,12 +158,13 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> ATTR_DECL | IMPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
+  // PROGRAM_ITEM -> ATTR_DECL | IMPORT_SELECTIVE | IMPORT_WILDCARD | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_ATTR_DECL,
-      OAK_NODE_IMPORT_DECL,
+      OAK_NODE_IMPORT_SELECTIVE,
+      OAK_NODE_IMPORT_WILDCARD,
       OAK_NODE_METHOD_DECL,
       OAK_NODE_FN_DECL,
       OAK_NODE_RECORD_DECL_EMPTY,
@@ -846,6 +847,55 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
+    },
+  },
+  // IMPORT_SELECTIVE -> 'import' '{' IMPORT_NAMES '}' 'from' IMPORT_PATH ';'
+  //   (binary: lhs = IMPORT_NAMES, rhs = IMPORT_PATH)
+  [OAK_NODE_IMPORT_SELECTIVE] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_TOKEN_IMPORT | OAK_RULE_TOKEN,
+      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
+      OAK_NODE_IMPORT_NAMES,
+      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
+      OAK_TOKEN_FROM   | OAK_RULE_TOKEN,
+      OAK_NODE_IMPORT_PATH,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
+    },
+  },
+  // IMPORT_WILDCARD -> 'import' '*' 'from' IMPORT_PATH ';'
+  //   (unary: child = IMPORT_PATH)
+  [OAK_NODE_IMPORT_WILDCARD] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_IMPORT | OAK_RULE_TOKEN,
+      OAK_TOKEN_STAR   | OAK_RULE_TOKEN,
+      OAK_TOKEN_FROM   | OAK_RULE_TOKEN,
+      OAK_NODE_IMPORT_PATH,
+      OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
+    },
+  },
+  // IMPORT_NAMES -> IMPORT_NAME (',' IMPORT_NAME)*
+  [OAK_NODE_IMPORT_NAMES] = {
+    .rules = {
+      OAK_NODE_IMPORT_NAME | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
+    },
+  },
+  // IMPORT_NAME -> IDENT IMPORT_ALIAS?
+  //   (binary: lhs = original name, rhs = alias node or null)
+  [OAK_NODE_IMPORT_NAME] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_IDENT,
+      OAK_NODE_IMPORT_ALIAS | OAK_RULE_OPTIONAL,
+    },
+  },
+  // IMPORT_ALIAS -> 'as' IDENT  (both required as a unit)
+  [OAK_NODE_IMPORT_ALIAS] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_AS | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
     },
   },
 };

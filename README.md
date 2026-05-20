@@ -135,11 +135,16 @@ let empty = new Node { next: none };
 print(empty.next == none);
 ```
 
-Modules use dotted paths relative to the importing file:
+Modules use selective or wildcard imports; all top-level declarations are public:
 
 ```oak
-import util.math;
-import palette.color as col;
+/* In util/math.oak */
+fn add(a : number, b : number) -> number { return a + b; }
+
+/* In main.oak */
+import { add } from util.math;        /* selective */
+import * from io;                      /* wildcard — all declarations */
+import { add as sum } from util.math;  /* rename on import */
 ```
 
 Attributes attach metadata to declarations and are interpreted by embedding C
@@ -168,15 +173,15 @@ Number helpers:
 |---|---|
 | `to_int(v)` / `to_float(v)` | numeric conversion |
 | `is_int(v)` / `is_float(v)` | inspect numeric storage |
-| `math.sqrt`, `math.sin`, `math.cos`, `math.tan` | basic math |
-| `math.abs`, `math.fmod`, `math.min`, `math.max`, `math.random` | more math helpers |
+| `sqrt`, `sin`, `cos`, `tan` | basic math (`import * from math;`) |
+| `abs`, `fmod`, `min`, `max`, `random` | more math helpers |
 
 File I/O lives in `io`:
 
 ```oak
-import io;
+import * from io;
 
-let f = io.File.open('notes.txt', io.FileMode.Read);
+let f = File.open('notes.txt', FileMode.Read);
 let text = f.read_all();
 f.close();
 print(text);

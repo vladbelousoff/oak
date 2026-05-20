@@ -162,13 +162,14 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
     entry.name_len = name_len;
     entry.const_idx = idx;
     entry.arity = b->arity;
-    entry.return_type_id = b->return_type_id;
-    entry.return_kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
-                            ? OAK_TYPE_KIND_ARRAY
-                            : OAK_TYPE_KIND_SCALAR;
+    entry.return_type.id = b->return_type_id;
+    entry.return_type.kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
+                                 ? OAK_TYPE_KIND_ARRAY
+                                 : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
+    entry.source_module_id = OAK_MODULE_ID_NONE;
 
     if (oak_fn_registry_find(&c->fns, b->name, name_len))
     {
@@ -231,13 +232,14 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
     entry.name_len = name_len;
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type_id;
-    entry.return_type_id = b->return_type_id;
-    entry.return_kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
-                            ? OAK_TYPE_KIND_ARRAY
-                            : OAK_TYPE_KIND_SCALAR;
+    entry.return_type.id = b->return_type_id;
+    entry.return_type.kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
+                                 ? OAK_TYPE_KIND_ARRAY
+                                 : OAK_TYPE_KIND_SCALAR;
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
+    entry.source_module_id = OAK_MODULE_ID_NONE;
 
     struct oak_registered_record_t* sd =
         (struct oak_registered_record_t*)oakc_records_find_by_id(

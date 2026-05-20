@@ -56,7 +56,18 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
   if (c->has_error)
     return;
 
-  oak_compiler_emit_constant(c, entry->const_idx, call_loc);
+  if (entry->source_module_id != OAK_MODULE_ID_NONE)
+  {
+    oak_compiler_emit_op(c,
+                         OAK_OP_GET_MODULE_FN,
+                         call_loc,
+                         OAK_ARG_U16(entry->source_module_id),
+                         OAK_ARG_U16(entry->source_const_idx));
+  }
+  else
+  {
+    oak_compiler_emit_constant(c, entry->const_idx, call_loc);
+  }
 
   struct oak_list_entry_t* pos;
   int arg_idx = 0;
@@ -82,6 +93,14 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
             return;
         }
       }
+    }
+    else if (entry->param_types && arg_idx < entry->arity &&
+             oak_type_is_known(&entry->param_types[arg_idx]))
+    {
+      oakc_compile_call_arg_for_type(c, arg, entry->param_types[arg_idx], call_loc);
+      compiled = 1;
+      if (c->has_error)
+        return;
     }
     if (!compiled)
       oakc_compile_call_arg(c, arg);

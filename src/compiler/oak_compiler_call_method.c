@@ -1,6 +1,71 @@
 #include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
+static void emit_method_fn(struct oak_compiler_t* c,
+                           const struct oak_registered_fn_t* sm,
+                           struct oak_code_loc_t loc)
+{
+  if (sm->source_module_id != OAK_MODULE_ID_NONE)
+    oak_compiler_emit_op(c, OAK_OP_GET_MODULE_FN, loc,
+                         OAK_ARG_U16(sm->source_module_id),
+                         OAK_ARG_U16(sm->source_const_idx));
+  else
+    oak_compiler_emit_constant(c, sm->const_idx, loc);
+}
+
+/* Compile call arguments with type coercion. Tries AST decl first, then
+ * falls back to lowered param_types, then generic compilation.
+ * self_offset: 0 for static methods, 1 for instance/trait methods. */
+static void compile_typed_call_args(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* call,
+                                    const struct oak_ast_node_t* decl,
+                                    const struct oak_type_t* param_types,
+                                    int arity,
+                                    int self_offset,
+                                    struct oak_code_loc_t loc)
+{
+  const struct oak_list_entry_t* first = call->children.next;
+  int ai = 0;
+  for (struct oak_list_entry_t* p = first->next;
+       p != &call->children;
+       p = p->next, ++ai)
+  {
+    const struct oak_ast_node_t* arg =
+        oak_container_of(p, struct oak_ast_node_t, link);
+    int compiled = 0;
+    if (decl)
+    {
+      const struct oak_ast_node_t* param = oakc_fn_param_at(decl, ai);
+      if (param)
+      {
+        const struct oak_ast_node_t* tnode = oakc_fn_param_type_node(param);
+        if (tnode)
+        {
+          struct oak_type_t want;
+          oakc_lower_type_node(c, tnode, &want);
+          oakc_compile_call_arg_for_type(c, arg, want, loc);
+          compiled = 1;
+          if (c->has_error)
+            return;
+        }
+      }
+    }
+    if (!compiled && param_types)
+    {
+      const int slot = ai + self_offset;
+      if (slot < arity && oak_type_is_known(&param_types[slot]))
+      {
+        oakc_compile_call_arg_for_type(c, arg, param_types[slot], loc);
+        compiled = 1;
+        if (c->has_error)
+          return;
+      }
+    }
+    if (!compiled)
+      oakc_compile_call_arg(c, arg);
+  }
+}
+
 /* Compile `receiver.method(args...)`. Method calls are dispatched purely
  * statically based on the receiver's compile-time type. The method's
  * native function is pushed as a constant, the receiver is compiled as
@@ -68,7 +133,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
       }
       oakc_check_method_args(c, node, sm);
       CHECK_ERROR(c);
-      oak_compiler_emit_constant(c, sm->const_idx, call_loc);
+      emit_method_fn(c, sm, call_loc);
       {
         const struct oak_list_entry_t* _first = node->children.next;
         int _ai = 0;
@@ -177,40 +242,11 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
           }
           oakc_check_method_args(c, node, sm);
           CHECK_ERROR(c);
-          oak_compiler_emit_constant(c, sm->const_idx, call_loc);
-          {
-            const struct oak_list_entry_t* _first = node->children.next;
-            int _ai = 0;
-            for (struct oak_list_entry_t* _p = _first->next;
-                 _p != &node->children;
-                 _p = _p->next, ++_ai)
-            {
-              const struct oak_ast_node_t* _arg =
-                  oak_container_of(_p, struct oak_ast_node_t, link);
-              int _compiled = 0;
-              if (sm->decl)
-              {
-                const struct oak_ast_node_t* _param =
-                    oakc_fn_param_at(sm->decl, _ai);
-                if (_param)
-                {
-                  const struct oak_ast_node_t* _tnode =
-                      oakc_fn_param_type_node(_param);
-                  if (_tnode)
-                  {
-                    struct oak_type_t _want;
-                    oakc_lower_type_node(c, _tnode, &_want);
-                    oakc_compile_call_arg_for_type(c, _arg, _want, call_loc);
-                    _compiled = 1;
-                    if (c->has_error)
-                      return;
-                  }
-                }
-              }
-              if (!_compiled)
-                oakc_compile_call_arg(c, _arg);
-            }
-          }
+          emit_method_fn(c, sm, call_loc);
+          compile_typed_call_args(c, node, sm->decl,
+                                 sm->param_types, sm->arity, 0, call_loc);
+          if (c->has_error)
+            return;
           oak_compiler_emit_op(
               c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
           c->scope.stack_depth -= sm->arity;
@@ -256,9 +292,17 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
       return;
     }
     const struct oak_trait_method_t* tm = &tr->methods[slot];
-    const struct oak_ast_node_t* self_p = oakc_fn_self_param(tm->sig_decl);
-    if (self_p && oakc_self_is_mut(self_p) &&
-        !oak_compiler_expr_is_mutable_place(c, receiver))
+    int self_mut = 0;
+    if (tm->sig_decl)
+    {
+      const struct oak_ast_node_t* self_p = oakc_fn_self_param(tm->sig_decl);
+      self_mut = self_p && oakc_self_is_mut(self_p);
+    }
+    else
+    {
+      self_mut = tm->self_is_mut;
+    }
+    if (self_mut && !oak_compiler_expr_is_mutable_place(c, receiver))
     {
       oak_compiler_error_at(c,
                             receiver->token,
@@ -266,12 +310,15 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                             "receiver");
       return;
     }
-    oakc_check_args_against_decl(c, node, tm->sig_decl);
+    oakc_check_trait_method_args(c, node, tm);
     if (c->has_error)
       return;
     const u8 total_arity = (u8)tm->arity;
     oak_compiler_compile_node(c, receiver);
-    oak_compiler_compile_call_args_after_callee(c, node);
+    compile_typed_call_args(c, node, tm->sig_decl,
+                            tm->param_types, tm->arity, 1, call_loc);
+    if (c->has_error)
+      return;
     oak_compiler_emit_op(c,
                          OAK_OP_CALL_VIRTUAL,
                          call_loc,
@@ -309,11 +356,17 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
         if (c->has_error)
           return;
 
-        if (sm->decl)
         {
-          const struct oak_ast_node_t* self_p =
-              oakc_fn_self_param(sm->decl);
-          if (self_p && oakc_self_is_mut(self_p) &&
+          int self_is_mut = 0;
+          if (sm->decl)
+          {
+            const struct oak_ast_node_t* self_p =
+                oakc_fn_self_param(sm->decl);
+            self_is_mut = self_p && oakc_self_is_mut(self_p);
+          }
+          else if (sm->param_mut_flags && !sm->is_static)
+            self_is_mut = sm->param_mut_flags[0];
+          if (self_is_mut &&
               !oak_compiler_expr_is_mutable_place(c, receiver))
           {
             oak_compiler_error_at(c,
@@ -324,41 +377,12 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
           }
         }
 
-        oak_compiler_emit_constant(c, sm->const_idx, call_loc);
+        emit_method_fn(c, sm, call_loc);
         oak_compiler_compile_node(c, receiver);
-        {
-          const struct oak_list_entry_t* _first = node->children.next;
-          int _ai = 0;
-          for (struct oak_list_entry_t* _p = _first->next;
-               _p != &node->children;
-               _p = _p->next, ++_ai)
-          {
-            const struct oak_ast_node_t* _arg =
-                oak_container_of(_p, struct oak_ast_node_t, link);
-            int _compiled = 0;
-            if (sm->decl)
-            {
-              const struct oak_ast_node_t* _param =
-                  oakc_fn_param_at(sm->decl, _ai);
-              if (_param)
-              {
-                const struct oak_ast_node_t* _tnode =
-                    oakc_fn_param_type_node(_param);
-                if (_tnode)
-                {
-                  struct oak_type_t _want;
-                  oakc_lower_type_node(c, _tnode, &_want);
-                  oakc_compile_call_arg_for_type(c, _arg, _want, call_loc);
-                  _compiled = 1;
-                  if (c->has_error)
-                    return;
-                }
-              }
-            }
-            if (!_compiled)
-              oakc_compile_call_arg(c, _arg);
-          }
-        }
+        compile_typed_call_args(c, node, sm->decl,
+                                sm->param_types, sm->arity, 1, call_loc);
+        if (c->has_error)
+          return;
         oak_compiler_emit_op(
             c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
         c->scope.stack_depth -= sm->arity;

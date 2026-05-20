@@ -1,17 +1,17 @@
-import analytics.stats as stats;
-import domain.project as project;
+import { sum, average } from analytics.stats;
+import * from domain.project;
 
 let values = [3, 5, 8, 13];
-print(stats.sum(values));
-print(stats.average(values));
+print(sum(values));
+print(average(values));
 
-let high = project.Priority.High;
-let mut task = project.make_task('ship examples', 8, high);
+let high = Priority.High;
+let mut task = make_task('ship examples', 8, high);
 print(task.title);
 print(task.points);
-print(project.priority_name(task.priority));
 print(task.done);
 
-project.finish(task);
+finish(task);
 print(task.done);
-print(project.summary(task));
+print(summary(task));
+print(task.describe());

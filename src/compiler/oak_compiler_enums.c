@@ -55,11 +55,17 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
                   sizeof(*v));
   const int idx = r->variants.count - 1;
 
-  /* Index by unqualified variant name. */
-  oak_htable_insert(&r->by_name,
-                    r->variants.items[idx].name,
-                    r->variants.items[idx].name_len,
-                    idx);
+  /* Index by unqualified variant name (first-wins for unqualified lookup;
+   * qualified lookup uses a linear scan and always works). */
+  if (oak_htable_get(&r->by_name,
+                     r->variants.items[idx].name,
+                     r->variants.items[idx].name_len) < 0)
+  {
+    oak_htable_insert(&r->by_name,
+                      r->variants.items[idx].name,
+                      r->variants.items[idx].name_len,
+                      idx);
+  }
 
   /* Index the enum type name as a set entry (value 1) if not already present.
    */
@@ -213,6 +219,16 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
     if (!name_node || !variants_node)
     {
       oak_compiler_error_at(c, item->token, "malformed enum declaration");
+      return;
+    }
+
+    const char* enum_name_check = oak_token_text(name_node->token);
+    const usize enum_name_check_len = oak_token_length(name_node->token);
+    if (oakc_is_enum_name(&c->enums, enum_name_check, enum_name_check_len))
+    {
+      oak_compiler_error_at(
+          c, name_node->token, "enum '%s' conflicts with an imported enum",
+          enum_name_check);
       return;
     }
 

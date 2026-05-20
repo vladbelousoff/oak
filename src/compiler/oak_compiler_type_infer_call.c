@@ -47,10 +47,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
             out->id = OAK_TYPE_VOID;
         }
         else
-        {
-          out->id = sm->return_type_id;
-          out->kind = sm->return_kind;
-        }
+          *out = sm->return_type;
         if (out->id == OAK_TYPE_VOID)
           out->kind = OAK_TYPE_KIND_SCALAR;
         return;
@@ -69,13 +66,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
           oak_compiler_module_export_fn(c, rname, rlen, mn, mn_len, null);
       if (fexp)
       {
-        if (fexp->return_type_node)
-          oakc_lower_type_node(c, fexp->return_type_node, out);
-        else
-        {
-          out->id = fexp->return_type_id;
-          out->kind = fexp->return_kind;
-        }
+        *out = fexp->return_type;
         if (out->id == OAK_TYPE_VOID)
           out->kind = OAK_TYPE_KIND_SCALAR;
         return;
@@ -105,8 +96,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
           }
           else
           {
-            out->id = sm->return_type_id;
-            out->kind = sm->return_kind;
+            *out = sm->return_type;
             if (out->id == OAK_TYPE_VOID)
               out->kind = OAK_TYPE_KIND_SCALAR;
           }
@@ -139,8 +129,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
         }
         else
         {
-          out->id = sm->return_type_id;
-          out->kind = sm->return_kind;
+          *out = sm->return_type;
           if (out->id == OAK_TYPE_VOID)
             out->kind = OAK_TYPE_KIND_SCALAR;
         }
@@ -174,6 +163,10 @@ static void infer_method_call_type(struct oak_compiler_t* c,
             oakc_lower_type_node(c, retn, out);
           else
             out->id = OAK_TYPE_VOID;
+        }
+        else if (oak_type_is_known(&tm->return_type))
+        {
+          *out = tm->return_type;
         }
         return;
       }
@@ -220,8 +213,7 @@ void oakc_infer_fn_call_type(struct oak_compiler_t* c,
       out->id = OAK_TYPE_VOID;
       return;
     }
-    out->id = fe->return_type_id;
-    out->kind = fe->return_kind;
+    *out = fe->return_type;
     if (out->id == OAK_TYPE_VOID)
       out->kind = OAK_TYPE_KIND_SCALAR;
     return;

@@ -21,11 +21,12 @@ struct oak_module_export_fn_t
   usize name_len;
   u16 const_idx; /* index into the module's chunk constants */
   int arity;     /* user-visible arity (no implicit self for globals) */
-  /* Borrowed pointer to the function's return-type AST node (or null when
-   * the fn returns void).  Lives for the module's parser arena lifetime. */
-  const struct oak_ast_node_t* return_type_node;
-  oak_type_id_t return_type_id;
-  enum oak_type_kind_t return_kind;
+  /* Per-parameter resolved types and mutability flags.
+   * Type IDs reference the owning module's type registry.
+   * NULL when arity == 0. */
+  struct oak_type_t* param_types;
+  u8* param_mut_flags;
+  struct oak_type_t return_type;
   /* Heap-allocated pointer array; each element points into the module's lexer
    * arena.  Populated for bodyless stubs so apply_native_module_function_exports
    * can carry attributes onto the replacement native function object.
@@ -38,22 +39,22 @@ struct oak_module_export_record_field_t
 {
   const char* name; /* borrowed from lexer arena */
   usize name_len;
-  /* Type stored as a name so importing modules can re-intern it against their
-   * own type registry.  For primitives this is "number"/"string"/"bool"; for
-   * user-defined types it is borrowed from the source module's type registry
-   * and lives for the module's lifetime. */
-  const char* type_name;
-  usize type_name_len;
-  int is_weak;
+  struct oak_type_t type; /* IDs reference the owning module's type registry */
 };
 
-/* Per-method metadata for bodyless native stub methods that carry attributes.
- * Populated by populate_module_exports; consulted by oakc_register_native_fns
- * in calling modules to wire runtime attribute hooks onto native fn objects. */
+/* Per-method metadata for exported record methods.
+ * Populated by populate_module_exports; used by importing modules to
+ * register callable methods on imported records. */
 struct oak_module_export_record_method_t
 {
   const char* name;        /* borrowed from lexer arena */
   usize name_len;
+  u16 const_idx;           /* index into the source module's chunk constants */
+  int arity;               /* total arity including implicit self for instance */
+  int is_static;           /* 1 = static method, 0 = instance method */
+  struct oak_type_t* param_types;
+  u8* param_mut_flags;
+  struct oak_type_t return_type;
   const char** stub_attrs; /* heap-allocated array; elements from lexer arena */
   int stub_attr_count;
 };
@@ -86,6 +87,27 @@ struct oak_module_export_enum_t
   struct oak_module_export_enum_variant_t* variants;
   int variant_count;
   int variant_capacity;
+};
+
+/* Per-method metadata for an exported trait. */
+struct oak_module_export_trait_method_t
+{
+  const char* name;
+  usize name_len;
+  int arity;
+  int self_is_mut;
+  struct oak_type_t* param_types;
+  struct oak_type_t return_type;
+};
+
+/* One exported trait declaration. */
+struct oak_module_export_trait_t
+{
+  const char* name;
+  usize name_len;
+  struct oak_module_export_trait_method_t* methods;
+  int method_count;
+  int method_capacity;
 };
 
 /* ----- Dynamic-array type for module-id lists ----- */
@@ -123,6 +145,14 @@ struct oak_enum_export_table_t
   int capacity;
 };
 
+struct oak_trait_export_table_t
+{
+  struct oak_htable_t by_name;
+  struct oak_module_export_trait_t* items;
+  int count;
+  int capacity;
+};
+
 /* ----- Module ----- */
 
 struct oak_module_t
@@ -147,10 +177,15 @@ struct oak_module_t
   struct oak_htable_t imports;
   struct oak_u16_vec_t import_modules; /* module_ids of direct deps */
 
+  /* Type registry (moved from compiler after compilation).
+   * Persists so importing modules can translate type IDs. */
+  struct oak_type_registry_t types;
+
   /* Exports (populated post-compile) */
   struct oak_fn_export_table_t exports_fn;
   struct oak_rec_export_table_t exports_record;
   struct oak_enum_export_table_t exports_enum;
+  struct oak_trait_export_table_t exports_trait;
 
   /* Lifecycle */
   enum
@@ -208,4 +243,8 @@ OAK_API const struct oak_module_export_record_t* oak_module_find_export_record(
 
 /* Look up an enum export. Returns null if not found. */
 OAK_API const struct oak_module_export_enum_t* oak_module_find_export_enum(
+    const struct oak_module_t* mod, const char* name, usize name_len);
+
+/* Look up a trait export. Returns null if not found. */
+OAK_API const struct oak_module_export_trait_t* oak_module_find_export_trait(
     const struct oak_module_t* mod, const char* name, usize name_len);

@@ -71,7 +71,7 @@ OAK_TEST_DECL(ParseStatementsAndControlFlow)
 
 OAK_TEST_DECL(ParseFunctionsRecordsEnumsAndModules)
 {
-  OAK_CHECK(parse_ok("import util.math as math;\n"
+  OAK_CHECK(parse_ok("import * from util.math;\n"
                      "enum Status { Planned, Active, Done, }\n"
                      "record Task {\n"
                      "  title : string;\n"
