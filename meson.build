@@ -46,7 +46,6 @@ oak_core_sources = files(
   'src/common/oak_file_map.c',
   'src/common/oak_htable.c',
   'src/common/oak_log.c',
-  'src/common/oak_memory.c',
   'src/common/oak_module_loader.c',
   'src/common/oak_module_loader_compile.c',
   'src/common/oak_module_loader_native.c',

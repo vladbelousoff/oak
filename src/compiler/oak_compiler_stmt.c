@@ -1,5 +1,4 @@
 #include "internal/oak_compiler.h"
-#include "oak_memory.h"
 
 void oak_compiler_compile_block(struct oak_compiler_t* c,
                                 const struct oak_ast_node_t* block)

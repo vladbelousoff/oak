@@ -1,8 +1,8 @@
 #include "oak_type.h"
 
+#include "oak_allocator.h"
 #include "oak_dynarr.h"
 #include "oak_log.h"
-#include "oak_memory.h"
 #include "oak_str.h"
 
 #include <string.h>

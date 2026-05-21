@@ -1,5 +1,4 @@
 #include "internal/oak_compiler.h"
-#include "oak_memory.h"
 
 /* ---------- oak_record_registry_t lifecycle ---------- */
 

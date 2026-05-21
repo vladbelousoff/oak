@@ -145,8 +145,7 @@ OAK_API extern const struct oak_op_info_t oak_op_info[];
 OAK_API const struct oak_op_info_t* oak_op_get_info(u8 op);
 
 /* Source coordinates (from lexer tokens at compile time; stored per bytecode
- * byte). Named oak_code_loc_t to avoid clashing with oak_memory.h's oak_src_loc_t.
- */
+ * byte). */
 struct oak_code_loc_t
 {
   int line;
