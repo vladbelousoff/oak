@@ -181,10 +181,10 @@ typedef void (*oak_attr_compile_cb_t)(const struct oak_attr_compile_ctx_t* ctx);
 
 struct oak_bind_attr_t
 {
-  const char* name;               /* e.g. "Deprecated" */
-  oak_attr_compile_cb_t on_decl;  /* NULL = no compile-time action */
-  oak_attr_runtime_cb_t on_call;  /* NULL = no pre-call action */
-  void* user_data;                /* forwarded to both callbacks */
+  const char* name;              /* e.g. "Deprecated" */
+  oak_attr_compile_cb_t on_decl; /* NULL = no compile-time action */
+  oak_attr_runtime_cb_t on_call; /* NULL = no pre-call action */
+  void* user_data;               /* forwarded to both callbacks */
 };
 
 /* ---------- Concrete dynamic-array types for compile options ---------- */

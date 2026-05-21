@@ -50,3 +50,5 @@ OAK_API void oak_vm_set_module_registry(struct oak_vm_t* vm,
 
 OAK_API enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm,
                                         struct oak_chunk_t* chunk);
+
+OAK_API enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm);

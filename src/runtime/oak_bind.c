@@ -44,6 +44,8 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
     return;
   for (int i = 0; i < opts->native_types.count; ++i)
   {
+    for (int fi = 0; fi < opts->native_types.items[i]->field_count; ++fi)
+      OAK_FREE(opts->allocator, (void*)opts->native_types.items[i]->fields[fi].name);
     oak_dynarr_free(opts->allocator, &opts->native_types.items[i]->fields,
                     &opts->native_types.items[i]->field_count,
                     &opts->native_types.items[i]->field_capacity);
@@ -127,9 +129,16 @@ int oak_bind_field(struct oak_bind_type_t* type,
       return -1;
   }
 
+  const usize name_len = strlen(p->name);
+  char* name_copy = OAK_ALLOC(type->allocator, name_len + 1u);
+  if (!name_copy)
+    return -1;
+  memcpy(name_copy, p->name, name_len);
+  name_copy[name_len] = 0;
+
   struct oak_bind_field_t f = {
-    .name = p->name,
-    .name_len = strlen(p->name),
+    .name = name_copy,
+    .name_len = name_len,
     .field_type_id = p->field_type_id,
     .shape = p->shape,
     .getter = p->getter,

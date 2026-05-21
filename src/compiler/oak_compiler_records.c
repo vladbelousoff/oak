@@ -36,6 +36,138 @@ static const struct oak_ast_node_t* record_decl_name_ident(
   return name_ident;
 }
 
+static const struct oak_bind_type_t* native_record_binding(
+    const struct oak_compiler_t* c,
+    const char* name,
+    usize name_len)
+{
+  if (!c->opts)
+    return null;
+  for (int i = 0; i < c->opts->native_types.count; ++i)
+  {
+    const struct oak_bind_type_t* native = c->opts->native_types.items[i];
+    if (!native || native->kind != OAK_BIND_TYPE_RECORD || !native->name)
+      continue;
+    if (native->name_len == name_len &&
+        strncmp(native->name, name, name_len) == 0)
+      return native;
+  }
+  return null;
+}
+
+static struct oak_type_t native_field_type(const struct oak_bind_field_t* field)
+{
+  struct oak_type_t type;
+  oak_type_clear(&type);
+  type.id = field->field_type_id;
+  if (field->shape == OAK_BIND_SHAPE_ARRAY)
+    type.kind = OAK_TYPE_KIND_ARRAY;
+  return type;
+}
+
+static const struct oak_bind_field_t* native_record_field(
+    const struct oak_bind_type_t* native,
+    const char* name,
+    usize name_len)
+{
+  for (int i = 0; i < native->field_count; ++i)
+  {
+    const struct oak_bind_field_t* field = &native->fields[i];
+    if (field->name_len == name_len &&
+        strncmp(field->name, name, name_len) == 0)
+      return field;
+  }
+  return null;
+}
+
+static int native_record_decl_matches(struct oak_compiler_t* c,
+                                      const struct oak_bind_type_t* native,
+                                      const struct oak_ast_node_t* item,
+                                      const struct oak_ast_node_t* name_ident)
+{
+  if (item->kind == OAK_NODE_RECORD_DECL_EMPTY)
+    return 1;
+
+  const struct oak_ast_node_t* fields_wrap = item->rhs;
+  if (!fields_wrap || fields_wrap->kind != OAK_NODE_RECORD_FIELDS)
+  {
+    oak_compiler_error_at(c, item->token, "malformed record declaration");
+    return 0;
+  }
+
+  int field_count = 0;
+  for (struct oak_list_entry_t* fpos = fields_wrap->children.next;
+       fpos != &fields_wrap->children;
+       fpos = fpos->next)
+    ++field_count;
+
+  if (field_count != native->field_count)
+  {
+    oak_compiler_error_at(c,
+                          name_ident->token,
+                          "native record '%s' declaration has %d fields, "
+                          "but binding has %d",
+                          native->name,
+                          field_count,
+                          native->field_count);
+    return 0;
+  }
+
+  for (struct oak_list_entry_t* fpos = fields_wrap->children.next;
+       fpos != &fields_wrap->children;
+       fpos = fpos->next)
+  {
+    const struct oak_ast_node_t* fdecl =
+        oak_container_of(fpos, struct oak_ast_node_t, link);
+    if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs ||
+        !fdecl->rhs)
+    {
+      oak_compiler_error_at(c, item->token, "malformed record field");
+      return 0;
+    }
+    if (fdecl->lhs->kind != OAK_NODE_IDENT)
+    {
+      oak_compiler_error_at(
+          c, fdecl->lhs->token, "record field must be 'name : type'");
+      return 0;
+    }
+
+    const char* field_name = oak_token_text(fdecl->lhs->token);
+    const usize field_name_len = oak_token_length(fdecl->lhs->token);
+    const struct oak_bind_field_t* native_field =
+        native_record_field(native, field_name, field_name_len);
+    if (!native_field)
+    {
+      oak_compiler_error_at(c,
+                            fdecl->lhs->token,
+                            "field '%s' is not bound on native record '%s'",
+                            field_name,
+                            native->name);
+      return 0;
+    }
+
+    struct oak_type_t declared_type;
+    oak_type_clear(&declared_type);
+    oakc_lower_type_node(c, fdecl->rhs, &declared_type);
+    if (c->has_error)
+      return 0;
+    const struct oak_type_t bound_type = native_field_type(native_field);
+    if (!oak_type_equal(&declared_type, &bound_type))
+    {
+      oak_compiler_error_at(c,
+                            fdecl->rhs->token ? fdecl->rhs->token
+                                               : fdecl->lhs->token,
+                            "field '%s' type does not match native record "
+                            "'%s' binding",
+                            field_name,
+                            native->name);
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
 void oakc_register_program_records(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* program)
 {
@@ -68,8 +200,18 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     const char* name = oak_token_text(name_ident->token);
     const usize name_len = oak_token_length(name_ident->token);
 
-    if (oakc_records_find(&c->records, name, name_len))
+    const struct oak_registered_record_t* existing =
+        oakc_records_find(&c->records, name, name_len);
+    if (existing)
     {
+      const struct oak_bind_type_t* native =
+          native_record_binding(c, name, name_len);
+      if (native && existing->type_id == native->type_id)
+      {
+        if (!native_record_decl_matches(c, native, item, name_ident))
+          return;
+        continue;
+      }
       oak_compiler_error_at(
           c, name_ident->token, "duplicate record '%s'", name);
       return;

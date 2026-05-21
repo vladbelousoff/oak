@@ -69,6 +69,7 @@ static enum oak_lex_status_t scan_ws(const struct oak_lexer_ctx_t* ctx,
                                      const char* input)
 {
   struct oak_lexer_cur_t* cur = ctx->cur;
+  const int start = cur->buf_pos;
   for (;;)
   {
     if ((usize)cur->buf_pos >= ctx->input_len)
@@ -97,7 +98,7 @@ static enum oak_lex_status_t scan_ws(const struct oak_lexer_ctx_t* ctx,
     break;
   }
 
-  return OAK_LEX_NO_MATCH;
+  return cur->buf_pos != start ? OAK_LEX_OK : OAK_LEX_NO_MATCH;
 }
 
 static enum oak_lex_status_t scan_block_comment(

@@ -120,7 +120,18 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
 
   vm->chunk = chunk;
   vm->ip = chunk->bytecode;
+  return oak_vm_resume(vm);
+}
 
+enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
+{
+  if (!vm->chunk || !vm->ip)
+  {
+    oak_log(OAK_LOG_ERROR, "vm: no active chunk");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  struct oak_chunk_t* chunk = vm->chunk;
   /* Cache hot VM registers in locals so the compiler can keep them in CPU
    * registers across iterations (#8). */
   u8* ip = vm->ip;
@@ -693,4 +704,3 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
     }
   }
 }
-

@@ -78,25 +78,59 @@ static inline u32 oak_f32_to_bits(const float f)
 
 /* ===== Value constructors ===== */
 
-#define OAK_VALUE_I32(_i)                                                      \
-  ((struct oak_value_t){ .tag = OAK_TAG_I32, .as.i = (_i) })
+static inline struct oak_value_t oak_value_i32(const i32 i)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_I32;
+  value.as.i = i;
+  return value;
+}
 
-#define OAK_VALUE_F32(_f)                                                      \
-  ((struct oak_value_t){ .tag = OAK_TAG_F32, .as.f = (_f) })
+static inline struct oak_value_t oak_value_f32(const float f)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_F32;
+  value.as.f = f;
+  return value;
+}
 
-#define OAK_VALUE_BOOL(_b)                                                     \
-  ((struct oak_value_t){ .tag = OAK_TAG_BOOL, .as.b = ((_b) ? 1 : 0) })
+static inline struct oak_value_t oak_value_bool(const int b)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_BOOL;
+  value.as.b = b ? 1 : 0;
+  return value;
+}
 
-#define OAK_VALUE_NONE                                                         \
-  ((struct oak_value_t){ .tag = OAK_TAG_NONE })
+static inline struct oak_value_t oak_value_none(void)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_NONE;
+  return value;
+}
 
-#define OAK_VALUE_OBJ(_obj)                                                    \
-  ((struct oak_value_t){ .tag = OAK_TAG_OBJ,                                  \
-                         .as.obj = (struct oak_obj_t*)(_obj) })
+static inline struct oak_value_t oak_value_obj(struct oak_obj_t* obj)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_OBJ;
+  value.as.obj = obj;
+  return value;
+}
 
-#define OAK_VALUE_WEAK_OBJ(_obj)                                               \
-  ((struct oak_value_t){ .tag = OAK_TAG_WEAK,                                 \
-                         .as.obj = (struct oak_obj_t*)(_obj) })
+static inline struct oak_value_t oak_value_weak_obj(struct oak_obj_t* obj)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_WEAK;
+  value.as.obj = obj;
+  return value;
+}
+
+#define OAK_VALUE_I32(_i) oak_value_i32(_i)
+#define OAK_VALUE_F32(_f) oak_value_f32(_f)
+#define OAK_VALUE_BOOL(_b) oak_value_bool(_b)
+#define OAK_VALUE_NONE oak_value_none()
+#define OAK_VALUE_OBJ(_obj) oak_value_obj((struct oak_obj_t*)(_obj))
+#define OAK_VALUE_WEAK_OBJ(_obj) oak_value_weak_obj((struct oak_obj_t*)(_obj))
 
 /* ===== Type predicates ===== */
 

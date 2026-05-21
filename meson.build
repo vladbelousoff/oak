@@ -20,6 +20,7 @@ warning_args = is_msvc ? ['/wd4200'] : ['-Wno-unused-function']
 debug_defines = is_debug ? ['-DOAK_TRACK_MEMORY', '-DOAK_DEBUG_LOGGING'] : []
 platform_defines = is_msvc ? ['-D_CRT_SECURE_NO_WARNINGS'] : ['-D_XOPEN_SOURCE=700']
 common_c_args = warning_args + debug_defines + platform_defines
+common_c_args += ['-DOAK_ATOMIC_REFCOUNT']
 
 yyjson_dep = dependency('yyjson')
 math_dep = cc.find_library('m', required: false)

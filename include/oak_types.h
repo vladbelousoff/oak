@@ -68,7 +68,12 @@ typedef long isize;
 #define null ((void*)0)
 #endif
 
-_Static_assert(sizeof(i8) == 1 && sizeof(u8) == 1, "oak_types: byte width");
-_Static_assert(sizeof(i16) == 2 && sizeof(u16) == 2, "oak_types: 16-bit width");
-_Static_assert(sizeof(i32) == 4 && sizeof(u32) == 4, "oak_types: 32-bit width");
-_Static_assert(sizeof(i64) == 8 && sizeof(u64) == 8, "oak_types: 64-bit width");
+#define OAK_STATIC_ASSERT(name, condition)                                     \
+  typedef char oak_static_assert_##name[(condition) ? 1 : -1]
+
+OAK_STATIC_ASSERT(byte_width, sizeof(i8) == 1 && sizeof(u8) == 1);
+OAK_STATIC_ASSERT(width_16_bit, sizeof(i16) == 2 && sizeof(u16) == 2);
+OAK_STATIC_ASSERT(width_32_bit, sizeof(i32) == 4 && sizeof(u32) == 4);
+OAK_STATIC_ASSERT(width_64_bit, sizeof(i64) == 8 && sizeof(u64) == 8);
+
+#undef OAK_STATIC_ASSERT
