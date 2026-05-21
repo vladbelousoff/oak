@@ -85,13 +85,15 @@ void oak_vm_free(struct oak_vm_t* vm)
 #define PUSH_OWNED(v)                                                          \
   do                                                                           \
   {                                                                            \
+    const struct oak_value_t _ov = (v);                                        \
     if (sp >= vm->stack + OAK_STACK_MAX)                                       \
     {                                                                          \
       SYNC_TO_VM();                                                            \
+      oak_value_decref(_ov);                                                   \
       oak_vm_report_stack_overflow(vm);                                        \
       return OAK_VM_RUNTIME_ERROR;                                             \
     }                                                                          \
-    *sp++ = (v);                                                               \
+    *sp++ = _ov;                                                               \
   } while (0)
 
 #define POP() (*--sp)
@@ -197,52 +199,31 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         oak_value_decref(old_val);
         break;
       }
-      case OAK_OP_INC_LOCAL:
-      {
-        const u8 slot = READ_U8();
-        const usize idx = vm->stack_base + (usize)slot;
-        CHECK_LOCAL(idx);
-        const struct oak_value_t val = vm->stack[idx];
-        if (oak_is_i32(val))
-        {
-          vm->stack[idx] = OAK_VALUE_I32(oak_as_i32(val) + 1);
-          break;
-        }
-        if (oak_is_f32(val))
-        {
-          vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) + 1.0f);
-          break;
-        }
-        SYNC_TO_VM();
-        oak_vm_runtime_error(
-            vm,
-            "local increment/decrement expects a number, got %s",
-            oak_vm_value_kind_desc(val));
-        return OAK_VM_RUNTIME_ERROR;
+#define INC_DEC_LOCAL(i_delta, f_delta)                                        \
+      {                                                                        \
+        const u8 slot = READ_U8();                                             \
+        const usize idx = vm->stack_base + (usize)slot;                        \
+        CHECK_LOCAL(idx);                                                      \
+        const struct oak_value_t val = vm->stack[idx];                         \
+        if (oak_is_i32(val))                                                   \
+        {                                                                      \
+          vm->stack[idx] = OAK_VALUE_I32(oak_as_i32(val) + (i_delta));         \
+          break;                                                               \
+        }                                                                      \
+        if (oak_is_f32(val))                                                   \
+        {                                                                      \
+          vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) + (f_delta));         \
+          break;                                                               \
+        }                                                                      \
+        SYNC_TO_VM();                                                          \
+        oak_vm_runtime_error(                                                  \
+            vm, "local increment/decrement expects a number, got %s",          \
+            oak_vm_value_kind_desc(val));                                       \
+        return OAK_VM_RUNTIME_ERROR;                                           \
       }
-      case OAK_OP_DEC_LOCAL:
-      {
-        const u8 slot = READ_U8();
-        const usize idx = vm->stack_base + (usize)slot;
-        CHECK_LOCAL(idx);
-        const struct oak_value_t val = vm->stack[idx];
-        if (oak_is_i32(val))
-        {
-          vm->stack[idx] = OAK_VALUE_I32(oak_as_i32(val) - 1);
-          break;
-        }
-        if (oak_is_f32(val))
-        {
-          vm->stack[idx] = OAK_VALUE_F32(oak_as_f32(val) - 1.0f);
-          break;
-        }
-        SYNC_TO_VM();
-        oak_vm_runtime_error(
-            vm,
-            "local increment/decrement expects a number, got %s",
-            oak_vm_value_kind_desc(val));
-        return OAK_VM_RUNTIME_ERROR;
-      }
+      case OAK_OP_INC_LOCAL: INC_DEC_LOCAL(1, 1.0f)
+      case OAK_OP_DEC_LOCAL: INC_DEC_LOCAL(-1, -1.0f)
+#undef INC_DEC_LOCAL
       case OAK_OP_WEAKEN:
       {
         oak_assert(sp > vm->stack);
@@ -428,90 +409,32 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
 
       /* ====== DEDICATED COMPARISON OPCODES (#4, #7 integer fast path) ====== */
-      case OAK_OP_LESS:
-      {
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          PUSH_OWNED(OAK_VALUE_BOOL(oak_as_i32(a) < oak_as_i32(b)));
-          break;
-        }
-        SYNC_TO_VM();
-        {
-          const enum oak_vm_result_t r =
-              oak_vm_numeric_compare(vm, OAK_BINOP_LESS, a, b);
-          oak_value_decref(a);
-          oak_value_decref(b);
-          if (r != OAK_VM_OK)
-            return r;
-          SYNC_FROM_VM();
-        }
-        break;
+#define CMP_OP(int_op, binop_enum)                                             \
+      {                                                                        \
+        const struct oak_value_t b = POP();                                    \
+        const struct oak_value_t a = POP();                                    \
+        if (oak_is_i32(a) && oak_is_i32(b))                                   \
+        {                                                                      \
+          PUSH_OWNED(OAK_VALUE_BOOL(oak_as_i32(a) int_op oak_as_i32(b)));     \
+          break;                                                               \
+        }                                                                      \
+        SYNC_TO_VM();                                                          \
+        {                                                                      \
+          const enum oak_vm_result_t r =                                       \
+              oak_vm_numeric_compare(vm, binop_enum, a, b);                    \
+          oak_value_decref(a);                                                 \
+          oak_value_decref(b);                                                 \
+          if (r != OAK_VM_OK)                                                  \
+            return r;                                                          \
+          SYNC_FROM_VM();                                                      \
+        }                                                                      \
+        break;                                                                 \
       }
-      case OAK_OP_LESS_EQUAL:
-      {
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          PUSH_OWNED(OAK_VALUE_BOOL(oak_as_i32(a) <= oak_as_i32(b)));
-          break;
-        }
-        SYNC_TO_VM();
-        {
-          const enum oak_vm_result_t r =
-              oak_vm_numeric_compare(vm, OAK_BINOP_LESS_EQUAL, a, b);
-          oak_value_decref(a);
-          oak_value_decref(b);
-          if (r != OAK_VM_OK)
-            return r;
-          SYNC_FROM_VM();
-        }
-        break;
-      }
-      case OAK_OP_GREATER:
-      {
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          PUSH_OWNED(OAK_VALUE_BOOL(oak_as_i32(a) > oak_as_i32(b)));
-          break;
-        }
-        SYNC_TO_VM();
-        {
-          const enum oak_vm_result_t r =
-              oak_vm_numeric_compare(vm, OAK_BINOP_GREATER, a, b);
-          oak_value_decref(a);
-          oak_value_decref(b);
-          if (r != OAK_VM_OK)
-            return r;
-          SYNC_FROM_VM();
-        }
-        break;
-      }
-      case OAK_OP_GREATER_EQUAL:
-      {
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          PUSH_OWNED(OAK_VALUE_BOOL(oak_as_i32(a) >= oak_as_i32(b)));
-          break;
-        }
-        SYNC_TO_VM();
-        {
-          const enum oak_vm_result_t r =
-              oak_vm_numeric_compare(vm, OAK_BINOP_GREATER_EQUAL, a, b);
-          oak_value_decref(a);
-          oak_value_decref(b);
-          if (r != OAK_VM_OK)
-            return r;
-          SYNC_FROM_VM();
-        }
-        break;
-      }
+      case OAK_OP_LESS:          CMP_OP(<,  OAK_BINOP_LESS)
+      case OAK_OP_LESS_EQUAL:    CMP_OP(<=, OAK_BINOP_LESS_EQUAL)
+      case OAK_OP_GREATER:       CMP_OP(>,  OAK_BINOP_GREATER)
+      case OAK_OP_GREATER_EQUAL: CMP_OP(>=, OAK_BINOP_GREATER_EQUAL)
+#undef CMP_OP
 
       /* ====== UNARY ====== */
       case OAK_OP_NEGATE:
@@ -520,10 +443,10 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
         if (!oak_is_number(val))
         {
           SYNC_TO_VM();
-          oak_value_decref(val);
           oak_vm_runtime_error(vm,
                                "unary '-' expects a number, got %s",
                                oak_vm_value_kind_desc(val));
+          oak_value_decref(val);
           return OAK_VM_RUNTIME_ERROR;
         }
         const struct oak_value_t result = oak_is_i32(val)
@@ -583,126 +506,42 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
       }
 
       /* ====== FUSED COMPARE+BRANCH (#5) ====== */
-      case OAK_OP_LESS_JUMP_IF_FALSE:
-      {
-        const u16 offset = READ_U16();
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          if (!(oak_as_i32(a) < oak_as_i32(b)))
-            ip += offset;
-          break;
-        }
-        if (!(oak_is_number(a) && oak_is_number(b)))
-        {
-          SYNC_TO_VM();
-          oak_value_decref(a);
-          oak_value_decref(b);
-          oak_vm_runtime_error(vm,
-                               "comparison operands must be numbers");
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        {
-          const float fa = oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
-          const float fb = oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
-          if (!(fa < fb))
-            ip += offset;
-        }
-        oak_value_decref(a);
-        oak_value_decref(b);
-        break;
+#define FUSED_CMP_BRANCH(op)                                                   \
+      {                                                                        \
+        const u16 offset = READ_U16();                                         \
+        const struct oak_value_t b = POP();                                    \
+        const struct oak_value_t a = POP();                                    \
+        if (oak_is_i32(a) && oak_is_i32(b))                                   \
+        {                                                                      \
+          if (!(oak_as_i32(a) op oak_as_i32(b)))                               \
+            ip += offset;                                                      \
+          break;                                                               \
+        }                                                                      \
+        if (!(oak_is_number(a) && oak_is_number(b)))                           \
+        {                                                                      \
+          SYNC_TO_VM();                                                        \
+          oak_value_decref(a);                                                 \
+          oak_value_decref(b);                                                 \
+          oak_vm_runtime_error(vm, "comparison operands must be numbers");     \
+          return OAK_VM_RUNTIME_ERROR;                                         \
+        }                                                                      \
+        {                                                                      \
+          const float fa = oak_is_f32(a) ? oak_as_f32(a)                       \
+                                         : (float)oak_as_i32(a);              \
+          const float fb = oak_is_f32(b) ? oak_as_f32(b)                       \
+                                         : (float)oak_as_i32(b);              \
+          if (!(fa op fb))                                                     \
+            ip += offset;                                                      \
+        }                                                                      \
+        oak_value_decref(a);                                                   \
+        oak_value_decref(b);                                                   \
+        break;                                                                 \
       }
-      case OAK_OP_LESS_EQUAL_JUMP_IF_FALSE:
-      {
-        const u16 offset = READ_U16();
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          if (!(oak_as_i32(a) <= oak_as_i32(b)))
-            ip += offset;
-          break;
-        }
-        if (!(oak_is_number(a) && oak_is_number(b)))
-        {
-          SYNC_TO_VM();
-          oak_value_decref(a);
-          oak_value_decref(b);
-          oak_vm_runtime_error(vm,
-                               "comparison operands must be numbers");
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        {
-          const float fa = oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
-          const float fb = oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
-          if (!(fa <= fb))
-            ip += offset;
-        }
-        oak_value_decref(a);
-        oak_value_decref(b);
-        break;
-      }
-      case OAK_OP_GREATER_JUMP_IF_FALSE:
-      {
-        const u16 offset = READ_U16();
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          if (!(oak_as_i32(a) > oak_as_i32(b)))
-            ip += offset;
-          break;
-        }
-        if (!(oak_is_number(a) && oak_is_number(b)))
-        {
-          SYNC_TO_VM();
-          oak_value_decref(a);
-          oak_value_decref(b);
-          oak_vm_runtime_error(vm,
-                               "comparison operands must be numbers");
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        {
-          const float fa = oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
-          const float fb = oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
-          if (!(fa > fb))
-            ip += offset;
-        }
-        oak_value_decref(a);
-        oak_value_decref(b);
-        break;
-      }
-      case OAK_OP_GREATER_EQUAL_JUMP_IF_FALSE:
-      {
-        const u16 offset = READ_U16();
-        const struct oak_value_t b = POP();
-        const struct oak_value_t a = POP();
-        if (oak_is_i32(a) && oak_is_i32(b))
-        {
-          if (!(oak_as_i32(a) >= oak_as_i32(b)))
-            ip += offset;
-          break;
-        }
-        if (!(oak_is_number(a) && oak_is_number(b)))
-        {
-          SYNC_TO_VM();
-          oak_value_decref(a);
-          oak_value_decref(b);
-          oak_vm_runtime_error(vm,
-                               "comparison operands must be numbers");
-          return OAK_VM_RUNTIME_ERROR;
-        }
-        {
-          const float fa = oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
-          const float fb = oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
-          if (!(fa >= fb))
-            ip += offset;
-        }
-        oak_value_decref(a);
-        oak_value_decref(b);
-        break;
-      }
+      case OAK_OP_LESS_JUMP_IF_FALSE:          FUSED_CMP_BRANCH(<)
+      case OAK_OP_LESS_EQUAL_JUMP_IF_FALSE:    FUSED_CMP_BRANCH(<=)
+      case OAK_OP_GREATER_JUMP_IF_FALSE:       FUSED_CMP_BRANCH(>)
+      case OAK_OP_GREATER_EQUAL_JUMP_IF_FALSE: FUSED_CMP_BRANCH(>=)
+#undef FUSED_CMP_BRANCH
 
       /* ====== SUPERINSTRUCTIONS (#9) ====== */
       case OAK_OP_GET_LOCAL_GET_LOCAL:

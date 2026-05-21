@@ -13,6 +13,62 @@ static void emit_method_fn(struct oak_compiler_t* c,
     oak_compiler_emit_constant(c, sm->const_idx, loc);
 }
 
+/* Compile a call to a builtin method binding (string, bool, number, record).
+ * If binding is NULL, emits a compile error. Always returns 1 (handled). */
+static int try_compile_builtin_method_call(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* node,
+    const struct oak_ast_node_t* receiver,
+    const struct oak_ast_node_t* method,
+    const struct oak_method_binding_t* binding,
+    const char* type_label,
+    const char* mname,
+    usize user_argc,
+    struct oak_code_loc_t call_loc)
+{
+  if (!binding)
+  {
+    oak_compiler_error_at(
+        c, method->token, "no method '%s' on %s", mname, type_label);
+    return 1;
+  }
+  const int expected_user_argc = binding->total_arity - 1;
+  if ((int)user_argc != expected_user_argc)
+  {
+    oak_compiler_error_at(c,
+                          method->token,
+                          "method '%s' expects %d arguments, got %zu",
+                          mname,
+                          expected_user_argc,
+                          user_argc);
+    return 1;
+  }
+  if (binding->validate_args)
+  {
+    struct oak_type_t recv_ty;
+    oakc_infer_type(c, receiver, &recv_ty);
+    binding->validate_args(c, node, recv_ty, method->token);
+    if (c->has_error)
+      return 1;
+  }
+  if (binding->mutates_receiver &&
+      !oak_compiler_expr_is_mutable_place(c, receiver))
+  {
+    oak_compiler_error_at(c,
+                          receiver->token,
+                          "cannot call mutable method on an immutable "
+                          "receiver");
+    return 1;
+  }
+  oak_compiler_emit_constant(c, binding->const_idx, call_loc);
+  oak_compiler_compile_node(c, receiver);
+  oak_compiler_compile_call_args_after_callee(c, node);
+  oak_compiler_emit_op(
+      c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)binding->total_arity));
+  c->scope.stack_depth -= binding->total_arity;
+  return 1;
+}
+
 /* Compile call arguments with type coercion. Tries AST decl first, then
  * falls back to lowered param_types, then generic compilation.
  * self_offset: 0 for static methods, 1 for instance/trait methods. */
@@ -134,39 +190,10 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
       oakc_check_method_args(c, node, sm);
       CHECK_ERROR(c);
       emit_method_fn(c, sm, call_loc);
-      {
-        const struct oak_list_entry_t* _first = node->children.next;
-        int _ai = 0;
-        for (struct oak_list_entry_t* _p = _first->next;
-             _p != &node->children;
-             _p = _p->next, ++_ai)
-        {
-          const struct oak_ast_node_t* _arg =
-              oak_container_of(_p, struct oak_ast_node_t, link);
-          int _compiled = 0;
-          if (sm->decl)
-          {
-            const struct oak_ast_node_t* _param =
-                oakc_fn_param_at(sm->decl, _ai);
-            if (_param)
-            {
-              const struct oak_ast_node_t* _tnode =
-                  oakc_fn_param_type_node(_param);
-              if (_tnode)
-              {
-                struct oak_type_t _want;
-                oakc_lower_type_node(c, _tnode, &_want);
-                oakc_compile_call_arg_for_type(c, _arg, _want, call_loc);
-                _compiled = 1;
-                if (c->has_error)
-                  return;
-              }
-            }
-          }
-          if (!_compiled)
-            oakc_compile_call_arg(c, _arg);
-        }
-      }
+      compile_typed_call_args(c, node, sm->decl,
+                              sm->param_types, sm->arity, 0, call_loc);
+      if (c->has_error)
+        return;
       oak_compiler_emit_op(
           c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
       c->scope.stack_depth -= sm->arity;
@@ -210,7 +237,10 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                            call_loc,
                            OAK_ARG_U16(dep->module_id),
                            OAK_ARG_U16(exp->const_idx));
-      oak_compiler_compile_call_args_after_callee(c, node);
+      compile_typed_call_args(c, node, null,
+                              exp->param_types, exp->arity, 0, call_loc);
+      if (c->has_error)
+        return;
       oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)user_argc));
       c->scope.stack_depth -= (int)user_argc;
       return;
@@ -397,32 +427,9 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
             c, method->token, "no method '%s' on record '%s'", mname, sd->name);
         return;
       }
-      const int expected_user_argc = bm->total_arity - 1;
-      if ((int)user_argc != expected_user_argc)
-      {
-        oak_compiler_error_at(c,
-                              method->token,
-                              "method '%s' expects %d arguments, got %zu",
-                              mname,
-                              expected_user_argc,
-                              user_argc);
-        return;
-      }
-      if (bm->mutates_receiver &&
-          !oak_compiler_expr_is_mutable_place(c, receiver))
-      {
-        oak_compiler_error_at(c,
-                              receiver->token,
-                              "cannot call mutable method on an immutable "
-                              "receiver");
-        return;
-      }
-      oak_compiler_emit_constant(c, bm->const_idx, call_loc);
-      oak_compiler_compile_node(c, receiver);
-      oak_compiler_compile_call_args_after_callee(c, node);
-      oak_compiler_emit_op(
-          c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)bm->total_arity));
-      c->scope.stack_depth -= bm->total_arity;
+      try_compile_builtin_method_call(
+          c, node, receiver, method,
+          bm, sd->name, mname, user_argc, call_loc);
       return;
     }
   }
@@ -430,101 +437,30 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR &&
       recv_ty.id == OAK_TYPE_STRING)
   {
-    const struct oak_method_binding_t* sm =
-        oakc_find_string_method(c, mname, mname_len);
-    if (!sm)
-    {
-      oak_compiler_error_at(
-          c, method->token, "no method '%s' on string", mname);
-      return;
-    }
-    const int expected_user_argc = sm->total_arity - 1;
-    if ((int)user_argc != expected_user_argc)
-    {
-      oak_compiler_error_at(c,
-                            method->token,
-                            "method '%s' expects %d arguments, got %zu",
-                            mname,
-                            expected_user_argc,
-                            user_argc);
-      return;
-    }
-
-    if (sm->validate_args)
-    {
-      sm->validate_args(c, node, recv_ty, method->token);
-      if (c->has_error)
-        return;
-    }
-
-    oak_compiler_emit_constant(c, sm->const_idx, call_loc);
-    oak_compiler_compile_node(c, receiver);
-    oak_compiler_compile_call_args_after_callee(c, node);
-
-    oak_compiler_emit_op(
-        c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->total_arity));
-    c->scope.stack_depth -= sm->total_arity;
+    try_compile_builtin_method_call(
+        c, node, receiver, method,
+        oakc_find_string_method(c, mname, mname_len),
+        "string", mname, user_argc, call_loc);
     return;
   }
 
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR &&
       recv_ty.id == OAK_TYPE_BOOL)
   {
-    const struct oak_method_binding_t* sm =
-        oakc_find_bool_method(c, mname, mname_len);
-    if (!sm)
-    {
-      oak_compiler_error_at(c, method->token, "no method '%s' on bool", mname);
-      return;
-    }
-    const int expected_user_argc = sm->total_arity - 1;
-    if ((int)user_argc != expected_user_argc)
-    {
-      oak_compiler_error_at(c,
-                            method->token,
-                            "method '%s' expects %d arguments, got %zu",
-                            mname,
-                            expected_user_argc,
-                            user_argc);
-      return;
-    }
-    oak_compiler_emit_constant(c, sm->const_idx, call_loc);
-    oak_compiler_compile_node(c, receiver);
-    oak_compiler_compile_call_args_after_callee(c, node);
-    oak_compiler_emit_op(
-        c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->total_arity));
-    c->scope.stack_depth -= sm->total_arity;
+    try_compile_builtin_method_call(
+        c, node, receiver, method,
+        oakc_find_bool_method(c, mname, mname_len),
+        "bool", mname, user_argc, call_loc);
     return;
   }
 
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR &&
       recv_ty.id == OAK_TYPE_NUMBER)
   {
-    const struct oak_method_binding_t* sm =
-        oakc_find_number_method(c, mname, mname_len);
-    if (!sm)
-    {
-      oak_compiler_error_at(
-          c, method->token, "no method '%s' on number", mname);
-      return;
-    }
-    const int expected_user_argc = sm->total_arity - 1;
-    if ((int)user_argc != expected_user_argc)
-    {
-      oak_compiler_error_at(c,
-                            method->token,
-                            "method '%s' expects %d arguments, got %zu",
-                            mname,
-                            expected_user_argc,
-                            user_argc);
-      return;
-    }
-    oak_compiler_emit_constant(c, sm->const_idx, call_loc);
-    oak_compiler_compile_node(c, receiver);
-    oak_compiler_compile_call_args_after_callee(c, node);
-    oak_compiler_emit_op(
-        c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->total_arity));
-    c->scope.stack_depth -= sm->total_arity;
+    try_compile_builtin_method_call(
+        c, node, receiver, method,
+        oakc_find_number_method(c, mname, mname_len),
+        "number", mname, user_argc, call_loc);
     return;
   }
 
