@@ -2,7 +2,7 @@ import { StreamLanguage } from '@codemirror/language';
 
 const KEYWORDS = new Set([
   'let', 'mut', 'fn', 'return', 'if', 'else', 'for', 'while',
-  'break', 'continue', 'record', 'import', 'new', 'from', 'to', 'in', 'as',
+  'break', 'continue', 'record', 'enum', 'import', 'new', 'from', 'to', 'in', 'as',
   'self', 'trait', 'weak',
 ]);
 const TYPES    = new Set(['number', 'string', 'bool']);
@@ -28,7 +28,7 @@ export const oak = StreamLanguage.define({
       if (KEYWORDS.has(w)) return 'keyword';
       if (TYPES.has(w))    return 'type';
       if (BUILTINS.has(w)) return 'builtin';
-      if (w === 'true' || w === 'false') return 'atom';
+      if (w === 'true' || w === 'false' || w === 'none') return 'atom';
       return null;
     }
 
