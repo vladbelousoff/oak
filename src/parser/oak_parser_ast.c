@@ -255,6 +255,16 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "IMPORT_DECL";
     case OAK_NODE_IMPORT_PATH:
       return "IMPORT_PATH";
+    case OAK_NODE_IMPORT_SELECTIVE:
+      return "IMPORT_SELECTIVE";
+    case OAK_NODE_IMPORT_WILDCARD:
+      return "IMPORT_WILDCARD";
+    case OAK_NODE_IMPORT_NAMES:
+      return "IMPORT_NAMES";
+    case OAK_NODE_IMPORT_NAME:
+      return "IMPORT_NAME";
+    case OAK_NODE_IMPORT_ALIAS:
+      return "IMPORT_ALIAS";
     case OAK_NODE_TRAIT_DECL:
       return "TRAIT_DECL";
     case OAK_NODE_TRAIT_MEMBERS:
