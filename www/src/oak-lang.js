@@ -9,8 +9,33 @@ const TYPES    = new Set(['number', 'string', 'bool']);
 const BUILTINS = new Set(['print']);
 
 export const oak = StreamLanguage.define({
-  token(stream) {
-    if (stream.match('//')) { stream.skipToEnd(); return 'comment'; }
+  startState() {
+    return { inBlockComment: false };
+  },
+
+  token(stream, state) {
+    if (state.inBlockComment) {
+      while (!stream.eol()) {
+        if (stream.match('*/')) {
+          state.inBlockComment = false;
+          break;
+        }
+        stream.next();
+      }
+      return 'comment';
+    }
+
+    if (stream.match('/*')) {
+      state.inBlockComment = true;
+      while (!stream.eol()) {
+        if (stream.match('*/')) {
+          state.inBlockComment = false;
+          break;
+        }
+        stream.next();
+      }
+      return 'comment';
+    }
 
     if (stream.eat("'")) {
       while (!stream.eol()) {
