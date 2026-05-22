@@ -107,6 +107,18 @@ OAK_TEST_DECL(RuntimeRecords)
                       "print(p.x);\n"
                       "print(manhattan(p));\n") == OAK_TEST_OK);
 
+  OAK_CHECK(expect_ok("record Counter { value : number; scale : number; whole : number; }\n"
+                      "fn update(mut counter : Counter, amount : number) {\n"
+                      "  counter.value += amount;\n"
+                      "  counter.value -= 2;\n"
+                      "  counter.value *= counter.scale;\n"
+                      "  counter.value /= 3;\n"
+                      "  counter.whole %= 5;\n"
+                      "}\n"
+                      "let mut c = new Counter { value : 10, scale : 3, whole : 17 };\n"
+                      "update(c, 4);\n"
+                      "print(c.value);\n") == OAK_TEST_OK);
+
   OAK_CHECK(expect_compile_error("record A { x : number; }\n"
                                  "record B { y : number; }\n"
                                  "fn take_a(v : A) -> number { return v.x; }\n"
@@ -127,6 +139,20 @@ OAK_TEST_DECL(RuntimeIterationBreakContinue)
                       "  total += value;\n"
                       "}\n"
                       "print(total);\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_ok("fn update(mut nums : number[], mut scores : [string:number]) {\n"
+                      "  nums[0] += 4;\n"
+                      "  nums[1] -= 1;\n"
+                      "  nums[2] *= 3;\n"
+                      "  scores['x'] += nums[0];\n"
+                      "  scores['x'] %= 7;\n"
+                      "}\n"
+                      "let mut nums = [1, 5, 3];\n"
+                      "let mut scores = ['x': 10];\n"
+                      "update(nums, scores);\n"
+                      "print(nums[0]);\n"
+                      "print(nums[1]);\n"
+                      "print(nums[2]);\n"
+                      "print(scores['x']);\n") == OAK_TEST_OK);
   OAK_CHECK(expect_compile_error("let n = 5;\n"
                                  "for value in n { print(value); }\n") == OAK_TEST_OK);
   return OAK_TEST_OK;

@@ -183,6 +183,127 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
                                           const struct oak_ast_node_t* node)
 {
   const struct oak_ast_node_t* lhs = node->lhs;
+
+  if (lhs->kind == OAK_NODE_INDEX_ACCESS)
+  {
+    if (!oak_compiler_expr_is_mutable_place(c, lhs->lhs))
+    {
+      oak_compiler_error_at(c,
+                            lhs->token,
+                            "cannot assign to indexed value of immutable "
+                            "collection");
+      return;
+    }
+
+    struct oak_type_t coll_ty;
+    oakc_infer_type(c, lhs->lhs, &coll_ty);
+    if (coll_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&coll_ty))
+    {
+      oak_compiler_error_at(c,
+                            lhs->lhs->token,
+                            "indexed assignment requires a typed array or map");
+      return;
+    }
+
+    if (coll_ty.kind == OAK_TYPE_KIND_MAP)
+    {
+      struct oak_type_t key_ty;
+      oakc_infer_type(c, lhs->rhs, &key_ty);
+      if (oak_type_is_known(&key_ty))
+      {
+        const struct oak_type_t want_key = { .id = coll_ty.key_id };
+        if (!oak_type_equal(&want_key, &key_ty))
+        {
+          oak_compiler_error_at(c,
+                                lhs->rhs->token,
+                                "map key must be of type '%s', got '%s'",
+                                oakc_type_full_name(c, want_key),
+                                oakc_type_full_name(c, key_ty));
+          return;
+        }
+      }
+    }
+
+    oakc_reject_void(c, node->rhs);
+    if (c->has_error)
+      return;
+
+    oak_compiler_compile_node(c, lhs->lhs);
+    oak_compiler_compile_node(c, lhs->rhs);
+    oak_compiler_compile_node(c, lhs->lhs);
+    oak_compiler_compile_node(c, lhs->rhs);
+    oak_compiler_emit_op(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
+    oak_compiler_compile_node(c, node->rhs);
+    oak_compiler_emit_op(c,
+                         oakc_binop_for_node(node->kind),
+                         oak_compiler_loc_from_token(lhs->token));
+    const struct oak_type_t element_ty = { .id = coll_ty.id };
+    oakc_emit_weak_coerce(c, node->rhs, element_ty, OAK_LOC_SYNTHETIC);
+    if (c->has_error)
+      return;
+    oak_compiler_emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
+    return;
+  }
+
+  if (lhs->kind == OAK_NODE_MEMBER_ACCESS)
+  {
+    const struct oak_ast_node_t* recv = lhs->lhs;
+    const struct oak_ast_node_t* fname = lhs->rhs;
+    if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
+    {
+      oak_compiler_error_at(
+          c, lhs->token, "field assignment requires 'expr.field = expr'");
+      return;
+    }
+
+    const struct oak_registered_record_t* sd = null;
+    const int idx = oakc_require_record_field(c, recv, fname, 1, &sd);
+    if (idx < 0)
+      return;
+
+    if (!oak_compiler_expr_is_mutable_place(c, recv))
+    {
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "cannot assign to field '%.*s' of immutable record",
+                            (int)oak_token_length(fname->token),
+                            oak_token_text(fname->token));
+      return;
+    }
+
+    oakc_reject_void(c, node->rhs);
+    if (c->has_error)
+      return;
+
+    oak_compiler_compile_node(c, recv);
+    oak_compiler_compile_node(c, recv);
+    oak_compiler_emit_op(c,
+                         OAK_OP_GET_FIELD,
+                         oak_compiler_loc_from_token(fname->token),
+                         OAK_ARG_U8((u8)idx));
+    oak_compiler_compile_node(c, node->rhs);
+    oak_compiler_emit_op(c,
+                         oakc_binop_for_node(node->kind),
+                         oak_compiler_loc_from_token(lhs->token));
+    oakc_emit_trait_coerce(c,
+                           node->rhs,
+                           sd->fields[idx].type,
+                           oak_compiler_loc_from_token(fname->token));
+    if (c->has_error)
+      return;
+    oakc_emit_weak_coerce(c,
+                          node->rhs,
+                          sd->fields[idx].type,
+                          oak_compiler_loc_from_token(fname->token));
+    if (c->has_error)
+      return;
+    oak_compiler_emit_op(c,
+                         OAK_OP_SET_FIELD,
+                         oak_compiler_loc_from_token(fname->token),
+                         OAK_ARG_U8((u8)idx));
+    return;
+  }
+
   const int slot = oakc_compile_assign_target(
       c, lhs, "compound assignment target must be a variable");
   if (slot < 0)
