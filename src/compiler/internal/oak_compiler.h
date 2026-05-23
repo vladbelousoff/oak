@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-/* ---------- oak_compiler_error.c ---------- */
+/* ---------- oak_compiler_diagnostics.c ---------- */
 
 struct oak_code_loc_t oak_compiler_loc_from_token(const struct oak_token_t* t);
 
@@ -38,6 +38,34 @@ void oak_compiler_error_at(struct oak_compiler_t* c,
                            const struct oak_token_t* token,
                            const char* fmt,
                            ...);
+
+/* ---------- oak_compiler_lifecycle.c ---------- */
+
+struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
+                                       struct oak_compile_result_t* out,
+                                       struct oak_allocator_t* allocator);
+
+void oak_compiler_configure(struct oak_compiler_t* c,
+                             const struct oak_compile_options_t* opts);
+
+void oak_compiler_teardown(struct oak_compiler_t* c);
+
+void oak_compiler_move_types_to_module(struct oak_compiler_t* c);
+
+/* ---------- oak_compiler_pipeline.c ---------- */
+
+int oak_compiler_register_native_options(struct oak_compiler_t* c,
+                                 const struct oak_compile_options_t* opts);
+
+void oak_compiler_compile_program(struct oak_compiler_t* c,
+                          const struct oak_ast_node_t* program);
+
+/* ---------- oak_compiler_imports.c ---------- */
+
+void resolve_new_style_imports(struct oak_compiler_t* c,
+                               const struct oak_ast_node_t* program);
+
+void populate_module_exports(struct oak_compiler_t* c);
 
 /* ---------- oak_compiler_scope.c ---------- */
 
