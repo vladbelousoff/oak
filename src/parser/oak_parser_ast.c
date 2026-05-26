@@ -285,6 +285,14 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "ATTR_DECL";
     case OAK_NODE_ATTR_DECL_BODY:
       return "ATTR_DECL_BODY";
+    case OAK_NODE_TYPE_ARRAY_BASE:
+      return "TYPE_ARRAY_BASE";
+    case OAK_NODE_FN_NAME:
+      return "FN_NAME";
+    case OAK_NODE_TYPE_GENERIC:
+      return "TYPE_GENERIC";
+    case OAK_NODE_TYPE_ARGS:
+      return "TYPE_ARGS";
   }
   return "UNKNOWN";
 }

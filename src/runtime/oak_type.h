@@ -14,6 +14,7 @@ enum oak_type_kind_t
   OAK_TYPE_KIND_ARRAY,      /* typed array; element type is `id` */
   OAK_TYPE_KIND_MAP, /* typed map; key type is `key_id`, value type is `id` */
   OAK_TYPE_KIND_TRAIT, /* trait object; trait type id is `id` */
+  OAK_TYPE_KIND_PARAM, /* unresolved type parameter; `id` = PARAM_BASE + index */
 };
 
 /* A typed slot.

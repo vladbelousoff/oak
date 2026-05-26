@@ -179,6 +179,102 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     out->id = m->return_type_id;
 }
 
+static void infer_generic_call_type(struct oak_compiler_t* c,
+                                    const struct oak_registered_fn_t* fe,
+                                    const struct oak_ast_node_t* call,
+                                    struct oak_type_t* out)
+{
+  const struct oak_generic_def_t* def =
+      &c->generics.defs[fe->generic_def_index];
+
+  struct oak_generic_param_t* saved_gp = c->generic_params;
+  int saved_gpc = c->generic_param_count;
+  c->generic_params = def->params;
+  c->generic_param_count = def->param_count;
+
+  struct oak_type_t bindings[OAK_MAX_GENERIC_PARAMS];
+  for (int i = 0; i < def->param_count; ++i)
+    oak_type_clear(&bindings[i]);
+
+  const struct oak_list_entry_t* first = call->children.next;
+  struct oak_list_entry_t* pos = first->next;
+  int arg_idx = 0;
+  for (; pos != &call->children; pos = pos->next, ++arg_idx)
+  {
+    const struct oak_ast_node_t* aw =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    const struct oak_ast_node_t* ae = aw;
+    if (aw->kind == OAK_NODE_FN_CALL_ARG)
+      ae = aw->child;
+
+    const struct oak_ast_node_t* param = oakc_fn_param_at(fe->decl, arg_idx);
+    if (!param)
+      continue;
+    const struct oak_ast_node_t* tn = oakc_fn_param_type_node(param);
+    if (!tn)
+      continue;
+
+    struct oak_type_t want;
+    oakc_lower_type_node(c, tn, &want);
+
+    int pi = -1;
+    if (want.kind == OAK_TYPE_KIND_PARAM)
+      pi = (int)(want.id - OAK_TYPE_PARAM_BASE);
+    else if (want.id >= OAK_TYPE_PARAM_BASE)
+      pi = (int)(want.id - OAK_TYPE_PARAM_BASE);
+
+    if (pi < 0 || pi >= def->param_count || oak_type_is_known(&bindings[pi]))
+      continue;
+
+    struct oak_type_t got;
+    oakc_infer_type(c, ae, &got);
+    if (!oak_type_is_known(&got))
+      continue;
+
+    if (want.kind == OAK_TYPE_KIND_PARAM)
+    {
+      bindings[pi] = got;
+    }
+    else if (want.kind == OAK_TYPE_KIND_ARRAY &&
+             got.kind == OAK_TYPE_KIND_ARRAY)
+    {
+      struct oak_type_t elem;
+      oak_type_clear(&elem);
+      elem.id = got.id;
+      bindings[pi] = elem;
+    }
+  }
+
+  const struct oak_ast_node_t* retn = oakc_fn_return_type_node(fe->decl);
+  if (retn)
+  {
+    oakc_lower_type_node(c, retn, out);
+    if (out->kind == OAK_TYPE_KIND_PARAM)
+    {
+      int pi = (int)(out->id - OAK_TYPE_PARAM_BASE);
+      if (pi >= 0 && pi < def->param_count && oak_type_is_known(&bindings[pi]))
+        *out = bindings[pi];
+    }
+    else if (out->id >= OAK_TYPE_PARAM_BASE)
+    {
+      int pi = (int)(out->id - OAK_TYPE_PARAM_BASE);
+      if (pi >= 0 && pi < def->param_count && oak_type_is_known(&bindings[pi]))
+        out->id = bindings[pi].id;
+    }
+    if (out->kind == OAK_TYPE_KIND_MAP && out->key_id >= OAK_TYPE_PARAM_BASE)
+    {
+      int pi = (int)(out->key_id - OAK_TYPE_PARAM_BASE);
+      if (pi >= 0 && pi < def->param_count && oak_type_is_known(&bindings[pi]))
+        out->key_id = bindings[pi].id;
+    }
+  }
+  else
+    out->id = OAK_TYPE_VOID;
+
+  c->generic_params = saved_gp;
+  c->generic_param_count = saved_gpc;
+}
+
 /* Infer the return type of an OAK_NODE_FN_CALL expression. */
 void oakc_infer_fn_call_type(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* expr,
@@ -217,6 +313,11 @@ void oakc_infer_fn_call_type(struct oak_compiler_t* c,
   }
   if (!fe)
     return;
+  if (fe->generic_param_count > 0 && fe->generic_def_index >= 0)
+  {
+    infer_generic_call_type(c, fe, expr, out);
+    return;
+  }
   const struct oak_ast_node_t* retn = oakc_fn_return_type_node(fe->decl);
   if (retn)
     oakc_lower_type_node(c, retn, out);

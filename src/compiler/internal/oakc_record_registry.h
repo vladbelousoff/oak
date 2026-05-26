@@ -28,6 +28,8 @@ struct oak_registered_record_t
   /* Attribute names.  Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;
+  int generic_param_count;
+  int generic_def_index;
 };
 
 /* Concrete dynamic-array type for registered records. */

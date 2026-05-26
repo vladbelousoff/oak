@@ -51,8 +51,6 @@ const struct oak_registered_fn_t* oak_fn_registry_find(
 
 /* ---------- Registration helpers ---------- */
 
-/* lhs of RECORD_DECL: plain IDENT, or TYPE_NAME wrapping IDENT for arrays/maps.
- */
 static const struct oak_ast_node_t*
 record_decl_type_ident(const struct oak_ast_node_t* record_decl)
 {
@@ -66,6 +64,8 @@ record_decl_type_ident(const struct oak_ast_node_t* record_decl)
       return null;
     name_ident = oak_container_of(tn_first, struct oak_ast_node_t, link);
   }
+  if (name_ident->kind == OAK_NODE_TYPE_GENERIC)
+    name_ident = name_ident->lhs;
   if (name_ident->kind != OAK_NODE_IDENT)
     return null;
   return name_ident;
@@ -98,6 +98,54 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   {
     oak_compiler_error_at(c, name_node->token, "duplicate function '%s'", name);
     return;
+  }
+
+  const struct oak_ast_node_t* type_params_node = oakc_fn_type_params(item);
+  int generic_param_count = 0;
+  int generic_def_index = -1;
+  if (type_params_node)
+  {
+    struct oak_list_entry_t* tp_pos;
+    oak_list_for_each(tp_pos, &type_params_node->children)
+    {
+      const struct oak_ast_node_t* tp =
+          oak_container_of(tp_pos, struct oak_ast_node_t, link);
+      if (tp->kind == OAK_NODE_IDENT)
+        generic_param_count++;
+    }
+    if (generic_param_count > OAK_MAX_GENERIC_PARAMS)
+    {
+      oak_compiler_error_at(c, name_node->token,
+                            "too many type parameters (max %d)",
+                            OAK_MAX_GENERIC_PARAMS);
+      return;
+    }
+    if (generic_param_count > 0)
+    {
+      struct oak_generic_def_t def = { 0 };
+      def.owner_name = name;
+      def.param_count = generic_param_count;
+      def.params = OAK_ALLOC(
+          c->allocator,
+          (usize)generic_param_count * sizeof(struct oak_generic_param_t));
+      int pi = 0;
+      oak_list_for_each(tp_pos, &type_params_node->children)
+      {
+        const struct oak_ast_node_t* tp =
+            oak_container_of(tp_pos, struct oak_ast_node_t, link);
+        if (tp->kind != OAK_NODE_IDENT)
+          continue;
+        const char* ttext = oak_token_text(tp->token);
+        const int tlen = oak_token_size(tp->token);
+        char* ncopy = OAK_ALLOC(c->allocator, (usize)(tlen + 1));
+        memcpy(ncopy, ttext, tlen);
+        ncopy[tlen] = '\0';
+        def.params[pi].name = ncopy;
+        def.params[pi].bound_trait_id = OAK_TYPE_VOID;
+        pi++;
+      }
+      generic_def_index = oak_generic_registry_add(&c->generics, &def);
+    }
   }
 
   const u16 mid =
@@ -161,6 +209,8 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     .attrs = attrs,
     .attr_count = attr_count,
     .source_module_id = OAK_MODULE_ID_NONE,
+    .generic_param_count = generic_param_count,
+    .generic_def_index = generic_def_index,
   };
   oak_fn_registry_insert(&c->fns, &entry);
 }

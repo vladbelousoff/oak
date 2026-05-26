@@ -305,6 +305,9 @@ int oakc_require_record_field(
 void oakc_register_program_records(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* prog);
 
+const struct oak_ast_node_t*
+oakc_record_type_params(const struct oak_ast_node_t* record_decl);
+
 /* Register native types from `opts` into the compiler's record and type
  * registries before any source-level passes run.  Must be called before
  * oakc_register_program_records so that Oak source can reference
@@ -334,6 +337,9 @@ oakc_fn_param_list(const struct oak_ast_node_t* decl);
 
 const struct oak_ast_node_t*
 oakc_fn_name_node(const struct oak_ast_node_t* decl);
+
+const struct oak_ast_node_t*
+oakc_fn_type_params(const struct oak_ast_node_t* decl);
 
 const struct oak_ast_node_t*
 oakc_fn_self_param(const struct oak_ast_node_t* decl);

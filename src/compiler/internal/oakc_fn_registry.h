@@ -35,6 +35,8 @@ struct oak_registered_fn_t
   int attr_count;
   u16 source_module_id;
   u16 source_const_idx;
+  int generic_param_count;
+  int generic_def_index;
 };
 
 /* Concrete dynamic-array type for registered functions. */

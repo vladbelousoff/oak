@@ -99,6 +99,30 @@ OAK_TEST_DECL(ParseCollectionTypesAndLiterals)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(ParseGenerics)
+{
+  OAK_CHECK(parse_ok("fn identity<T>(x: T) -> T { return x; }\n",
+                     OAK_NODE_PROGRAM) == OAK_TEST_OK);
+  OAK_CHECK(parse_ok("fn swap<A, B>(a: A, b: B) -> B { return b; }\n",
+                     OAK_NODE_PROGRAM) == OAK_TEST_OK);
+  OAK_CHECK(parse_ok("record Box<T> {\n"
+                     "  value: T;\n"
+                     "}\n",
+                     OAK_NODE_PROGRAM) == OAK_TEST_OK);
+  OAK_CHECK(parse_ok("record Pair<A, B> {\n"
+                     "  first: A;\n"
+                     "  second: B;\n"
+                     "}\n",
+                     OAK_NODE_PROGRAM) == OAK_TEST_OK);
+  OAK_CHECK(parse_ok("record Empty<T>;\n",
+                     OAK_NODE_PROGRAM) == OAK_TEST_OK);
+  OAK_CHECK(parse_ok("fn take(b: Box<number>) -> number { return b.value; }\n",
+                     OAK_NODE_PROGRAM) == OAK_TEST_OK);
+  OAK_CHECK(parse_ok("let x = [] as Box<number>[];\n",
+                     OAK_NODE_PROGRAM) == OAK_TEST_OK);
+  return OAK_TEST_OK;
+}
+
 OAK_TEST_DECL(ParseSyntaxErrors)
 {
   OAK_CHECK(parse_error("let x;") == OAK_TEST_OK);
@@ -121,6 +145,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(ParseStatementsAndControlFlow),
     OAK_TEST_ENTRY(ParseFunctionsRecordsEnumsAndModules),
     OAK_TEST_ENTRY(ParseCollectionTypesAndLiterals),
+    OAK_TEST_ENTRY(ParseGenerics),
     OAK_TEST_ENTRY(ParseSyntaxErrors),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));

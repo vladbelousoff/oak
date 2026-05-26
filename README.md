@@ -55,7 +55,8 @@ for i, value in [2, 3, 5] { print(i + value); }
 ```
 
 Core value types are `number`, `string`, `bool`, arrays, maps, records, enums,
-functions, `none`, and weak references. Strings are single-quoted.
+functions, `none`, and weak references. Strings are single-quoted. Functions and
+records support type parameters (`<T>`) for compile-time generics.
 
 Operators include arithmetic (`+ - * / // %`), comparison, `!`, and short-circuit
 logic (`&&`, `||`, `and`, `or`, `not`).
@@ -145,6 +146,34 @@ fn add(a : number, b : number) -> number { return a + b; }
 import { add } from util.math;        /* selective */
 import * from io;                      /* wildcard — all declarations */
 import { add as sum } from util.math;  /* rename on import */
+```
+
+Generic functions and records use angle-bracket type parameters. The compiler
+enforces type consistency through unification; at runtime, type parameters are
+erased (all Oak values share the same representation, so a single bytecode body
+serves every instantiation). Types are inferred from arguments at call sites:
+
+```oak
+fn identity<T>(x: T) -> T { return x; }
+print(identity(42));
+print(identity('hello'));
+
+fn pick_first<A, B>(a: A, b: B) -> A { return a; }
+print(pick_first(1, 'two'));
+
+record Box<T> { value: T; }
+let b = new Box { value: 42 };
+print(b.value);
+
+fn Box.get(self) -> T { return self.value; }
+print(b.get());
+
+fn unwrap<T>(b: Box<T>) -> T { return b.value; }
+print(unwrap(b));
+
+record Container<T> { items: T[]; }
+let c = new Container { items: [1, 2, 3] };
+print(c.items[0]);
 ```
 
 Attributes attach metadata to declarations and are interpreted by embedding C

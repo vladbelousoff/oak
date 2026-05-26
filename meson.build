@@ -73,6 +73,7 @@ oak_core_sources = files(
   'src/compiler/oak_compiler_fn_body.c',
   'src/compiler/oak_compiler_fn_decl.c',
   'src/compiler/oak_compiler_fn_register.c',
+  'src/compiler/oak_compiler_generic_registry.c',
   'src/compiler/oak_compiler_modules.c',
   'src/compiler/oak_compiler_record_registry.c',
   'src/compiler/oak_compiler_records.c',
@@ -167,6 +168,7 @@ else
   test_sources = {
     'compiler_const_mut_binding': 'tests/compiler/compiler_const_mut_binding.c',
     'compiler_enum_access': 'tests/compiler/compiler_enum_access.c',
+    'compiler_generics': 'tests/compiler/compiler_generics.c',
     'compiler_native_fn_binding': 'tests/compiler/compiler_native_fn_binding.c',
     'compiler_native_type_binding': 'tests/compiler/compiler_native_type_binding.c',
     'compiler_semantic_errors': 'tests/compiler/compiler_semantic_errors.c',
