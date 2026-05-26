@@ -111,7 +111,50 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
 
   int attr_count = 0;
   const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
-  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_FN);
+
+  struct oak_attr_param_info_t* pinfo = null;
+  if (attr_count > 0 && explicit_arity > 0)
+  {
+    pinfo = OAK_ALLOC(c->allocator,
+                      (usize)explicit_arity * sizeof(struct oak_attr_param_info_t));
+    for (int pi = 0; pi < explicit_arity; ++pi)
+    {
+      const struct oak_ast_node_t* param = oakc_fn_param_at(item, pi);
+      const struct oak_ast_node_t* id_node = oakc_fn_param_ident(param);
+      const struct oak_ast_node_t* ty_node = oakc_fn_param_type_node(param);
+      pinfo[pi].name = id_node ? oak_token_text(id_node->token) : "";
+      pinfo[pi].name_len = id_node ? oak_token_length(id_node->token) : 0;
+      pinfo[pi].is_mut = oakc_param_is_mut(param);
+      pinfo[pi].is_weak = 0;
+      pinfo[pi].type_name = "";
+      pinfo[pi].type_name_len = 0;
+      pinfo[pi].type_id = -1;
+      if (ty_node)
+      {
+        if (ty_node->kind == OAK_NODE_TYPE_WEAK)
+        {
+          pinfo[pi].is_weak = 1;
+          const struct oak_ast_node_t* base = ty_node->child;
+          if (base && base->kind == OAK_NODE_IDENT)
+          {
+            pinfo[pi].type_name = oak_token_text(base->token);
+            pinfo[pi].type_name_len = oak_token_length(base->token);
+          }
+        }
+        else if (ty_node->kind == OAK_NODE_IDENT)
+        {
+          pinfo[pi].type_name = oak_token_text(ty_node->token);
+          pinfo[pi].type_name_len = oak_token_length(ty_node->token);
+        }
+      }
+    }
+  }
+
+  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_FN,
+                                 pinfo, explicit_arity, null, 0, (int)idx);
+  if (pinfo)
+    OAK_FREE(c->allocator, pinfo);
+
   oakc_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   struct oak_registered_fn_t entry = {
     .name = name,
@@ -154,7 +197,8 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
 
   int attr_count = 0;
   const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
-  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_METHOD);
+  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_METHOD,
+                                 null, 0, null, 0, -1);
 
   struct oak_registered_fn_t slot = { 0 };
   slot.name = name;

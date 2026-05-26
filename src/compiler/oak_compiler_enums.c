@@ -246,7 +246,8 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
       const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
       const char* enum_name = oak_token_text(name_node->token);
       oakc_dispatch_compile_attr_cbs(
-          c, attrs, attr_count, enum_name, OAK_ATTR_TARGET_ENUM);
+          c, attrs, attr_count, enum_name, OAK_ATTR_TARGET_ENUM,
+          null, 0, null, 0, -1);
       struct oak_registered_enum_t re = {
         .name = enum_name,
         .name_len = oak_token_length(name_node->token),

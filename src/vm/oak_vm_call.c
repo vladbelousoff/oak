@@ -212,6 +212,49 @@ enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
   return oak_vm_op_call_with_argc(vm, oak_vm_read_u8(vm));
 }
 
+static u8 halt_trampoline[] = { 0 /* OAK_OP_HALT */ };
+
+enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
+                                 struct oak_value_t fn_val,
+                                 const struct oak_value_t* args,
+                                 int argc,
+                                 struct oak_value_t* out_result)
+{
+  if (!vm->chunk)
+  {
+    oak_vm_runtime_error(vm, "oak_vm_call: no active chunk");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  u8* saved_ip = vm->ip;
+  struct oak_chunk_t* saved_chunk = vm->chunk;
+  usize saved_stack_base = vm->stack_base;
+
+  /* Point IP at the halt trampoline so that when the called function returns,
+   * the VM sees HALT and oak_vm_resume returns OAK_VM_OK. */
+  vm->ip = halt_trampoline;
+
+  OAK_VM_TRY(oak_vm_push(vm, fn_val));
+  for (int i = 0; i < argc; ++i)
+    OAK_VM_TRY(oak_vm_push(vm, args[i]));
+  OAK_VM_TRY(oak_vm_op_call_with_argc(vm, (u8)argc));
+
+  enum oak_vm_result_t r = oak_vm_resume(vm);
+
+  if (r == OAK_VM_OK && out_result)
+  {
+    if (vm->sp > vm->stack)
+      *out_result = oak_vm_pop(vm);
+    else
+      *out_result = OAK_VALUE_NONE;
+  }
+
+  vm->ip = saved_ip;
+  vm->chunk = saved_chunk;
+  vm->stack_base = saved_stack_base;
+  return r;
+}
+
 enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)
 {
   if (vm->frame_count == 0)

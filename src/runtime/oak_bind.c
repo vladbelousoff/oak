@@ -276,7 +276,12 @@ void oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
                                    const char** attrs,
                                    int attr_count,
                                    const char* decl_name,
-                                   enum oak_attr_target_t target)
+                                   enum oak_attr_target_t target,
+                                   const struct oak_attr_param_info_t* params,
+                                   int param_count,
+                                   const struct oak_attr_field_info_t* fields,
+                                   int field_count,
+                                   int const_index)
 {
   if (!opts || opts->native_attrs.count == 0 || attr_count == 0)
     return;
@@ -293,6 +298,11 @@ void oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
           .target = target,
           .decl_name = decl_name,
           .user_data = b->user_data,
+          .param_count = param_count,
+          .params = params,
+          .field_count = field_count,
+          .fields = fields,
+          .const_index = const_index,
         };
         b->on_decl(&ctx);
         break;

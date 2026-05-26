@@ -80,9 +80,16 @@ void oakc_dispatch_compile_attr_cbs(struct oak_compiler_t* c,
                                     const char** attrs,
                                     int attr_count,
                                     const char* decl_name,
-                                    enum oak_attr_target_t target)
+                                    enum oak_attr_target_t target,
+                                    const struct oak_attr_param_info_t* params,
+                                    int param_count,
+                                    const struct oak_attr_field_info_t* fields,
+                                    int field_count,
+                                    int const_index)
 {
-  oak_dispatch_compile_attr_cbs(c->opts, attrs, attr_count, decl_name, target);
+  oak_dispatch_compile_attr_cbs(c->opts, attrs, attr_count, decl_name, target,
+                                params, param_count, fields, field_count,
+                                const_index);
 }
 
 void oakc_apply_runtime_attr_hook(struct oak_compiler_t* c,

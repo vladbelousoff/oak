@@ -167,12 +167,42 @@ enum oak_attr_target_t
   OAK_ATTR_TARGET_ENUM,
 };
 
+/* Per-parameter metadata exposed to attribute callbacks on FN/METHOD targets. */
+struct oak_attr_param_info_t
+{
+  const char* name;
+  usize name_len;
+  const char* type_name;
+  usize type_name_len;
+  oak_type_id_t type_id;
+  int is_mut;
+  int is_weak;
+};
+
+/* Per-field metadata exposed to attribute callbacks on RECORD targets. */
+struct oak_attr_field_info_t
+{
+  const char* name;
+  usize name_len;
+  const char* type_name;
+  usize type_name_len;
+  oak_type_id_t type_id;
+};
+
 /* Context passed to compile-time attribute callbacks. */
 struct oak_attr_compile_ctx_t
 {
   enum oak_attr_target_t target;
   const char* decl_name; /* name of the declaration bearing this attribute */
   void* user_data;
+  /* For FN/METHOD targets: function parameter metadata. */
+  int param_count;
+  const struct oak_attr_param_info_t* params;
+  /* For RECORD targets: field metadata. */
+  int field_count;
+  const struct oak_attr_field_info_t* fields;
+  /* Index of the declaration's value in the chunk's constant pool (-1 if N/A). */
+  int const_index;
 };
 
 typedef void (*oak_attr_compile_cb_t)(const struct oak_attr_compile_ctx_t* ctx);
@@ -338,13 +368,20 @@ OAK_API int oak_bind_enum_variant(struct oak_bind_enum_t* e,
 
 /* Match attrs[] against opts->native_attrs and fire on_decl for each
  * matching binding that has one.  target and decl_name identify the
- * declaration.  Safe to call with empty attrs or no bindings. */
+ * declaration.  params/fields provide structured metadata about the
+ * declaration (NULL when not applicable).
+ * Safe to call with empty attrs or no bindings. */
 OAK_API void
 oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
                               const char** attrs,
                               int attr_count,
                               const char* decl_name,
-                              enum oak_attr_target_t target);
+                              enum oak_attr_target_t target,
+                              const struct oak_attr_param_info_t* params,
+                              int param_count,
+                              const struct oak_attr_field_info_t* fields,
+                              int field_count,
+                              int const_index);
 
 /* Match attrs[] against opts->native_attrs and attach all bindings whose
  * on_call is non-NULL as a heap-allocated hooks array on fn_obj or native_obj

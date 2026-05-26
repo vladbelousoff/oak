@@ -52,3 +52,14 @@ OAK_API enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm,
                                         struct oak_chunk_t* chunk);
 
 OAK_API enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm);
+
+/* Call an Oak function from C.  Pushes fn_val and args onto the stack, sets up
+ * a call frame, and runs the VM until the function returns.
+ * out_result receives the return value (may be NULL to discard it).
+ * The VM must have been initialized and a chunk must have been run at least
+ * once (so that the chunk is set and the IP is valid). */
+OAK_API enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
+                                         struct oak_value_t fn_val,
+                                         const struct oak_value_t* args,
+                                         int argc,
+                                         struct oak_value_t* out_result);

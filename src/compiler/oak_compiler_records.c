@@ -210,6 +210,15 @@ void oakc_register_program_records(struct oak_compiler_t* c,
       {
         if (!native_record_decl_matches(c, native, item, name_ident))
           return;
+
+        int attr_count = 0;
+        const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
+        if (attr_count > 0)
+        {
+          oakc_dispatch_compile_attr_cbs(
+              c, attrs, attr_count, name, OAK_ATTR_TARGET_RECORD,
+              null, 0, null, 0, -1);
+        }
         continue;
       }
       oak_compiler_error_at(
@@ -225,8 +234,52 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     proto.field_count = 0;
     proto.field_capacity = 0;
     proto.attrs = oakc_extract_attrs(c->allocator, raw_item, &proto.attr_count);
+
+    /* Pre-scan fields for attribute callbacks. */
+    struct oak_attr_field_info_t* finfo = null;
+    int finfo_count = 0;
+    if (proto.attr_count > 0 && !is_empty && item->rhs &&
+        item->rhs->kind == OAK_NODE_RECORD_FIELDS)
+    {
+      const struct oak_ast_node_t* fw = item->rhs;
+      struct oak_list_entry_t* fp;
+      oak_list_for_each(fp, &fw->children) { ++finfo_count; }
+      if (finfo_count > 0)
+      {
+        finfo = OAK_ALLOC(c->allocator,
+                          (usize)finfo_count * sizeof(struct oak_attr_field_info_t));
+        int fi = 0;
+        oak_list_for_each(fp, &fw->children)
+        {
+          const struct oak_ast_node_t* fd =
+              oak_container_of(fp, struct oak_ast_node_t, link);
+          if (fd->kind == OAK_NODE_RECORD_FIELD_DECL && fd->lhs && fd->rhs)
+          {
+            finfo[fi].name = oak_token_text(fd->lhs->token);
+            finfo[fi].name_len = oak_token_length(fd->lhs->token);
+            finfo[fi].type_id = -1;
+            if (fd->rhs->kind == OAK_NODE_IDENT)
+            {
+              finfo[fi].type_name = oak_token_text(fd->rhs->token);
+              finfo[fi].type_name_len = oak_token_length(fd->rhs->token);
+            }
+            else
+            {
+              finfo[fi].type_name = "";
+              finfo[fi].type_name_len = 0;
+            }
+            ++fi;
+          }
+        }
+        finfo_count = fi;
+      }
+    }
+
     oakc_dispatch_compile_attr_cbs(
-        c, proto.attrs, proto.attr_count, name, OAK_ATTR_TARGET_RECORD);
+        c, proto.attrs, proto.attr_count, name, OAK_ATTR_TARGET_RECORD,
+        null, 0, finfo, finfo_count, -1);
+    if (finfo)
+      OAK_FREE(c->allocator, finfo);
 
     if (proto.type_id < 0)
     {

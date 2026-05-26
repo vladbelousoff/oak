@@ -212,12 +212,18 @@ const char** oakc_alloc_attrs(struct oak_allocator_t* allocator,
                               int count);
 
 /* Fire on_decl callbacks for any registered attribute that matches an entry in
- * attrs[].  No-op when c->opts has no native_attrs or attr_count == 0. */
+ * attrs[].  No-op when c->opts has no native_attrs or attr_count == 0.
+ * params/fields provide structured metadata for FN/RECORD targets. */
 void oakc_dispatch_compile_attr_cbs(struct oak_compiler_t* c,
                                     const char** attrs,
                                     int attr_count,
                                     const char* decl_name,
-                                    enum oak_attr_target_t target);
+                                    enum oak_attr_target_t target,
+                                    const struct oak_attr_param_info_t* params,
+                                    int param_count,
+                                    const struct oak_attr_field_info_t* fields,
+                                    int field_count,
+                                    int const_index);
 
 /* Set fn_obj->attr_hook (or native_obj->attr_hook) to the on_call of the first
  * registered attribute that matches attrs[].  No-op if nothing matches. */
