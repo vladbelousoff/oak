@@ -42,7 +42,7 @@ void oak_type_registry_init(struct oak_type_registry_t* reg,
     oak_assert(b->id == reg->count);
     struct oak_type_entry_t entry = {
       .name = b->name,
-      .len = oak_strlen(b->name),
+      .len = (int)strlen(b->name),
     };
     oak_dynarr_push(allocator,
         &reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));

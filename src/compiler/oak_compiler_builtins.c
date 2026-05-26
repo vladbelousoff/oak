@@ -19,7 +19,7 @@ static void register_native_fn(struct oak_compiler_t* c,
 
   struct oak_registered_fn_t entry = {
     .name = binding->name,
-    .name_len = oak_strlen(binding->name),
+    .name_len = (int)strlen(binding->name),
     .const_idx = idx,
     .arity = binding->arity,
     .return_type = { .id = binding->return_type_id },

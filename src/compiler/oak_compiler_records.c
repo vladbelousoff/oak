@@ -48,7 +48,7 @@ static const struct oak_bind_type_t* native_record_binding(
     const struct oak_bind_type_t* native = c->opts->native_types.items[i];
     if (!native || native->kind != OAK_BIND_TYPE_RECORD || !native->name)
       continue;
-    if (oak_strlen(native->name) == name_len &&
+    if ((int)strlen(native->name) == name_len &&
         strncmp(native->name, name, name_len) == 0)
       return native;
   }
@@ -73,7 +73,7 @@ static const struct oak_bind_field_t* native_record_field(
   for (int i = 0; i < native->field_count; ++i)
   {
     const struct oak_bind_field_t* field = &native->fields[i];
-    if (oak_strlen(field->name) == name_len &&
+    if ((int)strlen(field->name) == name_len &&
         strncmp(field->name, name, name_len) == 0)
       return field;
   }

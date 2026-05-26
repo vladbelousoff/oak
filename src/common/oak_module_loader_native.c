@@ -159,7 +159,7 @@ void apply_native_module_function_exports(
     if (!native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const int eidx =
-        oak_htable_get(&mod->exports_fn.by_name, fn->name, oak_strlen(fn->name));
+        oak_htable_get(&mod->exports_fn.by_name, fn->name, (int)strlen(fn->name));
     if (eidx < 0)
       continue;
     struct oak_obj_native_fn_t* native =
@@ -182,7 +182,7 @@ void apply_native_module_function_exports(
   {
     struct oak_module_export_record_t* rec = &mod->exports_record.items[ri];
     const oak_type_id_t rec_type_id =
-        oak_type_registry_intern(&mod->types, rec->name, oak_strlen(rec->name));
+        oak_type_registry_intern(&mod->types, rec->name, (int)strlen(rec->name));
     for (int mi = 0; mi < rec->method_count; ++mi)
     {
       struct oak_module_export_record_method_t* me = &rec->methods[mi];
@@ -528,7 +528,7 @@ struct oak_module_t* create_native_module(
                     &mod->exports_fn.capacity,
                     &exp,
                     sizeof(exp));
-    oak_htable_insert(&mod->exports_fn.by_name, exp.name, oak_strlen(exp.name), idx);
+    oak_htable_insert(&mod->exports_fn.by_name, exp.name, (int)strlen(exp.name), idx);
   }
 
   for (int i = 0; i < opts->native_types.count; ++i)
@@ -559,7 +559,7 @@ struct oak_module_t* create_native_module(
                     &exp,
                     sizeof(exp));
     oak_htable_insert(
-        &mod->exports_record.by_name, exp.name, oak_strlen(exp.name), idx);
+        &mod->exports_record.by_name, exp.name, (int)strlen(exp.name), idx);
   }
 
   for (int i = 0; i < opts->native_enums.count; ++i)
@@ -588,7 +588,7 @@ struct oak_module_t* create_native_module(
                     &mod->exports_enum.capacity,
                     &exp,
                     sizeof(exp));
-    oak_htable_insert(&mod->exports_enum.by_name, exp.name, oak_strlen(exp.name), idx);
+    oak_htable_insert(&mod->exports_enum.by_name, exp.name, (int)strlen(exp.name), idx);
   }
 
   oak_type_registry_init(&mod->types, a);
@@ -599,7 +599,7 @@ struct oak_module_t* create_native_module(
       continue;
     if (type->type_id >= OAK_TYPE_FIRST_USER)
       oak_type_registry_intern_with_id(
-          &mod->types, type->name, oak_strlen(type->name), type->type_id);
+          &mod->types, type->name, (int)strlen(type->name), type->type_id);
   }
 
   mod->state = OAK_MOD_COMPILED;

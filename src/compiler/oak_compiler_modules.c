@@ -10,7 +10,7 @@ const struct oak_module_t* oak_compiler_module_for_alias(
   if (!c->current_module || !c->module_registry)
     return null;
   const int mod_id =
-      oak_htable_get(&c->current_module->imports, name, oak_strlen(name));
+      oak_htable_get(&c->current_module->imports, name, (int)strlen(name));
   if (mod_id < 0)
     return null;
   return oak_module_registry_get(c->module_registry, (u16)mod_id);

@@ -11,12 +11,3 @@ oak_name_eq(const char* a, const char* b)
 {
   return strcmp(a, b) == 0;
 }
-
-static inline int
-oak_strlen(const char* s)
-{
-  int len = 0;
-  while (s[len])
-    ++len;
-  return len;
-}

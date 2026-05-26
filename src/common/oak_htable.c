@@ -15,18 +15,6 @@ static u32 fnv1a(const void* data, int len)
   return h;
 }
 
-static int bytes_equal(const void* a, const void* b, int len)
-{
-  const u8* ab = (const u8*)a;
-  const u8* bb = (const u8*)b;
-  for (int i = 0; i < len; ++i)
-  {
-    if (ab[i] != bb[i])
-      return 0;
-  }
-  return 1;
-}
-
 void oak_htable_init(struct oak_htable_t* ht, struct oak_allocator_t* allocator)
 {
   ht->slots = null;
@@ -102,7 +90,7 @@ int oak_htable_get(const struct oak_htable_t* ht,
   while (ht->slots[i].key)
   {
     if (ht->slots[i].hash == h && ht->slots[i].key_len == key_len &&
-        bytes_equal(ht->slots[i].key, key, key_len))
+        memcmp(ht->slots[i].key, key, (usize)key_len) == 0)
       return ht->slots[i].value;
     i = (i + 1) & (ht->capacity - 1);
   }

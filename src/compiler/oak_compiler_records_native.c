@@ -59,7 +59,7 @@ void oakc_register_native_types(
     const struct oak_bind_type_t* nt = opts->native_types.items[i];
     if (!nt)
       continue;
-    const int nt_name_len = oak_strlen(nt->name);
+    const int nt_name_len = (int)strlen(nt->name);
 
     if (oakc_records_find(&c->records, nt->name, nt_name_len))
     {
@@ -101,7 +101,7 @@ void oakc_register_native_types(
       const struct oak_bind_field_t* nf = &nt->fields[fi];
       struct oak_record_field_t sf = {
         .name = nf->name,
-        .name_len = oak_strlen(nf->name),
+        .name_len = (int)strlen(nf->name),
       };
       oak_type_clear(&sf.type);
       if (nf->shape == OAK_BIND_SHAPE_ARRAY)
@@ -149,7 +149,7 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
     if (!b->name || !b->impl || b->module_name)
       continue;
 
-    const int name_len = oak_strlen(b->name);
+    const int name_len = (int)strlen(b->name);
     struct oak_obj_native_fn_t* native =
         oak_native_fn_new(c->allocator, b->impl, b->arity, b->name);
     const u16 idx =
@@ -185,7 +185,7 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
     if (!b->name || !b->impl)
       continue;
 
-    const int name_len = oak_strlen(b->name);
+    const int name_len = (int)strlen(b->name);
     const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
                              ? b->arity + 1
                              : b->arity;

@@ -128,7 +128,7 @@ int oak_bind_field(struct oak_bind_type_t* type,
       return -1;
   }
 
-  const int name_len = oak_strlen(p->name);
+  const int name_len = (int)strlen(p->name);
   char* name_copy = OAK_ALLOC(type->allocator, name_len + 1u);
   if (!name_copy)
     return -1;

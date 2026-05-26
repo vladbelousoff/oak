@@ -196,7 +196,7 @@ const struct oak_module_export_fn_t* oak_module_find_export_fn(
     const struct oak_module_t* mod, const char* name)
 {
   const int idx =
-      oak_htable_get(&mod->exports_fn.by_name, name, oak_strlen(name));
+      oak_htable_get(&mod->exports_fn.by_name, name, (int)strlen(name));
   if (idx < 0)
     return null;
   return &mod->exports_fn.items[idx];
@@ -206,7 +206,7 @@ const struct oak_module_export_record_t* oak_module_find_export_record(
     const struct oak_module_t* mod, const char* name)
 {
   const int idx =
-      oak_htable_get(&mod->exports_record.by_name, name, oak_strlen(name));
+      oak_htable_get(&mod->exports_record.by_name, name, (int)strlen(name));
   if (idx < 0)
     return null;
   return &mod->exports_record.items[idx];
@@ -216,7 +216,7 @@ const struct oak_module_export_enum_t* oak_module_find_export_enum(
     const struct oak_module_t* mod, const char* name)
 {
   const int idx =
-      oak_htable_get(&mod->exports_enum.by_name, name, oak_strlen(name));
+      oak_htable_get(&mod->exports_enum.by_name, name, (int)strlen(name));
   if (idx < 0)
     return null;
   return &mod->exports_enum.items[idx];
@@ -226,7 +226,7 @@ const struct oak_module_export_trait_t* oak_module_find_export_trait(
     const struct oak_module_t* mod, const char* name)
 {
   const int idx =
-      oak_htable_get(&mod->exports_trait.by_name, name, oak_strlen(name));
+      oak_htable_get(&mod->exports_trait.by_name, name, (int)strlen(name));
   if (idx < 0)
     return null;
   return &mod->exports_trait.items[idx];

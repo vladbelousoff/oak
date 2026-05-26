@@ -128,7 +128,7 @@ void oakc_register_native_enums(
     if (ne->module_name)
       continue;
 
-    const int ne_name_len = oak_strlen(ne->name);
+    const int ne_name_len = (int)strlen(ne->name);
     if (oakc_is_enum_name(&c->enums, ne->name, ne_name_len))
     {
       oak_compiler_error_at(
@@ -167,7 +167,7 @@ void oakc_register_native_enums(
     {
       const struct oak_bind_enum_variant_t* nv = &ne->variants[vi];
 
-      const int nv_name_len = oak_strlen(nv->name);
+      const int nv_name_len = (int)strlen(nv->name);
       if (oak_enum_registry_find(&c->enums, nv->name, nv_name_len))
       {
         oak_compiler_error_at(
