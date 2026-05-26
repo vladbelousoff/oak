@@ -77,7 +77,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
 {
   const struct oak_ast_node_t* name_node = oakc_fn_name_node(item);
   const char* name = oak_token_text(name_node->token);
-  const usize name_len = oak_token_length(name_node->token);
+  const usize name_len = oak_token_size(name_node->token);
   const int explicit_arity = oakc_count_fn_params(item);
   const struct oak_ast_node_t* self_param =
       oakc_fn_self_param(item);
@@ -123,7 +123,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
       const struct oak_ast_node_t* id_node = oakc_fn_param_ident(param);
       const struct oak_ast_node_t* ty_node = oakc_fn_param_type_node(param);
       pinfo[pi].name = id_node ? oak_token_text(id_node->token) : "";
-      pinfo[pi].name_len = id_node ? oak_token_length(id_node->token) : 0;
+      pinfo[pi].name_len = id_node ? oak_token_size(id_node->token) : 0;
       pinfo[pi].is_mut = oakc_param_is_mut(param);
       pinfo[pi].is_weak = 0;
       pinfo[pi].type_name = "";
@@ -138,13 +138,13 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
           if (base && base->kind == OAK_NODE_IDENT)
           {
             pinfo[pi].type_name = oak_token_text(base->token);
-            pinfo[pi].type_name_len = oak_token_length(base->token);
+            pinfo[pi].type_name_len = oak_token_size(base->token);
           }
         }
         else if (ty_node->kind == OAK_NODE_IDENT)
         {
           pinfo[pi].type_name = oak_token_text(ty_node->token);
-          pinfo[pi].type_name_len = oak_token_length(ty_node->token);
+          pinfo[pi].type_name_len = oak_token_size(ty_node->token);
         }
       }
     }
@@ -176,7 +176,7 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
 {
   const struct oak_ast_node_t* name_node = oakc_fn_name_node(item);
   const char* name = oak_token_text(name_node->token);
-  const usize name_len = oak_token_length(name_node->token);
+  const usize name_len = oak_token_size(name_node->token);
   const int explicit_arity = oakc_count_fn_params(item);
   const struct oak_ast_node_t* self_param =
       oakc_fn_self_param(item);

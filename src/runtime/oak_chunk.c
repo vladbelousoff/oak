@@ -154,9 +154,7 @@ int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
     int j;
     for (j = 0; j < n; ++j)
     {
-      const usize a = name_len ? name_len[j] : strlen(names[j]);
-      if (a != (usize)strlen(e->name[j]) ||
-          memcmp(names[j], e->name[j], a) != 0)
+      if (strcmp(names[j], e->name[j]) != 0)
         break;
     }
     if (j == n)

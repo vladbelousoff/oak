@@ -3,6 +3,8 @@
 #include "oakc_defs.h"
 #include "oak_type.h"
 
+#include <string.h>
+
 struct oak_ast_node_t;
 
 struct oak_trait_method_t
@@ -61,13 +63,12 @@ void oak_trait_registry_free(struct oak_trait_registry_t* r);
 
 static inline const struct oak_registered_trait_t*
 oakc_trait_find(const struct oak_trait_registry_t* r,
-                const char* name,
-                usize len)
+                const char* name)
 {
   for (int i = 0; i < r->trait_count; ++i)
   {
     const struct oak_registered_trait_t* t = &r->traits[i];
-    if (t->name_len == len && memcmp(t->name, name, len) == 0)
+    if (strcmp(t->name, name) == 0)
       return t;
   }
   return null;
@@ -84,12 +85,10 @@ oakc_trait_find_by_id(const struct oak_trait_registry_t* r, oak_type_id_t id)
 
 /* Returns the method slot index within the trait, or -1 if not found. */
 static inline int oakc_trait_method_slot(const struct oak_registered_trait_t* tr,
-                                         const char* name,
-                                         usize len)
+                                         const char* name)
 {
   for (int i = 0; i < tr->method_count; ++i)
-    if (tr->methods[i].name_len == len &&
-        memcmp(tr->methods[i].name, name, len) == 0)
+    if (strcmp(tr->methods[i].name, name) == 0)
       return i;
   return -1;
 }

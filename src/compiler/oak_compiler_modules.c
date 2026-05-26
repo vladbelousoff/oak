@@ -80,7 +80,7 @@ oak_compiler_match_module_member(const struct oak_compiler_t* c,
       rhs->kind != OAK_NODE_IDENT)
     return null;
   const struct oak_module_t* mod = oak_compiler_module_for_alias(
-      c, oak_token_text(lhs->token), oak_token_length(lhs->token));
+      c, oak_token_text(lhs->token), oak_token_size(lhs->token));
   if (!mod)
     return null;
   if (out_member)

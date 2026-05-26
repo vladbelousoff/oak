@@ -544,11 +544,9 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
     {
       const struct oak_obj_string_t* str_a = oak_as_string(a);
       const struct oak_obj_string_t* str_b = oak_as_string(b);
-      if (str_a->length != str_b->length)
-        return 0;
       if (str_a->hash != str_b->hash)
         return 0;
-      return memcmp(str_a->chars, str_b->chars, str_a->length) == 0;
+      return strcmp(str_a->chars, str_b->chars) == 0;
     }
     return oak_as_obj(a) == oak_as_obj(b);
   }

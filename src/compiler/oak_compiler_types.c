@@ -68,8 +68,7 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
   if (type_node->kind == OAK_NODE_IDENT)
   {
     const char* name = oak_token_text(type_node->token);
-    const usize len = oak_token_length(type_node->token);
-    const struct oak_registered_trait_t* tr = oakc_trait_find(&c->traits, name, len);
+    const struct oak_registered_trait_t* tr = oakc_trait_find(&c->traits, name);
     if (tr)
     {
       out->id = tr->trait_id;
@@ -118,18 +117,17 @@ oak_type_id_t oakc_intern_type_tok(struct oak_compiler_t* c,
                                              const struct oak_token_t* token)
 {
   return oak_type_registry_intern(
-      &c->types, oak_token_text(token), oak_token_length(token));
+      &c->types, oak_token_text(token), oak_token_size(token));
 }
 
 int oakc_local_type_get(struct oak_compiler_t* c,
                                 const char* name,
-                                const usize len,
                                 struct oak_type_t* out)
 {
   for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
     const struct oak_local_t* L = &c->scope.locals[i];
-    if (oak_name_eq(L->name, L->length, name, len))
+    if (oak_name_eq(L->name, name))
     {
       *out = L->type;
       return 1;

@@ -90,7 +90,7 @@ char* dotted_name_from_path(struct oak_allocator_t* a,
   {
     const struct oak_ast_node_t* ident =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    total += oak_token_length(ident->token);
+    total += oak_token_size(ident->token);
     ++count;
   }
   if (count == 0)
@@ -109,7 +109,7 @@ char* dotted_name_from_path(struct oak_allocator_t* a,
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (!first)
       buf[w++] = '.';
-    const usize len = oak_token_length(ident->token);
+    const usize len = oak_token_size(ident->token);
     memcpy(buf + w, oak_token_text(ident->token), len);
     w += len;
     first = 0;

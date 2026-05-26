@@ -19,11 +19,9 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
     if (oak_compiler_match_module_member(c, recv, &ename_tok))
     {
       const char* ename = oak_token_text(ename_tok);
-      const usize ename_len = oak_token_length(ename_tok);
       const char* vname = oak_token_text(fname->token);
-      const usize vlen = oak_token_length(fname->token);
       const struct oak_enum_variant_t* ev = oakc_enums_find_qualified(
-          &c->enums, ename, ename_len, vname, vlen);
+          &c->enums, ename, vname);
       if (!ev)
       {
         oak_compiler_error_at(
@@ -40,13 +38,12 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
   if (recv->kind == OAK_NODE_IDENT)
   {
     const char* recv_name = oak_token_text(recv->token);
-    const usize recv_len = oak_token_length(recv->token);
+    const usize recv_len = oak_token_size(recv->token);
     if (oakc_is_enum_name(&c->enums, recv_name, recv_len))
     {
       const char* vname = oak_token_text(fname->token);
-      const usize vlen = oak_token_length(fname->token);
       const struct oak_enum_variant_t* ev = oakc_enums_find_qualified(
-          &c->enums, recv_name, recv_len, vname, vlen);
+          &c->enums, recv_name, vname);
       if (!ev)
       {
         oak_compiler_error_at(c,

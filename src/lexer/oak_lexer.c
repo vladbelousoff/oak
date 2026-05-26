@@ -442,7 +442,7 @@ static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
     return OAK_LEX_NO_MATCH;
   }
 
-  const enum oak_token_kind_t kind = oak_keyword_lookup(gb.data, gb.len);
+  const enum oak_token_kind_t kind = oak_keyword_lookup(gb.data);
   oak_lexer_save_token(ctx->lexer,
                        &sav_cur,
                        kind,

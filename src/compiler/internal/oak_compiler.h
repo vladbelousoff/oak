@@ -71,7 +71,6 @@ void populate_module_exports(struct oak_compiler_t* c);
 
 int oak_compiler_find_local(const struct oak_compiler_t* c,
                             const char* name,
-                            usize length,
                             int* out_is_mutable);
 
 /* True if `name` is bound at module scope (top-level `let` in this program). */
@@ -140,7 +139,6 @@ oak_type_id_t oakc_intern_type_tok(struct oak_compiler_t* c,
 
 int oakc_local_type_get(struct oak_compiler_t* c,
                                 const char* name,
-                                usize len,
                                 struct oak_type_t* out);
 
 void oakc_infer_type(struct oak_compiler_t* c,
@@ -169,26 +167,26 @@ void oakc_register_map_methods(struct oak_compiler_t* c);
 void oakc_register_string_methods(struct oak_compiler_t* c);
 
 const struct oak_method_binding_t* oakc_find_array_method(
-    struct oak_compiler_t* c, const char* name, usize len);
+    struct oak_compiler_t* c, const char* name);
 
 const struct oak_method_binding_t* oakc_find_map_method(
-    struct oak_compiler_t* c, const char* name, usize len);
+    struct oak_compiler_t* c, const char* name);
 
 const struct oak_method_binding_t* oakc_find_string_method(
-    struct oak_compiler_t* c, const char* name, usize len);
+    struct oak_compiler_t* c, const char* name);
 
 void oakc_register_bool_methods(struct oak_compiler_t* c);
 void oakc_register_number_methods(struct oak_compiler_t* c);
 void oakc_register_record_methods(struct oak_compiler_t* c);
 
 const struct oak_method_binding_t* oakc_find_bool_method(
-    struct oak_compiler_t* c, const char* name, usize len);
+    struct oak_compiler_t* c, const char* name);
 
 const struct oak_method_binding_t* oakc_find_number_method(
-    struct oak_compiler_t* c, const char* name, usize len);
+    struct oak_compiler_t* c, const char* name);
 
 const struct oak_method_binding_t* oakc_find_record_builtin_method(
-    struct oak_compiler_t* c, const char* name, usize len);
+    struct oak_compiler_t* c, const char* name);
 
 /* ---------- oak_compiler_attrs.c ---------- */
 
@@ -278,15 +276,13 @@ void oakc_emit_weak_coerce(struct oak_compiler_t* c,
 /* ---------- oak_compiler_record_registry.c ---------- */
 
 int oakc_record_field(const struct oak_registered_record_t* s,
-                                   const char* name,
-                                   usize len);
+                                   const char* name);
 
 /* Look up a method by name on a record. If `static_only` is non-zero, only
  * static methods are returned; if zero, only instance methods. */
 const struct oak_registered_fn_t*
 oakc_find_record_method(const struct oak_registered_record_t* sd,
                                 const char* name,
-                                usize len,
                                 int static_only);
 
 /* If `recv_ty` is a known record, sets `*out_sd` and returns the field index.
@@ -296,7 +292,6 @@ int oakc_record_field_index(
     const struct oak_compiler_t* c,
     struct oak_type_t recv_ty,
     const char* field_name,
-    usize field_len,
     const struct oak_registered_record_t** out_sd);
 
 /* Resolves a member for codegen; emits errors and returns -1 on failure. */

@@ -75,10 +75,8 @@ oakc_records_find_by_id(const struct oak_record_registry_t* r,
 /* ---------- Field and method lookups ---------- */
 
 int oakc_record_field(const struct oak_registered_record_t* s,
-                                   const char* name,
-                                   const usize len)
+                                   const char* name)
 {
-  (void)len;
   for (int i = 0; i < s->field_count; ++i)
   {
     const struct oak_record_field_t* f = &s->fields[i];
@@ -91,10 +89,8 @@ int oakc_record_field(const struct oak_registered_record_t* s,
 const struct oak_registered_fn_t*
 oakc_find_record_method(const struct oak_registered_record_t* sd,
                                 const char* name,
-                                const usize len,
                                 const int static_only)
 {
-  (void)len;
   if (!sd)
     return null;
   for (int i = 0; i < sd->methods.count; ++i)
@@ -112,7 +108,6 @@ int oakc_record_field_index(
     const struct oak_compiler_t* c,
     struct oak_type_t recv_ty,
     const char* field_name,
-    const usize field_len,
     const struct oak_registered_record_t** out_sd)
 {
   if (!oak_type_is_known(&recv_ty))
@@ -123,7 +118,7 @@ int oakc_record_field_index(
     return -1;
   if (out_sd)
     *out_sd = sd;
-  return oakc_record_field(sd, field_name, field_len);
+  return oakc_record_field(sd, field_name);
 }
 
 int oakc_require_record_field(
@@ -136,9 +131,8 @@ int oakc_require_record_field(
   struct oak_type_t recv_ty;
   oakc_infer_type(c, recv, &recv_ty);
   const char* ftext = oak_token_text(fname->token);
-  const usize flen = oak_token_length(fname->token);
   const struct oak_registered_record_t* sd = null;
-  const int idx = oakc_record_field_index(c, recv_ty, ftext, flen, &sd);
+  const int idx = oakc_record_field_index(c, recv_ty, ftext, &sd);
   if (!oak_type_is_known(&recv_ty) || !sd)
   {
     oak_compiler_error_at(c,

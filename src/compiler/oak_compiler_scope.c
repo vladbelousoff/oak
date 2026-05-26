@@ -9,13 +9,12 @@ int oakc_is_module_scope(const struct oak_compiler_t* c,
 
 int oak_compiler_find_local(const struct oak_compiler_t* c,
                             const char* name,
-                            const usize length,
                             int* out_is_mutable)
 {
   for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
     const struct oak_local_t* local = &c->scope.locals[i];
-    if (oak_name_eq(local->name, local->length, name, length))
+    if (oak_name_eq(local->name, name))
     {
       if (out_is_mutable)
         *out_is_mutable = local->is_mutable;
@@ -85,16 +84,13 @@ int oakc_ident_local(const struct oak_compiler_t* c,
   if (!expr)
     return -1;
   const char* name = null;
-  usize len = 0;
   if (expr->kind == OAK_NODE_IDENT)
   {
     name = oak_token_text(expr->token);
-    len = oak_token_length(expr->token);
   }
   else if (expr->kind == OAK_NODE_SELF)
   {
     name = "self";
-    len = 4u;
   }
   else
   {
@@ -103,7 +99,7 @@ int oakc_ident_local(const struct oak_compiler_t* c,
   for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
     const struct oak_local_t* local = &c->scope.locals[i];
-    if (oak_name_eq(local->name, local->length, name, len))
+    if (oak_name_eq(local->name, name))
       return i;
   }
   return -1;
@@ -134,9 +130,9 @@ int oakc_compile_assign_target(struct oak_compiler_t* c,
     return -1;
   }
   const char* name = oak_token_text(lhs->token);
-  const usize name_len = oak_token_length(lhs->token);
+  const usize name_len = oak_token_size(lhs->token);
   int is_mutable = 0;
-  const int slot = oak_compiler_find_local(c, name, name_len, &is_mutable);
+  const int slot = oak_compiler_find_local(c, name, &is_mutable);
   if (slot < 0)
   {
     if (c->scope.fn_depth > 0 &&

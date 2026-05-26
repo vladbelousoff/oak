@@ -42,7 +42,7 @@ void oakc_compile_for_from(struct oak_compiler_t* c,
   const int loop_var_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c,
                          oak_token_text(ident->token),
-                         oak_token_length(ident->token),
+                         oak_token_size(ident->token),
                          loop_var_slot,
                          1,
                          from_ty);
@@ -168,7 +168,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
       const struct oak_type_t key_ty = { .id = coll_ty->key_id };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
-                             oak_token_length(k_ident->token),
+                             oak_token_size(k_ident->token),
                              c->scope.stack_depth - 1,
                              0,
                              key_ty);
@@ -179,7 +179,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
       const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
-                             oak_token_length(k_ident->token),
+                             oak_token_size(k_ident->token),
                              c->scope.stack_depth - 1,
                              0,
                              num_ty);
@@ -199,7 +199,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
       val_ty.kind = OAK_TYPE_KIND_TRAIT;
     oak_compiler_add_local(c,
                            oak_token_text(v_ident->token),
-                           oak_token_length(v_ident->token),
+                           oak_token_size(v_ident->token),
                            c->scope.stack_depth - 1,
                            0,
                            val_ty);
@@ -250,8 +250,8 @@ void oakc_compile_for_in(struct oak_compiler_t* c,
   /* Look up the receiver's size() binding so we can snapshot length once. */
   const struct oak_method_binding_t* len_m =
       coll_ty.kind == OAK_TYPE_KIND_MAP
-          ? oakc_find_map_method(c, "size", 4)
-          : oakc_find_array_method(c, "size", 4);
+          ? oakc_find_map_method(c, "size")
+          : oakc_find_array_method(c, "size");
   if (!len_m)
   {
     oak_compiler_error_at(c,

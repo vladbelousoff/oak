@@ -141,9 +141,9 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
     }
 
     const char* tname = oak_token_text(item->lhs->token);
-    const usize tname_len = oak_token_length(item->lhs->token);
+    const usize tname_len = oak_token_size(item->lhs->token);
 
-    if (oakc_trait_find(&c->traits, tname, tname_len))
+    if (oakc_trait_find(&c->traits, tname))
     {
       oak_compiler_error_at(
           c, item->lhs->token, "duplicate trait '%s'", tname);
@@ -192,7 +192,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
       }
 
       const char* mname = oak_token_text(name_node->token);
-      const usize mname_len = oak_token_length(name_node->token);
+      const usize mname_len = oak_token_size(name_node->token);
       const int explicit_arity = oakc_count_fn_params(mdecl);
       const struct oak_ast_node_t* self_p = oakc_fn_self_param(mdecl);
       const int total_arity = self_p ? explicit_arity + 1 : explicit_arity;
@@ -249,14 +249,11 @@ void oakc_register_method_decls(struct oak_compiler_t* c,
     }
 
     const char* rname = oak_token_text(type_ident->token);
-    const usize rname_len = oak_token_length(type_ident->token);
 
     struct oak_registered_record_t* sd = null;
     for (int i = 0; i < c->records.entries.count; ++i)
     {
-      if (oak_name_eq(c->records.entries.items[i].name,
-                      c->records.entries.items[i].name_len,
-                      rname, rname_len))
+      if (oak_name_eq(c->records.entries.items[i].name, rname))
       {
         sd = &c->records.entries.items[i];
         break;
@@ -300,7 +297,7 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
     if (!type_ident)
       continue;
     const char* rname = oak_token_text(type_ident->token);
-    const usize rname_len = oak_token_length(type_ident->token);
+    const usize rname_len = oak_token_size(type_ident->token);
 
     const struct oak_registered_record_t* sd =
         oakc_records_find(&c->records, rname, rname_len);
@@ -311,12 +308,11 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
     if (!name_node)
       continue;
     const char* mname = oak_token_text(name_node->token);
-    const usize mname_len = oak_token_length(name_node->token);
 
     const struct oak_registered_fn_t* sm =
-        oakc_find_record_method(sd, mname, mname_len, 0);
+        oakc_find_record_method(sd, mname, 0);
     if (!sm)
-      sm = oakc_find_record_method(sd, mname, mname_len, 1);
+      sm = oakc_find_record_method(sd, mname, 1);
     if (!sm)
       continue;
 
@@ -344,7 +340,7 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
   {
     const struct oak_trait_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =
-        oakc_find_record_method(sd, tm->name, tm->name_len, 0);
+        oakc_find_record_method(sd, tm->name, 0);
     if (!sm)
       return 0;
     if (sm->arity != tm->arity)
@@ -453,7 +449,7 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
     {
       const struct oak_trait_method_t* tm = &tr->methods[i];
       const struct oak_registered_fn_t* sm =
-          oakc_find_record_method(sd, tm->name, tm->name_len, 0);
+          oakc_find_record_method(sd, tm->name, 0);
       proto.vtable[i] = sm ? sm->const_idx : 0;
     }
     oak_dynarr_push(c->allocator, &c->traits.impls,
@@ -474,7 +470,7 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
   {
     const struct oak_trait_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =
-        oakc_find_record_method(sd, tm->name, tm->name_len, 0);
+        oakc_find_record_method(sd, tm->name, 0);
     struct oak_value_t fn_val;
     if (sm && sm->source_module_id != OAK_MODULE_ID_NONE &&
         c->module_registry)

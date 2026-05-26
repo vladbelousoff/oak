@@ -71,7 +71,7 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
   for (int i = 0; i < reg->count; ++i)
   {
     const struct oak_type_entry_t* e = &reg->entries[i];
-    if (e->name && oak_name_eq(e->name, e->len, name, len))
+    if (e->name && oak_name_eq(e->name, name))
       return (oak_type_id_t)i;
   }
   return -1;

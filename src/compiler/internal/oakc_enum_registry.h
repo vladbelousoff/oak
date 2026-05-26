@@ -83,9 +83,7 @@ const struct oak_enum_variant_t* oak_enum_registry_find(
 const struct oak_enum_variant_t*
 oakc_enums_find_qualified(const struct oak_enum_registry_t* r,
                                  const char* enum_name,
-                                 usize enum_name_len,
-                                 const char* variant_name,
-                                 usize variant_name_len);
+                                 const char* variant_name);
 
 /* O(1) check: is this name a registered enum type name? */
 int oakc_is_enum_name(const struct oak_enum_registry_t* r,
@@ -94,4 +92,4 @@ int oakc_is_enum_name(const struct oak_enum_registry_t* r,
 
 /* O(n) lookup by name. Returns null if not found. */
 const struct oak_registered_enum_t* oakc_enum_find(
-    const struct oak_enum_registry_t* r, const char* name, usize len);
+    const struct oak_enum_registry_t* r, const char* name);

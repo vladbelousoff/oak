@@ -4,10 +4,10 @@
 
 #include <string.h>
 
-/* Compare two length-prefixed identifier-like byte sequences (lexer text is
- * semantically (ptr, len) but tokens are stored with a trailing '\\0'). */
+/* Compare identifier-like strings. Tokens and runtime names are stored with a
+ * trailing terminal byte, so length is only kept for callers that need it. */
 static inline int
-oak_name_eq(const char* a, usize a_len, const char* b, usize b_len)
+oak_name_eq(const char* a, const char* b)
 {
-  return a_len == b_len && memcmp(a, b, a_len) == 0;
+  return strcmp(a, b) == 0;
 }

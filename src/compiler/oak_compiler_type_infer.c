@@ -68,10 +68,9 @@ void oakc_infer_type(struct oak_compiler_t* c,
     case OAK_NODE_IDENT:
     {
       const char* name = oak_token_text(expr->token);
-      const usize len = oak_token_length(expr->token);
       struct oak_type_t local_ty;
       oak_type_clear(&local_ty);
-      if (oakc_local_type_get(c, name, len, &local_ty))
+      if (oakc_local_type_get(c, name, &local_ty))
         *out = local_ty;
       return;
     }
@@ -79,7 +78,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
     {
       struct oak_type_t local_ty;
       oak_type_clear(&local_ty);
-      if (oakc_local_type_get(c, "self", 4u, &local_ty))
+      if (oakc_local_type_get(c, "self", &local_ty))
         *out = local_ty;
       return;
     }
@@ -161,7 +160,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
       const struct oak_registered_record_t* sd =
           oakc_records_find(&c->records,
                                            oak_token_text(type_seg->token),
-                                           oak_token_length(type_seg->token));
+                                           oak_token_size(type_seg->token));
       if (!sd)
         return;
       out->id = sd->type_id;
@@ -179,16 +178,12 @@ void oakc_infer_type(struct oak_compiler_t* c,
         if (oak_compiler_match_module_member(c, recv, &ename_tok))
         {
           const char* ename = oak_token_text(ename_tok);
-          const usize ename_len = oak_token_length(ename_tok);
+          const usize ename_len = oak_token_size(ename_tok);
           if (oakc_is_enum_name(&c->enums, ename, ename_len))
           {
             const struct oak_enum_variant_t* ev =
                 oakc_enums_find_qualified(
-                    &c->enums,
-                    ename,
-                    ename_len,
-                    oak_token_text(fname->token),
-                    oak_token_length(fname->token));
+                    &c->enums, ename, oak_token_text(fname->token));
             out->id = ev ? ev->type_id : OAK_TYPE_VOID;
             return;
           }
@@ -198,15 +193,12 @@ void oakc_infer_type(struct oak_compiler_t* c,
       if (recv->kind == OAK_NODE_IDENT)
       {
         const char* recv_name = oak_token_text(recv->token);
-        const usize recv_len = oak_token_length(recv->token);
+        const usize recv_len = oak_token_size(recv->token);
         if (oakc_is_enum_name(&c->enums, recv_name, recv_len))
         {
           const struct oak_enum_variant_t* ev =
-              oakc_enums_find_qualified(&c->enums,
-                                               recv_name,
-                                               recv_len,
-                                               oak_token_text(fname->token),
-                                               oak_token_length(fname->token));
+              oakc_enums_find_qualified(
+                  &c->enums, recv_name, oak_token_text(fname->token));
           out->id = ev ? ev->type_id : OAK_TYPE_VOID;
           return;
         }
@@ -218,7 +210,6 @@ void oakc_infer_type(struct oak_compiler_t* c,
           oakc_record_field_index(c,
                                 recv_ty,
                                 oak_token_text(fname->token),
-                                oak_token_length(fname->token),
                                 &sd);
       if (idx < 0)
         return;

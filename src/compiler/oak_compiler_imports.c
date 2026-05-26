@@ -60,7 +60,7 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
                                   const struct oak_module_export_trait_t* exp)
 {
   const struct oak_registered_trait_t* existing =
-      oakc_trait_find(&c->traits, exp->name, exp->name_len);
+      oakc_trait_find(&c->traits, exp->name);
   if (existing)
   {
     int idx = (int)(existing - c->traits.traits);
@@ -130,7 +130,7 @@ static void import_enum_from_dep(struct oak_compiler_t* c,
   if (oakc_is_enum_name(&c->enums, exp->name, exp->name_len))
   {
     const struct oak_registered_enum_t* re =
-        oakc_enum_find(&c->enums, exp->name, exp->name_len);
+        oakc_enum_find(&c->enums, exp->name);
     int idx = re ? (int)(re - c->enums.enums.items) : -1;
     if (idx >= pre_import_enum_count &&
         re->source_module_id != dep->module_id)
@@ -474,9 +474,9 @@ static void import_selective_from_dep(struct oak_compiler_t* c,
     if (!orig)
       continue;
     const char* orig_name = oak_token_text(orig->token);
-    const usize orig_len = oak_token_length(orig->token);
+    const usize orig_len = oak_token_size(orig->token);
     const char* local_name = alias ? oak_token_text(alias->token) : orig_name;
-    const usize local_len = alias ? oak_token_length(alias->token) : orig_len;
+    const usize local_len = alias ? oak_token_size(alias->token) : orig_len;
 
     int found = 0;
     const struct oak_module_export_fn_t* fn_exp =

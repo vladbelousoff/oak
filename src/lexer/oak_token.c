@@ -24,7 +24,7 @@ int oak_token_offset(const struct oak_token_t* token)
   return token->offset;
 }
 
-usize oak_token_length(const struct oak_token_t* token)
+usize oak_token_size(const struct oak_token_t* token)
 {
   return token->length;
 }
@@ -46,7 +46,7 @@ float oak_token_as_f32(const struct oak_token_t* token)
   return *(const float*)token->text;
 }
 
-enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
+enum oak_token_kind_t oak_keyword_lookup(const char* ident)
 {
   static const struct oak_keyword_entry_t keywords[] = {
     { "and", OAK_TOKEN_AND },       { "as", OAK_TOKEN_AS },
@@ -68,7 +68,7 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident, const usize length)
   for (int i = 0; i < (int)oak_count_of(keywords); ++i)
   {
     const char* keyword = keywords[i].keyword;
-    if (strncmp(ident, keyword, length + 1) == 0)
+    if (strcmp(ident, keyword) == 0)
       return keywords[i].kind;
   }
 

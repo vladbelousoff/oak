@@ -29,7 +29,7 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
   const struct oak_code_loc_t call_loc =
       oak_compiler_loc_from_token(callee->token);
   const usize argc = oakc_child_count(node) - 1;
-  const usize callee_len = oak_token_length(callee->token);
+  const usize callee_len = oak_token_size(callee->token);
   const char* callee_name = oak_token_text(callee->token);
 
   const struct oak_registered_fn_t* entry =

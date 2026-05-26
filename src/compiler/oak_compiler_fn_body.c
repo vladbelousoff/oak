@@ -165,7 +165,7 @@ void oakc_compile_fn_body(
       oakc_lower_type_node(c, type_id, &param_type);
     oak_compiler_add_local(c,
                            oak_token_text(id->token),
-                           oak_token_length(id->token),
+                           oak_token_size(id->token),
                            slot++,
                            oakc_param_is_mut(ch),
                            param_type);

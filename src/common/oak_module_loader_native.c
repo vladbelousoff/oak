@@ -395,7 +395,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
     {
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(item);
       const char* name = oak_token_text(name_node->token);
-      const usize name_len = oak_token_length(name_node->token);
+      const usize name_len = oak_token_size(name_node->token);
       const int arity = loader_fn_decl_param_count(item);
       if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, arity))
       {
@@ -416,7 +416,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
         continue;
       const char* type_name = oak_token_text(type_node->token);
       const char* name = oak_token_text(name_node->token);
-      const usize name_len = oak_token_length(name_node->token);
+      const usize name_len = oak_token_size(name_node->token);
       const int has_self = loader_method_decl_has_self(item);
       const int arity = loader_method_decl_param_count(item);
       const struct oak_bind_type_t* receiver =
@@ -440,7 +440,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
     if (!record_name_node)
       continue;
     const char* record_name = oak_token_text(record_name_node->token);
-    const usize record_name_len = oak_token_length(record_name_node->token);
+    const usize record_name_len = oak_token_size(record_name_node->token);
     const struct oak_bind_type_t* receiver =
         find_native_type_decl(opts, mod->dotted_name, record_name);
     struct oak_list_entry_t* mpos;
@@ -454,7 +454,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
         continue;
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(member);
       const char* name = oak_token_text(name_node->token);
-      const usize name_len = oak_token_length(name_node->token);
+      const usize name_len = oak_token_size(name_node->token);
       const int has_self = loader_fn_decl_has_self(member);
       const int arity = loader_fn_decl_param_count(member);
       if (!native_method_decl_exists(opts, receiver, name, has_self, arity))

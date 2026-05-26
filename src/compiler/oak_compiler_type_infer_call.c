@@ -16,7 +16,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   if (!recv || !method || method->kind != OAK_NODE_IDENT)
     return;
   const char* mn = oak_token_text(method->token);
-  const usize mn_len = oak_token_length(method->token);
+  const usize mn_len = oak_token_size(method->token);
 
   /* Case 1: mod.Type.method — cross-module static method. */
   if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
@@ -24,18 +24,18 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   {
     if (oak_compiler_module_export_record(c,
                                           oak_token_text(recv->lhs->token),
-                                          oak_token_length(recv->lhs->token),
+                                          oak_token_size(recv->lhs->token),
                                           oak_token_text(recv->rhs->token),
-                                          oak_token_length(recv->rhs->token),
+                                          oak_token_size(recv->rhs->token),
                                           null))
     {
       const struct oak_registered_record_t* sd =
           oakc_records_find(
               &c->records,
               oak_token_text(recv->rhs->token),
-              oak_token_length(recv->rhs->token));
+              oak_token_size(recv->rhs->token));
       const struct oak_registered_fn_t* sm =
-          oakc_find_record_method(sd, mn, mn_len, 1);
+          oakc_find_record_method(sd, mn, 1);
       if (sm)
       {
         if (sm->decl)
@@ -58,7 +58,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   if (recv->kind == OAK_NODE_IDENT)
   {
     const char* rname = oak_token_text(recv->token);
-    const usize rlen = oak_token_length(recv->token);
+    const usize rlen = oak_token_size(recv->token);
 
     /* Case 2: alias.fn — cross-module free function. */
     {
@@ -76,14 +76,14 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     /* Case 3: Type.method — local static method (only if rname is not a local). */
     struct oak_type_t local_ty;
     oak_type_clear(&local_ty);
-    if (!oakc_local_type_get(c, rname, rlen, &local_ty))
+    if (!oakc_local_type_get(c, rname, &local_ty))
     {
       const struct oak_registered_record_t* sd =
           oakc_records_find(&c->records, rname, rlen);
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oakc_find_record_method(sd, mn, mn_len, 1);
+            oakc_find_record_method(sd, mn, 1);
         if (sm)
         {
           if (sm->decl)
@@ -116,7 +116,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     if (sd)
     {
       const struct oak_registered_fn_t* sm =
-          oakc_find_record_method(sd, mn, mn_len, 0);
+          oakc_find_record_method(sd, mn, 0);
       if (sm)
       {
         if (sm->decl)
@@ -139,7 +139,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     if (recv_ty.id == OAK_TYPE_STRING)
     {
       const struct oak_method_binding_t* sm =
-          oakc_find_string_method(c, mn, mn_len);
+          oakc_find_string_method(c, mn);
       if (sm)
         out->id = sm->return_type_id;
     }
@@ -151,7 +151,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
         oakc_trait_find_by_id(&c->traits, recv_ty.id);
     if (tr)
     {
-      const int slot = oakc_trait_method_slot(tr, mn, mn_len);
+      const int slot = oakc_trait_method_slot(tr, mn);
       if (slot >= 0)
       {
         const struct oak_trait_method_t* tm = &tr->methods[slot];
@@ -175,9 +175,9 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   }
   const struct oak_method_binding_t* m = null;
   if (recv_ty.kind == OAK_TYPE_KIND_ARRAY)
-    m = oakc_find_array_method(c, mn, mn_len);
+    m = oakc_find_array_method(c, mn);
   else if (recv_ty.kind == OAK_TYPE_KIND_MAP)
-    m = oakc_find_map_method(c, mn, mn_len);
+    m = oakc_find_map_method(c, mn);
   if (m)
     out->id = m->return_type_id;
 }
@@ -204,7 +204,7 @@ void oakc_infer_fn_call_type(struct oak_compiler_t* c,
   if (callee->kind != OAK_NODE_IDENT)
     return;
   const char* cn = oak_token_text(callee->token);
-  const usize clen = oak_token_length(callee->token);
+  const usize clen = oak_token_size(callee->token);
   const struct oak_registered_fn_t* fe = oakc_find_fn(c, cn, clen);
   if (fe && !fe->decl)
   {

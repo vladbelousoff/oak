@@ -33,13 +33,13 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
 
   const struct oak_ast_node_t* type_seg = seg[seg_count - 1]; /* last segment */
   const char* sname = oak_token_text(type_seg->token);
-  const usize sname_len = oak_token_length(type_seg->token);
+  const usize sname_len = oak_token_size(type_seg->token);
 
   /* For a qualified path (mod.Type) verify the module alias is valid. */
   if (seg_count == 2)
   {
     const char* alias = oak_token_text(seg[0]->token);
-    const usize alias_len = oak_token_length(seg[0]->token);
+    const usize alias_len = oak_token_size(seg[0]->token);
     if (!oak_compiler_module_for_alias(c, alias, alias_len))
     {
       oak_compiler_error_at(
@@ -86,9 +86,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
       goto cleanup_exprs;
     }
 
-    const usize fname_len = oak_token_length(fname->token);
-    const int idx = oakc_record_field(
-        sd, oak_token_text(fname->token), fname_len);
+    const int idx = oakc_record_field(sd, oak_token_text(fname->token));
     if (idx < 0)
     {
       oak_compiler_error_at(c,

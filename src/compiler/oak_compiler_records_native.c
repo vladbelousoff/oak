@@ -38,12 +38,10 @@ find_module_by_dotted(const struct oak_module_registry_t* reg,
 /* Find a method export entry by name in a record export. */
 static const struct oak_module_export_record_method_t*
 find_method_export(const struct oak_module_export_record_t* rec,
-                   const char* name,
-                   usize name_len)
+                   const char* name)
 {
   for (int i = 0; i < rec->method_count; ++i)
-    if (rec->methods[i].name_len == name_len &&
-        strncmp(rec->methods[i].name, name, name_len) == 0)
+    if (strcmp(rec->methods[i].name, name) == 0)
       return &rec->methods[i];
   return null;
 }
@@ -211,7 +209,7 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
           if (rec_exp)
           {
             const struct oak_module_export_record_method_t* mexp =
-                find_method_export(rec_exp, b->name, name_len);
+                find_method_export(rec_exp, b->name);
             if (mexp && mexp->stub_attr_count > 0)
               oak_apply_attr_hooks(c->opts,
                                    null,

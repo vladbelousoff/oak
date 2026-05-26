@@ -89,8 +89,7 @@ int oak_htable_get(const struct oak_htable_t* ht,
   int i = (int)(h & (u32)(ht->capacity - 1));
   while (ht->slots[i].key)
   {
-    if (ht->slots[i].hash == h && ht->slots[i].key_len == key_len &&
-        memcmp(ht->slots[i].key, key, key_len) == 0)
+    if (ht->slots[i].hash == h && strcmp(ht->slots[i].key, key) == 0)
       return ht->slots[i].value;
     i = (i + 1) & (ht->capacity - 1);
   }
