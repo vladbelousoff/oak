@@ -42,7 +42,7 @@ void oak_type_registry_init(struct oak_type_registry_t* reg,
     oak_assert(b->id == reg->count);
     struct oak_type_entry_t entry = {
       .name = b->name,
-      .len = strlen(b->name),
+      .len = oak_strlen(b->name),
     };
     oak_dynarr_push(allocator,
         &reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
@@ -62,7 +62,7 @@ void oak_type_registry_free(struct oak_type_registry_t* reg)
 
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
                                        const char* name,
-                                       const usize len)
+                                       const int len)
 {
   if (!name || len == 0)
     return -1;
@@ -79,7 +79,7 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
 
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
                                        const char* name,
-                                       const usize len)
+                                       const int len)
 {
   const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
   if (existing >= 0)
@@ -115,7 +115,7 @@ static void oak_type_registry_ensure_slot(struct oak_type_registry_t* reg,
 
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const char* name,
-                                               const usize len,
+                                               const int len,
                                                const oak_type_id_t id)
 {
   if (!name || len == 0)

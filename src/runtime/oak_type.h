@@ -35,7 +35,7 @@ struct oak_type_t
 struct oak_type_entry_t
 {
   const char* name;
-  usize len;
+  int len;
 };
 
 struct oak_type_registry_t
@@ -54,13 +54,13 @@ void oak_type_registry_free(struct oak_type_registry_t* reg);
 /* Returns the id of an existing entry, or -1 if not found. */
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
                                        const char* name,
-                                       usize len);
+                                       int len);
 
 /* Returns the id of an existing entry, or registers a new one. Returns
  * -1 if `name` is null/empty. */
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
                                        const char* name,
-                                       usize len);
+                                       int len);
 
 /* Like oak_type_registry_intern but uses a caller-supplied `id` instead of
  * assigning the next sequential one.  Use this when native types have been
@@ -71,7 +71,7 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
  * different name or `id` is invalid. */
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const char* name,
-                                               usize len,
+                                               int len,
                                                oak_type_id_t id);
 
 /* Returns a printable name for `id` (always non-null; "<void>" if the id

@@ -159,7 +159,7 @@ void apply_native_module_function_exports(
     if (!native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const int eidx =
-        oak_htable_get(&mod->exports_fn.by_name, fn->name, strlen(fn->name));
+        oak_htable_get(&mod->exports_fn.by_name, fn->name, oak_strlen(fn->name));
     if (eidx < 0)
       continue;
     struct oak_obj_native_fn_t* native =
@@ -182,7 +182,7 @@ void apply_native_module_function_exports(
   {
     struct oak_module_export_record_t* rec = &mod->exports_record.items[ri];
     const oak_type_id_t rec_type_id =
-        oak_type_registry_intern(&mod->types, rec->name, rec->name_len);
+        oak_type_registry_intern(&mod->types, rec->name, oak_strlen(rec->name));
     for (int mi = 0; mi < rec->method_count; ++mi)
     {
       struct oak_module_export_record_method_t* me = &rec->methods[mi];
@@ -395,7 +395,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
     {
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(item);
       const char* name = oak_token_text(name_node->token);
-      const usize name_len = oak_token_size(name_node->token);
+      const int name_len = oak_token_size(name_node->token);
       const int arity = loader_fn_decl_param_count(item);
       if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, arity))
       {
@@ -416,7 +416,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
         continue;
       const char* type_name = oak_token_text(type_node->token);
       const char* name = oak_token_text(name_node->token);
-      const usize name_len = oak_token_size(name_node->token);
+      const int name_len = oak_token_size(name_node->token);
       const int has_self = loader_method_decl_has_self(item);
       const int arity = loader_method_decl_param_count(item);
       const struct oak_bind_type_t* receiver =
@@ -440,7 +440,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
     if (!record_name_node)
       continue;
     const char* record_name = oak_token_text(record_name_node->token);
-    const usize record_name_len = oak_token_size(record_name_node->token);
+    const int record_name_len = oak_token_size(record_name_node->token);
     const struct oak_bind_type_t* receiver =
         find_native_type_decl(opts, mod->dotted_name, record_name);
     struct oak_list_entry_t* mpos;
@@ -454,7 +454,7 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
         continue;
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(member);
       const char* name = oak_token_text(name_node->token);
-      const usize name_len = oak_token_size(name_node->token);
+      const int name_len = oak_token_size(name_node->token);
       const int has_self = loader_fn_decl_has_self(member);
       const int arity = loader_fn_decl_param_count(member);
       if (!native_method_decl_exists(opts, receiver, name, has_self, arity))
@@ -513,7 +513,6 @@ struct oak_module_t* create_native_module(
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
     struct oak_module_export_fn_t exp = {
       .name = fn->name,
-      .name_len = strlen(fn->name),
       .const_idx = const_idx,
       .arity = fn->arity,
       .return_type = {
@@ -529,7 +528,7 @@ struct oak_module_t* create_native_module(
                     &mod->exports_fn.capacity,
                     &exp,
                     sizeof(exp));
-    oak_htable_insert(&mod->exports_fn.by_name, exp.name, exp.name_len, idx);
+    oak_htable_insert(&mod->exports_fn.by_name, exp.name, oak_strlen(exp.name), idx);
   }
 
   for (int i = 0; i < opts->native_types.count; ++i)
@@ -539,14 +538,12 @@ struct oak_module_t* create_native_module(
       continue;
     struct oak_module_export_record_t exp = { 0 };
     exp.name = type->name;
-    exp.name_len = type->name_len;
     oak_dynarr_init(&exp.fields, &exp.field_count, &exp.field_capacity);
     oak_dynarr_init(&exp.methods, &exp.method_count, &exp.method_capacity);
     for (int fi = 0; fi < type->field_count; ++fi)
     {
       struct oak_module_export_record_field_t field = {
         .name = type->fields[fi].name,
-        .name_len = type->fields[fi].name_len,
         .type = { .id = type->fields[fi].field_type_id },
       };
       oak_dynarr_push(a, &exp.fields,
@@ -562,7 +559,7 @@ struct oak_module_t* create_native_module(
                     &exp,
                     sizeof(exp));
     oak_htable_insert(
-        &mod->exports_record.by_name, exp.name, exp.name_len, idx);
+        &mod->exports_record.by_name, exp.name, oak_strlen(exp.name), idx);
   }
 
   for (int i = 0; i < opts->native_enums.count; ++i)
@@ -572,13 +569,11 @@ struct oak_module_t* create_native_module(
       continue;
     struct oak_module_export_enum_t exp = { 0 };
     exp.name = e->name;
-    exp.name_len = e->name_len;
     oak_dynarr_init(&exp.variants, &exp.variant_count, &exp.variant_capacity);
     for (int vi = 0; vi < e->variant_count; ++vi)
     {
       struct oak_module_export_enum_variant_t variant = {
         .name = e->variants[vi].name,
-        .name_len = e->variants[vi].name_len,
         .value = e->variants[vi].value,
       };
       oak_dynarr_push(a, &exp.variants,
@@ -593,7 +588,7 @@ struct oak_module_t* create_native_module(
                     &mod->exports_enum.capacity,
                     &exp,
                     sizeof(exp));
-    oak_htable_insert(&mod->exports_enum.by_name, exp.name, exp.name_len, idx);
+    oak_htable_insert(&mod->exports_enum.by_name, exp.name, oak_strlen(exp.name), idx);
   }
 
   oak_type_registry_init(&mod->types, a);
@@ -603,8 +598,8 @@ struct oak_module_t* create_native_module(
     if (!type || !native_module_name_eq(type->module_name, dotted))
       continue;
     if (type->type_id >= OAK_TYPE_FIRST_USER)
-      oak_type_registry_intern_with_id(&mod->types, type->name, type->name_len,
-                                       type->type_id);
+      oak_type_registry_intern_with_id(
+          &mod->types, type->name, oak_strlen(type->name), type->type_id);
   }
 
   mod->state = OAK_MOD_COMPILED;

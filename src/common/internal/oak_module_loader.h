@@ -8,6 +8,7 @@
 #include "oak_lexer.h"
 #include "oak_allocator.h"
 #include "oak_log.h"
+#include "oak_str.h"
 #include "oak_type.h"
 
 #include <stdarg.h>

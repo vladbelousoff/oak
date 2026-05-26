@@ -38,7 +38,7 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
   if (recv->kind == OAK_NODE_IDENT)
   {
     const char* recv_name = oak_token_text(recv->token);
-    const usize recv_len = oak_token_size(recv->token);
+    const int recv_len = oak_token_size(recv->token);
     if (oakc_is_enum_name(&c->enums, recv_name, recv_len))
     {
       const char* vname = oak_token_text(fname->token);

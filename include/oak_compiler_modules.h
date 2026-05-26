@@ -10,7 +10,7 @@ struct oak_compiler_t;
 /* Resolve an import alias to the module it refers to.
  * Returns null when name is not an import alias in the current module. */
 OAK_API const struct oak_module_t* oak_compiler_module_for_alias(
-    const struct oak_compiler_t* c, const char* name, usize name_len);
+    const struct oak_compiler_t* c, const char* name);
 
 /* Look up an exported function on an imported module identified by alias.
  * Sets *out_mod when the alias resolves (even when the function is missing),
@@ -19,9 +19,7 @@ OAK_API const struct oak_module_t* oak_compiler_module_for_alias(
 OAK_API const struct oak_module_export_fn_t*
 oak_compiler_module_export_fn(const struct oak_compiler_t* c,
                               const char* alias,
-                              usize alias_len,
                               const char* fn_name,
-                              usize fn_name_len,
                               const struct oak_module_t** out_mod);
 
 /* Pattern detector: does `node` have the shape `IDENT.IDENT` where the lhs
@@ -37,18 +35,14 @@ oak_compiler_match_module_member(const struct oak_compiler_t* c,
 OAK_API const struct oak_module_export_record_t*
 oak_compiler_module_export_record(const struct oak_compiler_t* c,
                                   const char* alias,
-                                  usize alias_len,
                                   const char* type_name,
-                                  usize type_name_len,
                                   const struct oak_module_t** out_mod);
 
 /* Like oak_compiler_module_export_fn but for enum exports. */
 OAK_API const struct oak_module_export_enum_t*
 oak_compiler_module_export_enum(const struct oak_compiler_t* c,
                                 const char* alias,
-                                usize alias_len,
                                 const char* enum_name,
-                                usize enum_name_len,
                                 const struct oak_module_t** out_mod);
 
 /* Read at most `cap` IMPORT_PATH segments into out_segs[].

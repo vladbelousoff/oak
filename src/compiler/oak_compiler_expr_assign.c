@@ -102,7 +102,7 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
       oak_compiler_error_at(c,
                             fname->token,
                             "cannot assign to field '%.*s' of immutable record",
-                            (int)oak_token_size(fname->token),
+                            oak_token_size(fname->token),
                             oak_token_text(fname->token));
       return;
     }
@@ -266,7 +266,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
       oak_compiler_error_at(c,
                             fname->token,
                             "cannot assign to field '%.*s' of immutable record",
-                            (int)oak_token_size(fname->token),
+                            oak_token_size(fname->token),
                             oak_token_text(fname->token));
       return;
     }
@@ -376,7 +376,7 @@ void oak_compiler_compile_let_assignment(struct oak_compiler_t* c,
 
   oak_compiler_compile_node(c, rhs);
   const char* name = oak_token_text(ident->token);
-  const usize name_len = oak_token_size(ident->token);
+  const int name_len = oak_token_size(ident->token);
   oak_compiler_add_local(
       c, name, name_len, c->scope.stack_depth - 1, is_mutable, rhs_ty);
 }

@@ -5,12 +5,12 @@
 #include "oak_token.h"
 
 const struct oak_module_t* oak_compiler_module_for_alias(
-    const struct oak_compiler_t* c, const char* name, usize name_len)
+    const struct oak_compiler_t* c, const char* name)
 {
   if (!c->current_module || !c->module_registry)
     return null;
   const int mod_id =
-      oak_htable_get(&c->current_module->imports, name, name_len);
+      oak_htable_get(&c->current_module->imports, name, oak_strlen(name));
   if (mod_id < 0)
     return null;
   return oak_module_registry_get(c->module_registry, (u16)mod_id);
@@ -19,52 +19,43 @@ const struct oak_module_t* oak_compiler_module_for_alias(
 const struct oak_module_export_fn_t*
 oak_compiler_module_export_fn(const struct oak_compiler_t* c,
                               const char* alias,
-                              usize alias_len,
                               const char* fn_name,
-                              usize fn_name_len,
                               const struct oak_module_t** out_mod)
 {
-  const struct oak_module_t* mod =
-      oak_compiler_module_for_alias(c, alias, alias_len);
+  const struct oak_module_t* mod = oak_compiler_module_for_alias(c, alias);
   if (out_mod)
     *out_mod = mod;
   if (!mod)
     return null;
-  return oak_module_find_export_fn(mod, fn_name, fn_name_len);
+  return oak_module_find_export_fn(mod, fn_name);
 }
 
 const struct oak_module_export_record_t*
 oak_compiler_module_export_record(const struct oak_compiler_t* c,
                                   const char* alias,
-                                  usize alias_len,
                                   const char* type_name,
-                                  usize type_name_len,
                                   const struct oak_module_t** out_mod)
 {
-  const struct oak_module_t* mod =
-      oak_compiler_module_for_alias(c, alias, alias_len);
+  const struct oak_module_t* mod = oak_compiler_module_for_alias(c, alias);
   if (out_mod)
     *out_mod = mod;
   if (!mod)
     return null;
-  return oak_module_find_export_record(mod, type_name, type_name_len);
+  return oak_module_find_export_record(mod, type_name);
 }
 
 const struct oak_module_export_enum_t*
 oak_compiler_module_export_enum(const struct oak_compiler_t* c,
                                 const char* alias,
-                                usize alias_len,
                                 const char* enum_name,
-                                usize enum_name_len,
                                 const struct oak_module_t** out_mod)
 {
-  const struct oak_module_t* mod =
-      oak_compiler_module_for_alias(c, alias, alias_len);
+  const struct oak_module_t* mod = oak_compiler_module_for_alias(c, alias);
   if (out_mod)
     *out_mod = mod;
   if (!mod)
     return null;
-  return oak_module_find_export_enum(mod, enum_name, enum_name_len);
+  return oak_module_find_export_enum(mod, enum_name);
 }
 
 const struct oak_module_t*
@@ -79,8 +70,7 @@ oak_compiler_match_module_member(const struct oak_compiler_t* c,
   if (!lhs || !rhs || lhs->kind != OAK_NODE_IDENT ||
       rhs->kind != OAK_NODE_IDENT)
     return null;
-  const struct oak_module_t* mod = oak_compiler_module_for_alias(
-      c, oak_token_text(lhs->token), oak_token_size(lhs->token));
+  const struct oak_module_t* mod = oak_compiler_module_for_alias(c, oak_token_text(lhs->token));
   if (!mod)
     return null;
   if (out_member)

@@ -16,7 +16,6 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   if (!recv || !method || method->kind != OAK_NODE_IDENT)
     return;
   const char* mn = oak_token_text(method->token);
-  const usize mn_len = oak_token_size(method->token);
 
   /* Case 1: mod.Type.method — cross-module static method. */
   if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
@@ -24,9 +23,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   {
     if (oak_compiler_module_export_record(c,
                                           oak_token_text(recv->lhs->token),
-                                          oak_token_size(recv->lhs->token),
                                           oak_token_text(recv->rhs->token),
-                                          oak_token_size(recv->rhs->token),
                                           null))
     {
       const struct oak_registered_record_t* sd =
@@ -58,12 +55,12 @@ static void infer_method_call_type(struct oak_compiler_t* c,
   if (recv->kind == OAK_NODE_IDENT)
   {
     const char* rname = oak_token_text(recv->token);
-    const usize rlen = oak_token_size(recv->token);
+    const int rlen = oak_token_size(recv->token);
 
     /* Case 2: alias.fn — cross-module free function. */
     {
       const struct oak_module_export_fn_t* fexp =
-          oak_compiler_module_export_fn(c, rname, rlen, mn, mn_len, null);
+          oak_compiler_module_export_fn(c, rname, mn, null);
       if (fexp)
       {
         *out = fexp->return_type;
@@ -204,7 +201,7 @@ void oakc_infer_fn_call_type(struct oak_compiler_t* c,
   if (callee->kind != OAK_NODE_IDENT)
     return;
   const char* cn = oak_token_text(callee->token);
-  const usize clen = oak_token_size(callee->token);
+  const int clen = oak_token_size(callee->token);
   const struct oak_registered_fn_t* fe = oakc_find_fn(c, cn, clen);
   if (fe && !fe->decl)
   {

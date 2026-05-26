@@ -115,7 +115,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_STRING:
     {
       const char* chars = oak_token_text(node->token);
-      const usize len = oak_token_size(node->token);
+      const int len = oak_token_size(node->token);
       struct oak_obj_string_t* str = oak_string_new(c->allocator, chars, len);
       const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(str));
       oak_compiler_emit_constant(
@@ -137,7 +137,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_IDENT:
     {
       const char* name = oak_token_text(node->token);
-      const usize len = oak_token_size(node->token);
+      const int len = oak_token_size(node->token);
       const int slot = oak_compiler_find_local(c, name, null);
       if (slot >= 0)
       {

@@ -130,7 +130,7 @@ int oakc_compile_assign_target(struct oak_compiler_t* c,
     return -1;
   }
   const char* name = oak_token_text(lhs->token);
-  const usize name_len = oak_token_size(lhs->token);
+  const int name_len = oak_token_size(lhs->token);
   int is_mutable = 0;
   const int slot = oak_compiler_find_local(c, name, &is_mutable);
   if (slot < 0)

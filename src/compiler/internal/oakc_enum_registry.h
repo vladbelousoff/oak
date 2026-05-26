@@ -9,9 +9,9 @@ struct oak_enum_variant_t
 {
   /* Borrowed pointers into the lexer arena (live for the compilation). */
   const char* name;
-  usize name_len;
+  int name_len;
   const char* enum_name;
-  usize enum_name_len;
+  int enum_name_len;
   u16 const_idx;
   int value;
   /* Type id of the enum that owns this variant.  Populated when the enum
@@ -33,7 +33,7 @@ struct oak_enum_variant_vec_t
 struct oak_registered_enum_t
 {
   const char* name;
-  usize name_len;
+  int name_len;
   oak_type_id_t type_id;
   u16 source_module_id;
   /* Attribute names.  Always heap-allocated; freed by registry_free. */

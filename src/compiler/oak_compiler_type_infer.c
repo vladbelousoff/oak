@@ -178,7 +178,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
         if (oak_compiler_match_module_member(c, recv, &ename_tok))
         {
           const char* ename = oak_token_text(ename_tok);
-          const usize ename_len = oak_token_size(ename_tok);
+          const int ename_len = oak_token_size(ename_tok);
           if (oakc_is_enum_name(&c->enums, ename, ename_len))
           {
             const struct oak_enum_variant_t* ev =
@@ -193,7 +193,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
       if (recv->kind == OAK_NODE_IDENT)
       {
         const char* recv_name = oak_token_text(recv->token);
-        const usize recv_len = oak_token_size(recv->token);
+        const int recv_len = oak_token_size(recv->token);
         if (oakc_is_enum_name(&c->enums, recv_name, recv_len))
         {
           const struct oak_enum_variant_t* ev =

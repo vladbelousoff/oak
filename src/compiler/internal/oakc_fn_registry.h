@@ -15,7 +15,7 @@
 struct oak_registered_fn_t
 {
   const char* name;
-  usize name_len;
+  int name_len;
   u16 const_idx;
   /* For global fns and static methods: user-facing arity.
    * For instance methods: total arity including the implicit self receiver

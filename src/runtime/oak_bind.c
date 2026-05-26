@@ -3,6 +3,7 @@
 #include "oak_allocator.h"
 #include "oak_dynarr.h"
 #include "oak_log.h"
+#include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value.h"
 
@@ -97,10 +98,8 @@ struct oak_bind_type_t* oak_bind_type_in_module(
   struct oak_bind_type_t* t =
       OAK_ALLOC(opts->allocator, sizeof(struct oak_bind_type_t));
   t->module_name = module_name;
-  t->module_name_len = module_name ? strlen(module_name) : 0u;
   t->kind = kind;
   t->name = name;
-  t->name_len = strlen(name);
   t->type_id = opts->next_type_id++;
   oak_dynarr_init(&t->fields, &t->field_count, &t->field_capacity);
   t->destructor = null;
@@ -129,16 +128,16 @@ int oak_bind_field(struct oak_bind_type_t* type,
       return -1;
   }
 
-  const usize name_len = strlen(p->name);
+  const int name_len = oak_strlen(p->name);
   char* name_copy = OAK_ALLOC(type->allocator, name_len + 1u);
   if (!name_copy)
     return -1;
-  memcpy(name_copy, p->name, name_len);
+  for (int i = 0; i < name_len; ++i)
+    name_copy[i] = p->name[i];
   name_copy[name_len] = 0;
 
   struct oak_bind_field_t f = {
     .name = name_copy,
-    .name_len = name_len,
     .field_type_id = p->field_type_id,
     .shape = p->shape,
     .getter = p->getter,
@@ -163,8 +162,6 @@ int oak_bind_fn_global(struct oak_compile_options_t* opts,
       p->return_shape != OAK_BIND_SHAPE_ARRAY)
     return -1;
   struct oak_bind_global_fn_t entry = *p;
-  if (entry.module_name && entry.module_name_len == 0u)
-    entry.module_name_len = strlen(entry.module_name);
   oak_dynarr_push(opts->allocator, &opts->native_global_fns.items,
                   &opts->native_global_fns.count,
                   &opts->native_global_fns.capacity,
@@ -215,9 +212,7 @@ struct oak_bind_enum_t* oak_bind_enum_in_module(
   struct oak_bind_enum_t* e =
       OAK_ALLOC(opts->allocator, sizeof(struct oak_bind_enum_t));
   e->module_name = module_name;
-  e->module_name_len = module_name ? strlen(module_name) : 0u;
   e->name = name;
-  e->name_len = strlen(name);
   oak_dynarr_init(&e->variants, &e->variant_count, &e->variant_capacity);
   e->allocator = opts->allocator;
 
@@ -244,7 +239,6 @@ int oak_bind_enum_variant(struct oak_bind_enum_t* e,
 
   struct oak_bind_enum_variant_t v = {
     .name = name,
-    .name_len = strlen(name),
     .value = value,
   };
   oak_dynarr_push(e->allocator, &e->variants,

@@ -3,16 +3,28 @@
 #include <string.h>
 
 /* FNV-1a 32-bit hash over arbitrary bytes. */
-static u32 fnv1a(const void* data, usize len)
+static u32 fnv1a(const void* data, int len)
 {
   const u8* bytes = (const u8*)data;
   u32 h = 2166136261u;
-  for (usize i = 0; i < len; ++i)
+  for (int i = 0; i < len; ++i)
   {
     h ^= bytes[i];
     h *= 16777619u;
   }
   return h;
+}
+
+static int bytes_equal(const void* a, const void* b, int len)
+{
+  const u8* ab = (const u8*)a;
+  const u8* bb = (const u8*)b;
+  for (int i = 0; i < len; ++i)
+  {
+    if (ab[i] != bb[i])
+      return 0;
+  }
+  return 1;
 }
 
 void oak_htable_init(struct oak_htable_t* ht, struct oak_allocator_t* allocator)
@@ -59,7 +71,7 @@ static void grow(struct oak_htable_t* ht)
 
 void oak_htable_insert(struct oak_htable_t* ht,
                        const void* key,
-                       usize key_len,
+                       int key_len,
                        int value)
 {
   /* Grow before load exceeds 75%. */
@@ -80,7 +92,7 @@ void oak_htable_insert(struct oak_htable_t* ht,
 
 int oak_htable_get(const struct oak_htable_t* ht,
                    const void* key,
-                   usize key_len)
+                   int key_len)
 {
   if (!ht->capacity)
     return -1;
@@ -89,7 +101,8 @@ int oak_htable_get(const struct oak_htable_t* ht,
   int i = (int)(h & (u32)(ht->capacity - 1));
   while (ht->slots[i].key)
   {
-    if (ht->slots[i].hash == h && strcmp(ht->slots[i].key, key) == 0)
+    if (ht->slots[i].hash == h && ht->slots[i].key_len == key_len &&
+        bytes_equal(ht->slots[i].key, key, key_len))
       return ht->slots[i].value;
     i = (i + 1) & (ht->capacity - 1);
   }

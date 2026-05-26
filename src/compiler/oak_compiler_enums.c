@@ -128,7 +128,8 @@ void oakc_register_native_enums(
     if (ne->module_name)
       continue;
 
-    if (oakc_is_enum_name(&c->enums, ne->name, ne->name_len))
+    const int ne_name_len = oak_strlen(ne->name);
+    if (oakc_is_enum_name(&c->enums, ne->name, ne_name_len))
     {
       oak_compiler_error_at(
           c,
@@ -139,7 +140,7 @@ void oakc_register_native_enums(
     }
 
     const oak_type_id_t enum_type_id =
-        oak_type_registry_intern(&c->types, ne->name, ne->name_len);
+        oak_type_registry_intern(&c->types, ne->name, ne_name_len);
     if (enum_type_id < 0)
     {
       oak_compiler_error_at(
@@ -150,7 +151,7 @@ void oakc_register_native_enums(
     {
       struct oak_registered_enum_t re = {
         .name = ne->name,
-        .name_len = ne->name_len,
+        .name_len = ne_name_len,
         .type_id = enum_type_id,
         .attrs = null,
         .attr_count = 0,
@@ -166,7 +167,8 @@ void oakc_register_native_enums(
     {
       const struct oak_bind_enum_variant_t* nv = &ne->variants[vi];
 
-      if (oak_enum_registry_find(&c->enums, nv->name, nv->name_len))
+      const int nv_name_len = oak_strlen(nv->name);
+      if (oak_enum_registry_find(&c->enums, nv->name, nv_name_len))
       {
         oak_compiler_error_at(
             c,
@@ -183,9 +185,9 @@ void oakc_register_native_enums(
 
       struct oak_enum_variant_t v = {
         .name = nv->name,
-        .name_len = nv->name_len,
+        .name_len = nv_name_len,
         .enum_name = ne->name,
-        .enum_name_len = ne->name_len,
+        .enum_name_len = ne_name_len,
         .const_idx = idx,
         .value = nv->value,
         .type_id = enum_type_id,
@@ -217,7 +219,7 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
     }
 
     const char* enum_name_check = oak_token_text(name_node->token);
-    const usize enum_name_check_len = oak_token_size(name_node->token);
+    const int enum_name_check_len = oak_token_size(name_node->token);
     if (oakc_is_enum_name(&c->enums, enum_name_check, enum_name_check_len))
     {
       oak_compiler_error_at(
@@ -267,7 +269,7 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
         continue;
 
       const char* vname = oak_token_text(variant->token);
-      const usize vname_len = oak_token_size(variant->token);
+      const int vname_len = oak_token_size(variant->token);
 
       /* Duplicate variant name check (across all enums). */
       if (oak_enum_registry_find(&c->enums, vname, vname_len))

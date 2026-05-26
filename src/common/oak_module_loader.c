@@ -97,7 +97,7 @@ int oak_module_loader_load_program(const char* entry_path,
     if (_atk)                                                                  \
     {                                                                          \
       const char* _a = oak_token_text(_atk);                                   \
-      const usize _al = oak_token_size(_atk);                                \
+      const int _al = oak_token_size(_atk);                                \
       if (oak_htable_get(&(_parent_mod)->imports, _a, _al) < 0)                \
         oak_htable_insert(&(_parent_mod)->imports, _a, _al, (int)(_dep_id));   \
     }                                                                          \
@@ -164,7 +164,7 @@ int oak_module_loader_load_program(const char* entry_path,
       if (atk)
       {
         const char* alias = oak_token_text(atk);
-        const usize alen = oak_token_size(atk);
+        const int alen = oak_token_size(atk);
         if (oak_htable_get(&top->mod->imports, alias, alen) >= 0)
         {
           loader_error(out,
@@ -257,7 +257,7 @@ int oak_module_loader_load_program(const char* entry_path,
       if (atk)
       {
         const char* alias = oak_token_text(atk);
-        const usize alen = oak_token_size(atk);
+        const int alen = oak_token_size(atk);
         if (oak_htable_get(&top->mod->imports, alias, alen) >= 0)
         {
           loader_error(out,

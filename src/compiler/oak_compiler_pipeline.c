@@ -17,7 +17,7 @@ static void collect_module_scope_names(struct oak_compiler_t* c,
     if (!ident || ident->kind != OAK_NODE_IDENT)
       continue;
     const char* name = oak_token_text(ident->token);
-    const usize name_len = oak_token_size(ident->token);
+    const int name_len = oak_token_size(ident->token);
     if (oak_htable_get(&c->module_scope_names, name, name_len) < 0)
       oak_htable_insert(&c->module_scope_names, name, name_len, 1);
   }

@@ -58,7 +58,6 @@ typedef void (*oak_bind_destructor_t)(void* instance);
 struct oak_bind_field_t
 {
   const char* name;
-  usize name_len;
   /* Compile-time type of this field.  Use OAK_TYPE_NUMBER / OAK_TYPE_STRING /
    * OAK_TYPE_BOOL for primitives, or another oak_bind_type_t::type_id for
    * scalar native records, or the *element* type id when `shape` is ARRAY. */
@@ -77,9 +76,7 @@ struct oak_bind_type_t
    * synthetic module and imported as `module.Type`; when NULL, it is
    * registered in the global namespace as before. */
   const char* module_name;
-  usize module_name_len;
   const char* name;
-  usize name_len;
   /* Stable id assigned by oak_bind_type() from opts->next_type_id.
    * Valid for the lifetime of the oak_compile_options_t it was registered in.
    * Use this value as field_type_id or receiver_type_id when referencing
@@ -100,7 +97,6 @@ struct oak_bind_global_fn_t
 {
   /* NULL for a top-level global; "math" to scope it as `math.fn()`. */
   const char* module_name;
-  usize module_name_len;
   const char* name;
   oak_native_fn_t impl;
   int arity;
@@ -138,7 +134,6 @@ struct oak_bind_fn_t
 struct oak_bind_enum_variant_t
 {
   const char* name;
-  usize name_len;
   int value;
 };
 
@@ -147,9 +142,7 @@ struct oak_bind_enum_t
   /* Optional native module name. When set, variants are exported from that
    * synthetic module and referenced as `module.Enum.Variant`. */
   const char* module_name;
-  usize module_name_len;
   const char* name;
-  usize name_len;
   struct oak_bind_enum_variant_t* variants;
   int variant_count;
   int variant_capacity;
@@ -171,9 +164,7 @@ enum oak_attr_target_t
 struct oak_attr_param_info_t
 {
   const char* name;
-  usize name_len;
   const char* type_name;
-  usize type_name_len;
   oak_type_id_t type_id;
   int is_mut;
   int is_weak;
@@ -183,9 +174,7 @@ struct oak_attr_param_info_t
 struct oak_attr_field_info_t
 {
   const char* name;
-  usize name_len;
   const char* type_name;
-  usize type_name_len;
   oak_type_id_t type_id;
 };
 
@@ -324,8 +313,7 @@ OAK_API struct oak_bind_type_t* oak_bind_type_in_module(
 /* Register a field on a native type.  Fields are assigned indices in
  * registration order, matching the order the compiler resolves them.
  * `params` must not be NULL; it supplies name, field_type_id, getter, and
- * optional setter (same shape as struct oak_bind_field_t).  `name_len` in
- * params is ignored; it is set from `strlen(name)`.
+ * optional setter (same shape as struct oak_bind_field_t).
  * Returns 0 on success, -1 if a field with the same name already exists. */
 OAK_API int oak_bind_field(struct oak_bind_type_t* type,
                            const struct oak_bind_field_t* params);

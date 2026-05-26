@@ -141,7 +141,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
     }
 
     const char* tname = oak_token_text(item->lhs->token);
-    const usize tname_len = oak_token_size(item->lhs->token);
+    const int tname_len = oak_token_size(item->lhs->token);
 
     if (oakc_trait_find(&c->traits, tname))
     {
@@ -192,7 +192,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
       }
 
       const char* mname = oak_token_text(name_node->token);
-      const usize mname_len = oak_token_size(name_node->token);
+      const int mname_len = oak_token_size(name_node->token);
       const int explicit_arity = oakc_count_fn_params(mdecl);
       const struct oak_ast_node_t* self_p = oakc_fn_self_param(mdecl);
       const int total_arity = self_p ? explicit_arity + 1 : explicit_arity;
@@ -297,7 +297,7 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
     if (!type_ident)
       continue;
     const char* rname = oak_token_text(type_ident->token);
-    const usize rname_len = oak_token_size(type_ident->token);
+    const int rname_len = oak_token_size(type_ident->token);
 
     const struct oak_registered_record_t* sd =
         oakc_records_find(&c->records, rname, rname_len);

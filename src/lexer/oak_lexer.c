@@ -5,6 +5,7 @@
 #include "oak_allocator.h"
 #include "oak_utf8.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -29,6 +30,8 @@ void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
                           const char* buffer,
                           const usize buffer_size)
 {
+  oak_assert(buffer_size <= (usize)INT_MAX);
+
   usize token_size = sizeof(struct oak_token_t);
   if (buffer_size > 0)
   {
@@ -44,7 +47,7 @@ void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
   token->line = cur->line;
   token->column = cur->column;
   token->offset = cur->pos;
-  token->length = buffer_size;
+  token->length = (int)buffer_size;
 
   if (buffer && buffer_size > 0)
   {

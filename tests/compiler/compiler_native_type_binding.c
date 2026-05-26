@@ -80,7 +80,6 @@ OAK_TEST_DECL(BindTypeCreatesDescriptor)
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec2");
   OAK_CHECK(t != null);
   OAK_CHECK(strcmp(t->name, "NTVec2") == 0);
-  OAK_CHECK(t->name_len == 6u);
   OAK_CHECK(t->field_count == 0);
   OAK_CHECK(t->type_id >= OAK_TYPE_FIRST_USER);
 

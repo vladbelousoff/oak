@@ -9,14 +9,14 @@ struct oak_record_field_t
 {
   /* Borrowed pointer into the lexer arena (lives for the compilation). */
   const char* name;
-  usize name_len;
+  int name_len;
   struct oak_type_t type;
 };
 
 struct oak_registered_record_t
 {
   const char* name;
-  usize name_len;
+  int name_len;
   oak_type_id_t type_id;
   u16 source_module_id;
   struct oak_record_field_t* fields;

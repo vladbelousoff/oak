@@ -39,7 +39,7 @@ static const struct oak_ast_node_t* record_decl_name_ident(
 static const struct oak_bind_type_t* native_record_binding(
     const struct oak_compiler_t* c,
     const char* name,
-    usize name_len)
+    int name_len)
 {
   if (!c->opts)
     return null;
@@ -48,7 +48,7 @@ static const struct oak_bind_type_t* native_record_binding(
     const struct oak_bind_type_t* native = c->opts->native_types.items[i];
     if (!native || native->kind != OAK_BIND_TYPE_RECORD || !native->name)
       continue;
-    if (native->name_len == name_len &&
+    if (oak_strlen(native->name) == name_len &&
         strncmp(native->name, name, name_len) == 0)
       return native;
   }
@@ -68,12 +68,12 @@ static struct oak_type_t native_field_type(const struct oak_bind_field_t* field)
 static const struct oak_bind_field_t* native_record_field(
     const struct oak_bind_type_t* native,
     const char* name,
-    usize name_len)
+    int name_len)
 {
   for (int i = 0; i < native->field_count; ++i)
   {
     const struct oak_bind_field_t* field = &native->fields[i];
-    if (field->name_len == name_len &&
+    if (oak_strlen(field->name) == name_len &&
         strncmp(field->name, name, name_len) == 0)
       return field;
   }
@@ -133,7 +133,7 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
     }
 
     const char* field_name = oak_token_text(fdecl->lhs->token);
-    const usize field_name_len = oak_token_size(fdecl->lhs->token);
+    const int field_name_len = oak_token_size(fdecl->lhs->token);
     const struct oak_bind_field_t* native_field =
         native_record_field(native, field_name, field_name_len);
     if (!native_field)
@@ -198,7 +198,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
       return;
 
     const char* name = oak_token_text(name_ident->token);
-    const usize name_len = oak_token_size(name_ident->token);
+    const int name_len = oak_token_size(name_ident->token);
 
     const struct oak_registered_record_t* existing =
         oakc_records_find(&c->records, name, name_len);
@@ -256,17 +256,14 @@ void oakc_register_program_records(struct oak_compiler_t* c,
           if (fd->kind == OAK_NODE_RECORD_FIELD_DECL && fd->lhs && fd->rhs)
           {
             finfo[fi].name = oak_token_text(fd->lhs->token);
-            finfo[fi].name_len = oak_token_size(fd->lhs->token);
             finfo[fi].type_id = -1;
             if (fd->rhs->kind == OAK_NODE_IDENT)
             {
               finfo[fi].type_name = oak_token_text(fd->rhs->token);
-              finfo[fi].type_name_len = oak_token_size(fd->rhs->token);
             }
             else
             {
               finfo[fi].type_name = "";
-              finfo[fi].type_name_len = 0;
             }
             ++fi;
           }
@@ -345,7 +342,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
     }
 
     const char* fn_name = oak_token_text(fname->token);
-    const usize fn_len = oak_token_size(fname->token);
+    const int fn_len = oak_token_size(fname->token);
     for (int i = 0; i < slot->field_count; ++i)
     {
       if (strcmp(slot->fields[i].name, fn_name) == 0)

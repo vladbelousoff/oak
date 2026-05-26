@@ -18,7 +18,6 @@
 struct oak_module_export_fn_t
 {
   const char* name; /* borrowed from the module's lexer arena */
-  usize name_len;
   u16 const_idx; /* index into the module's chunk constants */
   int arity;     /* user-visible arity (no implicit self for globals) */
   /* Per-parameter resolved types and mutability flags.
@@ -38,7 +37,6 @@ struct oak_module_export_fn_t
 struct oak_module_export_record_field_t
 {
   const char* name; /* borrowed from lexer arena */
-  usize name_len;
   struct oak_type_t type; /* IDs reference the owning module's type registry */
 };
 
@@ -48,7 +46,6 @@ struct oak_module_export_record_field_t
 struct oak_module_export_record_method_t
 {
   const char* name;        /* borrowed from lexer arena */
-  usize name_len;
   u16 const_idx;           /* index into the source module's chunk constants */
   int arity;               /* total arity including implicit self for instance */
   int is_static;           /* 1 = static method, 0 = instance method */
@@ -62,7 +59,6 @@ struct oak_module_export_record_method_t
 struct oak_module_export_record_t
 {
   const char* name; /* borrowed from lexer arena */
-  usize name_len;
   struct oak_module_export_record_field_t* fields;
   int field_count;
   int field_capacity;
@@ -76,14 +72,12 @@ struct oak_module_export_record_t
 struct oak_module_export_enum_variant_t
 {
   const char* name; /* borrowed from lexer arena */
-  usize name_len;
   int value; /* ordinal (0, 1, 2, …) */
 };
 
 struct oak_module_export_enum_t
 {
   const char* name; /* enum type name, borrowed from lexer arena */
-  usize name_len;
   struct oak_module_export_enum_variant_t* variants;
   int variant_count;
   int variant_capacity;
@@ -93,7 +87,6 @@ struct oak_module_export_enum_t
 struct oak_module_export_trait_method_t
 {
   const char* name;
-  usize name_len;
   int arity;
   int self_is_mut;
   struct oak_type_t* param_types;
@@ -104,7 +97,6 @@ struct oak_module_export_trait_method_t
 struct oak_module_export_trait_t
 {
   const char* name;
-  usize name_len;
   struct oak_module_export_trait_method_t* methods;
   int method_count;
   int method_capacity;
@@ -235,16 +227,16 @@ oak_module_registry_create(struct oak_module_registry_t* reg,
 
 /* Look up a function export. Returns null if not found. */
 OAK_API const struct oak_module_export_fn_t* oak_module_find_export_fn(
-    const struct oak_module_t* mod, const char* name, usize name_len);
+    const struct oak_module_t* mod, const char* name);
 
 /* Look up a record export. Returns null if not found. */
 OAK_API const struct oak_module_export_record_t* oak_module_find_export_record(
-    const struct oak_module_t* mod, const char* name, usize name_len);
+    const struct oak_module_t* mod, const char* name);
 
 /* Look up an enum export. Returns null if not found. */
 OAK_API const struct oak_module_export_enum_t* oak_module_find_export_enum(
-    const struct oak_module_t* mod, const char* name, usize name_len);
+    const struct oak_module_t* mod, const char* name);
 
 /* Look up a trait export. Returns null if not found. */
 OAK_API const struct oak_module_export_trait_t* oak_module_find_export_trait(
-    const struct oak_module_t* mod, const char* name, usize name_len);
+    const struct oak_module_t* mod, const char* name);

@@ -144,7 +144,6 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
       oak_compiler_loc_from_token(method->token);
   const usize user_argc = oakc_child_count(node) - 1;
   const char* mname = oak_token_text(method->token);
-  const usize mname_len = oak_token_size(method->token);
 
   if (receiver->kind == OAK_NODE_MEMBER_ACCESS && receiver->lhs &&
       receiver->rhs && receiver->lhs->kind == OAK_NODE_IDENT &&
@@ -155,9 +154,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
     const struct oak_module_t* dep = null;
     if (oak_compiler_module_export_record(c,
                                           oak_token_text(alias_node->token),
-                                          oak_token_size(alias_node->token),
                                           oak_token_text(type_node->token),
-                                          oak_token_size(type_node->token),
                                           &dep))
     {
       const struct oak_registered_record_t* sd =
@@ -172,7 +169,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                               method->token,
                               "record '%s.%.*s' has no static method '%s'",
                               dep->dotted_name,
-                              (int)oak_token_size(type_node->token),
+                              oak_token_size(type_node->token),
                               oak_token_text(type_node->token),
                               mname);
         return;
@@ -204,12 +201,12 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   if (receiver->kind == OAK_NODE_IDENT)
   {
     const char* rname = oak_token_text(receiver->token);
-    const usize rlen = oak_token_size(receiver->token);
+    const int rlen = oak_token_size(receiver->token);
 
     /* alias.fn(args) — cross-module call. */
     const struct oak_module_t* dep = null;
     const struct oak_module_export_fn_t* exp =
-        oak_compiler_module_export_fn(c, rname, rlen, mname, mname_len, &dep);
+        oak_compiler_module_export_fn(c, rname, mname, &dep);
     if (dep && !exp)
     {
       oak_compiler_error_at(c,
