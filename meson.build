@@ -208,6 +208,7 @@ else
     '08_file_io': 'examples/08_file_io/08_file_io.oak',
     '10_traits': 'examples/10_traits/10_traits.oak',
     '11_weak_refs': 'examples/11_weak_refs/11_weak_refs.oak',
+    '12_generics': 'examples/12_generics/12_generics.oak',
   }
 
   foreach example_name, script : example_sources
