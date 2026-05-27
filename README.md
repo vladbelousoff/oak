@@ -143,7 +143,7 @@ Modules use selective or wildcard imports; all top-level declarations are public
 fn add(a : number, b : number) -> number { return a + b; }
 
 /* In main.oak */
-import { add } from util.math;        /* selective */
+import { add } from util.math;         /* selective */
 import * from io;                      /* wildcard — all declarations */
 import { add as sum } from util.math;  /* rename on import */
 ```
@@ -261,9 +261,9 @@ Native functions use this shape:
 
 ```c
 enum oak_fn_call_result_t fn(struct oak_native_ctx_t* ctx,
-                            const struct oak_value_t* args,
-                            int argc,
-                            struct oak_value_t* out);
+                             const struct oak_value_t* args,
+                             int argc,
+                             struct oak_value_t* out);
 ```
 
 Return `OAK_FN_CALL_OK` on success or `OAK_FN_CALL_RUNTIME_ERROR` to raise a VM
