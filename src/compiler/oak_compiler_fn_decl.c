@@ -15,6 +15,8 @@ oak_fn_decl_head(const struct oak_ast_node_t* decl)
 static const struct oak_ast_node_t*
 oak_fn_decl_params_tail(const struct oak_ast_node_t* decl)
 {
+  if (decl->kind == OAK_NODE_EXPR_FN)
+    return decl->lhs;
   return oak_fn_decl_proto(decl)->rhs;
 }
 
@@ -122,7 +124,8 @@ oakc_fn_param_type_node(const struct oak_ast_node_t* param)
       return ch;
     }
     if (ch->kind == OAK_NODE_TYPE_ARRAY || ch->kind == OAK_NODE_TYPE_MAP ||
-        ch->kind == OAK_NODE_TYPE_WEAK || ch->kind == OAK_NODE_TYPE_GENERIC)
+        ch->kind == OAK_NODE_TYPE_WEAK || ch->kind == OAK_NODE_TYPE_GENERIC ||
+        ch->kind == OAK_NODE_TYPE_FN)
       return ch;
   }
   return null;

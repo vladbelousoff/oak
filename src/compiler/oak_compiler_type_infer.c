@@ -71,7 +71,16 @@ void oakc_infer_type(struct oak_compiler_t* c,
       struct oak_type_t local_ty;
       oak_type_clear(&local_ty);
       if (oakc_local_type_get(c, name, &local_ty))
+      {
         *out = local_ty;
+        return;
+      }
+      const int len = oak_token_size(expr->token);
+      if (oakc_find_fn(c, name, len))
+      {
+        out->id = OAK_TYPE_FN;
+        out->kind = OAK_TYPE_KIND_FN;
+      }
       return;
     }
     case OAK_NODE_SELF:
@@ -216,6 +225,10 @@ void oakc_infer_type(struct oak_compiler_t* c,
       *out = sd->fields[idx].type;
       return;
     }
+    case OAK_NODE_EXPR_FN:
+      out->id = OAK_TYPE_FN;
+      out->kind = OAK_TYPE_KIND_FN;
+      return;
     default:
       return;
   }
@@ -237,6 +250,8 @@ const char* oakc_type_full_name(struct oak_compiler_t* c,
   static _Thread_local int slot = 0;
   char* buf = bufs[slot % 4];
   ++slot;
+  if (t.kind == OAK_TYPE_KIND_FN)
+    return "fn";
   if (t.kind == OAK_TYPE_KIND_MAP)
   {
     snprintf(buf,

@@ -111,6 +111,12 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
     out->id = oakc_intern_type_tok(c, base->token);
     return;
   }
+  if (type_node->kind == OAK_NODE_TYPE_FN)
+  {
+    out->id = OAK_TYPE_FN;
+    out->kind = OAK_TYPE_KIND_FN;
+    return;
+  }
   if (type_node->kind == OAK_NODE_TYPE_ARRAY)
   {
     const struct oak_ast_node_t* elem = type_node->child;

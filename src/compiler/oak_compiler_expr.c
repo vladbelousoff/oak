@@ -147,6 +147,21 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                              OAK_ARG_U8((u8)slot));
         break;
       }
+      const struct oak_registered_fn_t* fn_entry = oakc_find_fn(c, name, len);
+      if (fn_entry)
+      {
+        const struct oak_code_loc_t loc =
+            oak_compiler_loc_from_token(node->token);
+        if (fn_entry->source_module_id != OAK_MODULE_ID_NONE)
+          oak_compiler_emit_op(c,
+                               OAK_OP_GET_MODULE_FN,
+                               loc,
+                               OAK_ARG_U16(fn_entry->source_module_id),
+                               OAK_ARG_U16(fn_entry->source_const_idx));
+        else
+          oak_compiler_emit_constant(c, fn_entry->const_idx, loc);
+        break;
+      }
       if (c->scope.fn_depth > 0 &&
           oakc_is_module_scope(c, name, len))
       {
@@ -231,6 +246,9 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_STMT_DIV_ASSIGN:
     case OAK_NODE_STMT_MOD_ASSIGN:
       oak_compiler_compile_compound_assign(c, node);
+      break;
+    case OAK_NODE_EXPR_FN:
+      oakc_compile_expr_fn(c, node);
       break;
     case OAK_NODE_FN_CALL:
       oak_compiler_compile_fn_call(c, node);

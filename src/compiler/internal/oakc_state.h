@@ -91,4 +91,5 @@ struct oak_compiler_t
   /* Compile options (borrowed; NULL when compiling standalone). Used by
    * attribute callback dispatch to look up named attribute bindings. */
   const struct oak_compile_options_t* opts;
+  int anon_fn_count;
 };

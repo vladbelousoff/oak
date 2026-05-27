@@ -67,6 +67,7 @@ oak_core_sources = files(
   'src/compiler/oak_compiler_expr_assign.c',
   'src/compiler/oak_compiler_expr_binary.c',
   'src/compiler/oak_compiler_expr_collection.c',
+  'src/compiler/oak_compiler_expr_fn.c',
   'src/compiler/oak_compiler_expr_record.c',
   'src/compiler/oak_compiler_expr_member.c',
   'src/compiler/oak_compiler_fn_argcheck.c',
@@ -166,6 +167,7 @@ else
   )
 
   test_sources = {
+    'compiler_anon_fn': 'tests/compiler/compiler_anon_fn.c',
     'compiler_const_mut_binding': 'tests/compiler/compiler_const_mut_binding.c',
     'compiler_enum_access': 'tests/compiler/compiler_enum_access.c',
     'compiler_generics': 'tests/compiler/compiler_generics.c',
@@ -209,6 +211,7 @@ else
     '10_traits': 'examples/10_traits/10_traits.oak',
     '11_weak_refs': 'examples/11_weak_refs/11_weak_refs.oak',
     '12_generics': 'examples/12_generics/12_generics.oak',
+    '13_anonymous_functions': 'examples/13_anonymous_functions/13_anonymous_functions.oak',
   }
 
   foreach example_name, script : example_sources

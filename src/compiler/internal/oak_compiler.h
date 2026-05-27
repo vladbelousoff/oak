@@ -460,6 +460,11 @@ void oakc_compile_call_arg_for_type(struct oak_compiler_t* c,
 void oak_compiler_compile_call_args_after_callee(struct oak_compiler_t* c,
                                                  const struct oak_ast_node_t* call);
 
+/* ---------- oak_compiler_expr_fn.c ---------- */
+
+void oakc_compile_expr_fn(struct oak_compiler_t* c,
+                          const struct oak_ast_node_t* node);
+
 /* ---------- oak_compiler_expr.c ---------- */
 
 usize oakc_child_count(const struct oak_ast_node_t* node);

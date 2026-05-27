@@ -12,8 +12,9 @@ typedef int oak_type_id_t;
 #define OAK_TYPE_NUMBER     ((oak_type_id_t)1)
 #define OAK_TYPE_STRING     ((oak_type_id_t)2)
 #define OAK_TYPE_BOOL       ((oak_type_id_t)3)
+#define OAK_TYPE_FN         ((oak_type_id_t)4)
 #define OAK_TYPE_NONE       ((oak_type_id_t)-1)
-#define OAK_TYPE_FIRST_USER ((oak_type_id_t)4)
+#define OAK_TYPE_FIRST_USER ((oak_type_id_t)5)
 
 /* Type parameter ids live in a reserved range far above normal user types.
  * OAK_TYPE_PARAM_BASE + index gives the id for the i-th parameter in scope. */

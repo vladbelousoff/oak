@@ -138,6 +138,15 @@ enum oak_node_kind_t
   /* <number, string> — comma-separated type argument list.
    * Sequence: children are the resolved TYPE_NAME nodes. */
   OAK_NODE_TYPE_ARGS,
+  /* fn(x: number) -> number { return x; }
+   * Anonymous function expression.
+   * Binary: lhs = FN_PARAMS_AND_RET, rhs = BLOCK. */
+  OAK_NODE_EXPR_FN,
+  /* fn(number, string) -> bool — function type annotation.
+   * Binary: lhs = TYPE_FN_PARAMS, rhs = FN_RETURN_TYPE?. */
+  OAK_NODE_TYPE_FN,
+  /* (number, string) — comma-separated parameter types inside a fn type. */
+  OAK_NODE_TYPE_FN_PARAMS,
 };
 
 struct oak_ast_node_t

@@ -293,6 +293,12 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "TYPE_GENERIC";
     case OAK_NODE_TYPE_ARGS:
       return "TYPE_ARGS";
+    case OAK_NODE_EXPR_FN:
+      return "EXPR_FN";
+    case OAK_NODE_TYPE_FN:
+      return "TYPE_FN";
+    case OAK_NODE_TYPE_FN_PARAMS:
+      return "TYPE_FN_PARAMS";
   }
   return "UNKNOWN";
 }

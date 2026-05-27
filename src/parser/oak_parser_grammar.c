@@ -248,13 +248,14 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
     },
   },
-  // TYPE_NAME -> TYPE_WEAK | TYPE_ARRAY | TYPE_MAP | TYPE_GENERIC | IDENT
+  // TYPE_NAME -> TYPE_WEAK | TYPE_ARRAY | TYPE_MAP | TYPE_FN | TYPE_GENERIC | IDENT
   [OAK_NODE_TYPE_NAME] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_TYPE_WEAK,
       OAK_NODE_TYPE_ARRAY,
       OAK_NODE_TYPE_MAP,
+      OAK_NODE_TYPE_FN,
       OAK_NODE_TYPE_GENERIC,
       OAK_NODE_IDENT,
     },
@@ -367,6 +368,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_EXPR_MAP_LITERAL,
       OAK_NODE_EXPR_ARRAY_LITERAL,
       OAK_NODE_EXPR_RECORD_LITERAL,
+      OAK_NODE_EXPR_FN,
       OAK_NODE_SELF,
       OAK_NODE_IDENT,
     },
@@ -933,6 +935,34 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_LESS | OAK_RULE_TOKEN,
       OAK_NODE_TYPE_NAME | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
       OAK_TOKEN_GREATER | OAK_RULE_TOKEN,
+    },
+  },
+  // EXPR_FN -> 'fn' FN_PARAMS_AND_RET BLOCK
+  //   (binary: lhs = FN_PARAMS_AND_RET, rhs = BLOCK)
+  [OAK_NODE_EXPR_FN] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_TOKEN_FN | OAK_RULE_TOKEN,
+      OAK_NODE_FN_PARAMS_AND_RET,
+      OAK_NODE_BLOCK,
+    },
+  },
+  // TYPE_FN -> 'fn' '(' TYPE_FN_PARAMS ')' FN_RETURN_TYPE?
+  //   (binary: lhs = TYPE_FN_PARAMS, rhs = FN_RETURN_TYPE?)
+  [OAK_NODE_TYPE_FN] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_TOKEN_FN | OAK_RULE_TOKEN,
+      OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
+      OAK_NODE_TYPE_FN_PARAMS,
+      OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,
+      OAK_NODE_FN_RETURN_TYPE | OAK_RULE_OPTIONAL,
+    },
+  },
+  // TYPE_FN_PARAMS -> TYPE_NAME*  (comma-separated)
+  [OAK_NODE_TYPE_FN_PARAMS] = {
+    .rules = {
+      OAK_NODE_TYPE_NAME | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
     },
   },
 };
