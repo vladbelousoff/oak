@@ -168,6 +168,7 @@ struct oak_attr_param_info_t
   oak_type_id_t type_id;
   int is_mut;
   int is_weak;
+  const char* type_arg_name;
 };
 
 /* Per-field metadata exposed to attribute callbacks on RECORD targets. */

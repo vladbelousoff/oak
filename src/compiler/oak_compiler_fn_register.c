@@ -175,20 +175,26 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
       pinfo[pi].is_weak = 0;
       pinfo[pi].type_name = "";
       pinfo[pi].type_id = -1;
+      pinfo[pi].type_arg_name = null;
       if (ty_node)
       {
-        if (ty_node->kind == OAK_NODE_TYPE_WEAK)
+        const struct oak_ast_node_t* resolved = ty_node;
+        if (resolved->kind == OAK_NODE_TYPE_WEAK)
         {
           pinfo[pi].is_weak = 1;
-          const struct oak_ast_node_t* base = ty_node->child;
-          if (base && base->kind == OAK_NODE_IDENT)
-          {
-            pinfo[pi].type_name = oak_token_text(base->token);
-          }
+          resolved = resolved->child;
         }
-        else if (ty_node->kind == OAK_NODE_IDENT)
+        if (resolved && resolved->kind == OAK_NODE_TYPE_GENERIC)
         {
-          pinfo[pi].type_name = oak_token_text(ty_node->token);
+          if (resolved->lhs && resolved->lhs->kind == OAK_NODE_IDENT)
+            pinfo[pi].type_name = oak_token_text(resolved->lhs->token);
+          if (resolved->rhs && resolved->rhs->child &&
+              resolved->rhs->child->kind == OAK_NODE_IDENT)
+            pinfo[pi].type_arg_name = oak_token_text(resolved->rhs->child->token);
+        }
+        else if (resolved && resolved->kind == OAK_NODE_IDENT)
+        {
+          pinfo[pi].type_name = oak_token_text(resolved->token);
         }
       }
     }
