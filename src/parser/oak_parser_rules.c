@@ -51,6 +51,7 @@ struct oak_ast_node_t* oak_parser_parse_choice(struct oak_parser_t* p,
   const usize choice_count = oak_parser_grammar_rule_count(entry);
   for (usize i = 0; i < choice_count; ++i)
   {
+    p->curr = saved;
     struct oak_ast_node_t* child =
         oak_parser_parse_rule(p, (enum oak_node_kind_t)entry->rules[i]);
     if (child)
@@ -106,6 +107,7 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
       }
       if (!oak_parser_try_skip_token(p, tok))
       {
+        oak_parser_detail_expected_token(p, kind, tok);
         p->curr = saved;
         return null;
       }
@@ -148,6 +150,7 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
     struct oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
     if (!child && !is_optional)
     {
+      oak_parser_detail_expected_node(p, kind, child_kind);
       p->curr = saved;
       return null;
     }
@@ -165,6 +168,7 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
 
   if (is_fixed && slot_count != max_slots)
   {
+    oak_parser_detail_expected_node(p, kind, kind);
     p->curr = saved;
     return null;
   }

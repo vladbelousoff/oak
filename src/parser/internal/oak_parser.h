@@ -9,6 +9,12 @@ struct oak_parser_t
   const struct oak_list_entry_t* head;
   struct oak_list_entry_t* curr;
   struct oak_arena_t* arena;
+  int detail_valid;
+  const struct oak_token_t* detail_token;
+  int detail_has_expected_token;
+  enum oak_token_kind_t detail_expected_token;
+  enum oak_node_kind_t detail_expected_node;
+  enum oak_node_kind_t detail_context;
 };
 
 #define OAK_RULE_TOKEN    ((unsigned short)(1 << 15))
@@ -97,3 +103,11 @@ int oak_parser_try_skip_token(struct oak_parser_t* p,
                               enum oak_token_kind_t token_kind);
 
 usize oak_parser_grammar_rule_count(const struct oak_grammar_entry_t* entry);
+
+void oak_parser_detail_expected_token(struct oak_parser_t* p,
+                                      enum oak_node_kind_t context,
+                                      enum oak_token_kind_t expected);
+
+void oak_parser_detail_expected_node(struct oak_parser_t* p,
+                                     enum oak_node_kind_t context,
+                                     enum oak_node_kind_t expected);

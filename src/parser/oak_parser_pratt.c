@@ -19,7 +19,10 @@ parse_pratt_unary(struct oak_parser_t* p,
 {
   struct oak_ast_node_t* operand = oak_parser_parse_pratt(p, kind, rule->r_bp);
   if (!operand)
+  {
+    oak_parser_detail_expected_node(p, rule->node_kind, kind);
     return null;
+  }
   struct oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
@@ -37,7 +40,10 @@ parse_pratt_binary(struct oak_parser_t* p,
 {
   struct oak_ast_node_t* rhs = oak_parser_parse_pratt(p, kind, rule->r_bp);
   if (!rhs)
+  {
+    oak_parser_detail_expected_node(p, rule->node_kind, kind);
     return null;
+  }
   struct oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
   if (!node)
@@ -68,8 +74,16 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
       {
         case OAK_PRATT_GROUP:
           lhs = oak_parser_parse_pratt(p, kind, 0);
-          if (!lhs || !oak_parser_try_skip_token(p, r->close_token))
+          if (!lhs)
+          {
+            oak_parser_detail_expected_node(p, kind, kind);
             return null;
+          }
+          if (!oak_parser_try_skip_token(p, r->close_token))
+          {
+            oak_parser_detail_expected_token(p, kind, r->close_token);
+            return null;
+          }
           break;
         default:
           lhs = parse_pratt_unary(p, kind, r);
@@ -84,7 +98,10 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
   {
     lhs = oak_parser_parse_rule(p, entry->pratt.primary_rule);
     if (!lhs)
+    {
+      oak_parser_detail_expected_node(p, kind, entry->pratt.primary_rule);
       return null;
+    }
   }
 
   for (;;)
@@ -121,12 +138,18 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
             break;
           struct oak_ast_node_t* arg = oak_parser_parse_rule(p, rule->arg_rule);
           if (!arg)
+          {
+            oak_parser_detail_expected_node(p, rule->node_kind, rule->arg_rule);
             return null;
+          }
           oak_list_add_tail(&call->children, &arg->link);
         }
 
         if (!oak_parser_try_skip_token(p, rule->close_token))
+        {
+          oak_parser_detail_expected_token(p, rule->node_kind, rule->close_token);
           return null;
+        }
 
         lhs = call;
         break;
@@ -135,9 +158,15 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
       {
         struct oak_ast_node_t* index_expr = oak_parser_parse_pratt(p, kind, 0);
         if (!index_expr)
+        {
+          oak_parser_detail_expected_node(p, rule->node_kind, kind);
           return null;
+        }
         if (!oak_parser_try_skip_token(p, rule->close_token))
+        {
+          oak_parser_detail_expected_token(p, rule->node_kind, rule->close_token);
           return null;
+        }
         struct oak_ast_node_t* node =
             oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
         if (!node)
@@ -153,7 +182,10 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
         struct oak_ast_node_t* type_node =
             oak_parser_parse_rule(p, OAK_NODE_TYPE_NAME);
         if (!type_node)
+        {
+          oak_parser_detail_expected_node(p, rule->node_kind, OAK_NODE_TYPE_NAME);
           return null;
+        }
         struct oak_ast_node_t* node =
             oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
         if (!node)
