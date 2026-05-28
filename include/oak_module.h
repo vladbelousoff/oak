@@ -41,7 +41,7 @@ struct oak_module_export_record_field_t
 };
 
 /* Per-method metadata for exported record methods.
- * Populated by populate_module_exports; used by importing modules to
+ * Populated by oak_populate_module_exports; used by importing modules to
  * register callable methods on imported records. */
 struct oak_module_export_record_method_t
 {

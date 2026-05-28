@@ -35,10 +35,10 @@ static oak_type_id_t intern_or_param(struct oak_compiler_t* c,
         strncmp(c->generic_params[i].name, name, len) == 0)
       return OAK_TYPE_PARAM_BASE + i;
   }
-  return oakc_intern_type_tok(c, token);
+  return oak_intern_type_tok(c, token);
 }
 
-void oakc_lower_type_node(struct oak_compiler_t* c,
+void oak_lower_type_node(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* type_node,
                                     struct oak_type_t* out)
 {
@@ -47,7 +47,7 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
     return;
   if (type_node->kind == OAK_NODE_TYPE_WEAK)
   {
-    oakc_lower_type_node(c, type_node->child, out);
+    oak_lower_type_node(c, type_node->child, out);
     if (!oak_type_is_known(out))
       return;
     if (!oak_type_is_refcounted(out))
@@ -76,7 +76,7 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
     const struct oak_ast_node_t* base =
         oak_ast_node_child_at(type_node, 0);
     if (base)
-      oakc_lower_type_node(c, base, out);
+      oak_lower_type_node(c, base, out);
     return;
   }
   if (type_node->kind == OAK_NODE_IDENT)
@@ -93,14 +93,14 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
         return;
       }
     }
-    const struct oak_registered_trait_t* tr = oakc_trait_find(&c->traits, name);
+    const struct oak_registered_trait_t* tr = oak_trait_find(&c->traits, name);
     if (tr)
     {
       out->id = tr->trait_id;
       out->kind = OAK_TYPE_KIND_TRAIT;
       return;
     }
-    out->id = oakc_intern_type_tok(c, type_node->token);
+    out->id = oak_intern_type_tok(c, type_node->token);
     return;
   }
   if (type_node->kind == OAK_NODE_TYPE_GENERIC)
@@ -108,7 +108,7 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
     const struct oak_ast_node_t* base = type_node->lhs;
     if (!base || base->kind != OAK_NODE_IDENT)
       return;
-    out->id = oakc_intern_type_tok(c, base->token);
+    out->id = oak_intern_type_tok(c, base->token);
     return;
   }
   if (type_node->kind == OAK_NODE_TYPE_FN)
@@ -126,7 +126,7 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
     {
       if (elem->lhs && elem->lhs->kind == OAK_NODE_IDENT)
       {
-        out->id = oakc_intern_type_tok(c, elem->lhs->token);
+        out->id = oak_intern_type_tok(c, elem->lhs->token);
         out->kind = OAK_TYPE_KIND_ARRAY;
       }
       return;
@@ -151,7 +151,7 @@ void oakc_lower_type_node(struct oak_compiler_t* c,
   }
 }
 
-int oakc_type_accepts(const struct oak_type_t* want,
+int oak_type_accepts(const struct oak_type_t* want,
                       const struct oak_type_t* got)
 {
   if (oak_type_equal(want, got))
@@ -168,14 +168,14 @@ int oakc_type_accepts(const struct oak_type_t* want,
   return 0;
 }
 
-oak_type_id_t oakc_intern_type_tok(struct oak_compiler_t* c,
+oak_type_id_t oak_intern_type_tok(struct oak_compiler_t* c,
                                              const struct oak_token_t* token)
 {
   return oak_type_registry_intern(
       &c->types, oak_token_text(token), oak_token_size(token));
 }
 
-int oakc_local_type_get(struct oak_compiler_t* c,
+int oak_local_type_get(struct oak_compiler_t* c,
                                 const char* name,
                                 struct oak_type_t* out)
 {

@@ -50,7 +50,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
   const struct oak_ast_node_t* name_node = type_seg;
 
   const struct oak_registered_record_t* sd =
-      oakc_records_find(&c->records, sname, sname_len);
+      oak_records_find(&c->records, sname, sname_len);
   if (!sd)
   {
     oak_compiler_error_at(
@@ -85,7 +85,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
       goto cleanup_exprs;
     }
 
-    const int idx = oakc_record_field(sd, oak_token_text(fname->token));
+    const int idx = oak_record_field(sd, oak_token_text(fname->token));
     if (idx < 0)
     {
       oak_compiler_error_at(c,
@@ -105,17 +105,17 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     }
 
     struct oak_type_t got;
-    oakc_infer_type(c, fexpr, &got);
+    oak_infer_type(c, fexpr, &got);
     if (oak_type_is_known(&got) &&
-        !oakc_type_accepts(&sd->fields[idx].type, &got))
+        !oak_type_accepts(&sd->fields[idx].type, &got))
     {
       oak_compiler_error_at(
           c,
           fexpr->token ? fexpr->token : fname->token,
           "field '%s': expected type '%s', got '%s'",
           sd->fields[idx].name,
-          oakc_type_full_name(c, sd->fields[idx].type),
-          oakc_type_full_name(c, got));
+          oak_type_full_name(c, sd->fields[idx].type),
+          oak_type_full_name(c, got));
       goto cleanup_exprs;
     }
 
@@ -173,13 +173,13 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
       oak_compiler_compile_node(c, exprs[i]);
       if (c->has_error)
         goto cleanup_exprs;
-      oakc_emit_trait_coerce(c,
+      oak_emit_trait_coerce(c,
                              exprs[i],
                              sd->fields[i].type,
                              OAK_LOC_SYNTHETIC);
       if (c->has_error)
         goto cleanup_exprs;
-      oakc_emit_weak_coerce(c,
+      oak_emit_weak_coerce(c,
                             exprs[i],
                             sd->fields[i].type,
                             OAK_LOC_SYNTHETIC);

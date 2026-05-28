@@ -2,11 +2,11 @@
 #include "oak_compiler_modules.h"
 
 /* Implemented in oak_compiler_type_infer_call.c */
-void oakc_infer_fn_call_type(struct oak_compiler_t* c,
+void oak_infer_fn_call_type(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* expr,
                             struct oak_type_t* out);
 
-void oakc_infer_type(struct oak_compiler_t* c,
+void oak_infer_type(struct oak_compiler_t* c,
                    const struct oak_ast_node_t* expr,
                    struct oak_type_t* out)
 {
@@ -20,8 +20,8 @@ void oakc_infer_type(struct oak_compiler_t* c,
     {
       struct oak_type_t lt;
       struct oak_type_t rt;
-      oakc_infer_type(c, expr->lhs, &lt);
-      oakc_infer_type(c, expr->rhs, &rt);
+      oak_infer_type(c, expr->lhs, &lt);
+      oak_infer_type(c, expr->rhs, &rt);
       const int lk = oak_type_is_known(&lt);
       const int rk = oak_type_is_known(&rt);
       const int ls =
@@ -70,13 +70,13 @@ void oakc_infer_type(struct oak_compiler_t* c,
       const char* name = oak_token_text(expr->token);
       struct oak_type_t local_ty;
       oak_type_clear(&local_ty);
-      if (oakc_local_type_get(c, name, &local_ty))
+      if (oak_local_type_get(c, name, &local_ty))
       {
         *out = local_ty;
         return;
       }
       const int len = oak_token_size(expr->token);
-      if (oakc_find_fn(c, name, len))
+      if (oak_find_fn(c, name, len))
       {
         out->id = OAK_TYPE_FN;
         out->kind = OAK_TYPE_KIND_FN;
@@ -87,19 +87,19 @@ void oakc_infer_type(struct oak_compiler_t* c,
     {
       struct oak_type_t local_ty;
       oak_type_clear(&local_ty);
-      if (oakc_local_type_get(c, "self", &local_ty))
+      if (oak_local_type_get(c, "self", &local_ty))
         *out = local_ty;
       return;
     }
     case OAK_NODE_FN_CALL:
-      oakc_infer_fn_call_type(c, expr, out);
+      oak_infer_fn_call_type(c, expr, out);
       return;
     case OAK_NODE_EXPR_CAST:
     {
       const struct oak_ast_node_t* type_node = expr->rhs;
       if (!type_node)
         return;
-      oakc_lower_type_node(c, type_node, out);
+      oak_lower_type_node(c, type_node, out);
       return;
     }
     case OAK_NODE_EXPR_ARRAY_LITERAL:
@@ -113,7 +113,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
           first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
                                                              : first_wrap;
       struct oak_type_t elem_ty;
-      oakc_infer_type(c, first_elem, &elem_ty);
+      oak_infer_type(c, first_elem, &elem_ty);
       if (!oak_type_is_known(&elem_ty))
         return;
       out->id = elem_ty.id;
@@ -127,8 +127,8 @@ void oakc_infer_type(struct oak_compiler_t* c,
         return;
       struct oak_type_t key_ty;
       struct oak_type_t val_ty;
-      oakc_infer_type(c, first_entry->lhs, &key_ty);
-      oakc_infer_type(c, first_entry->rhs, &val_ty);
+      oak_infer_type(c, first_entry->lhs, &key_ty);
+      oak_infer_type(c, first_entry->rhs, &val_ty);
       if (!oak_type_is_known(&key_ty) || !oak_type_is_known(&val_ty))
         return;
       out->key_id = key_ty.id;
@@ -139,14 +139,14 @@ void oakc_infer_type(struct oak_compiler_t* c,
     case OAK_NODE_INDEX_ACCESS:
     {
       struct oak_type_t coll_ty;
-      oakc_infer_type(c, expr->lhs, &coll_ty);
+      oak_infer_type(c, expr->lhs, &coll_ty);
       if (oak_type_is_known(&coll_ty) &&
           (coll_ty.kind == OAK_TYPE_KIND_ARRAY ||
            coll_ty.kind == OAK_TYPE_KIND_MAP))
       {
         out->id = coll_ty.id;
         if (coll_ty.kind == OAK_TYPE_KIND_ARRAY &&
-            oakc_trait_find_by_id(&c->traits, coll_ty.id))
+            oak_trait_find_by_id(&c->traits, coll_ty.id))
           out->kind = OAK_TYPE_KIND_TRAIT;
       }
       return;
@@ -167,7 +167,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
       if (!type_seg)
         return;
       const struct oak_registered_record_t* sd =
-          oakc_records_find(&c->records,
+          oak_records_find(&c->records,
                                            oak_token_text(type_seg->token),
                                            oak_token_size(type_seg->token));
       if (!sd)
@@ -188,10 +188,10 @@ void oakc_infer_type(struct oak_compiler_t* c,
         {
           const char* ename = oak_token_text(ename_tok);
           const int ename_len = oak_token_size(ename_tok);
-          if (oakc_is_enum_name(&c->enums, ename, ename_len))
+          if (oak_is_enum_name(&c->enums, ename, ename_len))
           {
             const struct oak_enum_variant_t* ev =
-                oakc_enums_find_qualified(
+                oak_enums_find_qualified(
                     &c->enums, ename, oak_token_text(fname->token));
             out->id = ev ? ev->type_id : OAK_TYPE_VOID;
             return;
@@ -203,20 +203,20 @@ void oakc_infer_type(struct oak_compiler_t* c,
       {
         const char* recv_name = oak_token_text(recv->token);
         const int recv_len = oak_token_size(recv->token);
-        if (oakc_is_enum_name(&c->enums, recv_name, recv_len))
+        if (oak_is_enum_name(&c->enums, recv_name, recv_len))
         {
           const struct oak_enum_variant_t* ev =
-              oakc_enums_find_qualified(
+              oak_enums_find_qualified(
                   &c->enums, recv_name, oak_token_text(fname->token));
           out->id = ev ? ev->type_id : OAK_TYPE_VOID;
           return;
         }
       }
       struct oak_type_t recv_ty;
-      oakc_infer_type(c, recv, &recv_ty);
+      oak_infer_type(c, recv, &recv_ty);
       const struct oak_registered_record_t* sd = null;
       const int idx =
-          oakc_record_field_index(c,
+          oak_record_field_index(c,
                                 recv_ty,
                                 oak_token_text(fname->token),
                                 &sd);
@@ -234,7 +234,7 @@ void oakc_infer_type(struct oak_compiler_t* c,
   }
 }
 
-const char* oakc_type_kind_name(struct oak_compiler_t* c,
+const char* oak_type_kind_name(struct oak_compiler_t* c,
                                const struct oak_type_t t)
 {
   return oak_type_registry_name(&c->types, t.id);
@@ -243,7 +243,7 @@ const char* oakc_type_kind_name(struct oak_compiler_t* c,
 /* Format a type name into a thread-local buffer for error messages.
  * Uses a small ring of buffers so two calls in the same varargs list
  * (e.g. "expected '%s', found '%s'") each return a distinct pointer. */
-const char* oakc_type_full_name(struct oak_compiler_t* c,
+const char* oak_type_full_name(struct oak_compiler_t* c,
                                const struct oak_type_t t)
 {
   static _Thread_local char bufs[4][128];
@@ -264,25 +264,25 @@ const char* oakc_type_full_name(struct oak_compiler_t* c,
   }
   if (t.kind == OAK_TYPE_KIND_ARRAY)
   {
-    snprintf(buf, 128, "%s[]%s", oakc_type_kind_name(c, t),
+    snprintf(buf, 128, "%s[]%s", oak_type_kind_name(c, t),
              t.is_weak ? " weak" : "");
     return buf;
   }
   if (t.is_weak)
   {
-    snprintf(buf, 128, "%s weak", oakc_type_kind_name(c, t));
+    snprintf(buf, 128, "%s weak", oak_type_kind_name(c, t));
     return buf;
   }
-  return oakc_type_kind_name(c, t);
+  return oak_type_kind_name(c, t);
 }
 
-void oakc_reject_void(struct oak_compiler_t* c,
+void oak_reject_void(struct oak_compiler_t* c,
                     const struct oak_ast_node_t* expr)
 {
   if (!expr)
     return;
   struct oak_type_t t;
-  oakc_infer_type(c, expr, &t);
+  oak_infer_type(c, expr, &t);
   if (oak_type_is_void(&t))
   {
     oak_compiler_error_at(

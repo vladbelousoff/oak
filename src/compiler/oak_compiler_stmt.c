@@ -28,7 +28,7 @@ void oak_compiler_compile_block(struct oak_compiler_t* c,
 void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
                                   const struct oak_ast_node_t* node)
 {
-  oak_assert(oakc_child_count(node) >= 2u);
+  oak_assert(oak_child_count(node) >= 2u);
 
   struct oak_list_entry_t* pos = node->children.next;
   const struct oak_ast_node_t* cond =
@@ -42,7 +42,7 @@ void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
           ? oak_container_of(pos, struct oak_ast_node_t, link)
           : null;
 
-  oakc_reject_void(c, cond);
+  oak_reject_void(c, cond);
   if (c->has_error)
     return;
 
@@ -74,7 +74,7 @@ void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
   }
 }
 
-void oakc_compile_while(struct oak_compiler_t* c,
+void oak_compile_while(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* node)
 {
   if (!node->lhs || !node->rhs)
@@ -99,7 +99,7 @@ void oakc_compile_while(struct oak_compiler_t* c,
   /* current_loop points at a stack-allocated frame; reset before return. */
   c->scope.current_loop = &loop;
 
-  oakc_reject_void(c, node->lhs);
+  oak_reject_void(c, node->lhs);
   if (c->has_error)
   {
     c->scope.current_loop = loop.enclosing;

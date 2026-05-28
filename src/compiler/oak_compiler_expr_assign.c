@@ -18,7 +18,7 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
     }
 
     struct oak_type_t coll_ty;
-    oakc_infer_type(c, lhs->lhs, &coll_ty);
+    oak_infer_type(c, lhs->lhs, &coll_ty);
     if (coll_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&coll_ty))
     {
       oak_compiler_error_at(c,
@@ -30,7 +30,7 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
     if (coll_ty.kind == OAK_TYPE_KIND_MAP)
     {
       struct oak_type_t key_ty;
-      oakc_infer_type(c, lhs->rhs, &key_ty);
+      oak_infer_type(c, lhs->rhs, &key_ty);
       if (oak_type_is_known(&key_ty))
       {
         const struct oak_type_t want_key = { .id = coll_ty.key_id };
@@ -39,15 +39,15 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
           oak_compiler_error_at(c,
                                 lhs->rhs->token,
                                 "map key must be of type '%s', got '%s'",
-                                oakc_type_full_name(c, want_key),
-                                oakc_type_full_name(c, key_ty));
+                                oak_type_full_name(c, want_key),
+                                oak_type_full_name(c, key_ty));
           return;
         }
       }
     }
 
     struct oak_type_t val_ty;
-    oakc_infer_type(c, rhs, &val_ty);
+    oak_infer_type(c, rhs, &val_ty);
     if (oak_type_is_void(&val_ty))
     {
       oak_compiler_error_at(
@@ -56,26 +56,26 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
     }
     const struct oak_type_t element_ty = { .id = coll_ty.id };
     if (oak_type_is_known(&val_ty) &&
-        !oakc_type_accepts(&element_ty, &val_ty))
+        !oak_type_accepts(&element_ty, &val_ty))
     {
       oak_compiler_error_at(
           c,
           rhs->token,
           "cannot assign value of type '%s' to element of '%s' %s",
-          oakc_type_full_name(c, val_ty),
-          oakc_type_full_name(c, element_ty),
+          oak_type_full_name(c, val_ty),
+          oak_type_full_name(c, element_ty),
           coll_ty.kind == OAK_TYPE_KIND_MAP ? "map" : "array");
       return;
     }
 
-    if (oakc_reject_immutable_ref_for_mutable_storage(
+    if (oak_reject_immutable_ref_for_mutable_storage(
             c, rhs, val_ty, rhs->token, "indexed value"))
       return;
 
     oak_compiler_compile_node(c, lhs->lhs);
     oak_compiler_compile_node(c, lhs->rhs);
     oak_compiler_compile_node(c, rhs);
-    oakc_emit_weak_coerce(c, rhs, element_ty, OAK_LOC_SYNTHETIC);
+    oak_emit_weak_coerce(c, rhs, element_ty, OAK_LOC_SYNTHETIC);
     if (c->has_error)
       return;
     oak_compiler_emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
@@ -93,7 +93,7 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
       return;
     }
     const struct oak_registered_record_t* sd = null;
-    const int idx = oakc_require_record_field(c, recv, fname, 1, &sd);
+    const int idx = oak_require_record_field(c, recv, fname, 1, &sd);
     if (idx < 0)
       return;
 
@@ -108,7 +108,7 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
     }
 
     struct oak_type_t val_ty;
-    oakc_infer_type(c, rhs, &val_ty);
+    oak_infer_type(c, rhs, &val_ty);
     if (oak_type_is_void(&val_ty))
     {
       oak_compiler_error_at(c,
@@ -117,31 +117,31 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
       return;
     }
     if (oak_type_is_known(&val_ty) &&
-        !oakc_type_accepts(&sd->fields[idx].type, &val_ty))
+        !oak_type_accepts(&sd->fields[idx].type, &val_ty))
     {
       oak_compiler_error_at(
           c,
           rhs->token ? rhs->token : fname->token,
           "cannot assign value of type '%s' to field '%s' of type '%s'",
-          oakc_type_full_name(c, val_ty),
+          oak_type_full_name(c, val_ty),
           sd->fields[idx].name,
-          oakc_type_full_name(c, sd->fields[idx].type));
+          oak_type_full_name(c, sd->fields[idx].type));
       return;
     }
 
-    if (oakc_reject_immutable_ref_for_mutable_storage(
+    if (oak_reject_immutable_ref_for_mutable_storage(
             c, rhs, val_ty, rhs->token ? rhs->token : fname->token, "field"))
       return;
 
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, rhs);
-    oakc_emit_trait_coerce(c,
+    oak_emit_trait_coerce(c,
                            rhs,
                            sd->fields[idx].type,
                            oak_compiler_loc_from_token(fname->token));
     if (c->has_error)
       return;
-    oakc_emit_weak_coerce(c,
+    oak_emit_weak_coerce(c,
                           rhs,
                           sd->fields[idx].type,
                           oak_compiler_loc_from_token(fname->token));
@@ -154,21 +154,21 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
     return;
   }
 
-  const int slot = oakc_compile_assign_target(
+  const int slot = oak_compile_assign_target(
       c, lhs, "assignment target must be a variable");
   if (slot < 0)
     return;
 
-  oakc_reject_void(c, rhs);
+  oak_reject_void(c, rhs);
   if (c->has_error)
     return;
 
   struct oak_type_t rhs_ty;
-  oakc_infer_type(c, rhs, &rhs_ty);
-  const int target_idx = oakc_local_at_slot(c, slot);
+  oak_infer_type(c, rhs, &rhs_ty);
+  const int target_idx = oak_local_at_slot(c, slot);
   if (target_idx >= 0 &&
       oak_type_is_refcounted(&c->scope.locals[target_idx].type) &&
-      oakc_reject_immutable_ref_for_mutable_storage(
+      oak_reject_immutable_ref_for_mutable_storage(
           c, rhs, rhs_ty, rhs->token, "binding"))
     return;
 
@@ -196,7 +196,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     }
 
     struct oak_type_t coll_ty;
-    oakc_infer_type(c, lhs->lhs, &coll_ty);
+    oak_infer_type(c, lhs->lhs, &coll_ty);
     if (coll_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&coll_ty))
     {
       oak_compiler_error_at(c,
@@ -208,7 +208,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     if (coll_ty.kind == OAK_TYPE_KIND_MAP)
     {
       struct oak_type_t key_ty;
-      oakc_infer_type(c, lhs->rhs, &key_ty);
+      oak_infer_type(c, lhs->rhs, &key_ty);
       if (oak_type_is_known(&key_ty))
       {
         const struct oak_type_t want_key = { .id = coll_ty.key_id };
@@ -217,14 +217,14 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
           oak_compiler_error_at(c,
                                 lhs->rhs->token,
                                 "map key must be of type '%s', got '%s'",
-                                oakc_type_full_name(c, want_key),
-                                oakc_type_full_name(c, key_ty));
+                                oak_type_full_name(c, want_key),
+                                oak_type_full_name(c, key_ty));
           return;
         }
       }
     }
 
-    oakc_reject_void(c, node->rhs);
+    oak_reject_void(c, node->rhs);
     if (c->has_error)
       return;
 
@@ -235,10 +235,10 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     oak_compiler_emit_op(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
     oak_compiler_compile_node(c, node->rhs);
     oak_compiler_emit_op(c,
-                         oakc_binop_for_node(node->kind),
+                         oak_binop_for_node(node->kind),
                          oak_compiler_loc_from_token(lhs->token));
     const struct oak_type_t element_ty = { .id = coll_ty.id };
-    oakc_emit_weak_coerce(c, node->rhs, element_ty, OAK_LOC_SYNTHETIC);
+    oak_emit_weak_coerce(c, node->rhs, element_ty, OAK_LOC_SYNTHETIC);
     if (c->has_error)
       return;
     oak_compiler_emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
@@ -257,7 +257,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     }
 
     const struct oak_registered_record_t* sd = null;
-    const int idx = oakc_require_record_field(c, recv, fname, 1, &sd);
+    const int idx = oak_require_record_field(c, recv, fname, 1, &sd);
     if (idx < 0)
       return;
 
@@ -271,7 +271,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
       return;
     }
 
-    oakc_reject_void(c, node->rhs);
+    oak_reject_void(c, node->rhs);
     if (c->has_error)
       return;
 
@@ -283,15 +283,15 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
                          OAK_ARG_U8((u8)idx));
     oak_compiler_compile_node(c, node->rhs);
     oak_compiler_emit_op(c,
-                         oakc_binop_for_node(node->kind),
+                         oak_binop_for_node(node->kind),
                          oak_compiler_loc_from_token(lhs->token));
-    oakc_emit_trait_coerce(c,
+    oak_emit_trait_coerce(c,
                            node->rhs,
                            sd->fields[idx].type,
                            oak_compiler_loc_from_token(fname->token));
     if (c->has_error)
       return;
-    oakc_emit_weak_coerce(c,
+    oak_emit_weak_coerce(c,
                           node->rhs,
                           sd->fields[idx].type,
                           oak_compiler_loc_from_token(fname->token));
@@ -304,13 +304,13 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     return;
   }
 
-  const int slot = oakc_compile_assign_target(
+  const int slot = oak_compile_assign_target(
       c, lhs, "compound assignment target must be a variable");
   if (slot < 0)
     return;
 
   if (node->kind == OAK_NODE_STMT_ADD_ASSIGN &&
-      oakc_is_int_literal(node->rhs, 1))
+      oak_is_int_literal(node->rhs, 1))
   {
     oak_compiler_emit_op(c,
                          OAK_OP_INC_LOCAL,
@@ -319,7 +319,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     return;
   }
   if (node->kind == OAK_NODE_STMT_SUB_ASSIGN &&
-      oakc_is_int_literal(node->rhs, 1))
+      oak_is_int_literal(node->rhs, 1))
   {
     oak_compiler_emit_op(c,
                          OAK_OP_DEC_LOCAL,
@@ -328,7 +328,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     return;
   }
 
-  oakc_reject_void(c, node->rhs);
+  oak_reject_void(c, node->rhs);
   if (c->has_error)
     return;
 
@@ -338,7 +338,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
                        OAK_ARG_U8((u8)slot));
   oak_compiler_compile_node(c, node->rhs);
   oak_compiler_emit_op(c,
-                       oakc_binop_for_node(node->kind),
+                       oak_binop_for_node(node->kind),
                        oak_compiler_loc_from_token(lhs->token));
   oak_compiler_emit_op(c,
                        OAK_OP_SET_LOCAL,
@@ -363,14 +363,14 @@ void oak_compiler_compile_let_assignment(struct oak_compiler_t* c,
   const struct oak_ast_node_t* ident = assign->lhs;
   const struct oak_ast_node_t* rhs = assign->rhs;
 
-  oakc_reject_void(c, rhs);
+  oak_reject_void(c, rhs);
   if (c->has_error)
     return;
 
   struct oak_type_t rhs_ty;
-  oakc_infer_type(c, rhs, &rhs_ty);
+  oak_infer_type(c, rhs, &rhs_ty);
 
-  if (is_mutable && oakc_reject_immutable_ref_for_mutable_storage(
+  if (is_mutable && oak_reject_immutable_ref_for_mutable_storage(
                         c, rhs, rhs_ty, rhs->token, "binding"))
     return;
 

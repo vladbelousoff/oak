@@ -37,7 +37,7 @@ void oak_trait_registry_free(struct oak_trait_registry_t* r)
 
 /* ---------- Trait coercion emission ---------- */
 
-void oakc_emit_trait_coerce(struct oak_compiler_t* c,
+void oak_emit_trait_coerce(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* arg_expr,
                             struct oak_type_t want,
                             struct oak_code_loc_t loc)
@@ -46,12 +46,12 @@ void oakc_emit_trait_coerce(struct oak_compiler_t* c,
     return;
 
   const struct oak_registered_trait_t* tr =
-      oakc_trait_find_by_id(&c->traits, want.id);
+      oak_trait_find_by_id(&c->traits, want.id);
   if (!tr)
     return;
 
   struct oak_type_t got;
-  oakc_infer_type(c, arg_expr, &got);
+  oak_infer_type(c, arg_expr, &got);
   if (!oak_type_is_known(&got))
     return;
 
@@ -61,7 +61,7 @@ void oakc_emit_trait_coerce(struct oak_compiler_t* c,
 
   const struct oak_registered_record_t* sd = null;
   if (got.kind == OAK_TYPE_KIND_SCALAR)
-    sd = oakc_records_find_by_id(&c->records, got.id);
+    sd = oak_records_find_by_id(&c->records, got.id);
 
   if (!sd)
   {
@@ -69,12 +69,12 @@ void oakc_emit_trait_coerce(struct oak_compiler_t* c,
         c,
         arg_expr ? arg_expr->token : null,
         "cannot coerce type '%s' to trait '%s': not a record type",
-        oakc_type_full_name(c, got),
+        oak_type_full_name(c, got),
         tr->name);
     return;
   }
 
-  if (!oakc_record_satisfies_trait(c, sd, tr))
+  if (!oak_record_satisfies_trait(c, sd, tr))
   {
     oak_compiler_error_at(
         c,
@@ -85,14 +85,14 @@ void oakc_emit_trait_coerce(struct oak_compiler_t* c,
     return;
   }
 
-  const u16 vtable_idx = oakc_get_or_build_vtable(c, sd, tr);
+  const u16 vtable_idx = oak_get_or_build_vtable(c, sd, tr);
   if (c->has_error)
     return;
   oak_compiler_emit_op(c, OAK_OP_MAKE_TRAIT_OBJECT, loc,
                        OAK_ARG_U16(vtable_idx));
 }
 
-void oakc_emit_weak_coerce(struct oak_compiler_t* c,
+void oak_emit_weak_coerce(struct oak_compiler_t* c,
                            const struct oak_ast_node_t* arg_expr,
                            struct oak_type_t want,
                            struct oak_code_loc_t loc)
@@ -101,14 +101,14 @@ void oakc_emit_weak_coerce(struct oak_compiler_t* c,
     return;
 
   struct oak_type_t got;
-  oakc_infer_type(c, arg_expr, &got);
+  oak_infer_type(c, arg_expr, &got);
   if (!oak_type_is_known(&got) || got.is_weak)
     return;
 
   if (!oak_type_equal_base(&want, &got))
     return;
 
-  if (!oakc_expr_is_reference_place(c, arg_expr))
+  if (!oak_expr_is_reference_place(c, arg_expr))
   {
     oak_compiler_error_at(
         c,
@@ -122,7 +122,7 @@ void oakc_emit_weak_coerce(struct oak_compiler_t* c,
 
 /* ---------- Trait registration ---------- */
 
-void oakc_register_program_traits(struct oak_compiler_t* c,
+void oak_register_program_traits(struct oak_compiler_t* c,
                                   const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -130,7 +130,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    const struct oak_ast_node_t* item = oak_unwrap_decl(raw_item);
     if (!item || item->kind != OAK_NODE_TRAIT_DECL)
       continue;
 
@@ -143,7 +143,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
     const char* tname = oak_token_text(item->lhs->token);
     const int tname_len = oak_token_size(item->lhs->token);
 
-    if (oakc_trait_find(&c->traits, tname))
+    if (oak_trait_find(&c->traits, tname))
     {
       oak_compiler_error_at(
           c, item->lhs->token, "duplicate trait '%s'", tname);
@@ -184,7 +184,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
       if (mdecl->kind != OAK_NODE_FN_DECL)
         continue;
 
-      const struct oak_ast_node_t* name_node = oakc_fn_name_node(mdecl);
+      const struct oak_ast_node_t* name_node = oak_fn_name_node(mdecl);
       if (!name_node)
       {
         oak_compiler_error_at(c, mdecl->token, "malformed trait method");
@@ -193,20 +193,20 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
 
       const char* mname = oak_token_text(name_node->token);
       const int mname_len = oak_token_size(name_node->token);
-      const int explicit_arity = oakc_count_fn_params(mdecl);
-      const struct oak_ast_node_t* self_p = oakc_fn_self_param(mdecl);
+      const int explicit_arity = oak_count_fn_params(mdecl);
+      const struct oak_ast_node_t* self_p = oak_fn_self_param(mdecl);
       const int total_arity = self_p ? explicit_arity + 1 : explicit_arity;
 
       /* If the body is a real BLOCK (not just ';'), record the decl for
        * later compilation as a default implementation. */
-      const struct oak_ast_node_t* body = oakc_fn_block(mdecl);
+      const struct oak_ast_node_t* body = oak_fn_block(mdecl);
       struct oak_trait_method_t tm = {
         .name = mname,
         .name_len = mname_len,
         .arity = total_arity,
         .sig_decl = mdecl,
         .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null,
-        .self_is_mut = (self_p && oakc_self_is_mut(self_p)) ? 1 : 0,
+        .self_is_mut = (self_p && oak_self_is_mut(self_p)) ? 1 : 0,
         .param_types = null,
         .return_type = { 0 },
       };
@@ -221,7 +221,7 @@ void oakc_register_program_traits(struct oak_compiler_t* c,
 
 /* ---------- fn TypeName.method_name registration ---------- */
 
-const struct oak_ast_node_t* oakc_method_decl_type_ident(
+const struct oak_ast_node_t* oak_method_decl_type_ident(
     const struct oak_ast_node_t* decl)
 {
   if (!decl->lhs || !decl->lhs->lhs)
@@ -229,7 +229,7 @@ const struct oak_ast_node_t* oakc_method_decl_type_ident(
   return decl->lhs->lhs->lhs; /* METHOD_PROTO -> METHOD_HEAD -> type IDENT */
 }
 
-void oakc_register_method_decls(struct oak_compiler_t* c,
+void oak_register_method_decls(struct oak_compiler_t* c,
                                 const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -237,11 +237,11 @@ void oakc_register_method_decls(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    const struct oak_ast_node_t* item = oak_unwrap_decl(raw_item);
     if (!item || item->kind != OAK_NODE_METHOD_DECL)
       continue;
 
-    const struct oak_ast_node_t* type_ident = oakc_method_decl_type_ident(item);
+    const struct oak_ast_node_t* type_ident = oak_method_decl_type_ident(item);
     if (!type_ident)
     {
       oak_compiler_error_at(c, null, "malformed method declaration");
@@ -266,7 +266,7 @@ void oakc_register_method_decls(struct oak_compiler_t* c,
       return;
     }
 
-    oakc_register_method_on_record(c, raw_item, item, sd);
+    oak_register_method_on_record(c, raw_item, item, sd);
     if (c->has_error)
       return;
   }
@@ -274,18 +274,18 @@ void oakc_register_method_decls(struct oak_compiler_t* c,
 
 /* ---------- fn TypeName.method_name body compilation ---------- */
 
-void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
+void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
     const struct oak_ast_node_t* item =
-        oakc_unwrap_decl(oak_container_of(pos, struct oak_ast_node_t, link));
+        oak_unwrap_decl(oak_container_of(pos, struct oak_ast_node_t, link));
     if (!item || item->kind != OAK_NODE_METHOD_DECL)
       continue;
 
-    const struct oak_ast_node_t* body = oakc_fn_block(item);
+    const struct oak_ast_node_t* body = oak_fn_block(item);
     if (!body || body->kind != OAK_NODE_BLOCK)
     {
       if (!c->allow_bodyless_fns)
@@ -293,26 +293,26 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
       continue;
     }
 
-    const struct oak_ast_node_t* type_ident = oakc_method_decl_type_ident(item);
+    const struct oak_ast_node_t* type_ident = oak_method_decl_type_ident(item);
     if (!type_ident)
       continue;
     const char* rname = oak_token_text(type_ident->token);
     const int rname_len = oak_token_size(type_ident->token);
 
     const struct oak_registered_record_t* sd =
-        oakc_records_find(&c->records, rname, rname_len);
+        oak_records_find(&c->records, rname, rname_len);
     if (!sd)
       continue;
 
-    const struct oak_ast_node_t* name_node = oakc_fn_name_node(item);
+    const struct oak_ast_node_t* name_node = oak_fn_name_node(item);
     if (!name_node)
       continue;
     const char* mname = oak_token_text(name_node->token);
 
     const struct oak_registered_fn_t* sm =
-        oakc_find_record_method(sd, mname, 0);
+        oak_find_record_method(sd, mname, 0);
     if (!sm)
-      sm = oakc_find_record_method(sd, mname, 1);
+      sm = oak_find_record_method(sd, mname, 1);
     if (!sm)
       continue;
 
@@ -321,8 +321,8 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
         oak_as_fn(c->chunk->constants[sm->const_idx]);
     fn_obj->code_offset = fn_offset;
 
-    const int is_static = oakc_fn_self_param(item) == null;
-    oakc_compile_fn_body(c, item, is_static ? null : sd);
+    const int is_static = oak_fn_self_param(item) == null;
+    oak_compile_fn_body(c, item, is_static ? null : sd);
     if (c->has_error)
       return;
   }
@@ -332,7 +332,7 @@ void oakc_compile_method_decl_bodies(struct oak_compiler_t* c,
 
 /* Returns 1 if concrete record type `sd` structurally satisfies trait `tr`
  * (i.e. has all required methods with compatible arity). */
-int oakc_record_satisfies_trait(struct oak_compiler_t* c,
+int oak_record_satisfies_trait(struct oak_compiler_t* c,
                                 const struct oak_registered_record_t* sd,
                                 const struct oak_registered_trait_t* tr)
 {
@@ -340,7 +340,7 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
   {
     const struct oak_trait_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =
-        oakc_find_record_method(sd, tm->name, 0);
+        oak_find_record_method(sd, tm->name, 0);
     if (!sm)
       return 0;
     if (sm->arity != tm->arity)
@@ -354,9 +354,9 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
       oak_type_clear(&tr_ret);
       if (tm->sig_decl)
       {
-        const struct oak_ast_node_t* rn = oakc_fn_return_type_node(tm->sig_decl);
+        const struct oak_ast_node_t* rn = oak_fn_return_type_node(tm->sig_decl);
         if (rn)
-          oakc_lower_type_node(c, rn, &tr_ret);
+          oak_lower_type_node(c, rn, &tr_ret);
       }
       else
       {
@@ -366,9 +366,9 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
       oak_type_clear(&sm_ret);
       if (sm->decl)
       {
-        const struct oak_ast_node_t* rn = oakc_fn_return_type_node(sm->decl);
+        const struct oak_ast_node_t* rn = oak_fn_return_type_node(sm->decl);
         if (rn)
-          oakc_lower_type_node(c, rn, &sm_ret);
+          oak_lower_type_node(c, rn, &sm_ret);
       }
       else
       {
@@ -385,12 +385,12 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
         oak_type_clear(&want_p);
         if (tm->sig_decl)
         {
-          const struct oak_ast_node_t* tp = oakc_fn_param_at(tm->sig_decl, j);
+          const struct oak_ast_node_t* tp = oak_fn_param_at(tm->sig_decl, j);
           if (tp)
           {
-            const struct oak_ast_node_t* tn = oakc_fn_param_type_node(tp);
+            const struct oak_ast_node_t* tn = oak_fn_param_type_node(tp);
             if (tn)
-              oakc_lower_type_node(c, tn, &want_p);
+              oak_lower_type_node(c, tn, &want_p);
           }
         }
         else if (tm->param_types)
@@ -401,12 +401,12 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
         oak_type_clear(&got_p);
         if (sm->decl)
         {
-          const struct oak_ast_node_t* sp = oakc_fn_param_at(sm->decl, j);
+          const struct oak_ast_node_t* sp = oak_fn_param_at(sm->decl, j);
           if (sp)
           {
-            const struct oak_ast_node_t* sn = oakc_fn_param_type_node(sp);
+            const struct oak_ast_node_t* sn = oak_fn_param_type_node(sp);
             if (sn)
-              oakc_lower_type_node(c, sn, &got_p);
+              oak_lower_type_node(c, sn, &got_p);
           }
         }
         else if (sm->param_types)
@@ -427,12 +427,12 @@ int oakc_record_satisfies_trait(struct oak_compiler_t* c,
 /* Build (or return cached) vtable array const_idx for (sd, tr).
  * The vtable is an OAK_OBJ_ARRAY of function values, one per trait method.
  * Must be called after all fn bodies have been compiled (const_idx stable). */
-u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
+u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
                              const struct oak_registered_record_t* sd,
                              const struct oak_registered_trait_t* tr)
 {
   struct oak_trait_impl_t* impl =
-      oakc_trait_impl_find(&c->traits, sd->type_id, tr->trait_id);
+      oak_trait_impl_find(&c->traits, sd->type_id, tr->trait_id);
 
   if (!impl)
   {
@@ -449,7 +449,7 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
     {
       const struct oak_trait_method_t* tm = &tr->methods[i];
       const struct oak_registered_fn_t* sm =
-          oakc_find_record_method(sd, tm->name, 0);
+          oak_find_record_method(sd, tm->name, 0);
       proto.vtable[i] = sm ? sm->const_idx : 0;
     }
     oak_dynarr_push(c->allocator, &c->traits.impls,
@@ -470,7 +470,7 @@ u16 oakc_get_or_build_vtable(struct oak_compiler_t* c,
   {
     const struct oak_trait_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =
-        oakc_find_record_method(sd, tm->name, 0);
+        oak_find_record_method(sd, tm->name, 0);
     struct oak_value_t fn_val;
     if (sm && sm->source_module_id != OAK_MODULE_ID_NONE &&
         c->module_registry)

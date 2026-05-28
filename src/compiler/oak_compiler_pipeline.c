@@ -64,58 +64,58 @@ static void compile_program_items(struct oak_compiler_t* c,
 
 static void register_builtin_symbols(struct oak_compiler_t* c)
 {
-  oakc_register_native_builtins(c);
+  oak_register_native_builtins(c);
   CHECK_ERROR(c);
-  oakc_register_array_methods(c);
+  oak_register_array_methods(c);
   CHECK_ERROR(c);
-  oakc_register_map_methods(c);
+  oak_register_map_methods(c);
   CHECK_ERROR(c);
-  oakc_register_string_methods(c);
+  oak_register_string_methods(c);
   CHECK_ERROR(c);
-  oakc_register_bool_methods(c);
+  oak_register_bool_methods(c);
   CHECK_ERROR(c);
-  oakc_register_number_methods(c);
+  oak_register_number_methods(c);
   CHECK_ERROR(c);
-  oakc_register_record_methods(c);
+  oak_register_record_methods(c);
 }
 
 static void register_type_symbols(struct oak_compiler_t* c,
                                   const struct oak_ast_node_t* program)
 {
-  resolve_new_style_imports(c, program);
+  oak_resolve_new_style_imports(c, program);
   CHECK_ERROR(c);
 
   c->user_enum_start = c->enums.variants.count;
-  oakc_register_program_enums(c, program);
+  oak_register_program_enums(c, program);
   CHECK_ERROR(c);
 
   c->user_record_start = c->records.entries.count;
-  oakc_register_program_records(c, program);
+  oak_register_program_records(c, program);
   CHECK_ERROR(c);
 
   c->user_trait_start = c->traits.trait_count;
-  oakc_register_program_traits(c, program);
+  oak_register_program_traits(c, program);
 }
 
 static void register_callable_symbols(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* program)
 {
-  oakc_register_program_fns(c, program);
+  oak_register_program_fns(c, program);
   CHECK_ERROR(c);
-  oakc_register_program_methods(c, program);
+  oak_register_program_methods(c, program);
   CHECK_ERROR(c);
-  oakc_register_method_decls(c, program);
+  oak_register_method_decls(c, program);
 }
 
 static void emit_deferred_bodies(struct oak_compiler_t* c,
                                  const struct oak_ast_node_t* program)
 {
   oak_compiler_emit_op(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
-  oakc_compile_fn_bodies(c);
+  oak_compile_fn_bodies(c);
   CHECK_ERROR(c);
-  oakc_compile_method_bodies(c);
+  oak_compile_method_bodies(c);
   CHECK_ERROR(c);
-  oakc_compile_method_decl_bodies(c, program);
+  oak_compile_method_decl_bodies(c, program);
 }
 
 int oak_compiler_register_native_options(struct oak_compiler_t* c,
@@ -126,21 +126,21 @@ int oak_compiler_register_native_options(struct oak_compiler_t* c,
 
   if (opts->native_types.count > 0)
   {
-    oakc_register_native_types(c, opts);
+    oak_register_native_types(c, opts);
     if (c->has_error)
       return 0;
   }
 
   if (opts->native_fns.count > 0 || opts->native_global_fns.count > 0)
   {
-    oakc_register_native_fns(c, opts);
+    oak_register_native_fns(c, opts);
     if (c->has_error)
       return 0;
   }
 
   if (opts->native_enums.count > 0)
   {
-    oakc_register_native_enums(c, opts);
+    oak_register_native_enums(c, opts);
     if (c->has_error)
       return 0;
   }
@@ -167,6 +167,6 @@ void oak_compiler_compile_program(struct oak_compiler_t* c,
   emit_deferred_bodies(c, program);
   CHECK_ERROR(c);
 
-  populate_module_exports(c);
+  oak_populate_module_exports(c);
   oak_compiler_move_types_to_module(c);
 }

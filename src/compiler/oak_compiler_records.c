@@ -39,7 +39,7 @@ static const struct oak_ast_node_t* record_decl_name_ident(
 }
 
 const struct oak_ast_node_t*
-oakc_record_type_params(const struct oak_ast_node_t* record_decl)
+oak_record_type_params(const struct oak_ast_node_t* record_decl)
 {
   const struct oak_ast_node_t* type_name =
       record_decl->kind == OAK_NODE_RECORD_DECL_EMPTY
@@ -162,7 +162,7 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
 
     struct oak_type_t declared_type;
     oak_type_clear(&declared_type);
-    oakc_lower_type_node(c, fdecl->rhs, &declared_type);
+    oak_lower_type_node(c, fdecl->rhs, &declared_type);
     if (c->has_error)
       return 0;
     const struct oak_type_t bound_type = native_field_type(native_field);
@@ -182,7 +182,7 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
   return 1;
 }
 
-void oakc_register_program_records(struct oak_compiler_t* c,
+void oak_register_program_records(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -190,7 +190,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    const struct oak_ast_node_t* item = oak_unwrap_decl(raw_item);
 
     const int is_empty = item && item->kind == OAK_NODE_RECORD_DECL_EMPTY;
     if (!item || (item->kind != OAK_NODE_RECORD_DECL && !is_empty))
@@ -215,7 +215,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     const int name_len = oak_token_size(name_ident->token);
 
     const struct oak_registered_record_t* existing =
-        oakc_records_find(&c->records, name, name_len);
+        oak_records_find(&c->records, name, name_len);
     if (existing)
     {
       const struct oak_bind_type_t* native =
@@ -226,10 +226,10 @@ void oakc_register_program_records(struct oak_compiler_t* c,
           return;
 
         int attr_count = 0;
-        const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
+        const char** attrs = oak_extract_attrs(c->allocator, raw_item, &attr_count);
         if (attr_count > 0)
         {
-          oakc_dispatch_compile_attr_cbs(
+          oak_compiler_dispatch_attr_cbs(
               c, attrs, attr_count, name, OAK_ATTR_TARGET_RECORD,
               null, 0, null, 0, -1);
         }
@@ -240,7 +240,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
       return;
     }
 
-    const struct oak_ast_node_t* rec_type_params = oakc_record_type_params(item);
+    const struct oak_ast_node_t* rec_type_params = oak_record_type_params(item);
     int rec_gpc = 0;
     int rec_gdi = -1;
     if (rec_type_params)
@@ -297,7 +297,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
     proto.fields = null;
     proto.field_count = 0;
     proto.field_capacity = 0;
-    proto.attrs = oakc_extract_attrs(c->allocator, raw_item, &proto.attr_count);
+    proto.attrs = oak_extract_attrs(c->allocator, raw_item, &proto.attr_count);
 
     /* Pre-scan fields for attribute callbacks. */
     struct oak_attr_field_info_t* finfo = null;
@@ -336,7 +336,7 @@ void oakc_register_program_records(struct oak_compiler_t* c,
       }
     }
 
-    oakc_dispatch_compile_attr_cbs(
+    oak_compiler_dispatch_attr_cbs(
         c, proto.attrs, proto.attr_count, name, OAK_ATTR_TARGET_RECORD,
         null, 0, finfo, finfo_count, -1);
     if (finfo)
@@ -437,7 +437,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
       .name_len = fn_len,
     };
     oak_type_clear(&f.type);
-    oakc_lower_type_node(c, ftype, &f.type);
+    oak_lower_type_node(c, ftype, &f.type);
     if (c->has_error)
       return 0;
     if (!oak_type_is_known(&f.type))

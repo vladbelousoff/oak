@@ -24,7 +24,7 @@ Public headers live in `include/`. Internal compiler headers are in `src/compile
 ## Code Conventions
 
 - C17, built with Meson/Ninja
-- Prefix public API with `oak_`, internal compiler symbols with `oakc_`
+- Prefix all symbols (public API and internal compiler) with `oak_`
 - `null` macro (not `NULL`), `u8`/`u16`/`u32`/`usize` typedefs from `oakc_defs.h`
 - All heap allocation goes through `oak_allocator_t` (OAK_ALLOC / OAK_FREE macros)
 - Values are reference-counted (`oak_value_t`); weak references use `is_weak` flag

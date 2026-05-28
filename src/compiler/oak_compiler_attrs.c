@@ -1,6 +1,6 @@
 #include "internal/oak_compiler.h"
 
-const struct oak_ast_node_t* oakc_unwrap_decl(const struct oak_ast_node_t* item)
+const struct oak_ast_node_t* oak_unwrap_decl(const struct oak_ast_node_t* item)
 {
   if (!item || item->kind != OAK_NODE_ATTR_DECL)
     return item;
@@ -23,7 +23,7 @@ const struct oak_ast_node_t* oakc_unwrap_decl(const struct oak_ast_node_t* item)
   return decl;
 }
 
-const char** oakc_extract_attrs(struct oak_allocator_t* allocator,
+const char** oak_extract_attrs(struct oak_allocator_t* allocator,
                                 const struct oak_ast_node_t* item,
                                 int* out_count)
 {
@@ -62,7 +62,7 @@ const char** oakc_extract_attrs(struct oak_allocator_t* allocator,
   return arr;
 }
 
-const char** oakc_alloc_attrs(struct oak_allocator_t* allocator,
+const char** oak_alloc_attrs(struct oak_allocator_t* allocator,
                               const char* const* names,
                               int count)
 {
@@ -76,7 +76,7 @@ const char** oakc_alloc_attrs(struct oak_allocator_t* allocator,
   return arr;
 }
 
-void oakc_dispatch_compile_attr_cbs(struct oak_compiler_t* c,
+void oak_compiler_dispatch_attr_cbs(struct oak_compiler_t* c,
                                     const char** attrs,
                                     int attr_count,
                                     const char* decl_name,
@@ -92,7 +92,7 @@ void oakc_dispatch_compile_attr_cbs(struct oak_compiler_t* c,
                                 const_index);
 }
 
-void oakc_apply_runtime_attr_hook(struct oak_compiler_t* c,
+void oak_apply_runtime_attr_hook(struct oak_compiler_t* c,
                                   struct oak_obj_fn_t* fn_obj,
                                   struct oak_obj_native_fn_t* native_obj,
                                   const char** attrs,

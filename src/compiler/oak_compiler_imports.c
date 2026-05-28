@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "internal/oakc_trait_registry.h"
+#include "internal/oak_trait_registry.h"
 
 #include <string.h>
 
@@ -60,7 +60,7 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
                                   const struct oak_module_export_trait_t* exp)
 {
   const struct oak_registered_trait_t* existing =
-      oakc_trait_find(&c->traits, exp->name);
+      oak_trait_find(&c->traits, exp->name);
   if (existing)
   {
     int idx = (int)(existing - c->traits.traits);
@@ -76,7 +76,7 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
       oak_type_registry_intern(&c->types, exp->name, exp_name_len);
 
   /* Insert a provisional (empty) entry so self-referential or mutually
-     recursive traits short-circuit through the oakc_trait_find check above
+     recursive traits short-circuit through the oak_trait_find check above
      instead of recursing infinitely via ensure_sig_types_imported.  We store
      the index (not a pointer) because ensure_sig_types_imported may trigger
      further imports that reallocate the traits array. */
@@ -129,10 +129,10 @@ static void import_enum_from_dep(struct oak_compiler_t* c,
                                  const struct oak_module_export_enum_t* exp)
 {
   const int exp_name_len = (int)strlen(exp->name);
-  if (oakc_is_enum_name(&c->enums, exp->name, exp_name_len))
+  if (oak_is_enum_name(&c->enums, exp->name, exp_name_len))
   {
     const struct oak_registered_enum_t* re =
-        oakc_enum_find(&c->enums, exp->name);
+        oak_enum_find(&c->enums, exp->name);
     int idx = re ? (int)(re - c->enums.enums.items) : -1;
     if (idx >= pre_import_enum_count &&
         re->source_module_id != dep->module_id)
@@ -189,7 +189,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
                                    const struct oak_module_export_record_t* exp)
 {
   const int exp_name_len = (int)strlen(exp->name);
-  if (oakc_records_find(&c->records, exp->name, exp_name_len))
+  if (oak_records_find(&c->records, exp->name, exp_name_len))
   {
     int idx = oak_htable_get(&c->records.by_name, exp->name, exp_name_len);
     if (idx >= pre_import_record_count &&
@@ -211,7 +211,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
       &proto.methods.items, &proto.methods.count, &proto.methods.capacity);
 
   /* Insert a provisional (empty) entry so self-referential and mutually
-     recursive records short-circuit through the oakc_records_find check
+     recursive records short-circuit through the oak_records_find check
      above instead of recursing infinitely via ensure_dep_type_imported.
      We store the index (not a pointer) because ensure_dep_type_imported
      may trigger further imports that reallocate the entries array. */
@@ -267,7 +267,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
     mfn.attr_count = 0;
     if (me->stub_attr_count > 0)
     {
-      mfn.attrs = oakc_alloc_attrs(c->allocator, me->stub_attrs,
+      mfn.attrs = oak_alloc_attrs(c->allocator, me->stub_attrs,
                                    me->stub_attr_count);
       mfn.attr_count = me->stub_attr_count;
     }
@@ -550,8 +550,8 @@ static void import_selective_from_dep(struct oak_compiler_t* c,
 }
 
 /* Walk the program's import AST nodes and register imported symbols.
- * Must run BEFORE oakc_register_program_enums/records/fns. */
-void resolve_new_style_imports(struct oak_compiler_t* c,
+ * Must run BEFORE oak_register_program_enums/records/fns. */
+void oak_resolve_new_style_imports(struct oak_compiler_t* c,
                                const struct oak_ast_node_t* program)
 {
   if (!c->current_module || !c->module_registry || !program)
@@ -586,7 +586,7 @@ void resolve_new_style_imports(struct oak_compiler_t* c,
 }
 
 /* Lower a parameter list from an AST declaration into param_types/param_mut_flags
- * arrays.  Used by populate_module_exports for both fns and methods. */
+ * arrays.  Used by oak_populate_module_exports for both fns and methods. */
 static void lower_params_from_decl(struct oak_compiler_t* c,
                                    const struct oak_ast_node_t* decl,
                                    int arity,
@@ -611,20 +611,20 @@ static void lower_params_from_decl(struct oak_compiler_t* c,
   }
   if (has_self)
   {
-    const struct oak_ast_node_t* self_p = oakc_fn_self_param(decl);
-    if (self_p && oakc_self_is_mut(self_p))
+    const struct oak_ast_node_t* self_p = oak_fn_self_param(decl);
+    if (self_p && oak_self_is_mut(self_p))
       pmuts[0] = 1;
   }
   for (int pi = 0; pi < arity - has_self; ++pi)
   {
     const int slot = pi + has_self;
-    const struct oak_ast_node_t* param = oakc_fn_param_at(decl, pi);
+    const struct oak_ast_node_t* param = oak_fn_param_at(decl, pi);
     if (!param)
       continue;
-    pmuts[slot] = oakc_param_is_mut(param) ? 1 : 0;
-    const struct oak_ast_node_t* tn = oakc_fn_param_type_node(param);
+    pmuts[slot] = oak_param_is_mut(param) ? 1 : 0;
+    const struct oak_ast_node_t* tn = oak_fn_param_type_node(param);
     if (tn)
-      oakc_lower_type_node(c, tn, &ptypes[slot]);
+      oak_lower_type_node(c, tn, &ptypes[slot]);
   }
   *out_types = ptypes;
   *out_muts = pmuts;
@@ -638,47 +638,85 @@ static struct oak_type_t lower_return_type(struct oak_compiler_t* c,
   oak_type_clear(&rt);
   if (!decl)
     return rt;
-  const struct oak_ast_node_t* rtn = oakc_fn_return_type_node(decl);
+  const struct oak_ast_node_t* rtn = oak_fn_return_type_node(decl);
   if (rtn)
-    oakc_lower_type_node(c, rtn, &rt);
+    oak_lower_type_node(c, rtn, &rt);
   return rt;
 }
 
-/* Populate the current module's export tables from the now-fully-populated
- * compiler registries.  Type IDs stored in exports reference this module's
- * type registry (moved to the module after compilation). */
-void populate_module_exports(struct oak_compiler_t* c)
+/* Export a single free function (no receiver) into the module's exports_fn. */
+static void export_free_fn(struct oak_compiler_t* c,
+                           struct oak_module_t* mod,
+                           const struct oak_registered_fn_t* e)
 {
-  if (!c->current_module)
-    return;
-  struct oak_module_t* mod = c->current_module;
+  struct oak_type_t* ptypes = null;
+  u8* pmuts = null;
+  lower_params_from_decl(c, e->decl, e->arity, 1, &ptypes, &pmuts);
+  struct oak_module_export_fn_t exp = {
+    .name = e->name,
+    .const_idx = e->const_idx,
+    .arity = e->arity,
+    .param_types = ptypes,
+    .param_mut_flags = pmuts,
+    .return_type = lower_return_type(c, e->decl),
+    .stub_attrs = oak_alloc_attrs(c->allocator, e->attrs, e->attr_count),
+    .stub_attr_count = e->attr_count,
+  };
+  const int idx = mod->exports_fn.count;
+  oak_dynarr_push(c->allocator, &mod->exports_fn.items,
+                  &mod->exports_fn.count,
+                  &mod->exports_fn.capacity,
+                  &exp,
+                  sizeof(exp));
+  oak_htable_insert(&mod->exports_fn.by_name, e->name, (int)strlen(e->name), idx);
+}
+
+static void export_user_fns(struct oak_compiler_t* c, struct oak_module_t* mod)
+{
   for (int i = 0; i < c->fns.entries.count; ++i)
   {
     const struct oak_registered_fn_t* e = &c->fns.entries.items[i];
     if (!e->decl || e->receiver_type_id != OAK_TYPE_VOID)
       continue;
-    struct oak_type_t* ptypes = null;
-    u8* pmuts = null;
-    lower_params_from_decl(c, e->decl, e->arity, 1, &ptypes, &pmuts);
-    struct oak_module_export_fn_t exp = {
-      .name = e->name,
-      .const_idx = e->const_idx,
-      .arity = e->arity,
-      .param_types = ptypes,
-      .param_mut_flags = pmuts,
-      .return_type = lower_return_type(c, e->decl),
-      .stub_attrs = oakc_alloc_attrs(c->allocator, e->attrs, e->attr_count),
-      .stub_attr_count = e->attr_count,
-    };
-    const int idx = mod->exports_fn.count;
-    oak_dynarr_push(c->allocator, &mod->exports_fn.items,
-                    &mod->exports_fn.count,
-                    &mod->exports_fn.capacity,
-                    &exp,
-                    sizeof(exp));
-    oak_htable_insert(&mod->exports_fn.by_name, e->name, (int)strlen(e->name), idx);
+    export_free_fn(c, mod, e);
   }
-  /* Export user-defined records. */
+}
+
+/* Build the methods array of an exported record from its registered methods. */
+static void export_record_methods(struct oak_compiler_t* c,
+                                  struct oak_module_export_record_t* exp,
+                                  const struct oak_registered_record_t* r)
+{
+  oak_dynarr_init(&exp->methods, &exp->method_count, &exp->method_capacity);
+  for (int mi = 0; mi < r->methods.count; ++mi)
+  {
+    const struct oak_registered_fn_t* m = &r->methods.items[mi];
+    struct oak_module_export_record_method_t mexp = { 0 };
+    mexp.name = m->name;
+    mexp.const_idx = m->const_idx;
+    mexp.arity = m->arity;
+    mexp.is_static = m->is_static;
+    if (m->decl)
+      mexp.return_type = lower_return_type(c, m->decl);
+    else
+      mexp.return_type = m->return_type;
+    mexp.stub_attrs =
+        oak_alloc_attrs(c->allocator, m->attrs, m->attr_count);
+    mexp.stub_attr_count = m->attr_count;
+    if (m->arity > 0 && m->decl)
+      lower_params_from_decl(c, m->decl, m->arity, m->is_static,
+                             &mexp.param_types, &mexp.param_mut_flags);
+    oak_dynarr_push(c->allocator, &exp->methods,
+                    &exp->method_count,
+                    &exp->method_capacity,
+                    &mexp,
+                    sizeof(mexp));
+  }
+}
+
+static void export_user_records(struct oak_compiler_t* c,
+                                struct oak_module_t* mod)
+{
   for (int i = c->user_record_start; i < c->records.entries.count; ++i)
   {
     const struct oak_registered_record_t* r = &c->records.entries.items[i];
@@ -697,31 +735,7 @@ void populate_module_exports(struct oak_compiler_t* c)
                       &field,
                       sizeof(field));
     }
-    oak_dynarr_init(&exp.methods, &exp.method_count, &exp.method_capacity);
-    for (int mi = 0; mi < r->methods.count; ++mi)
-    {
-      const struct oak_registered_fn_t* m = &r->methods.items[mi];
-      struct oak_module_export_record_method_t mexp = { 0 };
-      mexp.name = m->name;
-      mexp.const_idx = m->const_idx;
-      mexp.arity = m->arity;
-      mexp.is_static = m->is_static;
-      if (m->decl)
-        mexp.return_type = lower_return_type(c, m->decl);
-      else
-        mexp.return_type = m->return_type;
-      mexp.stub_attrs =
-          oakc_alloc_attrs(c->allocator, m->attrs, m->attr_count);
-      mexp.stub_attr_count = m->attr_count;
-      if (m->arity > 0 && m->decl)
-        lower_params_from_decl(c, m->decl, m->arity, m->is_static,
-                               &mexp.param_types, &mexp.param_mut_flags);
-      oak_dynarr_push(c->allocator, &exp.methods,
-                      &exp.method_count,
-                      &exp.method_capacity,
-                      &mexp,
-                      sizeof(mexp));
-    }
+    export_record_methods(c, &exp, r);
     exp.layout_id = 0;
     const int idx = mod->exports_record.count;
     oak_dynarr_push(c->allocator, &mod->exports_record.items,
@@ -732,40 +746,49 @@ void populate_module_exports(struct oak_compiler_t* c)
     oak_htable_insert(
         &mod->exports_record.by_name, exp.name, (int)strlen(exp.name), idx);
   }
-  /* Export user-defined enums. */
-  if (c->user_enum_start >= 0)
+}
+
+/* Group enum variants under their containing enum, creating the
+ * oak_module_export_enum_t entry lazily on first variant. */
+static void export_user_enums(struct oak_compiler_t* c,
+                              struct oak_module_t* mod)
+{
+  if (c->user_enum_start < 0)
+    return;
+  for (int i = c->user_enum_start; i < c->enums.variants.count; ++i)
   {
-    for (int i = c->user_enum_start; i < c->enums.variants.count; ++i)
+    const struct oak_enum_variant_t* v = &c->enums.variants.items[i];
+    int eidx = oak_htable_get(
+        &mod->exports_enum.by_name, v->enum_name, v->enum_name_len);
+    if (eidx < 0)
     {
-      const struct oak_enum_variant_t* v = &c->enums.variants.items[i];
-      int eidx = oak_htable_get(
-          &mod->exports_enum.by_name, v->enum_name, v->enum_name_len);
-      if (eidx < 0)
-      {
-        struct oak_module_export_enum_t ee = { 0 };
-        ee.name = v->enum_name;
-        eidx = mod->exports_enum.count;
-        oak_dynarr_push(c->allocator, &mod->exports_enum.items,
-                        &mod->exports_enum.count,
-                        &mod->exports_enum.capacity,
-                        &ee,
-                        sizeof(ee));
-        oak_htable_insert(
-            &mod->exports_enum.by_name, ee.name, (int)strlen(ee.name), eidx);
-      }
-      struct oak_module_export_enum_t* ee = &mod->exports_enum.items[eidx];
-      struct oak_module_export_enum_variant_t variant = {
-        .name = v->name,
-        .value = v->value,
-      };
-      oak_dynarr_push(c->allocator, &ee->variants,
-                      &ee->variant_count,
-                      &ee->variant_capacity,
-                      &variant,
-                      sizeof(variant));
+      struct oak_module_export_enum_t ee = { 0 };
+      ee.name = v->enum_name;
+      eidx = mod->exports_enum.count;
+      oak_dynarr_push(c->allocator, &mod->exports_enum.items,
+                      &mod->exports_enum.count,
+                      &mod->exports_enum.capacity,
+                      &ee,
+                      sizeof(ee));
+      oak_htable_insert(
+          &mod->exports_enum.by_name, ee.name, (int)strlen(ee.name), eidx);
     }
+    struct oak_module_export_enum_t* ee = &mod->exports_enum.items[eidx];
+    struct oak_module_export_enum_variant_t variant = {
+      .name = v->name,
+      .value = v->value,
+    };
+    oak_dynarr_push(c->allocator, &ee->variants,
+                    &ee->variant_count,
+                    &ee->variant_capacity,
+                    &variant,
+                    sizeof(variant));
   }
-  /* Export user-defined traits (skip imported ones). */
+}
+
+static void export_user_traits(struct oak_compiler_t* c,
+                               struct oak_module_t* mod)
+{
   for (int i = c->user_trait_start; i < c->traits.trait_count; ++i)
   {
     const struct oak_registered_trait_t* tr = &c->traits.traits[i];
@@ -804,4 +827,18 @@ void populate_module_exports(struct oak_compiler_t* c)
     oak_htable_insert(
         &mod->exports_trait.by_name, exp.name, (int)strlen(exp.name), tidx);
   }
+}
+
+/* Populate the current module's export tables from the now-fully-populated
+ * compiler registries.  Type IDs stored in exports reference this module's
+ * type registry (moved to the module after compilation). */
+void oak_populate_module_exports(struct oak_compiler_t* c)
+{
+  if (!c->current_module)
+    return;
+  struct oak_module_t* mod = c->current_module;
+  export_user_fns(c, mod);
+  export_user_records(c, mod);
+  export_user_enums(c, mod);
+  export_user_traits(c, mod);
 }

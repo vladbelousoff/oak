@@ -136,7 +136,7 @@ void oak_compiler_emit_pops(struct oak_compiler_t* c,
   }
 }
 
-void oakc_emit_loop_jump(struct oak_compiler_t* c,
+void oak_emit_loop_jump(struct oak_compiler_t* c,
                          usize** jumps,
                          int* count,
                          int* capacity,

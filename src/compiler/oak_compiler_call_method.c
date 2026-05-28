@@ -46,7 +46,7 @@ static int try_compile_builtin_method_call(
   if (binding->validate_args)
   {
     struct oak_type_t recv_ty;
-    oakc_infer_type(c, receiver, &recv_ty);
+    oak_infer_type(c, receiver, &recv_ty);
     binding->validate_args(c, node, recv_ty, method->token);
     if (c->has_error)
       return 1;
@@ -91,15 +91,15 @@ static void compile_typed_call_args(struct oak_compiler_t* c,
     int compiled = 0;
     if (decl)
     {
-      const struct oak_ast_node_t* param = oakc_fn_param_at(decl, ai);
+      const struct oak_ast_node_t* param = oak_fn_param_at(decl, ai);
       if (param)
       {
-        const struct oak_ast_node_t* tnode = oakc_fn_param_type_node(param);
+        const struct oak_ast_node_t* tnode = oak_fn_param_type_node(param);
         if (tnode)
         {
           struct oak_type_t want;
-          oakc_lower_type_node(c, tnode, &want);
-          oakc_compile_call_arg_for_type(c, arg, want, loc);
+          oak_lower_type_node(c, tnode, &want);
+          oak_compile_call_arg_for_type(c, arg, want, loc);
           compiled = 1;
           if (c->has_error)
             return;
@@ -111,14 +111,14 @@ static void compile_typed_call_args(struct oak_compiler_t* c,
       const int slot = ai + self_offset;
       if (slot < arity && oak_type_is_known(&param_types[slot]))
       {
-        oakc_compile_call_arg_for_type(c, arg, param_types[slot], loc);
+        oak_compile_call_arg_for_type(c, arg, param_types[slot], loc);
         compiled = 1;
         if (c->has_error)
           return;
       }
     }
     if (!compiled)
-      oakc_compile_call_arg(c, arg);
+      oak_compile_call_arg(c, arg);
   }
 }
 
@@ -127,7 +127,7 @@ static void compile_typed_call_args(struct oak_compiler_t* c,
  * native function is pushed as a constant, the receiver is compiled as
  * an implicit first argument, and finally OP_CALL with the full arity
  * is emitted. */
-void oakc_compile_method_call(struct oak_compiler_t* c,
+void oak_compile_method_call(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node,
                                       const struct oak_ast_node_t* callee)
 {
@@ -142,7 +142,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
 
   const struct oak_code_loc_t call_loc =
       oak_compiler_loc_from_token(method->token);
-  const usize user_argc = oakc_child_count(node) - 1;
+  const usize user_argc = oak_child_count(node) - 1;
   const char* mname = oak_token_text(method->token);
 
   if (receiver->kind == OAK_NODE_MEMBER_ACCESS && receiver->lhs &&
@@ -158,11 +158,11 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                                           &dep))
     {
       const struct oak_registered_record_t* sd =
-          oakc_records_find(&c->records,
+          oak_records_find(&c->records,
                                            oak_token_text(type_node->token),
                                            oak_token_size(type_node->token));
       const struct oak_registered_fn_t* sm =
-          oakc_find_record_method(sd, mname, 1);
+          oak_find_record_method(sd, mname, 1);
       if (!sm)
       {
         oak_compiler_error_at(c,
@@ -184,7 +184,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                               user_argc);
         return;
       }
-      oakc_check_method_args(c, node, sm);
+      oak_check_method_args(c, node, sm);
       CHECK_ERROR(c);
       emit_method_fn(c, sm, call_loc);
       compile_typed_call_args(c, node, sm->decl,
@@ -247,14 +247,14 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
      * variable (mod_id < 0 means the name is not an import alias). */
     struct oak_type_t local_ty;
     oak_type_clear(&local_ty);
-    if (!oakc_local_type_get(c, rname, &local_ty))
+    if (!oak_local_type_get(c, rname, &local_ty))
     {
       const struct oak_registered_record_t* sd =
-          oakc_records_find(&c->records, rname, rlen);
+          oak_records_find(&c->records, rname, rlen);
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oakc_find_record_method(sd, mname, 1);
+            oak_find_record_method(sd, mname, 1);
         if (sm)
         {
           if ((int)user_argc != sm->arity)
@@ -267,7 +267,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                                   user_argc);
             return;
           }
-          oakc_check_method_args(c, node, sm);
+          oak_check_method_args(c, node, sm);
           CHECK_ERROR(c);
           emit_method_fn(c, sm, call_loc);
           compile_typed_call_args(c, node, sm->decl,
@@ -284,20 +284,20 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   }
 
   struct oak_type_t recv_ty;
-  oakc_infer_type(c, receiver, &recv_ty);
+  oak_infer_type(c, receiver, &recv_ty);
 
   /* Virtual dispatch through a trait object. */
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_TRAIT)
   {
     const struct oak_registered_trait_t* tr =
-        oakc_trait_find_by_id(&c->traits, recv_ty.id);
+        oak_trait_find_by_id(&c->traits, recv_ty.id);
     if (!tr)
     {
       oak_compiler_error_at(
           c, method->token, "unknown trait type for receiver");
       return;
     }
-    const int slot = oakc_trait_method_slot(tr, mname);
+    const int slot = oak_trait_method_slot(tr, mname);
     if (slot < 0)
     {
       oak_compiler_error_at(c,
@@ -322,8 +322,8 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
     int self_mut = 0;
     if (tm->sig_decl)
     {
-      const struct oak_ast_node_t* self_p = oakc_fn_self_param(tm->sig_decl);
-      self_mut = self_p && oakc_self_is_mut(self_p);
+      const struct oak_ast_node_t* self_p = oak_fn_self_param(tm->sig_decl);
+      self_mut = self_p && oak_self_is_mut(self_p);
     }
     else
     {
@@ -337,7 +337,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                             "receiver");
       return;
     }
-    oakc_check_trait_method_args(c, node, tm);
+    oak_check_trait_method_args(c, node, tm);
     if (c->has_error)
       return;
     const u8 total_arity = (u8)tm->arity;
@@ -360,11 +360,11 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
     const struct oak_registered_record_t* sd =
-        oakc_records_find_by_id(&c->records, recv_ty.id);
+        oak_records_find_by_id(&c->records, recv_ty.id);
     if (sd)
     {
       const struct oak_registered_fn_t* sm =
-          oakc_find_record_method(sd, mname, 0);
+          oak_find_record_method(sd, mname, 0);
       if (sm)
       {
         const int expected_user = sm->arity - 1;
@@ -379,7 +379,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
           return;
         }
 
-        oakc_check_method_args(c, node, sm);
+        oak_check_method_args(c, node, sm);
         if (c->has_error)
           return;
 
@@ -388,8 +388,8 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
           if (sm->decl)
           {
             const struct oak_ast_node_t* self_p =
-                oakc_fn_self_param(sm->decl);
-            self_is_mut = self_p && oakc_self_is_mut(self_p);
+                oak_fn_self_param(sm->decl);
+            self_is_mut = self_p && oak_self_is_mut(self_p);
           }
           else if (sm->param_mut_flags && !sm->is_static)
             self_is_mut = sm->param_mut_flags[0];
@@ -417,7 +417,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
       }
 
       const struct oak_method_binding_t* bm =
-          oakc_find_record_builtin_method(c, mname);
+          oak_find_record_builtin_method(c, mname);
       if (!bm)
       {
         oak_compiler_error_at(
@@ -436,7 +436,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   {
     try_compile_builtin_method_call(
         c, node, receiver, method,
-        oakc_find_string_method(c, mname),
+        oak_find_string_method(c, mname),
         "string", mname, user_argc, call_loc);
     return;
   }
@@ -446,7 +446,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   {
     try_compile_builtin_method_call(
         c, node, receiver, method,
-        oakc_find_bool_method(c, mname),
+        oak_find_bool_method(c, mname),
         "bool", mname, user_argc, call_loc);
     return;
   }
@@ -456,7 +456,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   {
     try_compile_builtin_method_call(
         c, node, receiver, method,
-        oakc_find_number_method(c, mname),
+        oak_find_number_method(c, mname),
         "number", mname, user_argc, call_loc);
     return;
   }
@@ -473,8 +473,8 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
 
   const struct oak_method_binding_t* m =
       recv_ty.kind == OAK_TYPE_KIND_MAP
-          ? oakc_find_map_method(c, mname)
-          : oakc_find_array_method(c, mname);
+          ? oak_find_map_method(c, mname)
+          : oak_find_array_method(c, mname);
   if (!m)
   {
     oak_compiler_error_at(c,
@@ -483,7 +483,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
                           mname,
                           recv_ty.kind == OAK_TYPE_KIND_MAP ? "map"
                                                             : "array of",
-                          oakc_type_full_name(c, recv_ty));
+                          oak_type_full_name(c, recv_ty));
     return;
   }
 
@@ -521,7 +521,7 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
   /* For arrays with a trait element type, coerce each user arg. */
   const struct oak_registered_trait_t* _elem_tr =
       recv_ty.kind == OAK_TYPE_KIND_ARRAY
-          ? oakc_trait_find_by_id(&c->traits, recv_ty.id)
+          ? oak_trait_find_by_id(&c->traits, recv_ty.id)
           : null;
   if (_elem_tr)
   {
@@ -534,10 +534,10 @@ void oakc_compile_method_call(struct oak_compiler_t* c,
     {
       const struct oak_ast_node_t* _arg =
           oak_container_of(_p, struct oak_ast_node_t, link);
-      oakc_compile_call_arg(c, _arg);
+      oak_compile_call_arg(c, _arg);
       const struct oak_ast_node_t* _expr =
           _arg->kind == OAK_NODE_FN_CALL_ARG ? _arg->child : _arg;
-      oakc_emit_trait_coerce(c, _expr, _want, call_loc);
+      oak_emit_trait_coerce(c, _expr, _want, call_loc);
       if (c->has_error)
         return;
     }

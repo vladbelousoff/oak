@@ -48,7 +48,7 @@ find_method_export(const struct oak_module_export_record_t* rec,
 
 /* ---------- Native type registration ---------- */
 
-void oakc_register_native_types(
+void oak_register_native_types(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
   if (!opts || opts->native_types.count == 0)
@@ -61,7 +61,7 @@ void oakc_register_native_types(
       continue;
     const int nt_name_len = (int)strlen(nt->name);
 
-    if (oakc_records_find(&c->records, nt->name, nt_name_len))
+    if (oak_records_find(&c->records, nt->name, nt_name_len))
     {
       oak_compiler_error_at(
           c,
@@ -137,7 +137,7 @@ static void record_append_method(struct oak_allocator_t* allocator,
                   sizeof(*m));
 }
 
-void oakc_register_native_fns(struct oak_compiler_t* c,
+void oak_register_native_fns(struct oak_compiler_t* c,
                                       const struct oak_compile_options_t* opts)
 {
   if (!opts)
@@ -240,7 +240,7 @@ void oakc_register_native_fns(struct oak_compiler_t* c,
     entry.source_module_id = OAK_MODULE_ID_NONE;
 
     struct oak_registered_record_t* sd =
-        (struct oak_registered_record_t*)oakc_records_find_by_id(
+        (struct oak_registered_record_t*)oak_records_find_by_id(
             &c->records, b->receiver_type_id);
     if (!sd)
     {

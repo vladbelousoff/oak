@@ -8,6 +8,8 @@
 #define OAK_STACK_MAX  256
 #define OAK_FRAMES_MAX 64
 
+/* Outcome of a VM run / call.  COMPILE_ERROR is reported when the chunk
+ * passed to oak_vm_run was produced from a failed compile. */
 enum oak_vm_result_t
 {
   OAK_VM_OK,
@@ -42,15 +44,26 @@ struct oak_vm_t
   struct oak_allocator_t* allocator;
 };
 
+/* Zero-initialize a VM and wire it to an allocator.  The allocator pointer
+ * is borrowed for the lifetime of the VM; it is not freed by oak_vm_free. */
 OAK_API void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator);
+
+/* Release any heap state owned by the VM.  Does not free chunks (those are
+ * owned by their oak_compile_result_t / oak_module_t). */
 OAK_API void oak_vm_free(struct oak_vm_t* vm);
 
+/* Attach a module registry so cross-module CALL / GET_MODULE_FN opcodes can
+ * resolve.  May be called before oak_vm_run; the pointer is borrowed. */
 OAK_API void oak_vm_set_module_registry(struct oak_vm_t* vm,
                                         struct oak_module_registry_t* modules);
 
+/* Execute `chunk` from its entry point.  `chunk` is borrowed; the caller
+ * retains ownership.  Returns OAK_VM_OK on a clean halt. */
 OAK_API enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm,
                                         struct oak_chunk_t* chunk);
 
+/* Resume execution from the VM's current IP.  Use after a previous run
+ * suspended (e.g. via a yielding native fn). */
 OAK_API enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm);
 
 /* Call an Oak function from C.  Pushes fn_val and args onto the stack, sets up

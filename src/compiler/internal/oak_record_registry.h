@@ -1,7 +1,7 @@
 #pragma once
 
-#include "oakc_defs.h"
-#include "oakc_fn_registry.h"
+#include "oak_defs.h"
+#include "oak_fn_registry.h"
 #include "oak_htable.h"
 #include "oak_type.h"
 
@@ -65,10 +65,10 @@ oak_record_registry_insert(struct oak_record_registry_t* r,
                            const struct oak_registered_record_t* s);
 
 /* O(1) lookup by name. Returns null if not found. */
-const struct oak_registered_record_t* oakc_records_find(
+const struct oak_registered_record_t* oak_records_find(
     const struct oak_record_registry_t* r, const char* name, usize len);
 
 /* O(n) lookup by type_id (infrequent; records stay small). */
 const struct oak_registered_record_t*
-oakc_records_find_by_id(const struct oak_record_registry_t* r,
+oak_records_find_by_id(const struct oak_record_registry_t* r,
                                     oak_type_id_t type_id);

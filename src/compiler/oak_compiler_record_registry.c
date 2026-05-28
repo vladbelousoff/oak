@@ -49,7 +49,7 @@ oak_record_registry_insert(struct oak_record_registry_t* r,
   return &r->entries.items[idx];
 }
 
-const struct oak_registered_record_t* oakc_records_find(
+const struct oak_registered_record_t* oak_records_find(
     const struct oak_record_registry_t* r, const char* name, usize len)
 {
   const int idx = oak_htable_get(&r->by_name, name, len);
@@ -59,7 +59,7 @@ const struct oak_registered_record_t* oakc_records_find(
 }
 
 const struct oak_registered_record_t*
-oakc_records_find_by_id(const struct oak_record_registry_t* r,
+oak_records_find_by_id(const struct oak_record_registry_t* r,
                                     oak_type_id_t type_id)
 {
   if (type_id == OAK_TYPE_VOID)
@@ -74,7 +74,7 @@ oakc_records_find_by_id(const struct oak_record_registry_t* r,
 
 /* ---------- Field and method lookups ---------- */
 
-int oakc_record_field(const struct oak_registered_record_t* s,
+int oak_record_field(const struct oak_registered_record_t* s,
                                    const char* name)
 {
   for (int i = 0; i < s->field_count; ++i)
@@ -87,7 +87,7 @@ int oakc_record_field(const struct oak_registered_record_t* s,
 }
 
 const struct oak_registered_fn_t*
-oakc_find_record_method(const struct oak_registered_record_t* sd,
+oak_find_record_method(const struct oak_registered_record_t* sd,
                                 const char* name,
                                 const int static_only)
 {
@@ -104,7 +104,7 @@ oakc_find_record_method(const struct oak_registered_record_t* sd,
   return null;
 }
 
-int oakc_record_field_index(
+int oak_record_field_index(
     const struct oak_compiler_t* c,
     struct oak_type_t recv_ty,
     const char* field_name,
@@ -113,15 +113,15 @@ int oakc_record_field_index(
   if (!oak_type_is_known(&recv_ty))
     return -1;
   const struct oak_registered_record_t* sd =
-      oakc_records_find_by_id(&c->records, recv_ty.id);
+      oak_records_find_by_id(&c->records, recv_ty.id);
   if (!sd)
     return -1;
   if (out_sd)
     *out_sd = sd;
-  return oakc_record_field(sd, field_name);
+  return oak_record_field(sd, field_name);
 }
 
-int oakc_require_record_field(
+int oak_require_record_field(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* recv,
     const struct oak_ast_node_t* fname,
@@ -129,10 +129,10 @@ int oakc_require_record_field(
     const struct oak_registered_record_t** out_sd)
 {
   struct oak_type_t recv_ty;
-  oakc_infer_type(c, recv, &recv_ty);
+  oak_infer_type(c, recv, &recv_ty);
   const char* ftext = oak_token_text(fname->token);
   const struct oak_registered_record_t* sd = null;
-  const int idx = oakc_record_field_index(c, recv_ty, ftext, &sd);
+  const int idx = oak_record_field_index(c, recv_ty, ftext, &sd);
   if (!oak_type_is_known(&recv_ty) || !sd)
   {
     oak_compiler_error_at(c,

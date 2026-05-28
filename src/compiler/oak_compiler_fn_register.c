@@ -75,12 +75,12 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* raw_item,
                                      const struct oak_ast_node_t* item)
 {
-  const struct oak_ast_node_t* name_node = oakc_fn_name_node(item);
+  const struct oak_ast_node_t* name_node = oak_fn_name_node(item);
   const char* name = oak_token_text(name_node->token);
   const int name_len = oak_token_size(name_node->token);
-  const int explicit_arity = oakc_count_fn_params(item);
+  const int explicit_arity = oak_count_fn_params(item);
   const struct oak_ast_node_t* self_param =
-      oakc_fn_self_param(item);
+      oak_fn_self_param(item);
 
   if (self_param)
   {
@@ -100,7 +100,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     return;
   }
 
-  const struct oak_ast_node_t* type_params_node = oakc_fn_type_params(item);
+  const struct oak_ast_node_t* type_params_node = oak_fn_type_params(item);
   int generic_param_count = 0;
   int generic_def_index = -1;
   if (type_params_node)
@@ -158,7 +158,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
   int attr_count = 0;
-  const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
+  const char** attrs = oak_extract_attrs(c->allocator, raw_item, &attr_count);
 
   struct oak_attr_param_info_t* pinfo = null;
   if (attr_count > 0 && explicit_arity > 0)
@@ -167,11 +167,11 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
                       (usize)explicit_arity * sizeof(struct oak_attr_param_info_t));
     for (int pi = 0; pi < explicit_arity; ++pi)
     {
-      const struct oak_ast_node_t* param = oakc_fn_param_at(item, pi);
-      const struct oak_ast_node_t* id_node = oakc_fn_param_ident(param);
-      const struct oak_ast_node_t* ty_node = oakc_fn_param_type_node(param);
+      const struct oak_ast_node_t* param = oak_fn_param_at(item, pi);
+      const struct oak_ast_node_t* id_node = oak_fn_param_ident(param);
+      const struct oak_ast_node_t* ty_node = oak_fn_param_type_node(param);
       pinfo[pi].name = id_node ? oak_token_text(id_node->token) : "";
-      pinfo[pi].is_mut = oakc_param_is_mut(param);
+      pinfo[pi].is_mut = oak_param_is_mut(param);
       pinfo[pi].is_weak = 0;
       pinfo[pi].type_name = "";
       pinfo[pi].type_id = -1;
@@ -200,12 +200,12 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     }
   }
 
-  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_FN,
+  oak_compiler_dispatch_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_FN,
                                  pinfo, explicit_arity, null, 0, (int)idx);
   if (pinfo)
     OAK_FREE(c->allocator, pinfo);
 
-  oakc_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
+  oak_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   struct oak_registered_fn_t entry = {
     .name = name,
     .name_len = name_len,
@@ -221,17 +221,17 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
-void oakc_register_method_on_record(struct oak_compiler_t* c,
+void oak_register_method_on_record(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* raw_item,
                                     const struct oak_ast_node_t* item,
                                     struct oak_registered_record_t* sd)
 {
-  const struct oak_ast_node_t* name_node = oakc_fn_name_node(item);
+  const struct oak_ast_node_t* name_node = oak_fn_name_node(item);
   const char* name = oak_token_text(name_node->token);
   const int name_len = oak_token_size(name_node->token);
-  const int explicit_arity = oakc_count_fn_params(item);
+  const int explicit_arity = oak_count_fn_params(item);
   const struct oak_ast_node_t* self_param =
-      oakc_fn_self_param(item);
+      oak_fn_self_param(item);
 
   for (int i = 0; i < sd->methods.count; ++i)
   {
@@ -248,8 +248,8 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
   }
 
   int attr_count = 0;
-  const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
-  oakc_dispatch_compile_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_METHOD,
+  const char** attrs = oak_extract_attrs(c->allocator, raw_item, &attr_count);
+  oak_compiler_dispatch_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_METHOD,
                                  null, 0, null, 0, -1);
 
   struct oak_registered_fn_t slot = { 0 };
@@ -270,7 +270,7 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
   memcpy(method_name_copy, name, name_len);
   method_name_copy[name_len] = 0;
   fn_obj->name = method_name_copy;
-  oakc_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
+  oak_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
   slot.arity = total_arity;
   oak_dynarr_push(c->allocator, &sd->methods.items,
@@ -280,7 +280,7 @@ void oakc_register_method_on_record(struct oak_compiler_t* c,
                   sizeof(slot));
 }
 
-void oakc_register_program_fns(
+void oak_register_program_fns(
     struct oak_compiler_t* c, const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -288,7 +288,7 @@ void oakc_register_program_fns(
   {
     const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    const struct oak_ast_node_t* item = oak_unwrap_decl(raw_item);
     if (!item || item->kind != OAK_NODE_FN_DECL)
       continue;
     register_regular_fn_decl(c, raw_item, item);
@@ -297,14 +297,14 @@ void oakc_register_program_fns(
   }
 }
 
-void oakc_register_program_methods(struct oak_compiler_t* c,
+void oak_register_program_methods(struct oak_compiler_t* c,
                                            const struct oak_ast_node_t* program)
 {
   (void)c;
   (void)program;
 }
 
-const struct oak_registered_fn_t* oakc_find_fn(
+const struct oak_registered_fn_t* oak_find_fn(
     struct oak_compiler_t* c, const char* name, const usize len)
 {
   return oak_fn_registry_find(&c->fns, name, len);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "oakc_defs.h"
+#include "oak_defs.h"
 #include "oak_type_id.h"
 
 struct oak_allocator_t;

@@ -2,10 +2,10 @@
 
 #include <stdio.h>
 
-void oakc_compile_expr_fn(struct oak_compiler_t* c,
+void oak_compile_expr_fn(struct oak_compiler_t* c,
                           const struct oak_ast_node_t* node)
 {
-  const int arity = oakc_count_fn_params(node);
+  const int arity = oak_count_fn_params(node);
 
   char name_buf[32];
   snprintf(name_buf, sizeof(name_buf), "__anon_%d", c->anon_fn_count++);

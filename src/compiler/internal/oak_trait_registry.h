@@ -1,6 +1,6 @@
 #pragma once
 
-#include "oakc_defs.h"
+#include "oak_defs.h"
 #include "oak_type.h"
 
 #include <string.h>
@@ -62,7 +62,7 @@ void oak_trait_registry_free(struct oak_trait_registry_t* r);
 /* ---------- Lookups ---------- */
 
 static inline const struct oak_registered_trait_t*
-oakc_trait_find(const struct oak_trait_registry_t* r,
+oak_trait_find(const struct oak_trait_registry_t* r,
                 const char* name)
 {
   for (int i = 0; i < r->trait_count; ++i)
@@ -75,7 +75,7 @@ oakc_trait_find(const struct oak_trait_registry_t* r,
 }
 
 static inline const struct oak_registered_trait_t*
-oakc_trait_find_by_id(const struct oak_trait_registry_t* r, oak_type_id_t id)
+oak_trait_find_by_id(const struct oak_trait_registry_t* r, oak_type_id_t id)
 {
   for (int i = 0; i < r->trait_count; ++i)
     if (r->traits[i].trait_id == id)
@@ -84,7 +84,7 @@ oakc_trait_find_by_id(const struct oak_trait_registry_t* r, oak_type_id_t id)
 }
 
 /* Returns the method slot index within the trait, or -1 if not found. */
-static inline int oakc_trait_method_slot(const struct oak_registered_trait_t* tr,
+static inline int oak_trait_method_slot(const struct oak_registered_trait_t* tr,
                                          const char* name)
 {
   for (int i = 0; i < tr->method_count; ++i)
@@ -95,7 +95,7 @@ static inline int oakc_trait_method_slot(const struct oak_registered_trait_t* tr
 
 /* Find the impl record for (record_type_id, trait_id), or NULL. */
 static inline struct oak_trait_impl_t*
-oakc_trait_impl_find(struct oak_trait_registry_t* r,
+oak_trait_impl_find(struct oak_trait_registry_t* r,
                      oak_type_id_t record_type_id,
                      oak_type_id_t trait_id)
 {

@@ -1,6 +1,6 @@
 #include "internal/oak_compiler.h"
 
-int oakc_is_module_scope(const struct oak_compiler_t* c,
+int oak_is_module_scope(const struct oak_compiler_t* c,
                                       const char* name,
                                       const usize len)
 {
@@ -68,7 +68,7 @@ void oak_compiler_end_scope(struct oak_compiler_t* c)
   c->scope.scope_depth--;
 }
 
-int oakc_local_at_slot(const struct oak_compiler_t* c, int slot)
+int oak_local_at_slot(const struct oak_compiler_t* c, int slot)
 {
   for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
@@ -78,7 +78,7 @@ int oakc_local_at_slot(const struct oak_compiler_t* c, int slot)
   return -1;
 }
 
-int oakc_ident_local(const struct oak_compiler_t* c,
+int oak_ident_local(const struct oak_compiler_t* c,
                                             const struct oak_ast_node_t* expr)
 {
   if (!expr)
@@ -105,22 +105,22 @@ int oakc_ident_local(const struct oak_compiler_t* c,
   return -1;
 }
 
-int oakc_place_root_local(const struct oak_compiler_t* c,
+int oak_place_root_local(const struct oak_compiler_t* c,
                                             const struct oak_ast_node_t* expr)
 {
   while (expr && (expr->kind == OAK_NODE_MEMBER_ACCESS ||
                   expr->kind == OAK_NODE_INDEX_ACCESS))
     expr = expr->lhs;
-  return oakc_ident_local(c, expr);
+  return oak_ident_local(c, expr);
 }
 
-int oakc_expr_is_reference_place(const struct oak_compiler_t* c,
+int oak_expr_is_reference_place(const struct oak_compiler_t* c,
                                  const struct oak_ast_node_t* expr)
 {
-  return oakc_place_root_local(c, expr) >= 0;
+  return oak_place_root_local(c, expr) >= 0;
 }
 
-int oakc_compile_assign_target(struct oak_compiler_t* c,
+int oak_compile_assign_target(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* lhs,
                                        const char* non_ident_msg)
 {
@@ -136,7 +136,7 @@ int oakc_compile_assign_target(struct oak_compiler_t* c,
   if (slot < 0)
   {
     if (c->scope.fn_depth > 0 &&
-        oakc_is_module_scope(c, name, name_len))
+        oak_is_module_scope(c, name, name_len))
     {
       oak_compiler_error_at(
           c,
@@ -164,7 +164,7 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
     return 1;
   if (expr->kind == OAK_NODE_IDENT || expr->kind == OAK_NODE_SELF)
   {
-    const int idx = oakc_ident_local(c, expr);
+    const int idx = oak_ident_local(c, expr);
     if (idx < 0)
       return 0;
     const struct oak_local_t* l = &c->scope.locals[idx];
@@ -177,7 +177,7 @@ int oak_compiler_expr_is_mutable_place(const struct oak_compiler_t* c,
 }
 
 static int
-oakc_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
+oak_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
                                           const struct oak_ast_node_t* expr,
                                           const char* target)
 {
@@ -195,8 +195,8 @@ oakc_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
         continue;
       struct oak_type_t fty;
       oak_type_clear(&fty);
-      oakc_infer_type(c, field->rhs, &fty);
-      if (oakc_reject_immutable_ref_for_mutable_storage(
+      oak_infer_type(c, field->rhs, &fty);
+      if (oak_reject_immutable_ref_for_mutable_storage(
               c,
               field->rhs,
               fty,
@@ -218,8 +218,8 @@ oakc_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
           wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
       struct oak_type_t ety;
       oak_type_clear(&ety);
-      oakc_infer_type(c, elem, &ety);
-      if (oakc_reject_immutable_ref_for_mutable_storage(
+      oak_infer_type(c, elem, &ety);
+      if (oak_reject_immutable_ref_for_mutable_storage(
               c, elem, ety, elem ? elem->token : wrap->token, target))
         return 1;
     }
@@ -233,8 +233,8 @@ oakc_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
     {
       struct oak_type_t vty;
       oak_type_clear(&vty);
-      oakc_infer_type(c, first->rhs, &vty);
-      if (oakc_reject_immutable_ref_for_mutable_storage(
+      oak_infer_type(c, first->rhs, &vty);
+      if (oak_reject_immutable_ref_for_mutable_storage(
               c, first->rhs, vty, first->rhs->token, target))
         return 1;
     }
@@ -249,8 +249,8 @@ oakc_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
           continue;
         struct oak_type_t vty;
         oak_type_clear(&vty);
-        oakc_infer_type(c, entry->rhs, &vty);
-        if (oakc_reject_immutable_ref_for_mutable_storage(
+        oak_infer_type(c, entry->rhs, &vty);
+        if (oak_reject_immutable_ref_for_mutable_storage(
                 c, entry->rhs, vty, entry->rhs->token, target))
           return 1;
       }
@@ -260,7 +260,7 @@ oakc_reject_immutable_refs_inside_literal(struct oak_compiler_t* c,
   return 0;
 }
 
-int oakc_reject_immutable_ref_for_mutable_storage(
+int oak_reject_immutable_ref_for_mutable_storage(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* expr,
     struct oak_type_t ty,
@@ -269,7 +269,7 @@ int oakc_reject_immutable_ref_for_mutable_storage(
 {
   if (!oak_type_is_refcounted(&ty))
     return 0;
-  if (oakc_reject_immutable_refs_inside_literal(c, expr, target))
+  if (oak_reject_immutable_refs_inside_literal(c, expr, target))
     return 1;
   if (oak_compiler_expr_is_mutable_place(c, expr))
     return 0;

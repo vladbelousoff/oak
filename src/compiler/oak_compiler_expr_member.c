@@ -20,7 +20,7 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
     {
       const char* ename = oak_token_text(ename_tok);
       const char* vname = oak_token_text(fname->token);
-      const struct oak_enum_variant_t* ev = oakc_enums_find_qualified(
+      const struct oak_enum_variant_t* ev = oak_enums_find_qualified(
           &c->enums, ename, vname);
       if (!ev)
       {
@@ -39,10 +39,10 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
   {
     const char* recv_name = oak_token_text(recv->token);
     const int recv_len = oak_token_size(recv->token);
-    if (oakc_is_enum_name(&c->enums, recv_name, recv_len))
+    if (oak_is_enum_name(&c->enums, recv_name, recv_len))
     {
       const char* vname = oak_token_text(fname->token);
-      const struct oak_enum_variant_t* ev = oakc_enums_find_qualified(
+      const struct oak_enum_variant_t* ev = oak_enums_find_qualified(
           &c->enums, recv_name, vname);
       if (!ev)
       {
@@ -59,11 +59,11 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
     }
   }
 
-  oakc_reject_void(c, recv);
+  oak_reject_void(c, recv);
   if (c->has_error)
     return;
   const struct oak_registered_record_t* sd = null;
-  const int idx = oakc_require_record_field(c, recv, fname, 0, &sd);
+  const int idx = oak_require_record_field(c, recv, fname, 0, &sd);
   (void)sd;
   if (idx < 0)
     return;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "oakc_state.h"
+#include "oak_state.h"
 #include "oak_chunk.h"
 
 /* ---------- oak_compiler_emit.c ---------- */
@@ -65,7 +65,7 @@ void oak_compiler_emit_pops(struct oak_compiler_t* c,
                             int count,
                             struct oak_code_loc_t loc);
 
-void oakc_emit_loop_jump(struct oak_compiler_t* c,
+void oak_emit_loop_jump(struct oak_compiler_t* c,
                          usize** jumps,
                          int* count,
                          int* capacity,

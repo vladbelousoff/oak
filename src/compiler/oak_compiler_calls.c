@@ -1,11 +1,11 @@
 #include "internal/oak_compiler.h"
 
-static void oakc_compile_indirect_call(struct oak_compiler_t* c,
+static void oak_compile_indirect_call(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* node,
                                        const struct oak_ast_node_t* callee)
 {
   const struct oak_list_entry_t* first = node->children.next;
-  const usize argc = oakc_child_count(node) - 1;
+  const usize argc = oak_child_count(node) - 1;
   const struct oak_code_loc_t call_loc =
       callee->token ? oak_compiler_loc_from_token(callee->token)
                     : OAK_LOC_SYNTHETIC;
@@ -19,7 +19,7 @@ static void oakc_compile_indirect_call(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* arg =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    oakc_compile_call_arg(c, arg);
+    oak_compile_call_arg(c, arg);
   }
 
   oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)argc));
@@ -41,7 +41,7 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
 
   if (callee && callee->kind == OAK_NODE_MEMBER_ACCESS)
   {
-    oakc_compile_method_call(c, node, callee);
+    oak_compile_method_call(c, node, callee);
     return;
   }
 
@@ -51,13 +51,13 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
     const char* callee_name = oak_token_text(callee->token);
 
     const struct oak_registered_fn_t* entry =
-        oakc_find_fn(c, callee_name, callee_len);
+        oak_find_fn(c, callee_name, callee_len);
 
     if (entry)
     {
       const struct oak_code_loc_t call_loc =
           oak_compiler_loc_from_token(callee->token);
-      const usize argc = oakc_child_count(node) - 1;
+      const usize argc = oak_child_count(node) - 1;
 
       if ((int)argc != entry->arity)
       {
@@ -70,7 +70,7 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
         return;
       }
 
-      oakc_check_fn_args(c, node, entry);
+      oak_check_fn_args(c, node, entry);
       if (c->has_error)
         return;
 
@@ -99,16 +99,16 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
         if (entry->decl)
         {
           const struct oak_ast_node_t* param =
-              oakc_fn_param_at(entry->decl, arg_idx);
+              oak_fn_param_at(entry->decl, arg_idx);
           if (param)
           {
             const struct oak_ast_node_t* type_node =
-                oakc_fn_param_type_node(param);
+                oak_fn_param_type_node(param);
             if (type_node)
             {
               struct oak_type_t want;
-              oakc_lower_type_node(c, type_node, &want);
-              oakc_compile_call_arg_for_type(c, arg, want, call_loc);
+              oak_lower_type_node(c, type_node, &want);
+              oak_compile_call_arg_for_type(c, arg, want, call_loc);
               compiled = 1;
               if (c->has_error)
                 return;
@@ -118,14 +118,14 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
         else if (entry->param_types && arg_idx < entry->arity &&
                  oak_type_is_known(&entry->param_types[arg_idx]))
         {
-          oakc_compile_call_arg_for_type(
+          oak_compile_call_arg_for_type(
               c, arg, entry->param_types[arg_idx], call_loc);
           compiled = 1;
           if (c->has_error)
             return;
         }
         if (!compiled)
-          oakc_compile_call_arg(c, arg);
+          oak_compile_call_arg(c, arg);
       }
 
       oak_compiler_emit_op(
@@ -137,7 +137,7 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
     const int slot = oak_compiler_find_local(c, callee_name, null);
     if (slot >= 0)
     {
-      oakc_compile_indirect_call(c, node, callee);
+      oak_compile_indirect_call(c, node, callee);
       return;
     }
 
@@ -146,5 +146,5 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
     return;
   }
 
-  oakc_compile_indirect_call(c, node, callee);
+  oak_compile_indirect_call(c, node, callee);
 }

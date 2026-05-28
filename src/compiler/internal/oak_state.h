@@ -1,15 +1,15 @@
 #pragma once
 
-#include "oakc_defs.h"
+#include "oak_defs.h"
 
 struct oak_allocator_t;       /* defined in oak_allocator.h */
 struct oak_compile_options_t; /* defined in oak_bind.h */
-#include "oakc_enum_registry.h"
-#include "oakc_fn_registry.h"
-#include "oakc_generic_registry.h"
-#include "oakc_method_table.h"
-#include "oakc_record_registry.h"
-#include "oakc_trait_registry.h"
+#include "oak_enum_registry.h"
+#include "oak_fn_registry.h"
+#include "oak_generic_registry.h"
+#include "oak_method_table.h"
+#include "oak_record_registry.h"
+#include "oak_trait_registry.h"
 #include "oak_htable.h"
 #include "oak_module.h"
 #include "oak_type.h"
@@ -54,7 +54,29 @@ struct oak_scope_ctx_t
   int fn_depth;
 };
 
-/* ---------- Top-level compiler state ---------- */
+/* ---------- Top-level compiler state ----------
+ *
+ * `oak_compiler_t` owns every registry needed to lower an AST into a chunk.
+ * Registries are populated in passes (see oak_compiler_pipeline.c):
+ *
+ *   1. Native bindings from `opts` (records → `records`, enums → `enums`,
+ *      free fns / methods → `fns` and `records.*.methods`).
+ *   2. Imports from other modules (resolve_new_style_imports), which extend
+ *      `records`, `enums`, `traits`, and `fns` with translated entries.
+ *   3. The program's own decls: `user_record_start`, `user_enum_start`,
+ *      `user_trait_start` mark where each pass's source-level entries
+ *      begin in the corresponding registry.  Anything before the cursor is
+ *      native or imported; anything after is exported to the module.
+ *
+ * `types` is the type-id interner shared by all registries.  After
+ * compilation it is moved into `current_module` via
+ * oak_compiler_move_types_to_module().
+ *
+ * `generic_params` / `generic_param_count` are the *active* type-parameter
+ * context — non-null only while lowering a generic fn / record body or
+ * checking a generic call site.  They must be paired (save before, restore
+ * after) by anyone who mutates them; see infer_generic_call_type for an
+ * example. */
 
 struct oak_compiler_t
 {

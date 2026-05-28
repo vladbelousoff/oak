@@ -14,6 +14,13 @@
  * none) are stored inline; object values carry a full native pointer.
  */
 
+/* Runtime tag for the payload of an oak_value_t.
+ *
+ * OAK_TAG_WEAK is a non-owning reference to an oak_obj_t: it bumps the
+ * object's weak_refcount but not its strong refcount, and on dereference
+ * the VM upgrades it to a strong reference (or to NONE if the target has
+ * already been freed).  Weak references exist to break ownership cycles
+ * — see the `weak` type modifier in the language tour. */
 enum oak_value_tag_t
 {
   OAK_TAG_I32,

@@ -31,7 +31,7 @@ void oak_enum_registry_free(struct oak_enum_registry_t* r)
   oak_dynarr_free(r->allocator, &r->enums.items, &r->enums.count, &r->enums.capacity);
 }
 
-const struct oak_registered_enum_t* oakc_enum_find(
+const struct oak_registered_enum_t* oak_enum_find(
     const struct oak_enum_registry_t* r, const char* name)
 {
   for (int i = 0; i < r->enums.count; ++i)
@@ -90,7 +90,7 @@ const struct oak_enum_variant_t* oak_enum_registry_find(
 }
 
 const struct oak_enum_variant_t*
-oakc_enums_find_qualified(const struct oak_enum_registry_t* r,
+oak_enums_find_qualified(const struct oak_enum_registry_t* r,
                                  const char* enum_name,
                                  const char* variant_name)
 {
@@ -106,7 +106,7 @@ oakc_enums_find_qualified(const struct oak_enum_registry_t* r,
   return null;
 }
 
-int oakc_is_enum_name(const struct oak_enum_registry_t* r,
+int oak_is_enum_name(const struct oak_enum_registry_t* r,
                                    const char* name,
                                    usize len)
 {
@@ -114,7 +114,7 @@ int oakc_is_enum_name(const struct oak_enum_registry_t* r,
 }
 
 
-void oakc_register_native_enums(
+void oak_register_native_enums(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
   if (!opts || opts->native_enums.count == 0)
@@ -129,7 +129,7 @@ void oakc_register_native_enums(
       continue;
 
     const int ne_name_len = (int)strlen(ne->name);
-    if (oakc_is_enum_name(&c->enums, ne->name, ne_name_len))
+    if (oak_is_enum_name(&c->enums, ne->name, ne_name_len))
     {
       oak_compiler_error_at(
           c,
@@ -197,7 +197,7 @@ void oakc_register_native_enums(
   }
 }
 
-void oakc_register_program_enums(struct oak_compiler_t* c,
+void oak_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -205,7 +205,7 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
   {
     const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
-    const struct oak_ast_node_t* item = oakc_unwrap_decl(raw_item);
+    const struct oak_ast_node_t* item = oak_unwrap_decl(raw_item);
     if (!item || item->kind != OAK_NODE_ENUM_DECL)
       continue;
 
@@ -220,7 +220,7 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
 
     const char* enum_name_check = oak_token_text(name_node->token);
     const int enum_name_check_len = oak_token_size(name_node->token);
-    if (oakc_is_enum_name(&c->enums, enum_name_check, enum_name_check_len))
+    if (oak_is_enum_name(&c->enums, enum_name_check, enum_name_check_len))
     {
       oak_compiler_error_at(
           c, name_node->token, "enum '%s' conflicts with an imported enum",
@@ -229,7 +229,7 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
     }
 
     const oak_type_id_t enum_type_id =
-        oakc_intern_type_tok(c, name_node->token);
+        oak_intern_type_tok(c, name_node->token);
     if (enum_type_id < 0)
     {
       oak_compiler_error_at(
@@ -240,9 +240,9 @@ void oakc_register_program_enums(struct oak_compiler_t* c,
     /* Register enum-level metadata (name, type_id, attributes). */
     {
       int attr_count = 0;
-      const char** attrs = oakc_extract_attrs(c->allocator, raw_item, &attr_count);
+      const char** attrs = oak_extract_attrs(c->allocator, raw_item, &attr_count);
       const char* enum_name = oak_token_text(name_node->token);
-      oakc_dispatch_compile_attr_cbs(
+      oak_compiler_dispatch_attr_cbs(
           c, attrs, attr_count, enum_name, OAK_ATTR_TARGET_ENUM,
           null, 0, null, 0, -1);
       struct oak_registered_enum_t re = {

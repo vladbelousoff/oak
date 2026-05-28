@@ -26,7 +26,7 @@ void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
                                                          : first_wrap;
 
   struct oak_type_t elem_ty;
-  oakc_infer_type(c, first_elem, &elem_ty);
+  oak_infer_type(c, first_elem, &elem_ty);
   if (!oak_type_is_known(&elem_ty))
   {
     oak_compiler_error_at(c,
@@ -44,15 +44,15 @@ void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
         wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
 
     struct oak_type_t et;
-    oakc_infer_type(c, elem, &et);
+    oak_infer_type(c, elem, &et);
     if (oak_type_is_known(&et) && !oak_type_equal(&elem_ty, &et))
     {
       oak_compiler_error_at(c,
                             elem ? elem->token : null,
                             "array literal element type mismatch "
                             "(expected '%s', got '%s')",
-                            oakc_type_full_name(c, elem_ty),
-                            oakc_type_full_name(c, et));
+                            oak_type_full_name(c, elem_ty),
+                            oak_type_full_name(c, et));
       return;
     }
 
@@ -93,8 +93,8 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
 
   struct oak_type_t key_ty;
   struct oak_type_t val_ty;
-  oakc_infer_type(c, first_entry->lhs, &key_ty);
-  oakc_infer_type(c, first_entry->rhs, &val_ty);
+  oak_infer_type(c, first_entry->lhs, &key_ty);
+  oak_infer_type(c, first_entry->rhs, &val_ty);
   if (!oak_type_is_known(&key_ty))
   {
     oak_compiler_error_at(c,
@@ -130,16 +130,16 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
 
     struct oak_type_t kt;
     struct oak_type_t vt;
-    oakc_infer_type(c, entry->lhs, &kt);
-    oakc_infer_type(c, entry->rhs, &vt);
+    oak_infer_type(c, entry->lhs, &kt);
+    oak_infer_type(c, entry->rhs, &vt);
     if (oak_type_is_known(&kt) && !oak_type_equal(&key_ty, &kt))
     {
       oak_compiler_error_at(c,
                             entry->lhs->token,
                             "map literal key type mismatch "
                             "(expected '%s', got '%s')",
-                            oakc_type_full_name(c, key_ty),
-                            oakc_type_full_name(c, kt));
+                            oak_type_full_name(c, key_ty),
+                            oak_type_full_name(c, kt));
       return;
     }
     if (oak_type_is_known(&vt) && !oak_type_equal(&val_ty, &vt))
@@ -148,8 +148,8 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
                             entry->rhs->token,
                             "map literal value type mismatch "
                             "(expected '%s', got '%s')",
-                            oakc_type_full_name(c, val_ty),
-                            oakc_type_full_name(c, vt));
+                            oak_type_full_name(c, val_ty),
+                            oak_type_full_name(c, vt));
       return;
     }
   }

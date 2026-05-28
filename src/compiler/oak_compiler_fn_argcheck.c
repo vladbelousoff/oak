@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "internal/oakc_trait_registry.h"
+#include "internal/oak_trait_registry.h"
 
 static const struct oak_token_t*
 arg_expr_error_token(const struct oak_ast_node_t* arg_expr,
@@ -23,15 +23,15 @@ static int check_trait_coercion(struct oak_compiler_t* c,
   if (want->kind != OAK_TYPE_KIND_TRAIT || want->is_weak)
     return 0;
   const struct oak_registered_trait_t* tr =
-      oakc_trait_find_by_id(&c->traits, want->id);
+      oak_trait_find_by_id(&c->traits, want->id);
   if (!tr)
     return 0;
   if (oak_type_equal(want, got))
     return 1;
   const struct oak_registered_record_t* sd = null;
   if (got->kind == OAK_TYPE_KIND_SCALAR)
-    sd = oakc_records_find_by_id(&c->records, got->id);
-  if (sd && oakc_record_satisfies_trait(c, sd, tr))
+    sd = oak_records_find_by_id(&c->records, got->id);
+  if (sd && oak_record_satisfies_trait(c, sd, tr))
     return 1;
   if (sd)
     oak_compiler_error_at(c, err_tok,
@@ -41,7 +41,7 @@ static int check_trait_coercion(struct oak_compiler_t* c,
     oak_compiler_error_at(c, err_tok,
                           "argument %d: cannot coerce '%s' to trait '%s'",
                           arg_num,
-                          oakc_type_full_name(c, *got),
+                          oak_type_full_name(c, *got),
                           tr->name);
   return -1;
 }
@@ -63,7 +63,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       arg_expr = arg_wrap->child;
 
     const struct oak_ast_node_t* param =
-        oakc_fn_param_at(decl, (int)i);
+        oak_fn_param_at(decl, (int)i);
     if (!param)
     {
       oak_compiler_error_at(
@@ -71,7 +71,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       return;
     }
     const struct oak_ast_node_t* want_type_node =
-        oakc_fn_param_type_node(param);
+        oak_fn_param_type_node(param);
     if (!want_type_node)
     {
       oak_compiler_error_at(
@@ -79,7 +79,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
       return;
     }
     struct oak_type_t want;
-    oakc_lower_type_node(c, want_type_node, &want);
+    oak_lower_type_node(c, want_type_node, &want);
     if (!oak_type_is_known(&want))
     {
       oak_compiler_error_at(
@@ -88,7 +88,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
     }
 
     struct oak_type_t got;
-    oakc_infer_type(c, arg_expr, &got);
+    oak_infer_type(c, arg_expr, &got);
     if (!oak_type_is_known(&got))
       continue;
 
@@ -111,7 +111,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
         return;
     }
 
-    if (!oakc_type_accepts(&want, &got))
+    if (!oak_type_accepts(&want, &got))
     {
       const struct oak_token_t* err_tok =
           arg_expr_error_token(arg_expr, arg_wrap);
@@ -119,11 +119,11 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
                             err_tok,
                             "argument %zu: expected type '%s', found '%s'",
                             i + 1u,
-                            oakc_type_full_name(c, want),
-                            oakc_type_full_name(c, got));
+                            oak_type_full_name(c, want),
+                            oak_type_full_name(c, got));
     }
 
-    if (oakc_param_is_mut(param) &&
+    if (oak_param_is_mut(param) &&
         oak_type_is_refcounted(&want) &&
         !oak_compiler_expr_is_mutable_place(c, arg_expr))
     {
@@ -163,7 +163,7 @@ static void validate_call_arg_types_for_imported(
     const struct oak_type_t want = fn->param_types[slot];
 
     struct oak_type_t got;
-    oakc_infer_type(c, arg_expr, &got);
+    oak_infer_type(c, arg_expr, &got);
     if (!oak_type_is_known(&got))
       continue;
     if (oak_type_is_void(&got))
@@ -182,15 +182,15 @@ static void validate_call_arg_types_for_imported(
       if (tc < 0)
         return;
     }
-    if (!oakc_type_accepts(&want, &got))
+    if (!oak_type_accepts(&want, &got))
     {
       const struct oak_token_t* err_tok =
           arg_expr_error_token(arg_expr, arg_wrap);
       oak_compiler_error_at(c, err_tok,
                             "argument %d: expected type '%s', found '%s'",
                             i + 1,
-                            oakc_type_full_name(c, want),
-                            oakc_type_full_name(c, got));
+                            oak_type_full_name(c, want),
+                            oak_type_full_name(c, got));
     }
     if (fn->param_mut_flags && fn->param_mut_flags[slot] &&
         oak_type_is_refcounted(&want) &&
@@ -233,20 +233,20 @@ static void validate_generic_call_args(
     if (arg_wrap->kind == OAK_NODE_FN_CALL_ARG)
       arg_expr = arg_wrap->child;
 
-    const struct oak_ast_node_t* param = oakc_fn_param_at(fn->decl, i);
+    const struct oak_ast_node_t* param = oak_fn_param_at(fn->decl, i);
     if (!param)
       continue;
-    const struct oak_ast_node_t* tn = oakc_fn_param_type_node(param);
+    const struct oak_ast_node_t* tn = oak_fn_param_type_node(param);
     if (!tn)
       continue;
 
     struct oak_type_t want;
-    oakc_lower_type_node(c, tn, &want);
+    oak_lower_type_node(c, tn, &want);
     if (!oak_type_is_known(&want))
       continue;
 
     struct oak_type_t got;
-    oakc_infer_type(c, arg_expr, &got);
+    oak_infer_type(c, arg_expr, &got);
     if (!oak_type_is_known(&got))
       continue;
 
@@ -275,9 +275,9 @@ static void validate_generic_call_args(
             "argument %d: type '%s' conflicts with earlier use of "
             "type parameter '%s' as '%s'",
             i + 1,
-            oakc_type_full_name(c, got),
+            oak_type_full_name(c, got),
             def->params[pi].name,
-            oakc_type_full_name(c, bindings[pi]));
+            oak_type_full_name(c, bindings[pi]));
         goto done;
       }
       continue;
@@ -316,17 +316,17 @@ static void validate_generic_call_args(
         goto done;
     }
 
-    if (!oakc_type_accepts(&want, &got))
+    if (!oak_type_accepts(&want, &got))
     {
       const struct oak_token_t* et = arg_expr_error_token(arg_expr, arg_wrap);
       oak_compiler_error_at(c, et,
                             "argument %d: expected type '%s', found '%s'",
                             i + 1,
-                            oakc_type_full_name(c, want),
-                            oakc_type_full_name(c, got));
+                            oak_type_full_name(c, want),
+                            oak_type_full_name(c, got));
     }
 
-    if (oakc_param_is_mut(param) &&
+    if (oak_param_is_mut(param) &&
         oak_type_is_refcounted(&want) &&
         !oak_compiler_expr_is_mutable_place(c, arg_expr))
     {
@@ -343,7 +343,7 @@ done:
   c->generic_param_count = saved_gpc;
 }
 
-void oakc_check_fn_args(
+void oak_check_fn_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* fn)
@@ -362,7 +362,7 @@ void oakc_check_fn_args(
     validate_call_arg_types_for_imported(c, call, fn);
 }
 
-void oakc_check_method_args(
+void oak_check_method_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_registered_fn_t* m)
@@ -376,7 +376,7 @@ void oakc_check_method_args(
     validate_call_arg_types_for_imported(c, call, m);
 }
 
-void oakc_check_args_against_decl(struct oak_compiler_t* c,
+void oak_check_args_against_decl(struct oak_compiler_t* c,
                                    const struct oak_ast_node_t* call,
                                    const struct oak_ast_node_t* decl)
 {
@@ -385,7 +385,7 @@ void oakc_check_args_against_decl(struct oak_compiler_t* c,
   validate_call_arg_types_for_decl(c, call, decl);
 }
 
-void oakc_check_trait_method_args(
+void oak_check_trait_method_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
     const struct oak_trait_method_t* tm)

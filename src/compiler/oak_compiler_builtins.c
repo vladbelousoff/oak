@@ -1,7 +1,7 @@
 #include "internal/oak_compiler.h"
 #include "oak_stdlib_math.h"
 
-u16 oakc_intern_native_const(struct oak_compiler_t* c,
+u16 oak_intern_native_const(struct oak_compiler_t* c,
                                         const oak_native_fn_t impl,
                                         const int arity,
                                         const char* name)
@@ -118,7 +118,7 @@ static const struct oak_native_binding_t native_builtins[] = {
   { "random", oak_math_random, 0, OAK_TYPE_NUMBER },
 };
 
-void oakc_register_native_builtins(struct oak_compiler_t* c)
+void oak_register_native_builtins(struct oak_compiler_t* c)
 {
   for (usize i = 0; i < oak_count_of(native_builtins); ++i)
   {
