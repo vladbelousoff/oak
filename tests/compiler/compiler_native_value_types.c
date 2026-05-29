@@ -190,7 +190,7 @@ OAK_TEST_DECL(ValueTypeEqualityIsPayloadIdentity)
 OAK_TEST_DECL(ValueTypeAsGenericArgRunsOk)
 {
   static const char* tp[] = { "T" };
-  static const struct oak_bind_type_ref_t pt[] = { OAK_BIND_PARAM(0) };
+  struct oak_bind_type_ref_t pt[] = { OAK_BIND_PARAM(0) };
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts, oak_test_allocator());
   bind_handle(&opts);

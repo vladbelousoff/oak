@@ -78,7 +78,7 @@ static struct oak_value_t num_getter(struct oak_value_t self)
 static void bind_identity(struct oak_compile_options_t* opts)
 {
   static const char* params[] = { "T" };
-  static const struct oak_bind_type_ref_t ptypes[] = { OAK_BIND_PARAM(0) };
+  struct oak_bind_type_ref_t ptypes[] = { OAK_BIND_PARAM(0) };
   oak_bind_fn_global(opts,
                      &(struct oak_bind_global_fn_t){
                          .name = "identity",
@@ -96,7 +96,7 @@ static void bind_identity(struct oak_compile_options_t* opts)
 static void bind_same(struct oak_compile_options_t* opts)
 {
   static const char* params[] = { "T" };
-  static const struct oak_bind_type_ref_t ptypes[] = { OAK_BIND_PARAM(0),
+  struct oak_bind_type_ref_t ptypes[] = { OAK_BIND_PARAM(0),
                                                        OAK_BIND_PARAM(0) };
   oak_bind_fn_global(opts,
                      &(struct oak_bind_global_fn_t){
@@ -116,11 +116,11 @@ static void bind_same(struct oak_compile_options_t* opts)
 static void bind_map_fns(struct oak_compile_options_t* opts)
 {
   static const char* tp[] = { "T" };
-  static const struct oak_bind_type_ref_t vals_params[] = {
+  struct oak_bind_type_ref_t vals_params[] = {
     { .kind = OAK_TYPE_KIND_MAP, .key_id = OAK_TYPE_STRING,
       .id = OAK_TYPE_PARAM_BASE + 0 }
   };
-  static const struct oak_bind_type_ref_t same_key_params[] = {
+  struct oak_bind_type_ref_t same_key_params[] = {
     { .kind = OAK_TYPE_KIND_MAP, .key_id = OAK_TYPE_PARAM_BASE + 0,
       .id = OAK_TYPE_NUMBER },
     { .kind = OAK_TYPE_KIND_MAP, .key_id = OAK_TYPE_PARAM_BASE + 0,
@@ -155,7 +155,7 @@ static void bind_map_fns(struct oak_compile_options_t* opts)
 static void bind_mix(struct oak_compile_options_t* opts)
 {
   static const char* tp[] = { "T" };
-  static const struct oak_bind_type_ref_t mix_params[] = {
+  struct oak_bind_type_ref_t mix_params[] = {
     OAK_BIND_PARAM(0), OAK_BIND_PARAM_ARRAY(0)
   };
   oak_bind_fn_global(opts,
@@ -174,7 +174,7 @@ static void bind_mix(struct oak_compile_options_t* opts)
 /* Register a non-generic global fn `need_number(n: number) -> number`. */
 static void bind_need_number(struct oak_compile_options_t* opts)
 {
-  static const struct oak_bind_type_ref_t ptypes[] = {
+  struct oak_bind_type_ref_t ptypes[] = {
     OAK_BIND_SCALAR(OAK_TYPE_NUMBER)
   };
   oak_bind_fn_global(opts,
@@ -303,8 +303,8 @@ static oak_type_id_t bind_box(struct oak_compile_options_t* opts)
   static const char* method_params[] = { "T" };
   struct oak_bind_type_t* box =
       oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "Box");
-  static const struct oak_bind_type_ref_t echo_params[] = { OAK_BIND_PARAM(0) };
-  static const struct oak_bind_type_ref_t same2_params[] = { OAK_BIND_PARAM(0),
+  struct oak_bind_type_ref_t echo_params[] = { OAK_BIND_PARAM(0) };
+  struct oak_bind_type_ref_t same2_params[] = { OAK_BIND_PARAM(0),
                                                             OAK_BIND_PARAM(0) };
   /* get(self) -> number : non-generic; a return-only T would be uninferable
    * (no receiver specialization) and is rejected at registration. */
@@ -581,7 +581,7 @@ OAK_TEST_DECL(BindRejectsOutOfRangeParamRef)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts, oak_test_allocator());
   static const char* tp[] = { "T" };
-  static const struct oak_bind_type_ref_t pt[] = { OAK_BIND_PARAM(5) };
+  struct oak_bind_type_ref_t pt[] = { OAK_BIND_PARAM(5) };
   const int r = oak_bind_fn_global(
       &opts,
       &(struct oak_bind_global_fn_t){ .name = "bad",
@@ -659,7 +659,7 @@ OAK_TEST_DECL(BindRejectsGenericMethodOnModuleType)
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts, oak_test_allocator());
   static const char* tp[] = { "T" };
-  static const struct oak_bind_type_ref_t pt[] = { OAK_BIND_PARAM(0) };
+  struct oak_bind_type_ref_t pt[] = { OAK_BIND_PARAM(0) };
   struct oak_bind_type_t* t =
       oak_bind_type_in_module(&opts, "mymod", OAK_BIND_TYPE_RECORD, "Holder");
   const int r = oak_bind_fn(
