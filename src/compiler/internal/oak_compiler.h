@@ -129,6 +129,13 @@ void oak_lower_type_node(struct oak_compiler_t* c,
 int oak_type_accepts(const struct oak_type_t* want,
                       const struct oak_type_t* got);
 
+/* Like oak_type_is_refcounted, but also returns 0 for inline value types
+ * (OAK_BIND_TYPE_VALUE), which share the user-scalar id range yet are
+ * represented inline (OAK_TAG_NATIVE) and never participate in refcounting or
+ * weak references. */
+int oak_compiler_type_is_refcounted(struct oak_compiler_t* c,
+                                    const struct oak_type_t* ty);
+
 /* Fails compilation if the expression is typed as void (e.g. call to a void
  * fn). No-op for null or not-yet-inferrable types. */
 void oak_reject_void(struct oak_compiler_t* c,

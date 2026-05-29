@@ -47,6 +47,8 @@ int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
     }
     return snprintf(buf, size, "%p", (void*)oak_as_obj(value));
   }
+  if (oak_is_native_value(value))
+    return snprintf(buf, size, "<native %p>", oak_as_native_value(value));
   if (size > 0)
     buf[0] = '\0';
   return 0;

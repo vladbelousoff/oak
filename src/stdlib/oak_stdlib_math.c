@@ -151,8 +151,7 @@ static void bind_math_module_fn(struct oak_compile_options_t* opts,
                          .name = name,
                          .impl = impl,
                          .arity = arity,
-                         .return_type_id = OAK_TYPE_NUMBER,
-                         .return_shape = OAK_BIND_SHAPE_SCALAR,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                      });
 }
 

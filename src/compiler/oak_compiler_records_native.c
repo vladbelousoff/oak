@@ -46,6 +46,43 @@ find_method_export(const struct oak_module_export_record_t* rec,
   return null;
 }
 
+/* Lower a public oak_bind_type_ref_t into an internal oak_type_t. */
+static void lower_bind_ref(const struct oak_bind_type_ref_t* r,
+                           struct oak_type_t* out)
+{
+  oak_type_clear(out);
+  out->kind = r->kind;
+  out->id = r->id;
+  if (r->kind == OAK_TYPE_KIND_MAP)
+    out->key_id = r->key_id;
+}
+
+/* Register a generic definition built from `count` parameter names (heap copies
+ * owned by the registry).  Returns the new def index, or -1 when count <= 0. */
+static int register_native_generic_def(struct oak_compiler_t* c,
+                                       const char* owner_name,
+                                       const char* const* names,
+                                       int count)
+{
+  if (count <= 0)
+    return -1;
+  struct oak_generic_def_t def = { 0 };
+  def.owner_name = owner_name;
+  def.param_count = count;
+  def.params =
+      OAK_ALLOC(c->allocator, (usize)count * sizeof(struct oak_generic_param_t));
+  for (int i = 0; i < count; ++i)
+  {
+    const int len = (int)strlen(names[i]);
+    char* ncopy = OAK_ALLOC(c->allocator, (usize)(len + 1));
+    memcpy(ncopy, names[i], len);
+    ncopy[len] = '\0';
+    def.params[i].name = ncopy;
+    def.params[i].bound_trait_id = OAK_TYPE_VOID;
+  }
+  return oak_generic_registry_add(&c->generics, &def);
+}
+
 /* ---------- Native type registration ---------- */
 
 void oak_register_native_types(
@@ -95,6 +132,9 @@ void oak_register_native_types(
     proto.field_capacity = 0;
     proto.attrs = null;
     proto.attr_count = 0;
+    proto.generic_param_count = 0;
+    proto.generic_def_index = -1;
+    proto.is_value = (nt->kind == OAK_BIND_TYPE_VALUE);
 
     for (int fi = 0; fi < nt->field_count; ++fi)
     {
@@ -103,14 +143,7 @@ void oak_register_native_types(
         .name = nf->name,
         .name_len = (int)strlen(nf->name),
       };
-      oak_type_clear(&sf.type);
-      if (nf->shape == OAK_BIND_SHAPE_ARRAY)
-      {
-        sf.type.kind = OAK_TYPE_KIND_ARRAY;
-        sf.type.id = nf->field_type_id;
-      }
-      else
-        sf.type.id = nf->field_type_id;
+      lower_bind_ref(&nf->type, &sf.type);
       oak_dynarr_push(c->allocator, &proto.fields,
                       &proto.field_count,
                       &proto.field_capacity,
@@ -160,14 +193,21 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     entry.name_len = name_len;
     entry.const_idx = idx;
     entry.arity = b->arity;
-    entry.return_type.id = b->return_type_id;
-    entry.return_type.kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
-                                 ? OAK_TYPE_KIND_ARRAY
-                                 : OAK_TYPE_KIND_SCALAR;
+    lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
+    entry.generic_param_count = b->generic_param_count;
+    entry.generic_def_index = register_native_generic_def(
+        c, b->name, b->generic_params, b->generic_param_count);
+    if (b->param_types && b->arity > 0)
+    {
+      entry.param_types = OAK_ALLOC(
+          c->allocator, (usize)b->arity * sizeof(struct oak_type_t));
+      for (int pi = 0; pi < b->arity; ++pi)
+        lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
+    }
 
     if (oak_fn_registry_find(&c->fns, b->name, name_len))
     {
@@ -230,14 +270,14 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     entry.name_len = name_len;
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type_id;
-    entry.return_type.id = b->return_type_id;
-    entry.return_type.kind = (b->return_shape == OAK_BIND_SHAPE_ARRAY)
-                                 ? OAK_TYPE_KIND_ARRAY
-                                 : OAK_TYPE_KIND_SCALAR;
+    lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
+    entry.generic_param_count = b->generic_param_count;
+    entry.generic_def_index = register_native_generic_def(
+        c, b->name, b->generic_params, b->generic_param_count);
 
     struct oak_registered_record_t* sd =
         (struct oak_registered_record_t*)oak_records_find_by_id(
@@ -255,6 +295,22 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     const int is_static = (b->kind == OAK_BIND_FN_STATIC_METHOD);
     entry.arity = vm_arity;
     entry.is_static = is_static;
+    /* Per-parameter types: for instance methods slot 0 is the implicit self
+     * (the receiver type), with the user-facing params following. */
+    if (b->param_types && vm_arity > 0)
+    {
+      entry.param_types =
+          OAK_ALLOC(c->allocator, (usize)vm_arity * sizeof(struct oak_type_t));
+      int slot = 0;
+      if (!is_static)
+      {
+        oak_type_clear(&entry.param_types[slot]);
+        entry.param_types[slot].id = b->receiver_type_id;
+        ++slot;
+      }
+      for (int pi = 0; pi < b->arity; ++pi, ++slot)
+        lower_bind_ref(&b->param_types[pi], &entry.param_types[slot]);
+    }
     for (int j = 0; j < sd->methods.count; ++j)
     {
       if (strcmp(sd->methods.items[j].name, b->name) == 0)

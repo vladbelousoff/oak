@@ -136,13 +136,13 @@ OAK_TEST_DECL(BindFieldSucceeds)
   const int r = oak_bind_field(
       t,
       &(struct oak_bind_field_t){ .name = "x",
-                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                   .getter = stub_getter,
                                   .setter = null });
   OAK_CHECK(r == 0);
   OAK_CHECK(t->field_count == 1);
   OAK_CHECK(strcmp(t->fields[0].name, "x") == 0);
-  OAK_CHECK(t->fields[0].field_type_id == OAK_TYPE_NUMBER);
+  OAK_CHECK(t->fields[0].type.id == OAK_TYPE_NUMBER);
   OAK_CHECK(t->fields[0].getter == stub_getter);
   OAK_CHECK(t->fields[0].setter == null);
 
@@ -163,7 +163,7 @@ OAK_TEST_DECL(BindFieldReadWriteSucceeds)
   const int r = oak_bind_field(
       t,
       &(struct oak_bind_field_t){ .name = "v",
-                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                   .getter = stub_getter,
                                   .setter = stub_setter });
   OAK_CHECK(r == 0);
@@ -185,19 +185,19 @@ OAK_TEST_DECL(BindFieldMultipleFields)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "r",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "g",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "b",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
   OAK_CHECK(t->field_count == 3);
@@ -222,7 +222,7 @@ OAK_TEST_DECL(BindFieldNullGetterRejected)
   const int r = oak_bind_field(
       t,
       &(struct oak_bind_field_t){ .name = "x",
-                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                   .getter = null,
                                   .setter = null });
   OAK_CHECK(r == -1);
@@ -245,7 +245,7 @@ OAK_TEST_DECL(BindFieldNullNameRejected)
   const int r = oak_bind_field(
       t,
       &(struct oak_bind_field_t){ .name = null,
-                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                   .getter = stub_getter,
                                   .setter = null });
   OAK_CHECK(r == -1);
@@ -261,7 +261,7 @@ OAK_TEST_DECL(BindFieldNullTypeRejected)
   const int r = oak_bind_field(
       null,
       &(struct oak_bind_field_t){ .name = "x",
-                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                   .getter = stub_getter,
                                   .setter = null });
   OAK_CHECK(r == -1);
@@ -280,14 +280,14 @@ OAK_TEST_DECL(BindFieldDuplicateNameRejected)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "x",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 
   const int r = oak_bind_field(
       t,
       &(struct oak_bind_field_t){ .name = "x",
-                                  .field_type_id = OAK_TYPE_NUMBER,
+                                  .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                   .getter = stub_getter,
                                   .setter = null });
   OAK_CHECK(r == -1);
@@ -315,13 +315,13 @@ OAK_TEST_DECL(NativeTypeInFnParamCompiles)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "x",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "y",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 
@@ -344,7 +344,7 @@ OAK_TEST_DECL(NativeTypeInReturnTypeCompiles)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "id",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 
@@ -368,7 +368,7 @@ OAK_TEST_DECL(NativeTypeAsOakStructFieldCompiles)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "scale",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 
@@ -394,7 +394,7 @@ OAK_TEST_DECL(NativeTypeUnknownFieldFails)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "value",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 
@@ -420,13 +420,13 @@ OAK_TEST_DECL(NativeTypeWrongFnArgFails)
   OAK_CHECK(oak_bind_field(
                 a,
                 &(struct oak_bind_field_t){ .name = "x",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
   OAK_CHECK(oak_bind_field(
                 b,
                 &(struct oak_bind_field_t){ .name = "x",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 
@@ -452,7 +452,7 @@ OAK_TEST_DECL(NativeTypeVsOakStructTypeFails)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "id",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 
@@ -580,7 +580,7 @@ OAK_TEST_DECL(NativeGetterInvokedOnFieldRead)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "value",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = tracking_getter,
                                             .setter = null }) == 0);
 
@@ -625,7 +625,7 @@ OAK_TEST_DECL(NativeReadOnlyFieldAssignFailsAtRuntime)
   OAK_CHECK(oak_bind_field(
                 t,
                 &(struct oak_bind_field_t){ .name = "val",
-                                            .field_type_id = OAK_TYPE_NUMBER,
+                                            .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
 

@@ -171,12 +171,42 @@ void apply_native_module_function_exports(
     const u16 const_idx =
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
     exp->const_idx = const_idx;
-    exp->arity = fn->arity;
+    if (fn->param_types && fn->arity > 0)
+    {
+      /* The binding declares its own parameter types; adopt them so the
+       * exported signature matches the installed native callback.  The native
+       * binding API carries no mutability metadata, so preserve the stub's
+       * param_mut_flags when the arity is unchanged (the flags still align with
+       * the new param_types); only drop them if the arity actually changes. */
+      const int old_arity = exp->arity;
+      if (exp->param_types)
+        OAK_FREE(mod->allocator, exp->param_types);
+      if (exp->param_mut_flags && fn->arity != old_arity)
+      {
+        OAK_FREE(mod->allocator, exp->param_mut_flags);
+        exp->param_mut_flags = null;
+      }
+      exp->param_types = OAK_ALLOC(
+          mod->allocator, (usize)fn->arity * sizeof(struct oak_type_t));
+      for (int pi = 0; pi < fn->arity; ++pi)
+      {
+        oak_type_clear(&exp->param_types[pi]);
+        exp->param_types[pi].kind = fn->param_types[pi].kind;
+        exp->param_types[pi].id = fn->param_types[pi].id;
+        if (fn->param_types[pi].kind == OAK_TYPE_KIND_MAP)
+          exp->param_types[pi].key_id = fn->param_types[pi].key_id;
+      }
+      exp->arity = fn->arity;
+    }
+    /* Otherwise the stub's parameter contract is authoritative; keep arity
+     * consistent with the stub's param_types (never index past it). */
+    else if (!exp->param_types || fn->arity == exp->arity)
+      exp->arity = fn->arity;
     oak_type_clear(&exp->return_type);
-    exp->return_type.id = fn->return_type_id;
-    exp->return_type.kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
-                                ? OAK_TYPE_KIND_ARRAY
-                                : OAK_TYPE_KIND_SCALAR;
+    exp->return_type.kind = fn->return_type.kind;
+    exp->return_type.id = fn->return_type.id;
+    if (fn->return_type.kind == OAK_TYPE_KIND_MAP)
+      exp->return_type.key_id = fn->return_type.key_id;
   }
   for (int ri = 0; ri < mod->exports_record.count; ++ri)
   {
@@ -207,10 +237,10 @@ void apply_native_module_function_exports(
         me->const_idx =
             (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
         oak_type_clear(&me->return_type);
-        me->return_type.id = fn->return_type_id;
-        me->return_type.kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
-                                   ? OAK_TYPE_KIND_ARRAY
-                                   : OAK_TYPE_KIND_SCALAR;
+        me->return_type.kind = fn->return_type.kind;
+        me->return_type.id = fn->return_type.id;
+        if (fn->return_type.kind == OAK_TYPE_KIND_MAP)
+          me->return_type.key_id = fn->return_type.key_id;
         break;
       }
     }
@@ -516,12 +546,27 @@ struct oak_module_t* create_native_module(
       .const_idx = const_idx,
       .arity = fn->arity,
       .return_type = {
-        .id = fn->return_type_id,
-        .kind = (fn->return_shape == OAK_BIND_SHAPE_ARRAY)
-                    ? OAK_TYPE_KIND_ARRAY
-                    : OAK_TYPE_KIND_SCALAR,
+        .id = fn->return_type.id,
+        .key_id = fn->return_type.kind == OAK_TYPE_KIND_MAP
+                      ? fn->return_type.key_id
+                      : OAK_TYPE_VOID,
+        .kind = fn->return_type.kind,
       },
     };
+    /* Carry the parameter contract so imported calls are type-checked. */
+    if (fn->param_types && fn->arity > 0)
+    {
+      exp.param_types =
+          OAK_ALLOC(a, (usize)fn->arity * sizeof(struct oak_type_t));
+      for (int pi = 0; pi < fn->arity; ++pi)
+      {
+        oak_type_clear(&exp.param_types[pi]);
+        exp.param_types[pi].kind = fn->param_types[pi].kind;
+        exp.param_types[pi].id = fn->param_types[pi].id;
+        if (fn->param_types[pi].kind == OAK_TYPE_KIND_MAP)
+          exp.param_types[pi].key_id = fn->param_types[pi].key_id;
+      }
+    }
     const int idx = mod->exports_fn.count;
     oak_dynarr_push(a, &mod->exports_fn.items,
                     &mod->exports_fn.count,
@@ -538,13 +583,20 @@ struct oak_module_t* create_native_module(
       continue;
     struct oak_module_export_record_t exp = { 0 };
     exp.name = type->name;
+    exp.is_value = (type->kind == OAK_BIND_TYPE_VALUE);
     oak_dynarr_init(&exp.fields, &exp.field_count, &exp.field_capacity);
     oak_dynarr_init(&exp.methods, &exp.method_count, &exp.method_capacity);
     for (int fi = 0; fi < type->field_count; ++fi)
     {
       struct oak_module_export_record_field_t field = {
         .name = type->fields[fi].name,
-        .type = { .id = type->fields[fi].field_type_id },
+        .type = {
+          .id = type->fields[fi].type.id,
+          .key_id = type->fields[fi].type.kind == OAK_TYPE_KIND_MAP
+                        ? type->fields[fi].type.key_id
+                        : OAK_TYPE_VOID,
+          .kind = type->fields[fi].type.kind,
+        },
       };
       oak_dynarr_push(a, &exp.fields,
                       &exp.field_count,

@@ -73,9 +73,10 @@ static struct oak_type_t native_field_type(const struct oak_bind_field_t* field)
 {
   struct oak_type_t type;
   oak_type_clear(&type);
-  type.id = field->field_type_id;
-  if (field->shape == OAK_BIND_SHAPE_ARRAY)
-    type.kind = OAK_TYPE_KIND_ARRAY;
+  type.kind = field->type.kind;
+  type.id = field->type.id;
+  if (field->type.kind == OAK_TYPE_KIND_MAP)
+    type.key_id = field->type.key_id;
   return type;
 }
 

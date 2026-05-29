@@ -29,6 +29,10 @@ enum oak_value_tag_t
   OAK_TAG_NONE,
   OAK_TAG_OBJ,
   OAK_TAG_WEAK,
+  /* Inline native value type (OAK_BIND_TYPE_VALUE): an opaque pointer/handle
+   * payload stored directly in `as.obj`.  Not an oak_obj_t — it is never
+   * dereferenced, refcounted, or freed by the runtime.  Copies are bitwise. */
+  OAK_TAG_NATIVE,
 };
 
 enum oak_value_type_t
@@ -132,12 +136,21 @@ static inline struct oak_value_t oak_value_weak_obj(struct oak_obj_t* obj)
   return value;
 }
 
+static inline struct oak_value_t oak_value_native(void* payload)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_NATIVE;
+  value.as.obj = (struct oak_obj_t*)payload;
+  return value;
+}
+
 #define OAK_VALUE_I32(_i) oak_value_i32(_i)
 #define OAK_VALUE_F32(_f) oak_value_f32(_f)
 #define OAK_VALUE_BOOL(_b) oak_value_bool(_b)
 #define OAK_VALUE_NONE oak_value_none()
 #define OAK_VALUE_OBJ(_obj) oak_value_obj((struct oak_obj_t*)(_obj))
 #define OAK_VALUE_WEAK_OBJ(_obj) oak_value_weak_obj((struct oak_obj_t*)(_obj))
+#define OAK_VALUE_NATIVE(_p) oak_value_native((void*)(_p))
 
 /* ===== Type predicates ===== */
 
@@ -169,6 +182,17 @@ static inline int oak_is_none(const struct oak_value_t value)
 static inline int oak_is_weak_obj(const struct oak_value_t value)
 {
   return value.tag == OAK_TAG_WEAK;
+}
+
+static inline int oak_is_native_value(const struct oak_value_t value)
+{
+  return value.tag == OAK_TAG_NATIVE;
+}
+
+static inline void* oak_as_native_value(const struct oak_value_t value)
+{
+  oak_assert(oak_is_native_value(value));
+  return (void*)value.as.obj;
 }
 
 static inline struct oak_obj_t* oak_val_obj_ptr(const struct oak_value_t value)

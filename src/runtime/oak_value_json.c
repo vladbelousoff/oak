@@ -110,6 +110,12 @@ static yyjson_mut_val* yyjson_unhandled(yyjson_mut_doc* doc,
     (void)snprintf(buf, sizeof(buf), "%p", (void*)oak_as_obj(value));
     return yyjson_mut_strcpy(doc, buf);
   }
+  if (oak_is_native_value(value))
+  {
+    char buf[64];
+    (void)snprintf(buf, sizeof(buf), "<native %p>", oak_as_native_value(value));
+    return yyjson_mut_strcpy(doc, buf);
+  }
   return yyjson_mut_null(doc);
 }
 
@@ -254,6 +260,8 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
     oak_obj_incref(oak_val_obj_ptr(value));
     return oak_as_string(value);
   }
+  if (oak_is_native_value(value))
+    return oak_string_from_value_repr(allocator, value);
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
   if (!doc)
     return null;

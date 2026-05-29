@@ -30,6 +30,9 @@ struct oak_registered_record_t
   int attr_count;
   int generic_param_count;
   int generic_def_index;
+  /* 1 for inline value types (OAK_BIND_TYPE_VALUE): scalar, non-refcounted,
+   * represented inline as OAK_TAG_NATIVE rather than a heap object. */
+  int is_value;
 };
 
 /* Concrete dynamic-array type for registered records. */

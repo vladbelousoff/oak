@@ -4,6 +4,7 @@
 #include "oak_dynarr.h"
 #include "oak_export.h"
 #include "oak_parser.h"
+#include "oak_type.h"
 #include "oak_type_id.h"
 #include "oak_types.h"
 #include "oak_value.h"
@@ -16,6 +17,11 @@ struct oak_module_t;
 enum oak_bind_type_kind_t
 {
   OAK_BIND_TYPE_RECORD,
+  /* An inline value type: instances live directly in the 16-byte oak_value_t
+   * (an opaque pointer/handle payload) with no heap wrapper, no refcount, and
+   * no destructor.  Value types expose data through methods only — they cannot
+   * declare data fields (oak_bind_field rejects them). */
+  OAK_BIND_TYPE_VALUE,
 };
 
 /* Where a native method is bound on its receiver type (see oak_bind_fn). */
@@ -25,14 +31,38 @@ enum oak_bind_fn_kind_t
   OAK_BIND_FN_STATIC_METHOD,
 };
 
-/* Shape of a binding's value: scalar, or a typed array whose *element* type
- * is the associated type id (used for both field types and function returns).
- * OAK_BIND_SHAPE_ARRAY means T[] where T is the type id. */
-enum oak_bind_shape_t
+/* ---------- Type reference ---------- */
+
+/* A compile-time type slot used for native fields, function parameters, and
+ * return types.  Mirrors the internal oak_type_t and reuses oak_type_kind_t so
+ * it can express scalars, typed arrays (element type = `id`), typed maps
+ * (value = `id`, key = `key_id`), and type parameters (kind PARAM,
+ * `id` = OAK_TYPE_PARAM_BASE + index).  Construct with the OAK_BIND_* macros
+ * below; a zero-initialised ref is a scalar of type OAK_TYPE_VOID. */
+struct oak_bind_type_ref_t
 {
-  OAK_BIND_SHAPE_SCALAR = 0,
-  OAK_BIND_SHAPE_ARRAY,
+  oak_type_id_t id;          /* element/value type, or PARAM_BASE+i for a param */
+  oak_type_id_t key_id;      /* map key type; ignored for non-map kinds */
+  enum oak_type_kind_t kind; /* SCALAR / ARRAY / MAP / PARAM */
 };
+
+/* Convenience constructors for oak_bind_type_ref_t.  OAK_BIND_PARAM(i) is the
+ * i-th type parameter of a generic *function or method* (it is not valid for
+ * record fields, which must be concrete).  `i` indexes the binding's
+ * generic_params list. */
+#define OAK_BIND_SCALAR(tid)                                                   \
+  ((struct oak_bind_type_ref_t){ .id = (tid), .kind = OAK_TYPE_KIND_SCALAR })
+#define OAK_BIND_ARRAY(elem)                                                   \
+  ((struct oak_bind_type_ref_t){ .id = (elem), .kind = OAK_TYPE_KIND_ARRAY })
+#define OAK_BIND_MAP(k, v)                                                     \
+  ((struct oak_bind_type_ref_t){                                              \
+      .id = (v), .key_id = (k), .kind = OAK_TYPE_KIND_MAP })
+#define OAK_BIND_PARAM(i)                                                      \
+  ((struct oak_bind_type_ref_t){ .id = OAK_TYPE_PARAM_BASE + (i),             \
+                                 .kind = OAK_TYPE_KIND_PARAM })
+#define OAK_BIND_PARAM_ARRAY(i)                                               \
+  ((struct oak_bind_type_ref_t){ .id = OAK_TYPE_PARAM_BASE + (i),             \
+                                 .kind = OAK_TYPE_KIND_ARRAY })
 
 /* ---------- Getter / setter / destructor callbacks ---------- */
 
@@ -58,11 +88,11 @@ typedef void (*oak_bind_destructor_t)(void* instance);
 struct oak_bind_field_t
 {
   const char* name;
-  /* Compile-time type of this field.  Use OAK_TYPE_NUMBER / OAK_TYPE_STRING /
-   * OAK_TYPE_BOOL for primitives, or another oak_bind_type_t::type_id for
-   * scalar native records, or the *element* type id when `shape` is ARRAY. */
-  oak_type_id_t field_type_id;
-  enum oak_bind_shape_t shape; /* 0 = SCALAR */
+  /* Compile-time type of this field.  Build with OAK_BIND_SCALAR(tid),
+   * OAK_BIND_ARRAY(elem), or OAK_BIND_MAP(k, v).  Field types must be concrete:
+   * type parameters (OAK_BIND_PARAM) are not allowed because native records are
+   * not specialized per type argument. */
+  struct oak_bind_type_ref_t type;
   oak_bind_field_getter_t getter;
   oak_bind_field_setter_t setter; /* NULL = read-only */
 };
@@ -100,10 +130,18 @@ struct oak_bind_global_fn_t
   const char* name;
   oak_native_fn_t impl;
   int arity;
-  /* Return type: OAK_TYPE_VOID, OAK_TYPE_NUMBER, OAK_TYPE_STRING,
-   * OAK_TYPE_BOOL, or a native type's type_id. */
-  oak_type_id_t return_type_id;
-  enum oak_bind_shape_t return_shape;
+  /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP, or OAK_BIND_PARAM(i)
+   * to return the i-th generic parameter. */
+  struct oak_bind_type_ref_t return_type;
+  /* Optional generic type parameters and per-parameter types.  When
+   * generic_param_count > 0, a parameter typed OAK_BIND_PARAM(i) binds T from
+   * the matching argument (inferred at the call site).  param_types must list
+   * `arity` entries when non-NULL; the embedder owns the array (it is copied at
+   * registration).  Both are borrowed and must outlive oak_compile_ex. */
+  const char* const* generic_params;
+  int generic_param_count;
+  const struct oak_bind_type_ref_t* param_types;
+  int param_count;
 };
 
 /* ---------- Native method binding descriptor ---------- */
@@ -120,10 +158,17 @@ struct oak_bind_fn_t
   /* User-visible arity: for STATIC_METHOD, full argument count;
    * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM). */
   int arity;
-  /* Return type: OAK_TYPE_VOID, OAK_TYPE_NUMBER, OAK_TYPE_STRING,
-   * OAK_TYPE_BOOL, or a native type's type_id. */
-  oak_type_id_t return_type_id;
-  enum oak_bind_shape_t return_shape;
+  /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP, or OAK_BIND_PARAM(i)
+   * to return the i-th generic parameter. */
+  struct oak_bind_type_ref_t return_type;
+  /* Optional generic type parameters and per-parameter types (see
+   * oak_bind_global_fn_t).  param_types lists the user-visible parameters
+   * (excluding the implicit self for instance methods) and must hold `arity`
+   * entries when non-NULL.  Both are borrowed and must outlive oak_compile_ex. */
+  const char* const* generic_params;
+  int generic_param_count;
+  const struct oak_bind_type_ref_t* param_types;
+  int param_count;
 };
 
 /* ---------- Native enum descriptor ---------- */
@@ -408,6 +453,18 @@ oak_native_record_new(struct oak_allocator_t* allocator,
  * Intended for use inside getter / setter callbacks:
  *   MyType* p = oak_native_instance(self); */
 OAK_API void* oak_native_instance(struct oak_value_t value);
+
+/* Wrap an opaque pointer/handle as an inline value-type Oak value (a type
+ * registered with OAK_BIND_TYPE_VALUE).  No allocation or refcounting occurs;
+ * the payload is stored directly in the value and copied bitwise.  The embedder
+ * owns whatever `payload` points to (if anything) — the runtime never frees or
+ * dereferences it. */
+OAK_API struct oak_value_t oak_native_value_new(void* payload);
+
+/* Recover the payload from an inline value-type Oak value.  Asserts that
+ * `value` is an inline native value.  Intended for use inside native methods
+ * bound on an OAK_BIND_TYPE_VALUE type:  MyHandle h = oak_native_value(args[0]); */
+OAK_API void* oak_native_value(struct oak_value_t value);
 
 /* ---------- Extended compilation ---------- */
 

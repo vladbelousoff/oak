@@ -249,13 +249,85 @@ oak_bind_fn(&opts, &(struct oak_bind_fn_t){
     .name = "read_all",
     .impl = file_read_all,
     .arity = 0,
-    .return_type_id = OAK_TYPE_STRING,
+    .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
 });
 
 struct oak_compile_result_t result;
 oak_compile_ex(ast_root, &opts, &result);
 oak_compile_options_free(&opts);
 ```
+
+Field, parameter, and return types are described by `oak_bind_type_ref_t`,
+built with the `OAK_BIND_*` helpers: `OAK_BIND_SCALAR(id)`,
+`OAK_BIND_ARRAY(elem)`, `OAK_BIND_MAP(key, value)`, and `OAK_BIND_PARAM(i)` for
+the *i*-th generic type parameter.
+
+### Generic native functions and methods
+
+Native global functions and methods can be generic, mirroring
+`fn identity<T>(...)` in Oak source. Declare type parameters with the
+`generic_params` field and the per-parameter types with `param_types`, then
+reference a parameter with `OAK_BIND_PARAM(i)`. The compiler infers each type
+argument from the call site (there is no explicit `f<T>(...)` syntax), so every
+type parameter used in the return type **must** also appear in a parameter type
+— a return-only `T` is rejected at registration. Array (`T[]`) and map
+(`map<K, V>`) parameters bind their element/key/value type parameters too.
+
+```c
+/* fn identity<T>(x: T) -> T */
+static const char* id_tp[] = { "T" };
+static const struct oak_bind_type_ref_t id_params[] = { OAK_BIND_PARAM(0) };
+oak_bind_fn_global(&opts, &(struct oak_bind_global_fn_t){
+    .name = "identity", .impl = identity_impl, .arity = 1,
+    .return_type = OAK_BIND_PARAM(0),
+    .generic_params = id_tp, .generic_param_count = 1,
+    .param_types = id_params, .param_count = 1,
+});
+
+/* A generic instance method: fn Box.echo(self, x: T) -> T */
+oak_bind_fn(&opts, &(struct oak_bind_fn_t){
+    .kind = OAK_BIND_FN_INSTANCE_METHOD,
+    .receiver_type_id = box->type_id,
+    .name = "echo", .impl = box_echo, .arity = 1,
+    .return_type = OAK_BIND_PARAM(0),
+    .generic_params = id_tp, .generic_param_count = 1,
+    .param_types = id_params, .param_count = 1,
+});
+```
+
+`generic_params` and `param_types` are borrowed by the compiler and must
+outlive `oak_compile_ex()` (use arrays with static or function-body lifetime,
+not temporaries that go out of scope before compilation).
+
+Native **record fields** must be concrete types — they cannot be type
+parameters, because native records are not specialized per type argument.
+Express generic behavior through generic methods (whose type parameters are
+inferred from arguments) instead.
+
+### Inline value types
+
+`oak_bind_type(&opts, OAK_BIND_TYPE_VALUE, name)` registers a non-refcountable
+*value type*: its payload (an opaque pointer or handle) lives directly inside
+the 16-byte `oak_value_t` with no heap wrapper, no reference counting, and no
+destructor. Copies are bitwise. Because inline values carry no runtime type
+identity, value types expose data through **methods only** — `oak_bind_field`
+rejects them.
+
+```c
+struct oak_bind_type_t* handle =
+    oak_bind_type(&opts, OAK_BIND_TYPE_VALUE, "Handle");
+oak_bind_fn(&opts, &(struct oak_bind_fn_t){
+    .kind = OAK_BIND_FN_INSTANCE_METHOD,
+    .receiver_type_id = handle->type_id,
+    .name = "id", .impl = handle_id, .arity = 0,
+    .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+});
+```
+
+Build a value with `oak_native_value_new(payload)` and recover the payload
+inside methods with `oak_native_value(args[0])` (the analogues of
+`oak_native_record_new` / `oak_native_instance` for heap records). Two inline
+values compare equal when their payloads are identical.
 
 Native functions use this shape:
 

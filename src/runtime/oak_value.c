@@ -528,6 +528,10 @@ int oak_is_truthy(const struct oak_value_t value)
   }
   if (oak_is_obj(value))
     return 1;
+  /* Inline value types are first-class values; like heap objects/records they
+   * are always truthy (their opaque payload has no falsy interpretation). */
+  if (oak_is_native_value(value))
+    return 1;
   return 0;
 }
 
@@ -556,10 +560,11 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
 
   switch (a.tag)
   {
-    case OAK_TAG_BOOL: return oak_as_bool(a) == oak_as_bool(b);
-    case OAK_TAG_I32:  return oak_as_i32(a) == oak_as_i32(b);
-    case OAK_TAG_F32:  return oak_as_f32(a) == oak_as_f32(b);
-    case OAK_TAG_NONE: return 1;
-    default:           return 0;
+    case OAK_TAG_BOOL:   return oak_as_bool(a) == oak_as_bool(b);
+    case OAK_TAG_I32:    return oak_as_i32(a) == oak_as_i32(b);
+    case OAK_TAG_F32:    return oak_as_f32(a) == oak_as_f32(b);
+    case OAK_TAG_NONE:   return 1;
+    case OAK_TAG_NATIVE: return a.as.obj == b.as.obj;
+    default:             return 0;
   }
 }

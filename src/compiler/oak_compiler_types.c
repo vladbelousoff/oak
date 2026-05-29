@@ -1,6 +1,21 @@
 #include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
+int oak_compiler_type_is_refcounted(struct oak_compiler_t* c,
+                                    const struct oak_type_t* ty)
+{
+  if (!oak_type_is_refcounted(ty))
+    return 0;
+  if (ty->kind == OAK_TYPE_KIND_SCALAR && ty->id >= OAK_TYPE_FIRST_USER)
+  {
+    const struct oak_registered_record_t* r =
+        oak_records_find_by_id(&c->records, ty->id);
+    if (r && r->is_value)
+      return 0;
+  }
+  return 1;
+}
+
 static const struct oak_token_t* type_node_token(
     const struct oak_ast_node_t* type_node)
 {
@@ -50,7 +65,7 @@ void oak_lower_type_node(struct oak_compiler_t* c,
     oak_lower_type_node(c, type_node->child, out);
     if (!oak_type_is_known(out))
       return;
-    if (!oak_type_is_refcounted(out))
+    if (!oak_compiler_type_is_refcounted(c, out))
     {
       oak_compiler_error_at(
           c,

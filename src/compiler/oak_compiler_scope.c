@@ -267,7 +267,7 @@ int oak_reject_immutable_ref_for_mutable_storage(
     const struct oak_token_t* err_tok,
     const char* target)
 {
-  if (!oak_type_is_refcounted(&ty))
+  if (!oak_compiler_type_is_refcounted(c, &ty))
     return 0;
   if (oak_reject_immutable_refs_inside_literal(c, expr, target))
     return 1;

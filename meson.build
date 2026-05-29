@@ -1,7 +1,7 @@
 project(
   'oak',
   'c',
-  version: '1.0.0',
+  version: '2.0.0',
   default_options: [
     'c_std=c17',
     'default_library=static',
@@ -172,6 +172,8 @@ else
     'compiler_enum_access': 'tests/compiler/compiler_enum_access.c',
     'compiler_generics': 'tests/compiler/compiler_generics.c',
     'compiler_native_fn_binding': 'tests/compiler/compiler_native_fn_binding.c',
+    'compiler_native_generics': 'tests/compiler/compiler_native_generics.c',
+    'compiler_native_value_types': 'tests/compiler/compiler_native_value_types.c',
     'compiler_native_type_binding': 'tests/compiler/compiler_native_type_binding.c',
     'compiler_semantic_errors': 'tests/compiler/compiler_semantic_errors.c',
     'compiler_traits': 'tests/compiler/compiler_traits.c',

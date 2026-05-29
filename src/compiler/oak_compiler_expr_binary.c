@@ -23,6 +23,52 @@ static int type_is_enum(struct oak_compiler_t* c, const struct oak_type_t* t)
       &c->enums, name, c->types.entries[t->id].len);
 }
 
+/* Returns 1 if `t` is an inline native value type (OAK_BIND_TYPE_VALUE). */
+static int type_is_native_value(struct oak_compiler_t* c,
+                                const struct oak_type_t* t)
+{
+  if (!t || t->kind != OAK_TYPE_KIND_SCALAR || t->id < OAK_TYPE_FIRST_USER)
+    return 0;
+  const struct oak_registered_record_t* r =
+      oak_records_find_by_id(&c->records, t->id);
+  return r && r->is_value;
+}
+
+/* Inline value types share OAK_TAG_NATIVE at runtime and equality compares only
+ * the raw payload, so comparisons must be restricted to identical value types
+ * and arithmetic/relational operators are unsupported. */
+static void oak_compiler_reject_binary_value_misuse(
+    struct oak_compiler_t* c, const struct oak_ast_node_t* node)
+{
+  struct oak_type_t lt;
+  struct oak_type_t rt;
+  oak_infer_type(c, node->lhs, &lt);
+  oak_infer_type(c, node->rhs, &rt);
+  const int lv = type_is_native_value(c, &lt);
+  const int rv = type_is_native_value(c, &rt);
+  if (!lv && !rv)
+    return;
+
+  const enum oak_node_kind_t k = node->kind;
+  const int is_eq = (k == OAK_NODE_BINARY_EQ || k == OAK_NODE_BINARY_NEQ);
+  const struct oak_token_t* tok = node->lhs ? node->lhs->token : node->token;
+
+  if (is_eq)
+  {
+    if (lv != rv || lt.id != rt.id)
+      oak_compiler_error_at(
+          c, tok,
+          "cannot compare '%s' and '%s'; native value types may only be "
+          "compared to the same value type",
+          oak_type_full_name(c, lt), oak_type_full_name(c, rt));
+    return;
+  }
+  oak_compiler_error_at(
+      c, tok, "operator not supported on native value types (operands: '%s', "
+              "'%s')",
+      oak_type_full_name(c, lt), oak_type_full_name(c, rt));
+}
+
 /* Static type check for binary operators applied to enum operands. */
 void oak_compiler_reject_binary_enum_misuse(struct oak_compiler_t* c,
                                             const struct oak_ast_node_t* node)
@@ -70,6 +116,9 @@ void oak_compiler_compile_binary_op(struct oak_compiler_t* c,
   if (c->has_error)
     return;
   oak_compiler_reject_binary_enum_misuse(c, node);
+  if (c->has_error)
+    return;
+  oak_compiler_reject_binary_value_misuse(c, node);
   if (c->has_error)
     return;
   oak_compiler_compile_node(c, node->lhs);

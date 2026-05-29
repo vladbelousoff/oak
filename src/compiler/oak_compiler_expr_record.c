@@ -57,6 +57,15 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
         c, type_seg->token, "unknown record type '%s'", sname);
     return;
   }
+  if (sd->is_value)
+  {
+    oak_compiler_error_at(
+        c, type_seg->token,
+        "'%s' is a native value type and cannot be constructed with a record "
+        "literal; obtain instances from its native functions",
+        sname);
+    return;
+  }
 
   const struct oak_ast_node_t** exprs =
       OAK_ALLOC(c->allocator, (usize)sd->field_count * sizeof(*exprs));

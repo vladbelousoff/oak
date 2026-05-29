@@ -193,8 +193,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                          .name = "open",
                          .impl = file_open,
                          .arity = 2,
-                         .return_type_id = t->type_id,
-                         .return_shape = OAK_BIND_SHAPE_SCALAR,
+                         .return_type = OAK_BIND_SCALAR(t->type_id),
                      });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
@@ -203,8 +202,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                   .name = "open",
                   .impl = file_open,
                   .arity = 2,
-                  .return_type_id = t->type_id,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
+                  .return_type = OAK_BIND_SCALAR(t->type_id),
               });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
@@ -213,8 +211,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                   .name = "read",
                   .impl = file_read,
                   .arity = 0,
-                  .return_type_id = OAK_TYPE_STRING,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
+                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
               });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
@@ -223,8 +220,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                   .name = "read_all",
                   .impl = file_read_all,
                   .arity = 0,
-                  .return_type_id = OAK_TYPE_STRING,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
+                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
               });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
@@ -233,8 +229,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                   .name = "write",
                   .impl = file_write,
                   .arity = 1,
-                  .return_type_id = OAK_TYPE_VOID,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
+                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
               });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
@@ -243,8 +238,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                   .name = "eof",
                   .impl = file_eof,
                   .arity = 0,
-                  .return_type_id = OAK_TYPE_BOOL,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
+                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_BOOL),
               });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
@@ -253,7 +247,6 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                   .name = "close",
                   .impl = file_close,
                   .arity = 0,
-                  .return_type_id = OAK_TYPE_VOID,
-                  .return_shape = OAK_BIND_SHAPE_SCALAR,
+                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
               });
 }

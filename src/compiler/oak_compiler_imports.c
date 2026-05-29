@@ -206,6 +206,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
   proto.source_module_id = dep->module_id;
   proto.name_len = exp_name_len;
   proto.type_id = tid;
+  proto.is_value = exp->is_value;
   oak_dynarr_init(&proto.fields, &proto.field_count, &proto.field_capacity);
   oak_dynarr_init(
       &proto.methods.items, &proto.methods.count, &proto.methods.capacity);

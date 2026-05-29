@@ -2,6 +2,7 @@
 
 #include "oak_allocator.h"
 #include "oak_dynarr.h"
+#include "internal/oak_generic_registry.h"
 #include "oak_log.h"
 #include "oak_str.h"
 #include "oak_type.h"
@@ -113,12 +114,23 @@ struct oak_bind_type_t* oak_bind_type_in_module(
   return t;
 }
 
+static int validate_type_ref(const struct oak_bind_type_ref_t* r, int gpc);
+
 int oak_bind_field(struct oak_bind_type_t* type,
                    const struct oak_bind_field_t* p)
 {
   if (!type || !p)
     return -1;
   if (!p->name || !p->getter)
+    return -1;
+  /* Inline value types have no runtime type identity, so field access cannot
+   * be dispatched on them; they expose data through methods only. */
+  if (type->kind == OAK_BIND_TYPE_VALUE)
+    return -1;
+  /* Native records are not specialized per type argument, so field types must
+   * be concrete; a type-parameter field would behave as an unconstrained
+   * wildcard in type checking.  Reject any OAK_BIND_PARAM reference. */
+  if (p->type.id >= OAK_TYPE_PARAM_BASE || p->type.key_id >= OAK_TYPE_PARAM_BASE)
     return -1;
 
   /* Reject duplicate field names. */
@@ -138,8 +150,7 @@ int oak_bind_field(struct oak_bind_type_t* type,
 
   struct oak_bind_field_t f = {
     .name = name_copy,
-    .field_type_id = p->field_type_id,
-    .shape = p->shape,
+    .type = p->type,
     .getter = p->getter,
     .setter = p->setter,
   };
@@ -151,6 +162,104 @@ int oak_bind_field(struct oak_bind_type_t* type,
   return 0;
 }
 
+/* Validate a generic type-parameter name list. */
+static int validate_generic_params(const char* const* names, int count)
+{
+  if (count < 0 || count > OAK_MAX_GENERIC_PARAMS)
+    return -1;
+  if (count > 0 && !names)
+    return -1;
+  for (int i = 0; i < count; ++i)
+    if (!names[i] || !names[i][0])
+      return -1;
+  return 0;
+}
+
+/* Validate that any type-parameter reference inside `r` (including a map key)
+ * indexes a declared generic parameter in [0, gpc). */
+static int validate_type_ref(const struct oak_bind_type_ref_t* r, int gpc)
+{
+  if (r->id >= OAK_TYPE_PARAM_BASE)
+  {
+    const int idx = (int)(r->id - OAK_TYPE_PARAM_BASE);
+    if (idx < 0 || idx >= gpc)
+      return -1;
+  }
+  if (r->kind == OAK_TYPE_KIND_MAP && r->key_id >= OAK_TYPE_PARAM_BASE)
+  {
+    const int idx = (int)(r->key_id - OAK_TYPE_PARAM_BASE);
+    if (idx < 0 || idx >= gpc)
+      return -1;
+  }
+  return 0;
+}
+
+/* Mark every type parameter referenced by `r` (value and map key). */
+static void mark_ref_params(const struct oak_bind_type_ref_t* r, int* used,
+                            int gpc)
+{
+  if (r->id >= OAK_TYPE_PARAM_BASE)
+  {
+    const int idx = (int)(r->id - OAK_TYPE_PARAM_BASE);
+    if (idx >= 0 && idx < gpc)
+      used[idx] = 1;
+  }
+  if (r->kind == OAK_TYPE_KIND_MAP && r->key_id >= OAK_TYPE_PARAM_BASE)
+  {
+    const int idx = (int)(r->key_id - OAK_TYPE_PARAM_BASE);
+    if (idx >= 0 && idx < gpc)
+      used[idx] = 1;
+  }
+}
+
+/* Every type parameter named in the return type must be inferable from a
+ * parameter type — there is no receiver specialization, so a return-only `T`
+ * could never be resolved and would leak a wildcard type into callers. */
+static int return_params_inferable(const struct oak_bind_type_ref_t* return_type,
+                                   const struct oak_bind_type_ref_t* param_types,
+                                   int param_count,
+                                   int gpc)
+{
+  int from_params[OAK_MAX_GENERIC_PARAMS] = { 0 };
+  if (param_types)
+    for (int i = 0; i < param_count; ++i)
+      mark_ref_params(&param_types[i], from_params, gpc);
+
+  int in_return[OAK_MAX_GENERIC_PARAMS] = { 0 };
+  mark_ref_params(return_type, in_return, gpc);
+  for (int i = 0; i < gpc; ++i)
+    if (in_return[i] && !from_params[i])
+      return 0;
+  return 1;
+}
+
+/* Validate the generic descriptor and all type refs of a function binding.
+ * `arity` is the user-facing parameter count (self excluded for methods). */
+static int validate_fn_generics(const char* const* generic_params,
+                                int generic_param_count,
+                                const struct oak_bind_type_ref_t* return_type,
+                                const struct oak_bind_type_ref_t* param_types,
+                                int param_count,
+                                int arity)
+{
+  if (validate_generic_params(generic_params, generic_param_count) != 0)
+    return -1;
+  /* A generic binding with parameters must declare their types, otherwise the
+   * generic argument validator silently skips type checking for every call. */
+  if (generic_param_count > 0 && arity > 0 && !param_types)
+    return -1;
+  if (validate_type_ref(return_type, generic_param_count) != 0)
+    return -1;
+  if (param_types)
+    for (int i = 0; i < param_count; ++i)
+      if (validate_type_ref(&param_types[i], generic_param_count) != 0)
+        return -1;
+  if (!return_params_inferable(return_type, param_types, param_count,
+                               generic_param_count))
+    return -1;
+  return 0;
+}
+
 int oak_bind_fn_global(struct oak_compile_options_t* opts,
                        const struct oak_bind_global_fn_t* p)
 {
@@ -158,8 +267,15 @@ int oak_bind_fn_global(struct oak_compile_options_t* opts,
     return -1;
   if (!p->name || !p->impl || p->arity < 0)
     return -1;
-  if (p->return_shape != OAK_BIND_SHAPE_SCALAR &&
-      p->return_shape != OAK_BIND_SHAPE_ARRAY)
+  if (p->param_types && p->param_count != p->arity)
+    return -1;
+  if (validate_fn_generics(p->generic_params, p->generic_param_count,
+                           &p->return_type, p->param_types, p->param_count,
+                           p->arity) != 0)
+    return -1;
+  /* The native module export ABI has no representation for generic signatures,
+   * so module-scoped native functions may not be generic. */
+  if (p->module_name && p->generic_param_count > 0)
     return -1;
   struct oak_bind_global_fn_t entry = *p;
   oak_dynarr_push(opts->allocator, &opts->native_global_fns.items,
@@ -177,14 +293,28 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
     return -1;
   if (!p->name || !p->impl || p->arity < 0)
     return -1;
-  if (p->return_shape != OAK_BIND_SHAPE_SCALAR &&
-      p->return_shape != OAK_BIND_SHAPE_ARRAY)
+  if (p->param_types && p->param_count != p->arity)
     return -1;
   if (p->kind != OAK_BIND_FN_INSTANCE_METHOD &&
       p->kind != OAK_BIND_FN_STATIC_METHOD)
     return -1;
   if (p->receiver_type_id == OAK_TYPE_VOID)
     return -1;
+  if (validate_fn_generics(p->generic_params, p->generic_param_count,
+                           &p->return_type, p->param_types, p->param_count,
+                           p->arity) != 0)
+    return -1;
+  /* The native module export ABI cannot represent generic method signatures,
+   * so a generic method may not target a module-scoped receiver type. */
+  if (p->generic_param_count > 0)
+  {
+    for (int i = 0; i < opts->native_types.count; ++i)
+    {
+      const struct oak_bind_type_t* t = opts->native_types.items[i];
+      if (t && t->type_id == p->receiver_type_id && t->module_name)
+        return -1;
+    }
+  }
 
   struct oak_bind_fn_t copy = *p;
   oak_dynarr_push(opts->allocator, &opts->native_fns.items,
@@ -264,6 +394,16 @@ struct oak_value_t oak_native_record_new(struct oak_allocator_t* allocator,
 void* oak_native_instance(const struct oak_value_t value)
 {
   return oak_as_native_record(value)->instance;
+}
+
+struct oak_value_t oak_native_value_new(void* payload)
+{
+  return oak_value_native(payload);
+}
+
+void* oak_native_value(const struct oak_value_t value)
+{
+  return oak_as_native_value(value);
 }
 
 void oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,

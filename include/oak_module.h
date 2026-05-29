@@ -66,6 +66,8 @@ struct oak_module_export_record_t
   struct oak_module_export_record_method_t* methods;
   int method_count;
   int method_capacity;
+  /* 1 for inline value types (OAK_BIND_TYPE_VALUE): non-refcounted, inline. */
+  int is_value;
 };
 
 /* One variant entry for an exported enum. */
