@@ -292,6 +292,18 @@ oak_find_record_method(const struct oak_registered_record_t* sd,
                                 const char* name,
                                 int static_only);
 
+const struct oak_registered_fn_t*
+oak_find_record_method_typed(const struct oak_registered_record_t* sd,
+                             const char* name,
+                             const char* type_arg_name,
+                             int static_only);
+
+const struct oak_registered_record_t* oak_records_find_typed(
+    const struct oak_record_registry_t* r,
+    const char* name,
+    usize len,
+    const char* type_arg_name);
+
 /* If `recv_ty` is a known record, sets `*out_sd` and returns the field index.
  * Returns -1 if the type is not a record, or the field name is not found
  * (in the latter case `*out_sd` is still the matching record). */

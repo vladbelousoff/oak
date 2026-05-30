@@ -22,6 +22,7 @@ struct oak_registered_fn_t
    * (so user writes N args, stored as N+1). */
   int arity;
   oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
+  const char* type_arg_name;
   struct oak_type_t return_type; /* void when inferred from decl */
   int is_static;   /* 1 = static method, 0 = instance/global */
   const struct oak_ast_node_t* decl; /* null for native and imported fns */

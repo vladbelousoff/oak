@@ -149,8 +149,6 @@ static const char* oak_parser_token_kind_display(
       return "'and'";
     case OAK_TOKEN_OR:
       return "'or'";
-    case OAK_TOKEN_NOT:
-      return "'not'";
     case OAK_TOKEN_RECORD:
       return "'record'";
     case OAK_TOKEN_ENUM:

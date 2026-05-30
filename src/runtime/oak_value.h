@@ -27,6 +27,11 @@ enum oak_value_tag_t
   OAK_TAG_F32,
   OAK_TAG_BOOL,
   OAK_TAG_NONE,
+  /* Inline 64-bit opaque handle for native value types (e.g. an ECS entity id).
+   * Stored by value in the payload — never heap-allocated and never refcounted.
+   * Must stay ordered before OAK_TAG_OBJ: the VM treats every tag < OAK_TAG_OBJ
+   * as a trivially-copyable immediate (no incref/decref). */
+  OAK_TAG_HANDLE,
   OAK_TAG_OBJ,
   OAK_TAG_WEAK,
   /* Inline native value type (OAK_BIND_TYPE_VALUE): an opaque pointer/handle
@@ -74,6 +79,7 @@ struct oak_value_t
     i32 i;
     float f;
     int b;
+    u64 h; /* OAK_TAG_HANDLE payload (inline native value type) */
     struct oak_obj_t* obj;
   } as;
 };
@@ -117,6 +123,14 @@ static inline struct oak_value_t oak_value_none(void)
 {
   struct oak_value_t value;
   value.tag = OAK_TAG_NONE;
+  return value;
+}
+
+static inline struct oak_value_t oak_value_handle(const u64 h)
+{
+  struct oak_value_t value;
+  value.tag = OAK_TAG_HANDLE;
+  value.as.h = h;
   return value;
 }
 
@@ -177,6 +191,17 @@ static inline int oak_is_f32(const struct oak_value_t value)
 static inline int oak_is_none(const struct oak_value_t value)
 {
   return value.tag == OAK_TAG_NONE;
+}
+
+static inline int oak_is_handle(const struct oak_value_t value)
+{
+  return value.tag == OAK_TAG_HANDLE;
+}
+
+static inline u64 oak_value_as_handle(const struct oak_value_t value)
+{
+  oak_assert(oak_is_handle(value));
+  return value.as.h;
 }
 
 static inline int oak_is_weak_obj(const struct oak_value_t value)

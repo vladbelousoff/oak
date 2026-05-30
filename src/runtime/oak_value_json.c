@@ -262,6 +262,16 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
   }
   if (oak_is_native_value(value))
     return oak_string_from_value_repr(allocator, value);
+  if (oak_is_handle(value))
+  {
+    char buf[32];
+    const int n =
+        snprintf(buf, sizeof(buf), "%llu",
+                 (unsigned long long)oak_value_as_handle(value));
+    if (n < 0)
+      return null;
+    return oak_string_new(allocator, buf, (usize)n);
+  }
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
   if (!doc)
     return null;

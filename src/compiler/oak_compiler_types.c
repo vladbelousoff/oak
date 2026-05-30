@@ -123,6 +123,28 @@ void oak_lower_type_node(struct oak_compiler_t* c,
     const struct oak_ast_node_t* base = type_node->lhs;
     if (!base || base->kind != OAK_NODE_IDENT)
       return;
+    const struct oak_ast_node_t* arg = null;
+    if (type_node->rhs)
+    {
+      const struct oak_list_entry_t* first = type_node->rhs->children.next;
+      if (first != &type_node->rhs->children &&
+          first->next == &type_node->rhs->children)
+        arg = oak_container_of(first, struct oak_ast_node_t, link);
+    }
+    if (arg && arg->kind == OAK_NODE_IDENT)
+    {
+      const struct oak_registered_record_t* rec =
+          oak_records_find_typed(&c->records,
+                                 oak_token_text(base->token),
+                                 oak_token_size(base->token),
+                                 oak_token_text(arg->token));
+      if (rec)
+      {
+        out->id = rec->type_id;
+        out->kind = OAK_TYPE_KIND_SCALAR;
+        return;
+      }
+    }
     out->id = oak_intern_type_tok(c, base->token);
     return;
   }

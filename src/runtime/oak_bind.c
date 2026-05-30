@@ -101,6 +101,7 @@ struct oak_bind_type_t* oak_bind_type_in_module(
   t->module_name = module_name;
   t->kind = kind;
   t->name = name;
+  t->type_arg_name = null;
   t->type_id = opts->next_type_id++;
   oak_dynarr_init(&t->fields, &t->field_count, &t->field_capacity);
   t->destructor = null;

@@ -312,6 +312,11 @@ static u32 hash_value(const struct oak_value_t v)
     return oak_f32_to_bits(oak_as_f32(v)) * 2654435761u;
   if (oak_is_none(v))
     return 0x9E3779B9u;
+  if (oak_is_handle(v))
+  {
+    const u64 h = oak_value_as_handle(v);
+    return (u32)(h ^ (h >> 32)) * 2654435761u;
+  }
   if (oak_is_string(v))
     return oak_as_string(v)->hash;
   {
@@ -565,6 +570,7 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
     case OAK_TAG_F32:    return oak_as_f32(a) == oak_as_f32(b);
     case OAK_TAG_NONE:   return 1;
     case OAK_TAG_NATIVE: return a.as.obj == b.as.obj;
+    case OAK_TAG_HANDLE: return a.as.h == b.as.h;
     default:             return 0;
   }
 }

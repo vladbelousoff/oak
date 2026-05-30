@@ -49,7 +49,7 @@ float oak_token_as_f32(const struct oak_token_t* token)
 enum oak_token_kind_t oak_keyword_lookup(const char* ident)
 {
   static const struct oak_keyword_entry_t keywords[] = {
-    { "and", OAK_TOKEN_AND },       { "as", OAK_TOKEN_AS },
+    { "as", OAK_TOKEN_AS },
     { "break", OAK_TOKEN_BREAK },   { "continue", OAK_TOKEN_CONTINUE },
     { "else", OAK_TOKEN_ELSE },     { "enum", OAK_TOKEN_ENUM },
     { "false", OAK_TOKEN_FALSE },   { "fn", OAK_TOKEN_FN },
@@ -57,7 +57,6 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident)
     { "if", OAK_TOKEN_IF },         { "import", OAK_TOKEN_IMPORT },
     { "in", OAK_TOKEN_IN },         { "let", OAK_TOKEN_LET },
     { "mut", OAK_TOKEN_MUT },       { "new", OAK_TOKEN_NEW },
-    { "not", OAK_TOKEN_NOT },       { "or", OAK_TOKEN_OR },
     { "return", OAK_TOKEN_RETURN }, { "self", OAK_TOKEN_SELF },
     { "record", OAK_TOKEN_RECORD }, { "to", OAK_TOKEN_TO },
     { "trait", OAK_TOKEN_TRAIT },   { "impl", OAK_TOKEN_IMPL },
@@ -163,8 +162,6 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "AND";
     case OAK_TOKEN_OR:
       return "OR";
-    case OAK_TOKEN_NOT:
-      return "NOT";
     case OAK_TOKEN_INT:
       return "INT";
     case OAK_TOKEN_FLOAT:

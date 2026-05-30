@@ -46,23 +46,34 @@ struct oak_bind_type_ref_t
   enum oak_type_kind_t kind; /* SCALAR / ARRAY / MAP / PARAM */
 };
 
+/* Constructor helper for oak_bind_type_ref_t.  Implemented as a function
+ * (rather than a compound literal) so the OAK_BIND_* macros are valid in both
+ * C and C++: MSVC rejects C compound literals when this header is included from
+ * C++ translation units (e.g. the Unreal bridge). */
+static inline struct oak_bind_type_ref_t oak_bind_type_ref_make(
+    oak_type_id_t id, oak_type_id_t key_id, enum oak_type_kind_t kind)
+{
+  struct oak_bind_type_ref_t ref;
+  ref.id = id;
+  ref.key_id = key_id;
+  ref.kind = kind;
+  return ref;
+}
+
 /* Convenience constructors for oak_bind_type_ref_t.  OAK_BIND_PARAM(i) is the
  * i-th type parameter of a generic *function or method* (it is not valid for
  * record fields, which must be concrete).  `i` indexes the binding's
  * generic_params list. */
 #define OAK_BIND_SCALAR(tid)                                                   \
-  ((struct oak_bind_type_ref_t){ .id = (tid), .kind = OAK_TYPE_KIND_SCALAR })
+  oak_bind_type_ref_make((tid), 0, OAK_TYPE_KIND_SCALAR)
 #define OAK_BIND_ARRAY(elem)                                                   \
-  ((struct oak_bind_type_ref_t){ .id = (elem), .kind = OAK_TYPE_KIND_ARRAY })
+  oak_bind_type_ref_make((elem), 0, OAK_TYPE_KIND_ARRAY)
 #define OAK_BIND_MAP(k, v)                                                     \
-  ((struct oak_bind_type_ref_t){                                              \
-      .id = (v), .key_id = (k), .kind = OAK_TYPE_KIND_MAP })
+  oak_bind_type_ref_make((v), (k), OAK_TYPE_KIND_MAP)
 #define OAK_BIND_PARAM(i)                                                      \
-  ((struct oak_bind_type_ref_t){ .id = OAK_TYPE_PARAM_BASE + (i),             \
-                                 .kind = OAK_TYPE_KIND_PARAM })
+  oak_bind_type_ref_make(OAK_TYPE_PARAM_BASE + (i), 0, OAK_TYPE_KIND_PARAM)
 #define OAK_BIND_PARAM_ARRAY(i)                                               \
-  ((struct oak_bind_type_ref_t){ .id = OAK_TYPE_PARAM_BASE + (i),             \
-                                 .kind = OAK_TYPE_KIND_ARRAY })
+  oak_bind_type_ref_make(OAK_TYPE_PARAM_BASE + (i), 0, OAK_TYPE_KIND_ARRAY)
 
 /* ---------- Getter / setter / destructor callbacks ---------- */
 
@@ -107,6 +118,10 @@ struct oak_bind_type_t
    * registered in the global namespace as before. */
   const char* module_name;
   const char* name;
+  /* Optional generic type-argument name for native generic records (e.g. the
+   * `Player` in `View<Player>`). NULL for non-generic types. Used by the
+   * compiler to disambiguate distinct instantiations sharing the same name. */
+  const char* type_arg_name;
   /* Stable id assigned by oak_bind_type() from opts->next_type_id.
    * Valid for the lifetime of the oak_compile_options_t it was registered in.
    * Use this value as field_type_id or receiver_type_id when referencing
@@ -154,6 +169,9 @@ struct oak_bind_fn_t
   /* The native record type_id for the receiver type. */
   oak_type_id_t receiver_type_id;
   const char* name;
+  /* Optional generic type-argument name of the receiver (e.g. `Player` for a
+   * method bound on `View<Player>`). NULL for methods on non-generic types. */
+  const char* type_arg_name;
   oak_native_fn_t impl;
   /* User-visible arity: for STATIC_METHOD, full argument count;
    * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM). */

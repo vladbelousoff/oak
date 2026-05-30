@@ -39,9 +39,28 @@ static void infer_method_call_type(struct oak_compiler_t* c,
 {
   const struct oak_ast_node_t* recv = callee->lhs;
   const struct oak_ast_node_t* method = callee->rhs;
-  if (!recv || !method || method->kind != OAK_NODE_IDENT)
+  const struct oak_ast_node_t* method_name = method;
+  const char* type_arg_name = null;
+  if (method && method->kind == OAK_NODE_TYPE_GENERIC)
+  {
+    if (method->lhs && method->lhs->kind == OAK_NODE_IDENT)
+      method_name = method->lhs;
+    if (method->rhs)
+    {
+      const struct oak_list_entry_t* first = method->rhs->children.next;
+      if (first != &method->rhs->children &&
+          first->next == &method->rhs->children)
+      {
+        const struct oak_ast_node_t* arg =
+            oak_container_of(first, struct oak_ast_node_t, link);
+        if (arg && arg->kind == OAK_NODE_IDENT)
+          type_arg_name = oak_token_text(arg->token);
+      }
+    }
+  }
+  if (!recv || !method_name || method_name->kind != OAK_NODE_IDENT)
     return;
-  const char* mn = oak_token_text(method->token);
+  const char* mn = oak_token_text(method_name->token);
 
   /* Case 1: mod.Type.method — cross-module static method. */
   if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
@@ -58,7 +77,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
               oak_token_text(recv->rhs->token),
               oak_token_size(recv->rhs->token));
       const struct oak_registered_fn_t* sm =
-          oak_find_record_method(sd, mn, 1);
+          oak_find_record_method_typed(sd, mn, type_arg_name, 1);
       if (sm)
       {
         if (sm->decl)
@@ -106,7 +125,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oak_find_record_method(sd, mn, 1);
+            oak_find_record_method_typed(sd, mn, type_arg_name, 1);
         if (sm)
         {
           if (sm->decl)
@@ -137,7 +156,7 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     if (sd)
     {
       const struct oak_registered_fn_t* sm =
-          oak_find_record_method(sd, mn, 0);
+          oak_find_record_method_typed(sd, mn, type_arg_name, 0);
       if (sm)
       {
         if (sm->decl)

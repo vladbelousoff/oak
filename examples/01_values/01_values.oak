@@ -4,7 +4,7 @@ print(answer);
 let ratio = 9.0 / 2.0;
 print(ratio);
 
-let ready = answer == 42 and ratio > 4;
+let ready = answer == 42 && ratio > 4;
 print(ready);
 
 let mut stock = 10;

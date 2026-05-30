@@ -38,7 +38,22 @@ parse_pratt_binary(struct oak_parser_t* p,
                    const struct oak_pratt_rule_t* rule,
                    struct oak_ast_node_t* lhs)
 {
-  struct oak_ast_node_t* rhs = oak_parser_parse_pratt(p, kind, rule->r_bp);
+  struct oak_ast_node_t* rhs = null;
+  if (rule->node_kind == OAK_NODE_MEMBER_ACCESS && p->curr != p->head)
+  {
+    const struct oak_token_t* token =
+        oak_container_of(p->curr, struct oak_token_t, link);
+    if (oak_token_kind(token) == OAK_TOKEN_IDENT &&
+        p->curr->next != p->head)
+    {
+      const struct oak_token_t* next =
+          oak_container_of(p->curr->next, struct oak_token_t, link);
+      if (oak_token_kind(next) == OAK_TOKEN_LESS)
+        rhs = oak_parser_parse_rule(p, OAK_NODE_TYPE_GENERIC);
+    }
+  }
+  if (!rhs)
+    rhs = oak_parser_parse_pratt(p, kind, rule->r_bp);
   if (!rhs)
   {
     oak_parser_detail_expected_node(p, rule->node_kind, kind);

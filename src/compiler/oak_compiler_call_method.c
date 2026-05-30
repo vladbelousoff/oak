@@ -13,6 +13,34 @@ static void emit_method_fn(struct oak_compiler_t* c,
     oak_compiler_emit_constant(c, sm->const_idx, loc);
 }
 
+static const struct oak_ast_node_t*
+method_name_node(const struct oak_ast_node_t* method)
+{
+  if (!method)
+    return null;
+  if (method->kind == OAK_NODE_IDENT)
+    return method;
+  if (method->kind == OAK_NODE_TYPE_GENERIC && method->lhs &&
+      method->lhs->kind == OAK_NODE_IDENT)
+    return method->lhs;
+  return null;
+}
+
+static const char*
+method_type_arg_name(const struct oak_ast_node_t* method)
+{
+  if (!method || method->kind != OAK_NODE_TYPE_GENERIC || !method->rhs)
+    return null;
+  const struct oak_list_entry_t* first = method->rhs->children.next;
+  if (first == &method->rhs->children || first->next != &method->rhs->children)
+    return null;
+  const struct oak_ast_node_t* arg =
+      oak_container_of(first, struct oak_ast_node_t, link);
+  if (!arg || arg->kind != OAK_NODE_IDENT)
+    return null;
+  return oak_token_text(arg->token);
+}
+
 /* Compile a call to a builtin method binding (string, bool, number, record).
  * If binding is NULL, emits a compile error. Always returns 1 (handled). */
 static int try_compile_builtin_method_call(
@@ -133,7 +161,8 @@ void oak_compile_method_call(struct oak_compiler_t* c,
 {
   const struct oak_ast_node_t* receiver = callee->lhs;
   const struct oak_ast_node_t* method = callee->rhs;
-  if (!receiver || !method || method->kind != OAK_NODE_IDENT)
+  const struct oak_ast_node_t* method_name = method_name_node(method);
+  if (!receiver || !method_name)
   {
     oak_compiler_error_at(
         c, callee->token, "method call requires 'receiver.name(...)' form");
@@ -141,9 +170,10 @@ void oak_compile_method_call(struct oak_compiler_t* c,
   }
 
   const struct oak_code_loc_t call_loc =
-      oak_compiler_loc_from_token(method->token);
+      oak_compiler_loc_from_token(method_name->token);
   const usize user_argc = oak_child_count(node) - 1;
-  const char* mname = oak_token_text(method->token);
+  const char* mname = oak_token_text(method_name->token);
+  const char* type_arg_name = method_type_arg_name(method);
 
   if (receiver->kind == OAK_NODE_MEMBER_ACCESS && receiver->lhs &&
       receiver->rhs && receiver->lhs->kind == OAK_NODE_IDENT &&
@@ -162,7 +192,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
                                            oak_token_text(type_node->token),
                                            oak_token_size(type_node->token));
       const struct oak_registered_fn_t* sm =
-          oak_find_record_method(sd, mname, 1);
+          oak_find_record_method_typed(sd, mname, type_arg_name, 1);
       if (!sm)
       {
         oak_compiler_error_at(c,
@@ -254,7 +284,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oak_find_record_method(sd, mname, 1);
+            oak_find_record_method_typed(sd, mname, type_arg_name, 1);
         if (sm)
         {
           if ((int)user_argc != sm->arity)
@@ -364,7 +394,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
     if (sd)
     {
       const struct oak_registered_fn_t* sm =
-          oak_find_record_method(sd, mname, 0);
+          oak_find_record_method_typed(sd, mname, type_arg_name, 0);
       if (sm)
       {
         const int expected_user = sm->arity - 1;
