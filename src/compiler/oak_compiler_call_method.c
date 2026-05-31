@@ -20,25 +20,7 @@ method_name_node(const struct oak_ast_node_t* method)
     return null;
   if (method->kind == OAK_NODE_IDENT)
     return method;
-  if (method->kind == OAK_NODE_TYPE_GENERIC && method->lhs &&
-      method->lhs->kind == OAK_NODE_IDENT)
-    return method->lhs;
   return null;
-}
-
-static const char*
-method_type_arg_name(const struct oak_ast_node_t* method)
-{
-  if (!method || method->kind != OAK_NODE_TYPE_GENERIC || !method->rhs)
-    return null;
-  const struct oak_list_entry_t* first = method->rhs->children.next;
-  if (first == &method->rhs->children || first->next != &method->rhs->children)
-    return null;
-  const struct oak_ast_node_t* arg =
-      oak_container_of(first, struct oak_ast_node_t, link);
-  if (!arg || arg->kind != OAK_NODE_IDENT)
-    return null;
-  return oak_token_text(arg->token);
 }
 
 /* Compile a call to a builtin method binding (string, bool, number, record).
@@ -98,7 +80,7 @@ static int try_compile_builtin_method_call(
 }
 
 /* Compile call arguments with type coercion. Tries AST decl first, then
- * falls back to lowered param_types, then generic compilation.
+ * falls back to lowered param_types.
  * self_offset: 0 for static methods, 1 for instance/trait methods. */
 static void compile_typed_call_args(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* call,
@@ -173,7 +155,6 @@ void oak_compile_method_call(struct oak_compiler_t* c,
       oak_compiler_loc_from_token(method_name->token);
   const usize user_argc = oak_child_count(node) - 1;
   const char* mname = oak_token_text(method_name->token);
-  const char* type_arg_name = method_type_arg_name(method);
 
   if (receiver->kind == OAK_NODE_MEMBER_ACCESS && receiver->lhs &&
       receiver->rhs && receiver->lhs->kind == OAK_NODE_IDENT &&
@@ -192,7 +173,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
                                            oak_token_text(type_node->token),
                                            oak_token_size(type_node->token));
       const struct oak_registered_fn_t* sm =
-          oak_find_record_method_typed(sd, mname, type_arg_name, 1);
+          oak_find_record_method(sd, mname, 1);
       if (!sm)
       {
         oak_compiler_error_at(c,
@@ -284,7 +265,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
       if (sd)
       {
         const struct oak_registered_fn_t* sm =
-            oak_find_record_method_typed(sd, mname, type_arg_name, 1);
+            oak_find_record_method(sd, mname, 1);
         if (sm)
         {
           if ((int)user_argc != sm->arity)
@@ -394,7 +375,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
     if (sd)
     {
       const struct oak_registered_fn_t* sm =
-          oak_find_record_method_typed(sd, mname, type_arg_name, 0);
+          oak_find_record_method(sd, mname, 0);
       if (sm)
       {
         const int expected_user = sm->arity - 1;

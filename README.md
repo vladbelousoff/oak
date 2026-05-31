@@ -55,8 +55,7 @@ for i, value in [2, 3, 5] { print(i + value); }
 ```
 
 Core value types are `number`, `string`, `bool`, arrays, maps, records, enums,
-functions, `none`, and weak references. Strings are single-quoted. Functions and
-records support type parameters (`<T>`) for compile-time generics.
+functions, `none`, and weak references. Strings are single-quoted.
 
 Operators include arithmetic (`+ - * / // %`), comparison, `!`, and short-circuit
 logic (`&&`, `||`, `and`, `or`, `not`).
@@ -148,34 +147,6 @@ import * from io;                      /* wildcard — all declarations */
 import { add as sum } from util.math;  /* rename on import */
 ```
 
-Generic functions and records use angle-bracket type parameters. The compiler
-enforces type consistency through unification; at runtime, type parameters are
-erased (all Oak values share the same representation, so a single bytecode body
-serves every instantiation). Types are inferred from arguments at call sites:
-
-```oak
-fn identity<T>(x: T) -> T { return x; }
-print(identity(42));
-print(identity('hello'));
-
-fn pick_first<A, B>(a: A, b: B) -> A { return a; }
-print(pick_first(1, 'two'));
-
-record Box<T> { value: T; }
-let b = new Box { value: 42 };
-print(b.value);
-
-fn Box.get(self) -> T { return self.value; }
-print(b.get());
-
-fn unwrap<T>(b: Box<T>) -> T { return b.value; }
-print(unwrap(b));
-
-record Container<T> { items: T[]; }
-let c = new Container { items: [1, 2, 3] };
-print(c.items[0]);
-```
-
 Attributes attach metadata to declarations and are interpreted by embedding C
 code:
 
@@ -259,50 +230,13 @@ oak_compile_options_free(&opts);
 
 Field, parameter, and return types are described by `oak_bind_type_ref_t`,
 built with the `OAK_BIND_*` helpers: `OAK_BIND_SCALAR(id)`,
-`OAK_BIND_ARRAY(elem)`, `OAK_BIND_MAP(key, value)`, and `OAK_BIND_PARAM(i)` for
-the *i*-th generic type parameter.
+`OAK_BIND_ARRAY(elem)`, and `OAK_BIND_MAP(key, value)`.
 
-### Generic native functions and methods
-
-Native global functions and methods can be generic, mirroring
-`fn identity<T>(...)` in Oak source. Declare type parameters with the
-`generic_params` field and the per-parameter types with `param_types`, then
-reference a parameter with `OAK_BIND_PARAM(i)`. The compiler infers each type
-argument from the call site (there is no explicit `f<T>(...)` syntax), so every
-type parameter used in the return type **must** also appear in a parameter type
-— a return-only `T` is rejected at registration. Array (`T[]`) and map
-(`map<K, V>`) parameters bind their element/key/value type parameters too.
-
-```c
-/* fn identity<T>(x: T) -> T */
-static const char* id_tp[] = { "T" };
-static const struct oak_bind_type_ref_t id_params[] = { OAK_BIND_PARAM(0) };
-oak_bind_fn_global(&opts, &(struct oak_bind_global_fn_t){
-    .name = "identity", .impl = identity_impl, .arity = 1,
-    .return_type = OAK_BIND_PARAM(0),
-    .generic_params = id_tp, .generic_param_count = 1,
-    .param_types = id_params, .param_count = 1,
-});
-
-/* A generic instance method: fn Box.echo(self, x: T) -> T */
-oak_bind_fn(&opts, &(struct oak_bind_fn_t){
-    .kind = OAK_BIND_FN_INSTANCE_METHOD,
-    .receiver_type_id = box->type_id,
-    .name = "echo", .impl = box_echo, .arity = 1,
-    .return_type = OAK_BIND_PARAM(0),
-    .generic_params = id_tp, .generic_param_count = 1,
-    .param_types = id_params, .param_count = 1,
-});
-```
-
-`generic_params` and `param_types` are borrowed by the compiler and must
-outlive `oak_compile_ex()` (use arrays with static or function-body lifetime,
-not temporaries that go out of scope before compilation).
-
-Native **record fields** must be concrete types — they cannot be type
-parameters, because native records are not specialized per type argument.
-Express generic behavior through generic methods (whose type parameters are
-inferred from arguments) instead.
+Native functions and methods may optionally describe their parameter types with
+the `param_types` / `param_count` fields so the compiler can type-check call
+sites. `param_types` is borrowed by the compiler and must outlive
+`oak_compile_ex()` (use arrays with static or function-body lifetime, not
+temporaries that go out of scope before compilation).
 
 ### Inline value types
 

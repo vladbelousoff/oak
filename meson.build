@@ -74,7 +74,6 @@ oak_core_sources = files(
   'src/compiler/oak_compiler_fn_body.c',
   'src/compiler/oak_compiler_fn_decl.c',
   'src/compiler/oak_compiler_fn_register.c',
-  'src/compiler/oak_compiler_generic_registry.c',
   'src/compiler/oak_compiler_modules.c',
   'src/compiler/oak_compiler_record_registry.c',
   'src/compiler/oak_compiler_records.c',
@@ -170,9 +169,7 @@ else
     'compiler_anon_fn': 'tests/compiler/compiler_anon_fn.c',
     'compiler_const_mut_binding': 'tests/compiler/compiler_const_mut_binding.c',
     'compiler_enum_access': 'tests/compiler/compiler_enum_access.c',
-    'compiler_generics': 'tests/compiler/compiler_generics.c',
     'compiler_native_fn_binding': 'tests/compiler/compiler_native_fn_binding.c',
-    'compiler_native_generics': 'tests/compiler/compiler_native_generics.c',
     'compiler_native_value_types': 'tests/compiler/compiler_native_value_types.c',
     'compiler_native_type_binding': 'tests/compiler/compiler_native_type_binding.c',
     'compiler_semantic_errors': 'tests/compiler/compiler_semantic_errors.c',
@@ -212,7 +209,6 @@ else
     '08_file_io': 'examples/08_file_io/08_file_io.oak',
     '10_traits': 'examples/10_traits/10_traits.oak',
     '11_weak_refs': 'examples/11_weak_refs/11_weak_refs.oak',
-    '12_generics': 'examples/12_generics/12_generics.oak',
     '13_anonymous_functions': 'examples/13_anonymous_functions/13_anonymous_functions.oak',
   }
 

@@ -289,10 +289,6 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "TYPE_ARRAY_BASE";
     case OAK_NODE_FN_NAME:
       return "FN_NAME";
-    case OAK_NODE_TYPE_GENERIC:
-      return "TYPE_GENERIC";
-    case OAK_NODE_TYPE_ARGS:
-      return "TYPE_ARGS";
     case OAK_NODE_EXPR_FN:
       return "EXPR_FN";
     case OAK_NODE_TYPE_FN:

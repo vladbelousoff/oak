@@ -33,10 +33,6 @@ Public headers live in `include/`. Internal compiler headers are in `src/compile
 
 - Oak strings are **single-quoted** (`'hello'`). Double-quoted strings are not supported and cause hangs.
 - The parser grammar is **declarative**: rules are SEQUENCE, CHOICE, BINARY, UNARY, TOKEN, PRATT entries in a table. CHOICE nodes are transparent (they return the matched child directly, not a wrapper).
-- **Generics use type erasure**, not monomorphization. All values share the same 16-byte representation, so a single bytecode body works for all instantiations. No VM changes needed.
-- Type parameter IDs occupy a reserved range: `OAK_TYPE_PARAM_BASE (0x70000000) + index`. Max 8 type params per definition.
-- Generic param names must be **null-terminated heap copies** — token text from the lexer is not null-terminated.
-- The compiler uses `c->generic_params` / `c->generic_param_count` for the active generic context; these must be saved/restored around generic body compilation and call-site type checking.
 
 ## Tests
 
@@ -44,7 +40,7 @@ Test files live under `tests/` as C harnesses using `oak_test_pipeline.h`. Each 
 
 ```sh
 meson test -C build                          # all tests
-meson test -C build compiler_generics        # single suite
+meson test -C build compiler_traits          # single suite
 ```
 
 ## Native Bindings

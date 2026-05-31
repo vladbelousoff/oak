@@ -39,20 +39,6 @@ static const struct oak_token_t* type_node_token(
   return null;
 }
 
-static oak_type_id_t intern_or_param(struct oak_compiler_t* c,
-                                     const struct oak_token_t* token)
-{
-  const char* name = oak_token_text(token);
-  const int len = oak_token_size(token);
-  for (int i = 0; i < c->generic_param_count; ++i)
-  {
-    if ((int)strlen(c->generic_params[i].name) == len &&
-        strncmp(c->generic_params[i].name, name, len) == 0)
-      return OAK_TYPE_PARAM_BASE + i;
-  }
-  return oak_intern_type_tok(c, token);
-}
-
 void oak_lower_type_node(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* type_node,
                                     struct oak_type_t* out)
@@ -97,17 +83,6 @@ void oak_lower_type_node(struct oak_compiler_t* c,
   if (type_node->kind == OAK_NODE_IDENT)
   {
     const char* name = oak_token_text(type_node->token);
-    const int name_len = oak_token_size(type_node->token);
-    for (int i = 0; i < c->generic_param_count; ++i)
-    {
-      if ((int)strlen(c->generic_params[i].name) == name_len &&
-          strncmp(c->generic_params[i].name, name, name_len) == 0)
-      {
-        out->id = OAK_TYPE_PARAM_BASE + i;
-        out->kind = OAK_TYPE_KIND_PARAM;
-        return;
-      }
-    }
     const struct oak_registered_trait_t* tr = oak_trait_find(&c->traits, name);
     if (tr)
     {
@@ -116,36 +91,6 @@ void oak_lower_type_node(struct oak_compiler_t* c,
       return;
     }
     out->id = oak_intern_type_tok(c, type_node->token);
-    return;
-  }
-  if (type_node->kind == OAK_NODE_TYPE_GENERIC)
-  {
-    const struct oak_ast_node_t* base = type_node->lhs;
-    if (!base || base->kind != OAK_NODE_IDENT)
-      return;
-    const struct oak_ast_node_t* arg = null;
-    if (type_node->rhs)
-    {
-      const struct oak_list_entry_t* first = type_node->rhs->children.next;
-      if (first != &type_node->rhs->children &&
-          first->next == &type_node->rhs->children)
-        arg = oak_container_of(first, struct oak_ast_node_t, link);
-    }
-    if (arg && arg->kind == OAK_NODE_IDENT)
-    {
-      const struct oak_registered_record_t* rec =
-          oak_records_find_typed(&c->records,
-                                 oak_token_text(base->token),
-                                 oak_token_size(base->token),
-                                 oak_token_text(arg->token));
-      if (rec)
-      {
-        out->id = rec->type_id;
-        out->kind = OAK_TYPE_KIND_SCALAR;
-        return;
-      }
-    }
-    out->id = oak_intern_type_tok(c, base->token);
     return;
   }
   if (type_node->kind == OAK_NODE_TYPE_FN)
@@ -159,18 +104,9 @@ void oak_lower_type_node(struct oak_compiler_t* c,
     const struct oak_ast_node_t* elem = type_node->child;
     if (!elem)
       return;
-    if (elem->kind == OAK_NODE_TYPE_GENERIC)
-    {
-      if (elem->lhs && elem->lhs->kind == OAK_NODE_IDENT)
-      {
-        out->id = oak_intern_type_tok(c, elem->lhs->token);
-        out->kind = OAK_TYPE_KIND_ARRAY;
-      }
-      return;
-    }
     if (elem->kind != OAK_NODE_IDENT)
       return;
-    out->id = intern_or_param(c, elem->token);
+    out->id = oak_intern_type_tok(c, elem->token);
     out->kind = OAK_TYPE_KIND_ARRAY;
     return;
   }
@@ -181,8 +117,8 @@ void oak_lower_type_node(struct oak_compiler_t* c,
     if (!key || !val || key->kind != OAK_NODE_IDENT ||
         val->kind != OAK_NODE_IDENT)
       return;
-    out->key_id = intern_or_param(c, key->token);
-    out->id = intern_or_param(c, val->token);
+    out->key_id = oak_intern_type_tok(c, key->token);
+    out->id = oak_intern_type_tok(c, val->token);
     out->kind = OAK_TYPE_KIND_MAP;
     return;
   }
@@ -192,11 +128,6 @@ int oak_type_accepts(const struct oak_type_t* want,
                       const struct oak_type_t* got)
 {
   if (oak_type_equal(want, got))
-    return 1;
-  if (want->kind == OAK_TYPE_KIND_PARAM || got->kind == OAK_TYPE_KIND_PARAM)
-    return 1;
-  if (want->kind == got->kind &&
-      (want->id >= OAK_TYPE_PARAM_BASE || got->id >= OAK_TYPE_PARAM_BASE))
     return 1;
   if (want->is_weak && !got->is_weak && oak_type_equal_base(want, got))
     return 1;

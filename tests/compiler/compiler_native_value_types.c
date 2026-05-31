@@ -87,16 +87,6 @@ static enum oak_fn_call_result_t handle_id_impl(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t identity_impl(struct oak_native_ctx_t* ctx,
-                                              const struct oak_value_t* args,
-                                              int argc,
-                                              struct oak_value_t* out_result)
-{
-  (void)ctx;
-  (void)argc;
-  *out_result = args[0];
-  return OAK_FN_CALL_OK;
-}
 
 /* Register the Handle value type, its id() method, and a make_handle()
  * constructor.  Returns the value type's type id. */
@@ -184,31 +174,6 @@ OAK_TEST_DECL(ValueTypeEqualityIsPayloadIdentity)
   OAK_CHECK(oak_is_native_value(a));
   OAK_CHECK((intptr_t)oak_native_value(a) == 7);
   return OAK_TEST_OK;
-}
-
-/* A value type composes with the generics work: it can be a type argument. */
-OAK_TEST_DECL(ValueTypeAsGenericArgRunsOk)
-{
-  static const char* tp[] = { "T" };
-  struct oak_bind_type_ref_t pt[] = { OAK_BIND_PARAM(0) };
-  struct oak_compile_options_t opts;
-  oak_compile_options_init(&opts, oak_test_allocator());
-  bind_handle(&opts);
-  oak_bind_fn_global(&opts,
-                     &(struct oak_bind_global_fn_t){
-                         .name = "identity",
-                         .impl = identity_impl,
-                         .arity = 1,
-                         .return_type = OAK_BIND_PARAM(0),
-                         .generic_params = tp,
-                         .generic_param_count = 1,
-                         .param_types = pt,
-                         .param_count = 1,
-                     });
-  const enum oak_test_status_t s =
-      run_ok("let h = identity(make_handle());\nprint(h.id());\n", &opts);
-  oak_compile_options_free(&opts);
-  return s;
 }
 
 /* A value type is non-refcounted, so `weak` cannot apply to it.  This must be
@@ -302,7 +267,6 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(ValueTypeCopyRunsOk),
     OAK_TEST_ENTRY(ValueTypeRejectsFields),
     OAK_TEST_ENTRY(ValueTypeEqualityIsPayloadIdentity),
-    OAK_TEST_ENTRY(ValueTypeAsGenericArgRunsOk),
     OAK_TEST_ENTRY(ValueTypeWeakRejected),
     OAK_TEST_ENTRY(ValueTypeCrossTypeEqualityRejected),
     OAK_TEST_ENTRY(ValueTypeSameTypeEqualityOk),

@@ -57,32 +57,6 @@ static void lower_bind_ref(const struct oak_bind_type_ref_t* r,
     out->key_id = r->key_id;
 }
 
-/* Register a generic definition built from `count` parameter names (heap copies
- * owned by the registry).  Returns the new def index, or -1 when count <= 0. */
-static int register_native_generic_def(struct oak_compiler_t* c,
-                                       const char* owner_name,
-                                       const char* const* names,
-                                       int count)
-{
-  if (count <= 0)
-    return -1;
-  struct oak_generic_def_t def = { 0 };
-  def.owner_name = owner_name;
-  def.param_count = count;
-  def.params =
-      OAK_ALLOC(c->allocator, (usize)count * sizeof(struct oak_generic_param_t));
-  for (int i = 0; i < count; ++i)
-  {
-    const int len = (int)strlen(names[i]);
-    char* ncopy = OAK_ALLOC(c->allocator, (usize)(len + 1));
-    memcpy(ncopy, names[i], len);
-    ncopy[len] = '\0';
-    def.params[i].name = ncopy;
-    def.params[i].bound_trait_id = OAK_TYPE_VOID;
-  }
-  return oak_generic_registry_add(&c->generics, &def);
-}
-
 /* ---------- Native type registration ---------- */
 
 void oak_register_native_types(
@@ -98,7 +72,7 @@ void oak_register_native_types(
       continue;
     const int nt_name_len = (int)strlen(nt->name);
 
-    if (oak_records_find_typed(&c->records, nt->name, nt_name_len, nt->type_arg_name))
+    if (oak_records_find(&c->records, nt->name, (usize)nt_name_len))
     {
       oak_compiler_error_at(
           c,
@@ -111,23 +85,8 @@ void oak_register_native_types(
     /* Register the pre-assigned stable id into the compiler's type registry.
      * This ensures that references to this name in Oak source resolve to the
      * same id that the embedding code holds in nt->type_id. */
-    const char* registry_name = nt->name;
-    int registry_name_len = nt_name_len;
-    if (nt->type_arg_name)
-    {
-      const int arg_len = (int)strlen(nt->type_arg_name);
-      registry_name_len = nt_name_len + arg_len + 2;
-      char* unique_name = OAK_ALLOC(c->allocator, (usize)registry_name_len + 1u);
-      memcpy(unique_name, nt->name, (usize)nt_name_len);
-      unique_name[nt_name_len] = '<';
-      memcpy(unique_name + nt_name_len + 1, nt->type_arg_name, (usize)arg_len);
-      unique_name[registry_name_len - 1] = '>';
-      unique_name[registry_name_len] = '\0';
-      registry_name = unique_name;
-    }
-
     const oak_type_id_t tid = oak_type_registry_intern_with_id(
-        &c->types, registry_name, registry_name_len, nt->type_id);
+        &c->types, nt->name, nt_name_len, nt->type_id);
     if (tid < 0)
     {
       oak_compiler_error_at(c,
@@ -141,15 +100,12 @@ void oak_register_native_types(
     struct oak_registered_record_t proto = { 0 };
     proto.name = nt->name;
     proto.name_len = nt_name_len;
-    proto.type_arg_name = nt->type_arg_name;
     proto.type_id = tid;
     proto.fields = null;
     proto.field_count = 0;
     proto.field_capacity = 0;
     proto.attrs = null;
     proto.attr_count = 0;
-    proto.generic_param_count = 0;
-    proto.generic_def_index = -1;
     proto.is_value = (nt->kind == OAK_BIND_TYPE_VALUE);
 
     for (int fi = 0; fi < nt->field_count; ++fi)
@@ -214,9 +170,6 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     entry.attrs = null;
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
-    entry.generic_param_count = b->generic_param_count;
-    entry.generic_def_index = register_native_generic_def(
-        c, b->name, b->generic_params, b->generic_param_count);
     if (b->param_types && b->arity > 0)
     {
       entry.param_types = OAK_ALLOC(
@@ -286,15 +239,11 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     entry.name_len = name_len;
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type_id;
-    entry.type_arg_name = b->type_arg_name;
     lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
-    entry.generic_param_count = b->generic_param_count;
-    entry.generic_def_index = register_native_generic_def(
-        c, b->name, b->generic_params, b->generic_param_count);
 
     struct oak_registered_record_t* sd =
         (struct oak_registered_record_t*)oak_records_find_by_id(
@@ -330,11 +279,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     }
     for (int j = 0; j < sd->methods.count; ++j)
     {
-      const char* existing_arg = sd->methods.items[j].type_arg_name;
-      if (strcmp(sd->methods.items[j].name, b->name) == 0 &&
-          ((!existing_arg && !b->type_arg_name) ||
-           (existing_arg && b->type_arg_name &&
-            strcmp(existing_arg, b->type_arg_name) == 0)))
+      if (strcmp(sd->methods.items[j].name, b->name) == 0)
       {
         oak_compiler_error_at(c,
                               null,

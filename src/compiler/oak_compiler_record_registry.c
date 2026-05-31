@@ -58,25 +58,6 @@ const struct oak_registered_record_t* oak_records_find(
   return &r->entries.items[idx];
 }
 
-const struct oak_registered_record_t* oak_records_find_typed(
-    const struct oak_record_registry_t* r,
-    const char* name,
-    usize len,
-    const char* type_arg_name)
-{
-  for (int i = 0; i < r->entries.count; ++i)
-  {
-    const struct oak_registered_record_t* rec = &r->entries.items[i];
-    if (rec->name_len != (int)len || strncmp(rec->name, name, len) != 0)
-      continue;
-    if ((!rec->type_arg_name && !type_arg_name) ||
-        (rec->type_arg_name && type_arg_name &&
-         strcmp(rec->type_arg_name, type_arg_name) == 0))
-      return rec;
-  }
-  return null;
-}
-
 const struct oak_registered_record_t*
 oak_records_find_by_id(const struct oak_record_registry_t* r,
                                     oak_type_id_t type_id)
@@ -110,15 +91,6 @@ oak_find_record_method(const struct oak_registered_record_t* sd,
                                 const char* name,
                                 const int static_only)
 {
-  return oak_find_record_method_typed(sd, name, null, static_only);
-}
-
-const struct oak_registered_fn_t*
-oak_find_record_method_typed(const struct oak_registered_record_t* sd,
-                             const char* name,
-                             const char* type_arg_name,
-                             const int static_only)
-{
   if (!sd)
     return null;
   for (int i = 0; i < sd->methods.count; ++i)
@@ -127,12 +99,7 @@ oak_find_record_method_typed(const struct oak_registered_record_t* sd,
     if ((!!m->is_static) != (!!static_only))
       continue;
     if (strcmp(m->name, name) == 0)
-    {
-      if ((!m->type_arg_name && !type_arg_name) ||
-          (m->type_arg_name && type_arg_name &&
-           strcmp(m->type_arg_name, type_arg_name) == 0))
       return m;
-    }
   }
   return null;
 }

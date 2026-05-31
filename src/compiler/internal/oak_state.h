@@ -6,7 +6,6 @@ struct oak_allocator_t;       /* defined in oak_allocator.h */
 struct oak_compile_options_t; /* defined in oak_bind.h */
 #include "oak_enum_registry.h"
 #include "oak_fn_registry.h"
-#include "oak_generic_registry.h"
 #include "oak_method_table.h"
 #include "oak_record_registry.h"
 #include "oak_trait_registry.h"
@@ -70,13 +69,7 @@ struct oak_scope_ctx_t
  *
  * `types` is the type-id interner shared by all registries.  After
  * compilation it is moved into `current_module` via
- * oak_compiler_move_types_to_module().
- *
- * `generic_params` / `generic_param_count` are the *active* type-parameter
- * context — non-null only while lowering a generic fn / record body or
- * checking a generic call site.  They must be paired (save before, restore
- * after) by anyone who mutates them; see infer_generic_call_type for an
- * example. */
+ * oak_compiler_move_types_to_module(). */
 
 struct oak_compiler_t
 {
@@ -91,11 +84,6 @@ struct oak_compiler_t
   struct oak_record_registry_t records;
   struct oak_enum_registry_t enums;
   struct oak_trait_registry_t traits;
-  struct oak_generic_registry_t generics;
-  /* Active type parameter bindings during compilation of a generic body.
-   * NULL + count=0 when outside a generic context. */
-  struct oak_generic_param_t* generic_params;
-  int generic_param_count;
   /* Names bound at module scope (top-level `let` items only). Used to reject
    * access from inside user function and method bodies. */
   struct oak_htable_t module_scope_names;

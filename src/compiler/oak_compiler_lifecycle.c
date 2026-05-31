@@ -31,9 +31,6 @@ struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
   oak_enum_registry_init(&c->enums, allocator);
   oak_htable_init(&c->module_scope_names, allocator);
   oak_trait_registry_init(&c->traits, allocator);
-  oak_generic_registry_init(&c->generics, allocator);
-  c->generic_params = null;
-  c->generic_param_count = 0;
   c->user_record_start = 0;
   c->user_enum_start = -1;
   c->user_trait_start = 0;
@@ -62,7 +59,6 @@ void oak_compiler_teardown(struct oak_compiler_t* c)
   oak_record_registry_free(&c->records);
   oak_enum_registry_free(&c->enums);
   oak_trait_registry_free(&c->traits);
-  oak_generic_registry_free(&c->generics);
   oak_type_registry_free(&c->types);
 }
 

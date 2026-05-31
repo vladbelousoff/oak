@@ -310,10 +310,6 @@ static const char* oak_parser_node_display(const enum oak_node_kind_t kind)
       return "an attribute";
     case OAK_NODE_ATTR_DECL:
       return "an attributed declaration";
-    case OAK_NODE_TYPE_GENERIC:
-      return "a generic type";
-    case OAK_NODE_TYPE_ARGS:
-      return "type arguments";
     case OAK_NODE_EXPR_FN:
       return "an anonymous function";
     case OAK_NODE_TYPE_FN:

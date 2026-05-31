@@ -27,8 +27,6 @@ static const struct oak_ast_node_t* record_decl_name_ident(
     }
     name_ident = oak_container_of(tn_first, struct oak_ast_node_t, link);
   }
-  if (name_ident->kind == OAK_NODE_TYPE_GENERIC)
-    name_ident = name_ident->lhs;
   if (name_ident->kind != OAK_NODE_IDENT)
   {
     oak_compiler_error_at(
@@ -36,18 +34,6 @@ static const struct oak_ast_node_t* record_decl_name_ident(
     return null;
   }
   return name_ident;
-}
-
-const struct oak_ast_node_t*
-oak_record_type_params(const struct oak_ast_node_t* record_decl)
-{
-  const struct oak_ast_node_t* type_name =
-      record_decl->kind == OAK_NODE_RECORD_DECL_EMPTY
-          ? record_decl->child
-          : record_decl->lhs;
-  if (type_name && type_name->kind == OAK_NODE_TYPE_GENERIC)
-    return type_name->rhs;
-  return null;
 }
 
 static const struct oak_bind_type_t* native_record_binding(
@@ -241,60 +227,10 @@ void oak_register_program_records(struct oak_compiler_t* c,
       return;
     }
 
-    const struct oak_ast_node_t* rec_type_params = oak_record_type_params(item);
-    int rec_gpc = 0;
-    int rec_gdi = -1;
-    if (rec_type_params)
-    {
-      struct oak_list_entry_t* tp_pos;
-      oak_list_for_each(tp_pos, &rec_type_params->children)
-      {
-        const struct oak_ast_node_t* tp =
-            oak_container_of(tp_pos, struct oak_ast_node_t, link);
-        if (tp->kind == OAK_NODE_IDENT)
-          rec_gpc++;
-      }
-      if (rec_gpc > OAK_MAX_GENERIC_PARAMS)
-      {
-        oak_compiler_error_at(c, name_ident->token,
-                              "too many type parameters (max %d)",
-                              OAK_MAX_GENERIC_PARAMS);
-        return;
-      }
-      if (rec_gpc > 0)
-      {
-        struct oak_generic_def_t def = { 0 };
-        def.owner_name = name;
-        def.param_count = rec_gpc;
-        def.params = OAK_ALLOC(
-            c->allocator,
-            (usize)rec_gpc * sizeof(struct oak_generic_param_t));
-        int pi = 0;
-        oak_list_for_each(tp_pos, &rec_type_params->children)
-        {
-          const struct oak_ast_node_t* tp =
-              oak_container_of(tp_pos, struct oak_ast_node_t, link);
-          if (tp->kind != OAK_NODE_IDENT)
-            continue;
-          const char* ttext = oak_token_text(tp->token);
-          const int tlen = oak_token_size(tp->token);
-          char* ncopy = OAK_ALLOC(c->allocator, (usize)(tlen + 1));
-          memcpy(ncopy, ttext, tlen);
-          ncopy[tlen] = '\0';
-          def.params[pi].name = ncopy;
-          def.params[pi].bound_trait_id = OAK_TYPE_VOID;
-          pi++;
-        }
-        rec_gdi = oak_generic_registry_add(&c->generics, &def);
-      }
-    }
-
     struct oak_registered_record_t proto = { 0 };
     proto.name = name;
     proto.name_len = name_len;
     proto.type_id = oak_type_registry_intern(&c->types, name, name_len);
-    proto.generic_param_count = rec_gpc;
-    proto.generic_def_index = rec_gdi;
     proto.fields = null;
     proto.field_count = 0;
     proto.field_capacity = 0;
@@ -373,19 +309,8 @@ void oak_register_program_records(struct oak_compiler_t* c,
       return;
     }
 
-    struct oak_generic_param_t* saved_gp = c->generic_params;
-    int saved_gpc = c->generic_param_count;
-    if (slot->generic_param_count > 0 && slot->generic_def_index >= 0)
-    {
-      const struct oak_generic_def_t* gdef =
-          &c->generics.defs[slot->generic_def_index];
-      c->generic_params = gdef->params;
-      c->generic_param_count = gdef->param_count;
-    }
     const int field_ok =
         register_record_field_decls(c, slot, fields_wrap, name, item->token);
-    c->generic_params = saved_gp;
-    c->generic_param_count = saved_gpc;
     if (!field_ok || c->has_error)
       return;
   }

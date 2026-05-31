@@ -198,21 +198,10 @@ void oak_compile_fn_bodies(struct oak_compiler_t* c)
       oak_compiler_error_at(c, e->decl->token, "function has no body");
       return;
     }
-    struct oak_generic_param_t* saved_gp = c->generic_params;
-    int saved_gpc = c->generic_param_count;
-    if (e->generic_param_count > 0 && e->generic_def_index >= 0)
-    {
-      const struct oak_generic_def_t* gdef =
-          &c->generics.defs[e->generic_def_index];
-      c->generic_params = gdef->params;
-      c->generic_param_count = gdef->param_count;
-    }
     struct oak_value_t fn_val = c->chunk->constants[e->const_idx];
     struct oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
     fn_obj->code_offset = c->chunk->count;
     oak_compile_fn_body(c, e->decl, null);
-    c->generic_params = saved_gp;
-    c->generic_param_count = saved_gpc;
     if (c->has_error)
       return;
   }

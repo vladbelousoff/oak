@@ -35,15 +35,14 @@ enum oak_bind_fn_kind_t
 
 /* A compile-time type slot used for native fields, function parameters, and
  * return types.  Mirrors the internal oak_type_t and reuses oak_type_kind_t so
- * it can express scalars, typed arrays (element type = `id`), typed maps
- * (value = `id`, key = `key_id`), and type parameters (kind PARAM,
- * `id` = OAK_TYPE_PARAM_BASE + index).  Construct with the OAK_BIND_* macros
- * below; a zero-initialised ref is a scalar of type OAK_TYPE_VOID. */
+ * it can express scalars, typed arrays (element type = `id`), and typed maps
+ * (value = `id`, key = `key_id`).  Construct with the OAK_BIND_* macros below;
+ * a zero-initialised ref is a scalar of type OAK_TYPE_VOID. */
 struct oak_bind_type_ref_t
 {
-  oak_type_id_t id;          /* element/value type, or PARAM_BASE+i for a param */
+  oak_type_id_t id;          /* element/value type */
   oak_type_id_t key_id;      /* map key type; ignored for non-map kinds */
-  enum oak_type_kind_t kind; /* SCALAR / ARRAY / MAP / PARAM */
+  enum oak_type_kind_t kind; /* SCALAR / ARRAY / MAP */
 };
 
 /* Constructor helper for oak_bind_type_ref_t.  Implemented as a function
@@ -60,20 +59,13 @@ static inline struct oak_bind_type_ref_t oak_bind_type_ref_make(
   return ref;
 }
 
-/* Convenience constructors for oak_bind_type_ref_t.  OAK_BIND_PARAM(i) is the
- * i-th type parameter of a generic *function or method* (it is not valid for
- * record fields, which must be concrete).  `i` indexes the binding's
- * generic_params list. */
+/* Convenience constructors for oak_bind_type_ref_t. */
 #define OAK_BIND_SCALAR(tid)                                                   \
   oak_bind_type_ref_make((tid), 0, OAK_TYPE_KIND_SCALAR)
 #define OAK_BIND_ARRAY(elem)                                                   \
   oak_bind_type_ref_make((elem), 0, OAK_TYPE_KIND_ARRAY)
 #define OAK_BIND_MAP(k, v)                                                     \
   oak_bind_type_ref_make((v), (k), OAK_TYPE_KIND_MAP)
-#define OAK_BIND_PARAM(i)                                                      \
-  oak_bind_type_ref_make(OAK_TYPE_PARAM_BASE + (i), 0, OAK_TYPE_KIND_PARAM)
-#define OAK_BIND_PARAM_ARRAY(i)                                               \
-  oak_bind_type_ref_make(OAK_TYPE_PARAM_BASE + (i), 0, OAK_TYPE_KIND_ARRAY)
 
 /* ---------- Getter / setter / destructor callbacks ---------- */
 
@@ -100,9 +92,7 @@ struct oak_bind_field_t
 {
   const char* name;
   /* Compile-time type of this field.  Build with OAK_BIND_SCALAR(tid),
-   * OAK_BIND_ARRAY(elem), or OAK_BIND_MAP(k, v).  Field types must be concrete:
-   * type parameters (OAK_BIND_PARAM) are not allowed because native records are
-   * not specialized per type argument. */
+   * OAK_BIND_ARRAY(elem), or OAK_BIND_MAP(k, v). */
   struct oak_bind_type_ref_t type;
   oak_bind_field_getter_t getter;
   oak_bind_field_setter_t setter; /* NULL = read-only */
@@ -118,10 +108,6 @@ struct oak_bind_type_t
    * registered in the global namespace as before. */
   const char* module_name;
   const char* name;
-  /* Optional generic type-argument name for native generic records (e.g. the
-   * `Player` in `View<Player>`). NULL for non-generic types. Used by the
-   * compiler to disambiguate distinct instantiations sharing the same name. */
-  const char* type_arg_name;
   /* Stable id assigned by oak_bind_type() from opts->next_type_id.
    * Valid for the lifetime of the oak_compile_options_t it was registered in.
    * Use this value as field_type_id or receiver_type_id when referencing
@@ -145,16 +131,11 @@ struct oak_bind_global_fn_t
   const char* name;
   oak_native_fn_t impl;
   int arity;
-  /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP, or OAK_BIND_PARAM(i)
-   * to return the i-th generic parameter. */
+  /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
   struct oak_bind_type_ref_t return_type;
-  /* Optional generic type parameters and per-parameter types.  When
-   * generic_param_count > 0, a parameter typed OAK_BIND_PARAM(i) binds T from
-   * the matching argument (inferred at the call site).  param_types must list
-   * `arity` entries when non-NULL; the embedder owns the array (it is copied at
-   * registration).  Both are borrowed and must outlive oak_compile_ex. */
-  const char* const* generic_params;
-  int generic_param_count;
+  /* Optional per-parameter types used for call-site type checking.  When
+   * non-NULL, param_types must list `arity` entries; the embedder owns the
+   * array (it is copied at registration) and it must outlive oak_compile_ex. */
   const struct oak_bind_type_ref_t* param_types;
   int param_count;
 };
@@ -169,22 +150,16 @@ struct oak_bind_fn_t
   /* The native record type_id for the receiver type. */
   oak_type_id_t receiver_type_id;
   const char* name;
-  /* Optional generic type-argument name of the receiver (e.g. `Player` for a
-   * method bound on `View<Player>`). NULL for methods on non-generic types. */
-  const char* type_arg_name;
   oak_native_fn_t impl;
   /* User-visible arity: for STATIC_METHOD, full argument count;
    * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM). */
   int arity;
-  /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP, or OAK_BIND_PARAM(i)
-   * to return the i-th generic parameter. */
+  /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
   struct oak_bind_type_ref_t return_type;
-  /* Optional generic type parameters and per-parameter types (see
-   * oak_bind_global_fn_t).  param_types lists the user-visible parameters
-   * (excluding the implicit self for instance methods) and must hold `arity`
-   * entries when non-NULL.  Both are borrowed and must outlive oak_compile_ex. */
-  const char* const* generic_params;
-  int generic_param_count;
+  /* Optional per-parameter types used for call-site type checking.  param_types
+   * lists the user-visible parameters (excluding the implicit self for instance
+   * methods) and must hold `arity` entries when non-NULL.  It is borrowed and
+   * must outlive oak_compile_ex. */
   const struct oak_bind_type_ref_t* param_types;
   int param_count;
 };
@@ -231,7 +206,6 @@ struct oak_attr_param_info_t
   oak_type_id_t type_id;
   int is_mut;
   int is_weak;
-  const char* type_arg_name;
 };
 
 /* Per-field metadata exposed to attribute callbacks on RECORD targets. */

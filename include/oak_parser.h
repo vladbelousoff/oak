@@ -125,19 +125,12 @@ enum oak_node_kind_t
   OAK_NODE_IMPORT_NAMES,
   OAK_NODE_IMPORT_NAME,
   OAK_NODE_IMPORT_ALIAS,
-  /* Stack<number> — parameterised type reference (also used for generic
-   * declarations like `record Stack<T>`; the compiler distinguishes).
-   * Binary: lhs = IDENT (base name), rhs = TYPE_ARGS. */
-  /* Element type inside an array annotation: TYPE_GENERIC | IDENT.
+  /* Element type inside an array annotation.
    * Transparent choice — returns the matched child directly. */
   OAK_NODE_TYPE_ARRAY_BASE,
-  /* IDENT | TYPE_GENERIC — restricted choice for function names.
+  /* Restricted choice for function names.
    * Transparent (CHOICE): returns the matched child directly. */
   OAK_NODE_FN_NAME,
-  OAK_NODE_TYPE_GENERIC,
-  /* <number, string> — comma-separated type argument list.
-   * Sequence: children are the resolved TYPE_NAME nodes. */
-  OAK_NODE_TYPE_ARGS,
   /* fn(x: number) -> number { return x; }
    * Anonymous function expression.
    * Binary: lhs = FN_PARAMS_AND_RET, rhs = BLOCK. */

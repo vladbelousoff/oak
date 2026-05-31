@@ -39,18 +39,7 @@ oak_fn_name_node(const struct oak_ast_node_t* decl)
 {
   const struct oak_ast_node_t* head = oak_fn_decl_head(decl);
   oak_assert(head->rhs != null);
-  if (head->rhs->kind == OAK_NODE_TYPE_GENERIC)
-    return head->rhs->lhs;
   return head->rhs;
-}
-
-const struct oak_ast_node_t*
-oak_fn_type_params(const struct oak_ast_node_t* decl)
-{
-  const struct oak_ast_node_t* head = oak_fn_decl_head(decl);
-  if (head->rhs && head->rhs->kind == OAK_NODE_TYPE_GENERIC)
-    return head->rhs->rhs;
-  return null;
 }
 
 const struct oak_ast_node_t*
@@ -124,8 +113,7 @@ oak_fn_param_type_node(const struct oak_ast_node_t* param)
       return ch;
     }
     if (ch->kind == OAK_NODE_TYPE_ARRAY || ch->kind == OAK_NODE_TYPE_MAP ||
-        ch->kind == OAK_NODE_TYPE_WEAK || ch->kind == OAK_NODE_TYPE_GENERIC ||
-        ch->kind == OAK_NODE_TYPE_FN)
+        ch->kind == OAK_NODE_TYPE_WEAK || ch->kind == OAK_NODE_TYPE_FN)
       return ch;
   }
   return null;

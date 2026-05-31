@@ -274,7 +274,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
     },
   },
-  // TYPE_NAME -> TYPE_WEAK | TYPE_ARRAY | TYPE_MAP | TYPE_FN | TYPE_GENERIC | IDENT
+  // TYPE_NAME -> TYPE_WEAK | TYPE_ARRAY | TYPE_MAP | TYPE_FN | IDENT
   [OAK_NODE_TYPE_NAME] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
@@ -282,7 +282,6 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_TYPE_ARRAY,
       OAK_NODE_TYPE_MAP,
       OAK_NODE_TYPE_FN,
-      OAK_NODE_TYPE_GENERIC,
       OAK_NODE_IDENT,
     },
   },
@@ -299,11 +298,10 @@ struct oak_grammar_entry_t oak_grammar[] = {
     .rules = {
       OAK_NODE_TYPE_ARRAY,
       OAK_NODE_TYPE_MAP,
-      OAK_NODE_TYPE_GENERIC,
       OAK_NODE_IDENT,
     },
   },
-  // TYPE_ARRAY -> (TYPE_GENERIC | IDENT) '[' ']'
+  // TYPE_ARRAY -> IDENT '[' ']'
   [OAK_NODE_TYPE_ARRAY] = {
     .op = OAK_GRAMMAR_UNARY,
     .rules = {
@@ -315,7 +313,6 @@ struct oak_grammar_entry_t oak_grammar[] = {
   [OAK_NODE_TYPE_ARRAY_BASE] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
-      OAK_NODE_TYPE_GENERIC,
       OAK_NODE_IDENT,
     },
   },
@@ -561,7 +558,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
     },
   },
   // FN_HEAD -> FN_PREFIX FN_NAME
-  //   (binary: lhs = 'fn' keyword, rhs = IDENT or TYPE_GENERIC for generic fns)
+  //   (binary: lhs = 'fn' keyword, rhs = IDENT)
   [OAK_NODE_FN_HEAD] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
@@ -936,31 +933,11 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // FN_NAME -> TYPE_GENERIC | IDENT (restricted choice for function heads)
+  // FN_NAME -> IDENT (restricted choice for function heads)
   [OAK_NODE_FN_NAME] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
-      OAK_NODE_TYPE_GENERIC,
       OAK_NODE_IDENT,
-    },
-  },
-  // TYPE_GENERIC -> IDENT TYPE_ARGS
-  //   (binary: lhs = base type IDENT, rhs = TYPE_ARGS)
-  //   Used both for generic declarations (record Stack<T>) and
-  //   type references (Stack<number>); the compiler distinguishes.
-  [OAK_NODE_TYPE_GENERIC] = {
-    .op = OAK_GRAMMAR_BINARY,
-    .rules = {
-      OAK_NODE_IDENT,
-      OAK_NODE_TYPE_ARGS,
-    },
-  },
-  // TYPE_ARGS -> '<' TYPE_NAME (',' TYPE_NAME)* '>'
-  [OAK_NODE_TYPE_ARGS] = {
-    .rules = {
-      OAK_TOKEN_LESS | OAK_RULE_TOKEN,
-      OAK_NODE_TYPE_NAME | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
-      OAK_TOKEN_GREATER | OAK_RULE_TOKEN,
     },
   },
   // EXPR_FN -> 'fn' FN_PARAMS_AND_RET BLOCK
