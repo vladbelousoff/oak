@@ -42,6 +42,10 @@ struct oak_vm_t
    * OP_GET_MODULE_FN and switch chunks on cross-module CALL/RETURN. */
   struct oak_module_registry_t* modules;
   struct oak_allocator_t* allocator;
+  /* Optional embedder context. Borrowed, never freed by the VM. Native
+   * callbacks can recover their owning embedder via ctx->vm->user_data,
+   * which lets multiple independent VMs coexist without process globals. */
+  void* user_data;
 };
 
 /* Zero-initialize a VM and wire it to an allocator.  The allocator pointer

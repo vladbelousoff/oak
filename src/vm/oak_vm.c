@@ -9,6 +9,7 @@ void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator)
   vm->frame_count = 0;
   vm->modules = null;
   vm->allocator = allocator;
+  vm->user_data = null;
 }
 
 void oak_vm_set_module_registry(struct oak_vm_t* vm,
