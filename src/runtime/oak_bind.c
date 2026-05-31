@@ -308,6 +308,11 @@ void oak_dispatch_compile_attr_cbs(const struct oak_compile_options_t* opts,
           .field_count = field_count,
           .fields = fields,
           .const_index = const_index,
+          /* Expose the live options so callbacks can bind new native
+           * types/methods that the post-record-decl native pass registers.
+           * Cast away const: opts is the compiler's working options object
+           * (never a read-only literal) and the binding API mutates it. */
+          .opts = (struct oak_compile_options_t*)opts,
         };
         b->on_decl(&ctx);
         break;

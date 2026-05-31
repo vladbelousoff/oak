@@ -65,7 +65,9 @@ void oak_register_native_types(
   if (!opts || opts->native_types.count == 0)
     return;
 
-  for (int i = 0; i < opts->native_types.count; ++i)
+  /* Resume from the cursor: entries before it were registered by an earlier
+   * pass (see oak_compiler_t.native_types_cursor). */
+  for (int i = c->native_types_cursor; i < opts->native_types.count; ++i)
   {
     const struct oak_bind_type_t* nt = opts->native_types.items[i];
     if (!nt)
@@ -127,6 +129,8 @@ void oak_register_native_types(
     if (c->has_error)
       return;
   }
+
+  c->native_types_cursor = opts->native_types.count;
 }
 
 /* ---------- Native function registration ---------- */
@@ -148,7 +152,9 @@ void oak_register_native_fns(struct oak_compiler_t* c,
   if (!opts)
     return;
 
-  for (int i = 0; i < opts->native_global_fns.count; ++i)
+  /* Both loops resume from their cursors so a second registration pass only
+   * sees bindings added since the first (see native_*_cursor). */
+  for (int i = c->native_global_fns_cursor; i < opts->native_global_fns.count; ++i)
   {
     const struct oak_bind_global_fn_t* b = &opts->native_global_fns.items[i];
     if (!b->name || !b->impl || b->module_name)
@@ -188,7 +194,9 @@ void oak_register_native_fns(struct oak_compiler_t* c,
       return;
   }
 
-  for (int i = 0; i < opts->native_fns.count; ++i)
+  c->native_global_fns_cursor = opts->native_global_fns.count;
+
+  for (int i = c->native_fns_cursor; i < opts->native_fns.count; ++i)
   {
     const struct oak_bind_fn_t* b = &opts->native_fns.items[i];
     if (!b->name || !b->impl)
@@ -297,4 +305,6 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     if (c->has_error)
       return;
   }
+
+  c->native_fns_cursor = opts->native_fns.count;
 }

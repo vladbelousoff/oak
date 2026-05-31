@@ -34,6 +34,9 @@ struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
   c->user_record_start = 0;
   c->user_enum_start = -1;
   c->user_trait_start = 0;
+  c->native_types_cursor = 0;
+  c->native_global_fns_cursor = 0;
+  c->native_fns_cursor = 0;
 
   return chunk;
 }

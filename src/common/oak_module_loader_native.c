@@ -65,8 +65,15 @@ void module_loader_filter_native_decls(
     const char* dotted,
     struct oak_compile_options_t* opts)
 {
-  if (!opts_has_native_module(base_opts, dotted))
-    return;
+  /* Always give the module its own copy of the native binding vectors. `opts`
+   * starts as a shallow copy of base_opts, so its vectors alias base_opts'
+   * buffers; the compiler may append to them (an attribute callback binding new
+   * native types/methods), which would realloc — and free — the shared buffer
+   * out from under base_opts. Owning the copy makes those appends safe and
+   * keeps base_opts pristine across module compilations. When compiling a
+   * native module, also drop that module's own native decls (they are provided
+   * by the Oak stub instead). */
+  const int is_native_module = opts_has_native_module(base_opts, dotted);
 
   oak_dynarr_init(
       &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
@@ -82,7 +89,7 @@ void module_loader_filter_native_decls(
   for (int i = 0; i < base_opts->native_types.count; ++i)
   {
     struct oak_bind_type_t* type = base_opts->native_types.items[i];
-    if (type && native_module_name_eq(type->module_name, dotted))
+    if (is_native_module && type && native_module_name_eq(type->module_name, dotted))
       continue;
     oak_dynarr_push(opts->allocator, &opts->native_types.items,
                     &opts->native_types.count,
@@ -94,7 +101,7 @@ void module_loader_filter_native_decls(
   for (int i = 0; i < base_opts->native_fns.count; ++i)
   {
     const struct oak_bind_fn_t* fn = &base_opts->native_fns.items[i];
-    if (native_type_in_module(base_opts, fn->receiver_type_id, dotted))
+    if (is_native_module && native_type_in_module(base_opts, fn->receiver_type_id, dotted))
       continue;
     oak_dynarr_push(opts->allocator, &opts->native_fns.items,
                     &opts->native_fns.count,
@@ -106,7 +113,7 @@ void module_loader_filter_native_decls(
   for (int i = 0; i < base_opts->native_global_fns.count; ++i)
   {
     const struct oak_bind_global_fn_t* fn = &base_opts->native_global_fns.items[i];
-    if (native_module_name_eq(fn->module_name, dotted))
+    if (is_native_module && native_module_name_eq(fn->module_name, dotted))
       continue;
     oak_dynarr_push(opts->allocator, &opts->native_global_fns.items,
                     &opts->native_global_fns.count,
@@ -118,7 +125,7 @@ void module_loader_filter_native_decls(
   for (int i = 0; i < base_opts->native_enums.count; ++i)
   {
     struct oak_bind_enum_t* e = base_opts->native_enums.items[i];
-    if (e && native_module_name_eq(e->module_name, dotted))
+    if (is_native_module && e && native_module_name_eq(e->module_name, dotted))
       continue;
     oak_dynarr_push(opts->allocator, &opts->native_enums.items,
                     &opts->native_enums.count,
@@ -133,8 +140,11 @@ void module_loader_free_filtered_native_decls(
     const char* dotted,
     struct oak_compile_options_t* opts)
 {
-  if (!opts_has_native_module(base_opts, dotted))
-    return;
+  (void)base_opts;
+  (void)dotted;
+  /* Mirrors module_loader_filter_native_decls, which always allocates owned
+   * copies of these vectors. Frees the copied item arrays (not the bound
+   * structs they point at, which the embedder owns). */
   oak_dynarr_free(opts->allocator,
       &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
   oak_dynarr_free(opts->allocator,

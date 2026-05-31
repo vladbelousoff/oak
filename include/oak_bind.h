@@ -230,6 +230,14 @@ struct oak_attr_compile_ctx_t
   const struct oak_attr_field_info_t* fields;
   /* Index of the declaration's value in the chunk's constant pool (-1 if N/A). */
   int const_index;
+  /* The live compile options the compiler is using for this compilation.
+   * Native types/functions bound here (via oak_bind_type / oak_bind_fn) are
+   * picked up by the native-binding pass that runs right after record
+   * declarations, so an on_decl callback can register new types/methods that
+   * later code in the same module can reference. The bound structs are
+   * allocated with opts->allocator, so store any pointer the embedder needs at
+   * runtime — it outlives compilation. */
+  struct oak_compile_options_t* opts;
 };
 
 typedef void (*oak_attr_compile_cb_t)(const struct oak_attr_compile_ctx_t* ctx);

@@ -102,4 +102,13 @@ struct oak_compiler_t
    * attribute callback dispatch to look up named attribute bindings. */
   const struct oak_compile_options_t* opts;
   int anon_fn_count;
+  /* Cursors into opts->native_types / native_global_fns / native_fns marking
+   * how many native bindings have already been registered into the compiler.
+   * Native registration is incremental: it resumes from these cursors so it
+   * can run a second time after record-decl attribute callbacks bind new
+   * native types/methods (e.g. component views) without re-processing — and
+   * erroring on — entries registered in the first pass. */
+  int native_types_cursor;
+  int native_global_fns_cursor;
+  int native_fns_cursor;
 };
