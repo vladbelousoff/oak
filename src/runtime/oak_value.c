@@ -1,12 +1,76 @@
 #include "oak_value.h"
 
 #include "oak_allocator.h"
+#include "oak_atomic.h"
 #include "oak_bind.h"
 #include "oak_log.h"
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#define OAK_CYCLE_REGISTERED 0x1u
+#define OAK_CYCLE_COLLECTING 0x2u
+#define OAK_CYCLE_TRIGGER    256
+
+static int oak_cycle_decrefs_inc(struct oak_allocator_t* allocator)
+{
+  return oak_atomic_int_inc_relaxed(&allocator->cycle_decrefs);
+}
+
+static void oak_cycle_decrefs_reset(struct oak_allocator_t* allocator)
+{
+  oak_atomic_int_store_relaxed(&allocator->cycle_decrefs, 0);
+}
+
+static int oak_obj_is_cycle_capable(const struct oak_obj_t* obj)
+{
+  return obj->type == OAK_OBJ_ARRAY || obj->type == OAK_OBJ_MAP ||
+         obj->type == OAK_OBJ_RECORD || obj->type == OAK_OBJ_TRAIT_OBJECT;
+}
+
+static void oak_obj_register_cycle_capable(struct oak_obj_t* obj)
+{
+  if (!oak_obj_is_cycle_capable(obj))
+    return;
+  struct oak_allocator_t* a = obj->allocator;
+  obj->cycle_next = a->cycle_objects;
+  if (obj->cycle_next)
+    obj->cycle_next->cycle_prev = obj;
+  a->cycle_objects = obj;
+  obj->cycle_flags |= OAK_CYCLE_REGISTERED;
+}
+
+static void oak_obj_unregister_cycle_capable(struct oak_obj_t* obj)
+{
+  if (!(obj->cycle_flags & OAK_CYCLE_REGISTERED))
+    return;
+  if (obj->cycle_prev)
+    obj->cycle_prev->cycle_next = obj->cycle_next;
+  else
+    obj->allocator->cycle_objects = obj->cycle_next;
+  if (obj->cycle_next)
+    obj->cycle_next->cycle_prev = obj->cycle_prev;
+  obj->cycle_prev = null;
+  obj->cycle_next = null;
+  obj->cycle_flags &= ~OAK_CYCLE_REGISTERED;
+}
+
+static void oak_obj_init(struct oak_obj_t* obj,
+                         const enum oak_obj_type_t type,
+                         struct oak_allocator_t* allocator)
+{
+  obj->type = type;
+  oak_refcount_init(&obj->refcount, 1);
+  oak_refcount_init(&obj->weak_refcount, 0);
+  obj->allocator = allocator;
+  obj->cycle_prev = null;
+  obj->cycle_next = null;
+  obj->cycle_index = 0;
+  obj->cycle_flags = 0;
+  oak_obj_register_cycle_capable(obj);
+}
 
 void oak_obj_incref(struct oak_obj_t* obj)
 {
@@ -76,9 +140,17 @@ static void oak_obj_destroy_payload(struct oak_obj_t* obj)
 
 void oak_obj_decref(struct oak_obj_t* obj)
 {
-  if (!oak_refcount_dec(&obj->refcount))
+  if (obj->cycle_flags & OAK_CYCLE_COLLECTING)
     return;
+  if (!oak_refcount_dec(&obj->refcount))
+  {
+    if (oak_obj_is_cycle_capable(obj) && !obj->allocator->collecting_cycles &&
+        oak_cycle_decrefs_inc(obj->allocator) >= OAK_CYCLE_TRIGGER)
+      oak_collect_cycles(obj->allocator);
+    return;
+  }
 
+  oak_obj_unregister_cycle_capable(obj);
   oak_refcount_inc(&obj->weak_refcount);
   oak_obj_destroy_payload(obj);
   if (!oak_refcount_dec(&obj->weak_refcount))
@@ -91,8 +163,185 @@ void oak_weak_decref(struct oak_obj_t* obj)
 {
   if (!oak_refcount_dec(&obj->weak_refcount))
     return;
-  if (obj->refcount.count == 0)
+  if (obj->cycle_flags & OAK_CYCLE_COLLECTING)
+    return;
+  if (oak_refcount_load(&obj->refcount) == 0)
     OAK_FREE(obj->allocator, obj);
+}
+
+struct oak_cycle_entry_t
+{
+  struct oak_obj_t* obj;
+  int external_refs;
+  int reachable;
+};
+
+typedef void (*oak_cycle_edge_fn)(struct oak_obj_t* child, void* ctx);
+
+static void oak_obj_visit_cycle_edges(struct oak_obj_t* obj,
+                                      oak_cycle_edge_fn visit,
+                                      void* ctx)
+{
+#define VISIT_VALUE(value)                                                     \
+  do                                                                           \
+  {                                                                            \
+    const struct oak_value_t _v = (value);                                     \
+    if (_v.tag == OAK_TAG_OBJ && oak_obj_is_cycle_capable(_v.as.obj))          \
+      visit(_v.as.obj, ctx);                                                    \
+  } while (0)
+
+  if (obj->type == OAK_OBJ_ARRAY)
+  {
+    struct oak_obj_array_t* arr = (struct oak_obj_array_t*)obj;
+    for (usize i = 0; i < arr->length; ++i)
+      VISIT_VALUE(arr->items[i]);
+  }
+  else if (obj->type == OAK_OBJ_MAP)
+  {
+    struct oak_obj_map_t* map = (struct oak_obj_map_t*)obj;
+    for (usize i = 0; i < map->length; ++i)
+    {
+      VISIT_VALUE(map->entries[i].key);
+      VISIT_VALUE(map->entries[i].value);
+    }
+  }
+  else if (obj->type == OAK_OBJ_RECORD)
+  {
+    struct oak_obj_record_t* record = (struct oak_obj_record_t*)obj;
+    for (int i = 0; i < record->field_count; ++i)
+      VISIT_VALUE(record->fields[i]);
+  }
+  else if (obj->type == OAK_OBJ_TRAIT_OBJECT)
+  {
+    struct oak_obj_trait_object_t* trait = (struct oak_obj_trait_object_t*)obj;
+    VISIT_VALUE(trait->value);
+    visit((struct oak_obj_t*)trait->vtable, ctx);
+  }
+
+#undef VISIT_VALUE
+}
+
+struct oak_cycle_scan_ctx_t
+{
+  struct oak_allocator_t* allocator;
+  struct oak_cycle_entry_t* entries;
+};
+
+static void oak_cycle_subtract_internal_ref(struct oak_obj_t* child, void* ctx)
+{
+  struct oak_cycle_scan_ctx_t* scan = ctx;
+  if (child->allocator == scan->allocator &&
+      (child->cycle_flags & OAK_CYCLE_REGISTERED))
+    scan->entries[child->cycle_index].external_refs--;
+}
+
+struct oak_cycle_mark_ctx_t
+{
+  struct oak_allocator_t* allocator;
+  struct oak_cycle_entry_t* entries;
+  usize* queue;
+  usize* tail;
+};
+
+static void oak_cycle_mark_child(struct oak_obj_t* child, void* ctx)
+{
+  struct oak_cycle_mark_ctx_t* mark = ctx;
+  if (child->allocator != mark->allocator ||
+      !(child->cycle_flags & OAK_CYCLE_REGISTERED))
+    return;
+  struct oak_cycle_entry_t* entry = &mark->entries[child->cycle_index];
+  if (entry->reachable)
+    return;
+  entry->reachable = 1;
+  mark->queue[(*mark->tail)++] = child->cycle_index;
+}
+
+usize oak_collect_cycles(struct oak_allocator_t* allocator)
+{
+  if (!allocator || allocator->collecting_cycles || !allocator->cycle_objects)
+    return 0;
+
+  usize count = 0;
+  for (struct oak_obj_t* obj = allocator->cycle_objects; obj;
+       obj = obj->cycle_next)
+    ++count;
+
+  struct oak_cycle_entry_t* entries =
+      malloc(count * sizeof(struct oak_cycle_entry_t));
+  usize* queue = malloc(count * sizeof(usize));
+  if (!entries || !queue)
+  {
+    free(entries);
+    free(queue);
+    return 0;
+  }
+
+  allocator->collecting_cycles = 1;
+  oak_cycle_decrefs_reset(allocator);
+  usize i = 0;
+  for (struct oak_obj_t* obj = allocator->cycle_objects; obj;
+       obj = obj->cycle_next)
+  {
+    entries[i].obj = obj;
+    entries[i].external_refs = oak_refcount_load(&obj->refcount);
+    entries[i].reachable = 0;
+    obj->cycle_index = i++;
+  }
+  struct oak_cycle_scan_ctx_t scan = { allocator, entries };
+  for (i = 0; i < count; ++i)
+    oak_obj_visit_cycle_edges(entries[i].obj,
+                              oak_cycle_subtract_internal_ref,
+                              &scan);
+
+  usize head = 0;
+  usize tail = 0;
+  for (i = 0; i < count; ++i)
+  {
+    if (entries[i].external_refs > 0)
+    {
+      entries[i].reachable = 1;
+      queue[tail++] = i;
+    }
+  }
+  while (head < tail)
+  {
+    struct oak_cycle_mark_ctx_t mark = { allocator, entries, queue, &tail };
+    oak_obj_visit_cycle_edges(entries[queue[head++]].obj,
+                              oak_cycle_mark_child,
+                              &mark);
+  }
+
+  usize collected = 0;
+  for (i = 0; i < count; ++i)
+  {
+    struct oak_obj_t* obj = entries[i].obj;
+    if (entries[i].reachable)
+      continue;
+    oak_obj_unregister_cycle_capable(obj);
+    obj->cycle_flags |= OAK_CYCLE_COLLECTING;
+    oak_atomic_int_store_relaxed(&obj->refcount.count, 0);
+    ++collected;
+  }
+  for (i = 0; i < count; ++i)
+  {
+    struct oak_obj_t* obj = entries[i].obj;
+    if (!entries[i].reachable)
+      oak_obj_destroy_payload(obj);
+  }
+  for (i = 0; i < count; ++i)
+  {
+    struct oak_obj_t* obj = entries[i].obj;
+    if (entries[i].reachable)
+      continue;
+    obj->cycle_flags &= ~OAK_CYCLE_COLLECTING;
+    if (oak_refcount_load(&obj->weak_refcount) == 0)
+      OAK_FREE(obj->allocator, obj);
+  }
+
+  allocator->collecting_cycles = 0;
+  free(queue);
+  free(entries);
+  return collected;
 }
 
 static u32 hash_string(const char* chars, const usize length)
@@ -112,10 +361,7 @@ struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
 {
   struct oak_obj_string_t* str =
       OAK_ALLOC(a, sizeof(struct oak_obj_string_t) + length + 1);
-  str->obj.type = OAK_OBJ_STRING;
-  oak_refcount_init(&str->obj.refcount, 1);
-  oak_refcount_init(&str->obj.weak_refcount, 0);
-  str->obj.allocator = a;
+  oak_obj_init(&str->obj, OAK_OBJ_STRING, a);
   str->length = length;
   memcpy(str->chars, chars, length);
   str->chars[length] = 0;
@@ -129,10 +375,7 @@ struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
                                 const u16 module_id)
 {
   struct oak_obj_fn_t* fn = OAK_ALLOC(a, sizeof(struct oak_obj_fn_t));
-  fn->obj.type = OAK_OBJ_FN;
-  oak_refcount_init(&fn->obj.refcount, 1);
-  oak_refcount_init(&fn->obj.weak_refcount, 0);
-  fn->obj.allocator = a;
+  oak_obj_init(&fn->obj, OAK_OBJ_FN, a);
   fn->code_offset = code_offset;
   fn->arity = arity;
   fn->module_id = module_id;
@@ -150,10 +393,7 @@ oak_native_fn_new(struct oak_allocator_t* a,
 {
   struct oak_obj_native_fn_t* native =
       OAK_ALLOC(a, sizeof(struct oak_obj_native_fn_t));
-  native->obj.type = OAK_OBJ_NATIVE_FN;
-  oak_refcount_init(&native->obj.refcount, 1);
-  oak_refcount_init(&native->obj.weak_refcount, 0);
-  native->obj.allocator = a;
+  oak_obj_init(&native->obj, OAK_OBJ_NATIVE_FN, a);
   native->fn = fn;
   native->arity = arity;
   native->name = name;
@@ -181,10 +421,7 @@ struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a)
 {
   struct oak_obj_array_t* arr =
       OAK_ALLOC(a, sizeof(struct oak_obj_array_t));
-  arr->obj.type = OAK_OBJ_ARRAY;
-  oak_refcount_init(&arr->obj.refcount, 1);
-  oak_refcount_init(&arr->obj.weak_refcount, 0);
-  arr->obj.allocator = a;
+  oak_obj_init(&arr->obj, OAK_OBJ_ARRAY, a);
   arr->length = 0;
   arr->capacity = 0;
   arr->items = null;
@@ -214,10 +451,7 @@ struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
   const usize size = sizeof(struct oak_obj_record_t) +
                      (usize)field_count * sizeof(struct oak_value_t);
   struct oak_obj_record_t* s = OAK_ALLOC(a, size);
-  s->obj.type = OAK_OBJ_RECORD;
-  oak_refcount_init(&s->obj.refcount, 1);
-  oak_refcount_init(&s->obj.weak_refcount, 0);
-  s->obj.allocator = a;
+  oak_obj_init(&s->obj, OAK_OBJ_RECORD, a);
   s->type_name = type_name;
   s->field_count = field_count;
   s->field_name_ptrs = null;
@@ -259,10 +493,7 @@ oak_obj_native_record_new(struct oak_allocator_t* a,
 {
   struct oak_obj_native_record_t* ns =
       OAK_ALLOC(a, sizeof(struct oak_obj_native_record_t));
-  ns->obj.type = OAK_OBJ_NATIVE_RECORD;
-  oak_refcount_init(&ns->obj.refcount, 1);
-  oak_refcount_init(&ns->obj.weak_refcount, 0);
-  ns->obj.allocator = a;
+  oak_obj_init(&ns->obj, OAK_OBJ_NATIVE_RECORD, a);
   ns->instance = instance;
   ns->type = type;
   return ns;
@@ -275,10 +506,7 @@ oak_trait_object_new(struct oak_allocator_t* a,
 {
   struct oak_obj_trait_object_t* to =
       OAK_ALLOC(a, sizeof(struct oak_obj_trait_object_t));
-  to->obj.type = OAK_OBJ_TRAIT_OBJECT;
-  oak_refcount_init(&to->obj.refcount, 1);
-  oak_refcount_init(&to->obj.weak_refcount, 0);
-  to->obj.allocator = a;
+  oak_obj_init(&to->obj, OAK_OBJ_TRAIT_OBJECT, a);
   oak_value_incref(value);
   to->value = value;
   oak_obj_incref((struct oak_obj_t*)vtable);
@@ -290,10 +518,7 @@ struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
 {
   struct oak_obj_map_t* map =
       OAK_ALLOC(a, sizeof(struct oak_obj_map_t));
-  map->obj.type = OAK_OBJ_MAP;
-  oak_refcount_init(&map->obj.refcount, 1);
-  oak_refcount_init(&map->obj.weak_refcount, 0);
-  map->obj.allocator = a;
+  oak_obj_init(&map->obj, OAK_OBJ_MAP, a);
   map->length = 0;
   map->capacity = 0;
   map->entries = null;
@@ -507,10 +732,7 @@ struct oak_obj_string_t* oak_string_concat(struct oak_allocator_t* al,
   const usize length = a->length + b->length;
   struct oak_obj_string_t* str =
       OAK_ALLOC(al, sizeof(struct oak_obj_string_t) + length + 1);
-  str->obj.type = OAK_OBJ_STRING;
-  oak_refcount_init(&str->obj.refcount, 1);
-  oak_refcount_init(&str->obj.weak_refcount, 0);
-  str->obj.allocator = al;
+  oak_obj_init(&str->obj, OAK_OBJ_STRING, al);
   str->length = length;
   memcpy(str->chars, a->chars, a->length);
   memcpy(str->chars + a->length, b->chars, b->length);

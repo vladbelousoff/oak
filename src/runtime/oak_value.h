@@ -69,6 +69,10 @@ struct oak_obj_t
   struct oak_refcount_t refcount;
   struct oak_refcount_t weak_refcount;
   struct oak_allocator_t* allocator;
+  struct oak_obj_t* cycle_prev;
+  struct oak_obj_t* cycle_next;
+  usize cycle_index;
+  unsigned cycle_flags;
 };
 
 struct oak_value_t
@@ -230,14 +234,14 @@ static inline int oak_is_obj(const struct oak_value_t value)
   if (value.tag == OAK_TAG_OBJ)
     return 1;
   if (value.tag == OAK_TAG_WEAK)
-    return value.as.obj->refcount.count != 0;
+    return oak_refcount_load(&value.as.obj->refcount) != 0;
   return 0;
 }
 
 static inline int oak_is_expired_weak(const struct oak_value_t value)
 {
   return value.tag == OAK_TAG_WEAK &&
-         value.as.obj->refcount.count == 0;
+         oak_refcount_load(&value.as.obj->refcount) == 0;
 }
 
 static inline int oak_is_none_like(const struct oak_value_t value)
@@ -498,6 +502,10 @@ static inline char* oak_as_cstring(const struct oak_value_t value)
 OAK_API void oak_obj_incref(struct oak_obj_t* obj);
 OAK_API void oak_obj_decref(struct oak_obj_t* obj);
 OAK_API void oak_weak_decref(struct oak_obj_t* obj);
+/* Reclaim unreachable cycles among arrays, maps, records, and trait objects.
+ * Normal decref remains the fast path; VMs and allocators also collect at
+ * teardown, and retained decrefs periodically trigger collection. */
+OAK_API usize oak_collect_cycles(struct oak_allocator_t* allocator);
 
 static inline void oak_value_incref(const struct oak_value_t value)
 {

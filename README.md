@@ -57,6 +57,10 @@ for i, value in [2, 3, 5] { print(i + value); }
 Core value types are `number`, `string`, `bool`, arrays, maps, records, enums,
 functions, `none`, and weak references. Strings are single-quoted.
 
+Heap values use reference counting with cycle collection. Unreachable ownership
+cycles are reclaimed automatically; weak references remain useful for modelling
+non-owning relationships explicitly.
+
 Operators include arithmetic (`+ - * / // %`), comparison, `!`, and short-circuit
 logic (`&&`, `||`, `and`, `or`, `not`).
 

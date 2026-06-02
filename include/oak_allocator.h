@@ -3,6 +3,8 @@
 #include "oak_export.h"
 #include "oak_types.h"
 
+struct oak_obj_t;
+
 struct oak_allocator_t
 {
   void* (*alloc)(struct oak_allocator_t* self,
@@ -20,6 +22,9 @@ struct oak_allocator_t
                int line);
   int (*shutdown)(struct oak_allocator_t* self);
   void* state;
+  struct oak_obj_t* cycle_objects;
+  int cycle_decrefs;
+  int collecting_cycles;
 };
 
 #define OAK_ALLOC(a, size) ((a)->alloc((a), (size), __FILE__, __LINE__))
