@@ -265,7 +265,24 @@ void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
   struct oak_debug_local_t* d = &dbg->debug_locals[dbg->debug_count++];
   d->slot = slot;
   d->offset = chunk->count;
+  d->end_offset = (usize)-1;
   d->name = buf;
+}
+
+void oak_chunk_end_debug_local(struct oak_chunk_t* chunk, const int slot)
+{
+  if (!chunk->debug)
+    return;
+  struct oak_chunk_debug_t* dbg = chunk->debug;
+  for (usize i = dbg->debug_count; i > 0; --i)
+  {
+    struct oak_debug_local_t* d = &dbg->debug_locals[i - 1];
+    if (d->slot == slot && d->end_offset == (usize)-1)
+    {
+      d->end_offset = chunk->count;
+      return;
+    }
+  }
 }
 
 void oak_chunk_free(struct oak_chunk_t* chunk)
@@ -365,14 +382,15 @@ static const char* debug_local_name(const struct oak_chunk_t* chunk,
   for (usize i = dbg->debug_count; i > 0; --i)
   {
     const struct oak_debug_local_t* d = &dbg->debug_locals[i - 1];
-    if (d->slot == slot && d->offset <= offset)
+    if (d->slot == slot && d->offset <= offset &&
+        (d->end_offset == (usize)-1 || offset < d->end_offset))
       return d->name;
   }
   return null;
 }
 
-static usize disassemble_instruction(const struct oak_chunk_t* chunk,
-                                     const usize offset)
+usize oak_chunk_disassemble_instruction(const struct oak_chunk_t* chunk,
+                                       const usize offset)
 {
   char line[16];
   const struct oak_code_loc_t* locs =
@@ -529,5 +547,5 @@ void oak_chunk_disassemble(const struct oak_chunk_t* chunk)
           chunk->debug ? "" : " (no debug info)");
   usize offset = 0;
   while (offset < chunk->count)
-    offset = disassemble_instruction(chunk, offset);
+    offset = oak_chunk_disassemble_instruction(chunk, offset);
 }

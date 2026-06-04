@@ -2,6 +2,7 @@
 #include "oak_bind.h"
 #include "oak_cli.h"
 #include "oak_compiler.h"
+#include "oak_debugger.h"
 #include "oak_log.h"
 #include "oak_module.h"
 #include "oak_module_loader.h"
@@ -36,7 +37,7 @@ int main(const int argc, const char* argv[])
   struct oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = cli.script_path;
-  compile_opts.emit_debug_info = !cli.no_debug;
+  compile_opts.emit_debug_info = cli.debug || !cli.no_debug_symbols;
   oak_stdlib_register(&compile_opts);
 
   struct oak_module_registry_t registry;
@@ -74,7 +75,23 @@ int main(const int argc, const char* argv[])
       struct oak_vm_t vm;
       oak_vm_init(&vm, &allocator);
       oak_vm_set_module_registry(&vm, &registry);
-      exit_code = oak_vm_run(&vm, lr.entry->chunk) != OAK_VM_OK;
+      struct oak_debugger_t debugger;
+      struct oak_vm_debug_hook_t dbg_hook;
+      if (cli.debug)
+      {
+        oak_debugger_init(&debugger, &allocator);
+        dbg_hook.fn = oak_debugger_hook;
+        dbg_hook.ctx = &debugger;
+        oak_vm_set_debug_hook(&vm, &dbg_hook);
+      }
+      const enum oak_vm_result_t vm_result =
+          oak_vm_run(&vm, lr.entry->chunk);
+      if (vm_result == OAK_VM_DEBUG_HALT)
+        exit_code = 130;
+      else
+        exit_code = vm_result != OAK_VM_OK;
+      if (cli.debug)
+        oak_debugger_free(&debugger);
       oak_vm_free(&vm);
     }
   }

@@ -5,8 +5,9 @@
 struct oak_cli_args_t
 {
   int disassemble;
+  int debug;
   int help;
-  int no_debug;
+  int no_debug_symbols;
   int track_memory;
   const char* script_path;
   const char* const* script_argv;

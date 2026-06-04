@@ -179,6 +179,9 @@ void oak_compile_fn_body(
   oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
   oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 
+  for (int i = 0; i < c->scope.local_count; ++i)
+    oak_chunk_end_debug_local(c->chunk, c->scope.locals[i].slot);
+
   /* Clear the return type so it doesn't apply outside this fn. */
   oak_type_clear(&c->scope.declared_return_type);
   c->scope.fn_depth--;

@@ -61,6 +61,8 @@ void oak_compiler_end_scope(struct oak_compiler_t* c)
          c->scope.locals[c->scope.local_count - 1].depth ==
              c->scope.scope_depth)
   {
+    const int slot = c->scope.locals[c->scope.local_count - 1].slot;
+    oak_chunk_end_debug_local(c->chunk, slot);
     pops++;
     c->scope.local_count--;
   }

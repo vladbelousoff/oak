@@ -36,6 +36,7 @@ src_inc = include_directories(
   'src/parser',
   'src/compiler',
   'src/vm',
+  'src/debugger',
 )
 public_inc = include_directories('include')
 test_inc = include_directories('tests/common')
@@ -111,6 +112,7 @@ oak_core_sources = files(
   'src/vm/oak_vm_call.c',
   'src/vm/oak_vm_error.c',
   'src/vm/oak_vm_object.c',
+  'src/debugger/oak_debugger.c',
 )
 
 if is_emscripten
@@ -129,6 +131,8 @@ else
     c_args: common_c_args + ['-DOAK_BUILDING_ACORN'],
     dependencies: [yyjson_dep, math_dep],
     gnu_symbol_visibility: 'hidden',
+    version: meson.project_version(),
+    soversion: '2',
   )
 endif
 
@@ -186,6 +190,7 @@ else
     'vm_runtime_errors': 'tests/vm/vm_runtime_errors.c',
     'vm_short_circuit': 'tests/vm/vm_short_circuit.c',
     'vm_value_boxing': 'tests/vm/vm_value_boxing.c',
+    'debugger_test': 'tests/debugger/debugger_test.c',
   }
 
   foreach test_name, test_src : test_sources

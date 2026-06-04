@@ -156,6 +156,7 @@ struct oak_debug_local_t
 {
   int slot;
   usize offset;
+  usize end_offset;
   char* name;
 };
 
@@ -220,4 +221,7 @@ OAK_API void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
                                        int slot,
                                        const char* name,
                                        usize length);
+OAK_API void oak_chunk_end_debug_local(struct oak_chunk_t* chunk, int slot);
 OAK_API void oak_chunk_disassemble(const struct oak_chunk_t* chunk);
+OAK_API usize oak_chunk_disassemble_instruction(const struct oak_chunk_t* chunk,
+                                                usize offset);

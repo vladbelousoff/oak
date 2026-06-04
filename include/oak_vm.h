@@ -15,6 +15,14 @@ enum oak_vm_result_t
   OAK_VM_OK,
   OAK_VM_COMPILE_ERROR,
   OAK_VM_RUNTIME_ERROR,
+  OAK_VM_DEBUG_HALT,
+};
+
+/* Action returned by a debug hook to the VM execution loop. */
+enum oak_debug_action_t
+{
+  OAK_DEBUG_CONTINUE,
+  OAK_DEBUG_HALT,
 };
 
 struct oak_call_frame_t
@@ -28,6 +36,15 @@ struct oak_call_frame_t
 };
 
 struct oak_module_registry_t;
+
+/* Debug hook descriptor.  Allocated and owned by the caller; the VM borrows
+ * a pointer and never frees it.  Defined here so the struct can be extended
+ * in the future without changing the size of oak_vm_t. */
+struct oak_vm_debug_hook_t
+{
+  enum oak_debug_action_t (*fn)(struct oak_vm_t* vm, void* ctx);
+  void* ctx;
+};
 
 struct oak_vm_t
 {
@@ -46,6 +63,9 @@ struct oak_vm_t
    * callbacks can recover their owning embedder via ctx->vm->user_data,
    * which lets multiple independent VMs coexist without process globals. */
   void* user_data;
+  /* Opaque debug hook; null when no debugger is attached.  Installed via
+   * oak_vm_set_debug_hook.  Borrowed, never freed by the VM. */
+  struct oak_vm_debug_hook_t* debug_hook;
 };
 
 /* Zero-initialize a VM and wire it to an allocator.  The allocator pointer
@@ -60,6 +80,11 @@ OAK_API void oak_vm_free(struct oak_vm_t* vm);
  * resolve.  May be called before oak_vm_run; the pointer is borrowed. */
 OAK_API void oak_vm_set_module_registry(struct oak_vm_t* vm,
                                         struct oak_module_registry_t* modules);
+
+/* Attach a debug hook.  The hook is called before every instruction dispatch
+ * when non-null.  The pointer is borrowed; the caller retains ownership. */
+OAK_API void oak_vm_set_debug_hook(struct oak_vm_t* vm,
+                                   struct oak_vm_debug_hook_t* hook);
 
 /* Execute `chunk` from its entry point.  `chunk` is borrowed; the caller
  * retains ownership.  Returns OAK_VM_OK on a clean halt. */

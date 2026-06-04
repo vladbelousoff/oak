@@ -110,6 +110,8 @@ static void register_callable_symbols(struct oak_compiler_t* c,
 static void emit_deferred_bodies(struct oak_compiler_t* c,
                                  const struct oak_ast_node_t* program)
 {
+  for (int i = 0; i < c->scope.local_count; ++i)
+    oak_chunk_end_debug_local(c->chunk, c->scope.locals[i].slot);
   oak_compiler_emit_op(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
   oak_compile_fn_bodies(c);
   CHECK_ERROR(c);

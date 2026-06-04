@@ -44,14 +44,19 @@ int oak_cli_parse(int argc,
         args->help = 1;
         continue;
       }
+      if (strcmp(a, "--debug") == 0)
+      {
+        args->debug = 1;
+        continue;
+      }
       if (strcmp(a, "--disassemble") == 0)
       {
         args->disassemble = 1;
         continue;
       }
-      if (strcmp(a, "--no-debug") == 0)
+      if (strcmp(a, "--no-debug-symbols") == 0 || strcmp(a, "--no-debug") == 0)
       {
-        args->no_debug = 1;
+        args->no_debug_symbols = 1;
         continue;
       }
       if (strcmp(a, "--track-memory") == 0)
@@ -91,6 +96,6 @@ int oak_cli_parse(int argc,
 void oak_cli_usage(FILE* out)
 {
   fprintf(out,
-          "usage: oak [--disassemble] [--no-debug] [--track-memory] [--help] "
-          "<script> [script args...]\n");
+          "usage: oak [--debug] [--disassemble] [--no-debug-symbols] "
+          "[--track-memory] [--help] <script> [script args...]\n");
 }

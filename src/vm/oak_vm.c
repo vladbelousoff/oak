@@ -10,6 +10,13 @@ void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator)
   vm->modules = null;
   vm->allocator = allocator;
   vm->user_data = null;
+  vm->debug_hook = null;
+}
+
+void oak_vm_set_debug_hook(struct oak_vm_t* vm,
+                           struct oak_vm_debug_hook_t* hook)
+{
+  vm->debug_hook = hook;
 }
 
 void oak_vm_set_module_registry(struct oak_vm_t* vm,
@@ -141,6 +148,15 @@ enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
 
   for (;;)
   {
+    if (vm->debug_hook)
+    {
+      SYNC_TO_VM();
+      const enum oak_debug_action_t dbg_action =
+          vm->debug_hook->fn(vm, vm->debug_hook->ctx);
+      SYNC_FROM_VM();
+      if (dbg_action == OAK_DEBUG_HALT)
+        return OAK_VM_DEBUG_HALT;
+    }
     const u8 instruction = READ_U8();
     switch (instruction)
     {
