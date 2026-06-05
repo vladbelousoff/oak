@@ -5,6 +5,8 @@
 #include "oak_file_map.h"
 #include "oak_vm.h"
 
+#include <stdio.h>
+
 enum oak_debug_step_mode_t
 {
   OAK_DEBUG_MODE_RUN,
@@ -46,6 +48,12 @@ struct oak_debugger_t
 
   int initial_break;
   int quit_requested;
+
+  /* Command input and output streams. Default to stdin/stdout; tests redirect
+   * them to in-memory files instead of reassigning the globals (which is not
+   * portable — stdin/stdout are not l-values under MSVC). */
+  FILE* in;
+  FILE* out;
 };
 
 OAK_API void oak_debugger_init(struct oak_debugger_t* dbg,

@@ -74,15 +74,14 @@ static struct dbg_session_t run_session(const char* source,
   hook.ctx = &dbg;
   oak_vm_set_debug_hook(&vm, &hook);
 
+  /* Drive the debugger through injected streams rather than reassigning the
+   * stdin/stdout globals (not portable; they are not l-values under MSVC). */
   FILE* fake_in = tmpfile();
   fwrite(commands, 1, strlen(commands), fake_in);
   rewind(fake_in);
   FILE* fake_out = tmpfile();
-
-  FILE* saved_in = stdin;
-  FILE* saved_out = stdout;
-  stdin = fake_in;
-  stdout = fake_out;
+  dbg.in = fake_in;
+  dbg.out = fake_out;
 
   s.result = oak_vm_run(&vm, cr.chunk);
 
@@ -91,8 +90,6 @@ static struct dbg_session_t run_session(const char* source,
   const usize n = fread(s.output, 1, sizeof(s.output) - 1, fake_out);
   s.output[n] = '\0';
 
-  stdin = saved_in;
-  stdout = saved_out;
   fclose(fake_in);
   fclose(fake_out);
 

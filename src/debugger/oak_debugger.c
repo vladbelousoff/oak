@@ -53,6 +53,8 @@ void oak_debugger_init(struct oak_debugger_t* dbg,
   dbg->mode = OAK_DEBUG_MODE_RUN;
   dbg->next_bp_id = 1;
   dbg->initial_break = 1;
+  dbg->in = stdin;
+  dbg->out = stdout;
 }
 
 void oak_debugger_free(struct oak_debugger_t* dbg)
@@ -197,6 +199,7 @@ static void print_source_line(const struct oak_debugger_t* dbg,
                               const int line,
                               const int current)
 {
+  FILE* const out = dbg->out;
   if (!dbg->source_map.data || line < 1 || line > dbg->line_count)
     return;
   const int off = dbg->line_offsets[line - 1];
@@ -206,17 +209,17 @@ static void print_source_line(const struct oak_debugger_t* dbg,
   while (end > off && (data[end - 1] == '\n' || data[end - 1] == '\r'))
     --end;
   const char* marker = (line == current) ? ">" : " ";
-  fprintf(stdout, "%s %4d  %.*s\n", marker, line, end - off, data + off);
+  fprintf(out, "%s %4d  %.*s\n", marker, line, end - off, data + off);
 }
 
 /* ── inspection commands ───────────────────────────────────────────── */
 
-static void cmd_locals(const struct oak_vm_t* vm)
+static void cmd_locals(const struct oak_vm_t* vm, FILE* out)
 {
   const struct oak_chunk_t* chunk = vm->chunk;
   if (!chunk->debug)
   {
-    fprintf(stdout, "(no debug info)\n");
+    fprintf(out, "(no debug info)\n");
     return;
   }
   const usize offset = (usize)(vm->ip - chunk->bytecode);
@@ -243,19 +246,19 @@ static void cmd_locals(const struct oak_vm_t* vm)
 
     char buf[256];
     oak_value_snprint_repr(buf, sizeof(buf), vm->stack[idx]);
-    fprintf(stdout, "  %s = %s\n", dl->name, buf);
+    fprintf(out, "  %s = %s\n", dl->name, buf);
     found = 1;
   }
   if (!found)
-    fprintf(stdout, "  (no locals in scope)\n");
+    fprintf(out, "  (no locals in scope)\n");
 }
 
-static void cmd_print(const struct oak_vm_t* vm, const char* name)
+static void cmd_print(const struct oak_vm_t* vm, const char* name, FILE* out)
 {
   const struct oak_chunk_t* chunk = vm->chunk;
   if (!chunk->debug)
   {
-    fprintf(stdout, "(no debug info)\n");
+    fprintf(out, "(no debug info)\n");
     return;
   }
   const usize offset = (usize)(vm->ip - chunk->bytecode);
@@ -275,18 +278,18 @@ static void cmd_print(const struct oak_vm_t* vm, const char* name)
     const usize idx = vm->stack_base + (usize)dl->slot;
     if (idx >= (usize)(vm->sp - vm->stack))
     {
-      fprintf(stdout, "%s = (not yet initialized)\n", name);
+      fprintf(out, "%s = (not yet initialized)\n", name);
       return;
     }
     char buf[256];
     oak_value_snprint_repr(buf, sizeof(buf), vm->stack[idx]);
-    fprintf(stdout, "%s = %s\n", name, buf);
+    fprintf(out, "%s = %s\n", name, buf);
     return;
   }
-  fprintf(stdout, "no local named '%s' in scope\n", name);
+  fprintf(out, "no local named '%s' in scope\n", name);
 }
 
-static void cmd_backtrace(const struct oak_vm_t* vm)
+static void cmd_backtrace(const struct oak_vm_t* vm, FILE* out)
 {
   const struct oak_chunk_t* chunk = vm->chunk;
   int line = 0;
@@ -297,7 +300,7 @@ static void cmd_backtrace(const struct oak_vm_t* vm)
       line = chunk->debug->locations[off].line;
   }
   const char* src = chunk->debug ? chunk->debug->source_name : null;
-  fprintf(stdout, "#0  <current> at %s:%d\n", src ? src : "?", line);
+  fprintf(out, "#0  <current> at %s:%d\n", src ? src : "?", line);
 
   for (int i = vm->frame_count - 1; i >= 0; --i)
   {
@@ -334,7 +337,7 @@ static void cmd_backtrace(const struct oak_vm_t* vm)
         ret_line = fr->return_chunk->debug->locations[ret_off - 1].line;
       ret_src = fr->return_chunk->debug->source_name;
     }
-    fprintf(stdout,
+    fprintf(out,
             "#%d  %s at %s:%d\n",
             vm->frame_count - i,
             name,
@@ -343,12 +346,12 @@ static void cmd_backtrace(const struct oak_vm_t* vm)
   }
 }
 
-static void cmd_stack(const struct oak_vm_t* vm)
+static void cmd_stack(const struct oak_vm_t* vm, FILE* out)
 {
   const int depth = (int)(vm->sp - vm->stack);
   if (depth == 0)
   {
-    fprintf(stdout, "  (empty stack)\n");
+    fprintf(out, "  (empty stack)\n");
     return;
   }
   for (int i = depth - 1; i >= 0; --i)
@@ -356,23 +359,24 @@ static void cmd_stack(const struct oak_vm_t* vm)
     char buf[256];
     oak_value_snprint_repr(buf, sizeof(buf), vm->stack[i]);
     const char* marker = ((usize)i == vm->stack_base) ? " <- base" : "";
-    fprintf(stdout, "  [%3d] %s%s\n", i, buf, marker);
+    fprintf(out, "  [%3d] %s%s\n", i, buf, marker);
   }
 }
 
 static void cmd_list(struct oak_debugger_t* dbg,
                      const struct oak_vm_t* vm)
 {
+  FILE* const out = dbg->out;
   const struct oak_chunk_t* chunk = vm->chunk;
   if (!chunk->debug || !chunk->debug->source_name)
   {
-    fprintf(stdout, "(no source info)\n");
+    fprintf(out, "(no source info)\n");
     return;
   }
   cache_source(dbg, chunk->debug->source_name);
   if (!dbg->source_map.data)
   {
-    fprintf(stdout, "(could not load source '%s')\n",
+    fprintf(out, "(could not load source '%s')\n",
             chunk->debug->source_name);
     return;
   }
@@ -385,7 +389,7 @@ static void cmd_list(struct oak_debugger_t* dbg,
     print_source_line(dbg, i, current);
 }
 
-static void cmd_disassemble(const struct oak_vm_t* vm)
+static void cmd_disassemble(const struct oak_vm_t* vm, FILE* out)
 {
   const struct oak_chunk_t* chunk = vm->chunk;
   const usize current = (usize)(vm->ip - chunk->bytecode);
@@ -408,28 +412,29 @@ static void cmd_disassemble(const struct oak_vm_t* vm)
   if (end > chunk->count)
     end = chunk->count;
 
-  fprintf(stdout, "--- bytecode around offset %04zu ---\n", current);
+  fprintf(out, "--- bytecode around offset %04zu ---\n", current);
   for (usize off = start; off < end;)
   {
     if (off == current)
-      fprintf(stdout, "==> ");
+      fprintf(out, "==> ");
     else
-      fprintf(stdout, "    ");
+      fprintf(out, "    ");
     off = oak_chunk_disassemble_instruction(chunk, off);
   }
 }
 
 static void cmd_breakpoints(const struct oak_debugger_t* dbg)
 {
+  FILE* const out = dbg->out;
   if (dbg->bp_count == 0)
   {
-    fprintf(stdout, "no breakpoints\n");
+    fprintf(out, "no breakpoints\n");
     return;
   }
   for (int i = 0; i < dbg->bp_count; ++i)
   {
     const struct oak_breakpoint_t* bp = &dbg->breakpoints[i];
-    fprintf(stdout,
+    fprintf(out,
             "  #%d  %s:%d  %s\n",
             bp->id,
             bp->source_name ? bp->source_name : "*",
@@ -438,9 +443,9 @@ static void cmd_breakpoints(const struct oak_debugger_t* dbg)
   }
 }
 
-static void cmd_help(void)
+static void cmd_help(FILE* out)
 {
-  fprintf(stdout,
+  fprintf(out,
     "Commands:\n"
     "  continue (c)       Resume execution\n"
     "  step (s)           Step to next source line (into calls)\n"
@@ -466,12 +471,13 @@ static void debugger_repl(struct oak_debugger_t* dbg,
                           const int current_line,
                           const char* current_source)
 {
+  FILE* const out = dbg->out;
   char buf[512];
   for (;;)
   {
-    fprintf(stdout, "(oak-dbg) ");
-    fflush(stdout);
-    if (!fgets(buf, (int)sizeof(buf), stdin))
+    fprintf(out, "(oak-dbg) ");
+    fflush(out);
+    if (!fgets(buf, (int)sizeof(buf), dbg->in))
     {
       dbg->quit_requested = 1;
       return;
@@ -517,16 +523,16 @@ static void debugger_repl(struct oak_debugger_t* dbg,
       int line = 0;
       if (!parse_positive_int(arg, &line))
       {
-        fprintf(stdout, "usage: break <line>\n");
+        fprintf(out, "usage: break <line>\n");
         continue;
       }
       const int id = oak_debugger_add_breakpoint(dbg, line, current_source);
       if (id < 0)
       {
-        fprintf(stdout, "error: out of memory setting breakpoint\n");
+        fprintf(out, "error: out of memory setting breakpoint\n");
         continue;
       }
-      fprintf(stdout, "breakpoint #%d at %s:%d\n", id,
+      fprintf(out, "breakpoint #%d at %s:%d\n", id,
               current_source ? current_source : "*", line);
       continue;
     }
@@ -536,18 +542,18 @@ static void debugger_repl(struct oak_debugger_t* dbg,
       int id = 0;
       if (!parse_positive_int(arg, &id))
       {
-        fprintf(stdout, "usage: delete <id>\n");
+        fprintf(out, "usage: delete <id>\n");
         continue;
       }
       if (oak_debugger_remove_breakpoint(dbg, id))
-        fprintf(stdout, "deleted breakpoint #%d\n", id);
+        fprintf(out, "deleted breakpoint #%d\n", id);
       else
-        fprintf(stdout, "no breakpoint #%d\n", id);
+        fprintf(out, "no breakpoint #%d\n", id);
       continue;
     }
     if (strcmp(buf, "breakpoints") == 0)
     {
-      cmd_breakpoints(dbg);
+      cmd_breakpoints(dbg);  /* uses dbg->out */
       continue;
     }
     if (strncmp(buf, "print ", 6) == 0 || strncmp(buf, "p ", 2) == 0)
@@ -555,22 +561,22 @@ static void debugger_repl(struct oak_debugger_t* dbg,
       const char* arg = buf[0] == 'p' && buf[1] == ' ' ? buf + 2 : buf + 6;
       while (*arg == ' ')
         ++arg;
-      cmd_print(vm, arg);
+      cmd_print(vm, arg, out);
       continue;
     }
     if (strcmp(buf, "locals") == 0)
     {
-      cmd_locals(vm);
+      cmd_locals(vm, out);
       continue;
     }
     if (strcmp(buf, "backtrace") == 0 || strcmp(buf, "bt") == 0)
     {
-      cmd_backtrace(vm);
+      cmd_backtrace(vm, out);
       continue;
     }
     if (strcmp(buf, "stack") == 0)
     {
-      cmd_stack(vm);
+      cmd_stack(vm, out);
       continue;
     }
     if (strcmp(buf, "list") == 0 || strcmp(buf, "l") == 0)
@@ -580,12 +586,12 @@ static void debugger_repl(struct oak_debugger_t* dbg,
     }
     if (strcmp(buf, "disassemble") == 0 || strcmp(buf, "dis") == 0)
     {
-      cmd_disassemble(vm);
+      cmd_disassemble(vm, out);
       continue;
     }
     if (strcmp(buf, "help") == 0 || strcmp(buf, "h") == 0)
     {
-      cmd_help();
+      cmd_help(out);
       continue;
     }
     if (strcmp(buf, "quit") == 0 || strcmp(buf, "q") == 0)
@@ -593,7 +599,7 @@ static void debugger_repl(struct oak_debugger_t* dbg,
       dbg->quit_requested = 1;
       return;
     }
-    fprintf(stdout, "unknown command: '%s' (type 'help' for commands)\n", buf);
+    fprintf(out, "unknown command: '%s' (type 'help' for commands)\n", buf);
   }
 }
 
@@ -684,7 +690,7 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
 
   dbg->last_stopped_offset = offset;
   dbg->last_stopped_chunk = chunk;
-  fprintf(stdout, "stopped at %s:%d\n", src ? src : "?", line);
+  fprintf(dbg->out, "stopped at %s:%d\n", src ? src : "?", line);
   debugger_repl(dbg, vm, line, src);
 
   return dbg->quit_requested ? OAK_DEBUG_HALT : OAK_DEBUG_CONTINUE;
