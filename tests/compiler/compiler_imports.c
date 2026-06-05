@@ -10,7 +10,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define oak_make_dir(path) _mkdir(path)
+#else
 #include <sys/stat.h>
+#define oak_make_dir(path) mkdir((path), 0700)
+#endif
 
 /* These tests build a tiny on-disk module graph and drive it through the real
  * module loader. They cover the import path that uses the per-compiler
@@ -62,19 +70,40 @@ static int load_and_run(const char* entry_path)
   return rc;
 }
 
-/* Create a fresh temp directory with a lib/ subdir. Returns 0 on success and
- * writes the directory path into `dir`. */
+/* Base directory for temp files, portable across platforms. */
+static const char* temp_base(void)
+{
+#ifdef _WIN32
+  const char* t = getenv("TEMP");
+  if (!t)
+    t = getenv("TMP");
+  return t ? t : ".";
+#else
+  const char* t = getenv("TMPDIR");
+  return t ? t : "/tmp";
+#endif
+}
+
+/* Create a fresh, uniquely named temp directory with a lib/ subdir. mkdir is
+ * atomic with respect to existence, so retrying on failure yields a unique
+ * directory without relying on the POSIX-only mkdtemp(). Returns 0 on success
+ * and writes the directory path into `dir`. */
 static int make_module_dir(char* dir, usize dir_size)
 {
-  char templ[] = "/tmp/oak_imports_XXXXXX";
-  if (!mkdtemp(templ))
-    return -1;
-  snprintf(dir, dir_size, "%s", templ);
-  char lib[512];
-  snprintf(lib, sizeof(lib), "%s/lib", dir);
-  if (mkdir(lib, 0700) != 0)
-    return -1;
-  return 0;
+  static unsigned counter = 0;
+  const char* base = temp_base();
+  unsigned seed = (unsigned)time(null) ^ (unsigned)clock();
+  for (int attempt = 0; attempt < 100; ++attempt)
+  {
+    snprintf(dir, dir_size, "%s/oak_imports_%u_%u", base, seed, counter++);
+    if (oak_make_dir(dir) == 0)
+    {
+      char lib[1024];
+      snprintf(lib, sizeof(lib), "%s/lib", dir);
+      return oak_make_dir(lib) == 0 ? 0 : -1;
+    }
+  }
+  return -1;
 }
 
 OAK_TEST_DECL(ImportLoadRunsAndIsRepeatable)
