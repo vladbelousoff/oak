@@ -3,10 +3,6 @@
 
 #include <string.h>
 
-static int pre_import_record_count;
-static int pre_import_enum_count;
-static int pre_import_trait_count;
-
 static void ensure_dep_type_imported(struct oak_compiler_t* c,
                                      const struct oak_module_t* dep,
                                      oak_type_id_t src_id);
@@ -64,7 +60,7 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
   if (existing)
   {
     int idx = (int)(existing - c->traits.traits);
-    if (idx >= pre_import_trait_count &&
+    if (idx >= c->pre_import_trait_count &&
         existing->source_module_id != dep->module_id)
       oak_compiler_error_at(c, null,
                             "import collision: '%s' is already defined",
@@ -134,7 +130,7 @@ static void import_enum_from_dep(struct oak_compiler_t* c,
     const struct oak_registered_enum_t* re =
         oak_enum_find(&c->enums, exp->name);
     int idx = re ? (int)(re - c->enums.enums.items) : -1;
-    if (idx >= pre_import_enum_count &&
+    if (idx >= c->pre_import_enum_count &&
         re->source_module_id != dep->module_id)
       oak_compiler_error_at(c, null,
                             "import collision: '%s' is already defined",
@@ -192,7 +188,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
   if (oak_records_find(&c->records, exp->name, exp_name_len))
   {
     int idx = oak_htable_get(&c->records.by_name, exp->name, exp_name_len);
-    if (idx >= pre_import_record_count &&
+    if (idx >= c->pre_import_record_count &&
         c->records.entries.items[idx].source_module_id != dep->module_id)
       oak_compiler_error_at(c, null,
                             "import collision: '%s' is already defined",
@@ -558,9 +554,9 @@ void oak_resolve_new_style_imports(struct oak_compiler_t* c,
   if (!c->current_module || !c->module_registry || !program)
     return;
 
-  pre_import_record_count = c->records.entries.count;
-  pre_import_enum_count = c->enums.enums.count;
-  pre_import_trait_count = c->traits.trait_count;
+  c->pre_import_record_count = c->records.entries.count;
+  c->pre_import_enum_count = c->enums.enums.count;
+  c->pre_import_trait_count = c->traits.trait_count;
 
   int import_idx = 0;
   struct oak_list_entry_t* pos;

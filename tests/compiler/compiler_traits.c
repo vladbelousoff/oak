@@ -217,6 +217,25 @@ OAK_TEST_DECL(MethodCoercionInMethodCallOk)
       "r.render(c);\n");
 }
 
+/* Current behavior: a default method body does NOT auto-satisfy conformance.
+ * A record must still explicitly implement every trait method, even ones with
+ * a default body. This pins that invariant — see docs/traits.md. If defaults
+ * are ever auto-filled into vtables, update this test deliberately. */
+OAK_TEST_DECL(TraitDefaultMethodDoesNotSatisfyConformance)
+{
+  return expect_compile_error(
+      "trait Greet {\n"
+      "  fn name(self) -> string;\n"
+      "  fn greet(self) -> string { return 'hi ' + self.name(); }\n"
+      "}\n"
+      "record Person { n : string; }\n"
+      "fn Person.name(self) -> string { return self.n; }\n"
+      /* greet() is intentionally not implemented */
+      "fn use_greet(g : Greet) { print(g.greet()); }\n"
+      "let p = new Person { n: 'ada' };\n"
+      "use_greet(p);\n");
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -239,6 +258,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(TraitArrayIndexOk),
     OAK_TEST_ENTRY(TraitArrayPushNonConformingRejected),
     OAK_TEST_ENTRY(MethodCoercionInMethodCallOk),
+    OAK_TEST_ENTRY(TraitDefaultMethodDoesNotSatisfyConformance),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
 }

@@ -98,6 +98,15 @@ struct oak_compiler_t
    * Set just before register_program_enums.  -1 means unset. */
   int user_enum_start;
   int user_trait_start;
+  /* Snapshot of the record/enum/trait counts taken at the start of the import
+   * pass (oak_resolve_new_style_imports). An imported symbol whose index is at
+   * or after the snapshot was registered by a native binding or this same
+   * import pass; one before the snapshot is a pre-existing definition, so a
+   * name clash from a different module is reported as an import collision.
+   * Per-compiler state so concurrent compiles stay independent. */
+  int pre_import_record_count;
+  int pre_import_enum_count;
+  int pre_import_trait_count;
   /* Compile options (borrowed; NULL when compiling standalone). Used by
    * attribute callback dispatch to look up named attribute bindings. */
   const struct oak_compile_options_t* opts;

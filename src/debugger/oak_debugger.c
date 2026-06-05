@@ -3,6 +3,7 @@
 #include "oak_chunk.h"
 #include "oak_value.h"
 
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,35 @@ static int ip_in_chunk(const u8* ip, const struct oak_chunk_t* chunk)
   const uintptr_t addr = (uintptr_t)ip;
   const uintptr_t base = (uintptr_t)chunk->bytecode;
   return addr >= base && addr < base + chunk->count;
+}
+
+/* Parse a strictly positive decimal integer, rejecting trailing garbage such
+ * as "12xyz" that atoi() would silently accept. Returns 1 on success. */
+static int parse_positive_int(const char* arg, int* out)
+{
+  while (*arg == ' ')
+    ++arg;
+  if (*arg == '\0')
+    return 0;
+  char* end = null;
+  const long value = strtol(arg, &end, 10);
+  while (*end == ' ')
+    ++end;
+  if (*end != '\0' || value <= 0 || value > INT_MAX)
+    return 0;
+  *out = (int)value;
+  return 1;
+}
+
+/* Source names are borrowed from chunk debug info and are not guaranteed to be
+ * interned, so compare by value (with a pointer fast-path). */
+static int source_eq(const char* a, const char* b)
+{
+  if (a == b)
+    return 1;
+  if (!a || !b)
+    return 0;
+  return strcmp(a, b) == 0;
 }
 
 void oak_debugger_init(struct oak_debugger_t* dbg,
@@ -36,6 +66,8 @@ void oak_debugger_free(struct oak_debugger_t* dbg)
     OAK_FREE(dbg->allocator, dbg->line_offsets);
   if (dbg->source_map.data)
     oak_file_unmap(&dbg->source_map);
+  if (dbg->cached_source_path)
+    OAK_FREE(dbg->allocator, (void*)dbg->cached_source_path);
   memset(dbg, 0, sizeof(*dbg));
 }
 
@@ -45,8 +77,12 @@ int oak_debugger_add_breakpoint(struct oak_debugger_t* dbg, const int line,
   if (dbg->bp_count >= dbg->bp_capacity)
   {
     const int new_cap = dbg->bp_capacity < 8 ? 8 : dbg->bp_capacity * 2;
-    dbg->breakpoints = OAK_REALLOC(dbg->allocator, dbg->breakpoints,
-                                   (usize)new_cap * sizeof(struct oak_breakpoint_t));
+    struct oak_breakpoint_t* grown =
+        OAK_REALLOC(dbg->allocator, dbg->breakpoints,
+                    (usize)new_cap * sizeof(struct oak_breakpoint_t));
+    if (!grown)
+      return -1;
+    dbg->breakpoints = grown;
     dbg->bp_capacity = new_cap;
   }
   char* owned_name = null;
@@ -54,6 +90,8 @@ int oak_debugger_add_breakpoint(struct oak_debugger_t* dbg, const int line,
   {
     const usize len = strlen(source_name);
     owned_name = OAK_ALLOC(dbg->allocator, len + 1);
+    if (!owned_name)
+      return -1;
     memcpy(owned_name, source_name, len + 1);
   }
   struct oak_breakpoint_t* bp = &dbg->breakpoints[dbg->bp_count++];
@@ -118,11 +156,24 @@ static void cache_source(struct oak_debugger_t* dbg, const char* path)
     dbg->line_offsets = null;
   }
   dbg->line_count = 0;
-  dbg->cached_source_path = null;
+  if (dbg->cached_source_path)
+  {
+    OAK_FREE(dbg->allocator, (void*)dbg->cached_source_path);
+    dbg->cached_source_path = null;
+  }
 
   if (oak_file_map(path, &dbg->source_map) != 0)
     return;
-  dbg->cached_source_path = path;
+
+  /* Own a copy of the path: the borrowed chunk source name is not guaranteed
+   * to outlive repeated cache switches. */
+  const usize path_len = strlen(path);
+  char* owned_path = OAK_ALLOC(dbg->allocator, path_len + 1);
+  if (owned_path)
+  {
+    memcpy(owned_path, path, path_len + 1);
+    dbg->cached_source_path = owned_path;
+  }
 
   const char* data = dbg->source_map.data;
   const usize size = dbg->source_map.size;
@@ -463,13 +514,18 @@ static void debugger_repl(struct oak_debugger_t* dbg,
     if (strncmp(buf, "break ", 6) == 0 || strncmp(buf, "b ", 2) == 0)
     {
       const char* arg = buf[0] == 'b' && buf[1] == ' ' ? buf + 2 : buf + 6;
-      const int line = atoi(arg);
-      if (line <= 0)
+      int line = 0;
+      if (!parse_positive_int(arg, &line))
       {
         fprintf(stdout, "usage: break <line>\n");
         continue;
       }
       const int id = oak_debugger_add_breakpoint(dbg, line, current_source);
+      if (id < 0)
+      {
+        fprintf(stdout, "error: out of memory setting breakpoint\n");
+        continue;
+      }
       fprintf(stdout, "breakpoint #%d at %s:%d\n", id,
               current_source ? current_source : "*", line);
       continue;
@@ -477,7 +533,12 @@ static void debugger_repl(struct oak_debugger_t* dbg,
     if (strncmp(buf, "delete ", 7) == 0 || strncmp(buf, "d ", 2) == 0)
     {
       const char* arg = buf[0] == 'd' && buf[1] == ' ' ? buf + 2 : buf + 7;
-      const int id = atoi(arg);
+      int id = 0;
+      if (!parse_positive_int(arg, &id))
+      {
+        fprintf(stdout, "usage: delete <id>\n");
+        continue;
+      }
       if (oak_debugger_remove_breakpoint(dbg, id))
         fprintf(stdout, "deleted breakpoint #%d\n", id);
       else
@@ -592,7 +653,7 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
       case OAK_DEBUG_MODE_STEP:
       {
         const int same_origin =
-            (line == dbg->step_line && src == dbg->step_source &&
+            (line == dbg->step_line && source_eq(src, dbg->step_source) &&
              vm->frame_count == dbg->step_frame_count);
         should_break = (line > 0 && !same_origin);
         break;
@@ -600,7 +661,7 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
       case OAK_DEBUG_MODE_NEXT:
       {
         const int same_origin =
-            (line == dbg->step_line && src == dbg->step_source);
+            (line == dbg->step_line && source_eq(src, dbg->step_source));
         should_break = (line > 0 && !same_origin &&
                         vm->frame_count <= dbg->step_frame_count);
         if (!should_break && line > 0 && !suppressed)
