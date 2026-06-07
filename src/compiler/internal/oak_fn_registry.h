@@ -15,7 +15,6 @@
 struct oak_registered_fn_t
 {
   const char* name;
-  int name_len;
   u16 const_idx;
   /* For global fns and static methods: user-facing arity.
    * For instance methods: total arity including the implicit self receiver
@@ -63,4 +62,4 @@ oak_fn_registry_insert(struct oak_fn_registry_t* r,
 
 /* O(1) lookup by name. Returns null if not found. */
 const struct oak_registered_fn_t* oak_fn_registry_find(
-    const struct oak_fn_registry_t* r, const char* name, usize len);
+    const struct oak_fn_registry_t* r, const char* name);

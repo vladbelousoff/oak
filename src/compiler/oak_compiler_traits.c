@@ -139,7 +139,6 @@ void oak_register_program_traits(struct oak_compiler_t* c,
     }
 
     const char* tname = oak_token_text(item->lhs->token);
-    const int tname_len = oak_token_size(item->lhs->token);
 
     if (oak_trait_find(&c->traits, tname))
     {
@@ -150,8 +149,7 @@ void oak_register_program_traits(struct oak_compiler_t* c,
 
     struct oak_registered_trait_t proto = {
       .name = tname,
-      .name_len = tname_len,
-      .trait_id = oak_type_registry_intern(&c->types, tname, tname_len),
+      .trait_id = oak_type_registry_intern(&c->types, tname),
       .methods = null,
     };
 
@@ -166,7 +164,7 @@ void oak_register_program_traits(struct oak_compiler_t* c,
     const u16 owner_module_id =
         c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
     if (!oak_compiler_declare_symbol(
-            c, item->lhs->token, tname, tname_len, OAK_SYMBOL_TRAIT,
+            c, item->lhs->token, tname, OAK_SYMBOL_TRAIT,
             oak_dynarr_count(c->traits.traits), owner_module_id, 0))
       return;
     oak_assert(oak_dynarr_push(&c->traits.traits, &proto));
@@ -192,7 +190,6 @@ void oak_register_program_traits(struct oak_compiler_t* c,
       }
 
       const char* mname = oak_token_text(name_node->token);
-      const int mname_len = oak_token_size(name_node->token);
       const int explicit_arity = oak_count_fn_params(mdecl);
       const struct oak_ast_node_t* self_p = oak_fn_self_param(mdecl);
       const int total_arity = self_p ? explicit_arity + 1 : explicit_arity;
@@ -202,7 +199,6 @@ void oak_register_program_traits(struct oak_compiler_t* c,
       const struct oak_ast_node_t* body = oak_fn_block(mdecl);
       struct oak_trait_method_t tm = {
         .name = mname,
-        .name_len = mname_len,
         .arity = total_arity,
         .sig_decl = mdecl,
         .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null,
@@ -293,10 +289,9 @@ void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
     if (!type_ident)
       continue;
     const char* rname = oak_token_text(type_ident->token);
-    const int rname_len = oak_token_size(type_ident->token);
 
     const struct oak_registered_record_t* sd =
-        oak_records_find(&c->records, rname, rname_len);
+        oak_records_find(&c->records, rname);
     if (!sd)
       continue;
 

@@ -38,8 +38,7 @@ static const struct oak_ast_node_t* record_decl_name_ident(
 
 static const struct oak_bind_type_t* native_record_binding(
     const struct oak_compiler_t* c,
-    const char* name,
-    int name_len)
+    const char* name)
 {
   if (!c->opts)
     return null;
@@ -48,8 +47,7 @@ static const struct oak_bind_type_t* native_record_binding(
     const struct oak_bind_type_t* native = c->opts->native_types[i];
     if (!native || native->kind != OAK_BIND_TYPE_RECORD || !native->name)
       continue;
-    if ((int)strlen(native->name) == name_len &&
-        strncmp(native->name, name, name_len) == 0)
+    if (strcmp(native->name, name) == 0)
       return native;
   }
   return null;
@@ -68,14 +66,12 @@ static struct oak_type_t native_field_type(const struct oak_bind_field_t* field)
 
 static const struct oak_bind_field_t* native_record_field(
     const struct oak_bind_type_t* native,
-    const char* name,
-    int name_len)
+    const char* name)
 {
   for (int i = 0; i < oak_dynarr_count(native->fields); ++i)
   {
     const struct oak_bind_field_t* field = &native->fields[i];
-    if ((int)strlen(field->name) == name_len &&
-        strncmp(field->name, name, name_len) == 0)
+    if (strcmp(field->name, name) == 0)
       return field;
   }
   return null;
@@ -134,9 +130,8 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
     }
 
     const char* field_name = oak_token_text(fdecl->lhs->token);
-    const int field_name_len = oak_token_size(fdecl->lhs->token);
     const struct oak_bind_field_t* native_field =
-        native_record_field(native, field_name, field_name_len);
+        native_record_field(native, field_name);
     if (!native_field)
     {
       oak_compiler_error_at(c,
@@ -199,14 +194,12 @@ void oak_register_program_records(struct oak_compiler_t* c,
       return;
 
     const char* name = oak_token_text(name_ident->token);
-    const int name_len = oak_token_size(name_ident->token);
-
     const struct oak_registered_record_t* existing =
-        oak_records_find(&c->records, name, name_len);
+        oak_records_find(&c->records, name);
     if (existing)
     {
       const struct oak_bind_type_t* native =
-          native_record_binding(c, name, name_len);
+          native_record_binding(c, name);
       if (native && existing->type_id == native->resolved_type_id)
       {
         if (!native_record_decl_matches(c, native, item, name_ident))
@@ -229,8 +222,7 @@ void oak_register_program_records(struct oak_compiler_t* c,
 
     struct oak_registered_record_t proto = { 0 };
     proto.name = name;
-    proto.name_len = name_len;
-    proto.type_id = oak_type_registry_intern(&c->types, name, name_len);
+    proto.type_id = oak_type_registry_intern(&c->types, name);
     oak_assert(oak_dynarr_init(c->allocator, &proto.fields, sizeof *proto.fields));
     oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
     proto.attrs = oak_extract_attrs(c->allocator, raw_item, &proto.attr_count);
@@ -288,7 +280,7 @@ void oak_register_program_records(struct oak_compiler_t* c,
     const u16 owner_module_id =
         c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
     if (!oak_compiler_declare_symbol(
-            c, name_ident->token, name, name_len, OAK_SYMBOL_RECORD,
+            c, name_ident->token, name, OAK_SYMBOL_RECORD,
             oak_dynarr_count(c->records.entries), owner_module_id, 0))
       return;
     struct oak_registered_record_t* slot =
@@ -349,7 +341,6 @@ static int register_record_field_decls(struct oak_compiler_t* c,
     }
 
     const char* fn_name = oak_token_text(fname->token);
-    const int fn_len = oak_token_size(fname->token);
     for (int i = 0; i < oak_dynarr_count(slot->fields); ++i)
     {
       if (strcmp(slot->fields[i].name, fn_name) == 0)
@@ -365,7 +356,6 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 
     struct oak_record_field_t f = {
       .name = fn_name,
-      .name_len = fn_len,
     };
     oak_type_clear(&f.type);
     oak_lower_type_node(c, ftype, &f.type);

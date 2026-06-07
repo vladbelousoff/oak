@@ -64,7 +64,7 @@ OAK_TEST_DECL(ObjectPointerRoundTrip)
 {
   struct oak_allocator_t allocator;
   oak_system_allocator_init(&allocator);
-  struct oak_obj_string_t* str = oak_string_new(&allocator, "hello", 5);
+  struct oak_obj_string_t* str = oak_string_new(&allocator, "hello");
 
   const struct oak_value_t v = OAK_VALUE_OBJ(str);
   OAK_CHECK(oak_is_obj(v));
@@ -81,7 +81,7 @@ OAK_TEST_DECL(WeakPointerRoundTrip)
 {
   struct oak_allocator_t allocator;
   oak_system_allocator_init(&allocator);
-  struct oak_obj_string_t* str = oak_string_new(&allocator, "weak", 4);
+  struct oak_obj_string_t* str = oak_string_new(&allocator, "weak");
 
   const struct oak_value_t strong = OAK_VALUE_OBJ(str);
   const struct oak_value_t weak = oak_value_weaken(strong);

@@ -42,7 +42,6 @@ void oak_compile_for_from(struct oak_compiler_t* c,
   const int loop_var_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c,
                          oak_token_text(ident->token),
-                         oak_token_size(ident->token),
                          loop_var_slot,
                          1,
                          from_ty);
@@ -54,7 +53,7 @@ void oak_compile_for_from(struct oak_compiler_t* c,
 
   oak_compiler_compile_node(c, to_expr);
   const int limit_slot = c->scope.stack_depth - 1;
-  oak_compiler_add_local(c, "", 0, limit_slot, 0, to_ty);
+  oak_compiler_add_local(c, "", limit_slot, 0, to_ty);
 
   struct oak_loop_frame_t loop = {
     .enclosing = c->scope.current_loop,
@@ -137,14 +136,14 @@ static void for_in_init_hidden_state(struct oak_compiler_t* c,
       c, oak_compiler_intern_constant(c, OAK_VALUE_I32(0)), loc);
   *out_idx_slot = c->scope.stack_depth - 1;
   const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
-  oak_compiler_add_local(c, "$i", 0, *out_idx_slot, 1, num_ty);
+  oak_compiler_add_local(c, "$i", *out_idx_slot, 1, num_ty);
 
   oak_compiler_emit_constant(c, len_m->const_idx, loc);
   oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
   oak_compiler_emit_op(c, OAK_OP_CALL, loc, OAK_ARG_U8((u8)len_m->total_arity));
   c->scope.stack_depth -= len_m->total_arity;
   *out_limit_slot = c->scope.stack_depth - 1;
-  oak_compiler_add_local(c, "$n", 0, *out_limit_slot, 0, num_ty);
+  oak_compiler_add_local(c, "$n", *out_limit_slot, 0, num_ty);
 }
 
 static void for_in_bind_loop_idents(struct oak_compiler_t* c,
@@ -165,7 +164,6 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
       const struct oak_type_t key_ty = { .id = coll_ty->key_id };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
-                             oak_token_size(k_ident->token),
                              c->scope.stack_depth - 1,
                              0,
                              key_ty);
@@ -176,7 +174,6 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
       const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
-                             oak_token_size(k_ident->token),
                              c->scope.stack_depth - 1,
                              0,
                              num_ty);
@@ -196,7 +193,6 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
       val_ty.kind = OAK_TYPE_KIND_TRAIT;
     oak_compiler_add_local(c,
                            oak_token_text(v_ident->token),
-                           oak_token_size(v_ident->token),
                            c->scope.stack_depth - 1,
                            0,
                            val_ty);
@@ -282,7 +278,7 @@ void oak_compile_for_in(struct oak_compiler_t* c,
   /* slot 0: the collection itself (evaluated exactly once). */
   oak_compiler_compile_node(c, coll_expr);
   const int coll_slot = c->scope.stack_depth - 1;
-  oak_compiler_add_local(c, "$coll", 0, coll_slot, 0, coll_ty);
+  oak_compiler_add_local(c, "$coll", coll_slot, 0, coll_ty);
 
   int idx_slot;
   int limit_slot;

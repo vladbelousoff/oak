@@ -18,7 +18,6 @@ enum oak_symbol_kind_t
 struct oak_symbol_t
 {
   const char* name;
-  int name_len;
   enum oak_symbol_kind_t kind;
   u16 owner_module_id;
   int payload_index;
@@ -42,4 +41,4 @@ struct oak_symbol_t* oak_symbol_registry_insert(
     struct oak_symbol_registry_t* registry, const struct oak_symbol_t* symbol);
 
 const struct oak_symbol_t* oak_symbol_registry_find(
-    const struct oak_symbol_registry_t* registry, const char* name, int len);
+    const struct oak_symbol_registry_t* registry, const char* name);

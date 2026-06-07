@@ -256,7 +256,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
         type_name = oak_as_string(type_name_val)->chars;
 
       struct oak_obj_record_t* s = oak_record_new(
-          vm->allocator, (int)count, type_name, (const char* const*)lay->name, null);
+          vm->allocator, (int)count, type_name, (const char* const*)lay->name);
       for (int i = 0; i < (int)count; ++i)
       {
         oak_value_incref(base[i]);

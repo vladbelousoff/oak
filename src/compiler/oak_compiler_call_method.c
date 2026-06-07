@@ -169,9 +169,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
                                           &dep))
     {
       const struct oak_registered_record_t* sd =
-          oak_records_find(&c->records,
-                                           oak_token_text(type_node->token),
-                                           oak_token_size(type_node->token));
+          oak_records_find(&c->records, oak_token_text(type_node->token));
       const struct oak_registered_fn_t* sm =
           oak_find_record_method(sd, mname, 1);
       if (!sm)
@@ -212,7 +210,6 @@ void oak_compile_method_call(struct oak_compiler_t* c,
   if (receiver->kind == OAK_NODE_IDENT)
   {
     const char* rname = oak_token_text(receiver->token);
-    const int rlen = oak_token_size(receiver->token);
 
     /* alias.fn(args) — cross-module call. */
     const struct oak_module_t* dep = null;
@@ -261,7 +258,7 @@ void oak_compile_method_call(struct oak_compiler_t* c,
     if (!oak_local_type_get(c, rname, &local_ty))
     {
       const struct oak_registered_record_t* sd =
-          oak_records_find(&c->records, rname, rlen);
+          oak_records_find(&c->records, rname);
       if (sd)
       {
         const struct oak_registered_fn_t* sm =

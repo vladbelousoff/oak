@@ -33,7 +33,6 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
 
   const struct oak_ast_node_t* type_seg = seg[seg_count - 1]; /* last segment */
   const char* sname = oak_token_text(type_seg->token);
-  const int sname_len = oak_token_size(type_seg->token);
 
   /* For a qualified path (mod.Type) verify the module alias is valid. */
   if (seg_count == 2)
@@ -50,7 +49,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
   const struct oak_ast_node_t* name_node = type_seg;
 
   const struct oak_registered_record_t* sd =
-      oak_records_find(&c->records, sname, sname_len);
+      oak_records_find(&c->records, sname);
   if (!sd)
   {
     oak_compiler_error_at(
@@ -147,31 +146,23 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
   {
     const char** fptr =
         OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(sd->fields) * sizeof(*fptr));
-    usize* flen = OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(sd->fields) * sizeof(*flen));
     for (int i = 0; i < oak_dynarr_count(sd->fields); ++i)
-    {
       fptr[i] = sd->fields[i].name;
-      flen[i] = sd->fields[i].name_len;
-    }
     const int layout_id =
-        oak_chunk_add_field_layout(c->chunk, oak_dynarr_count(sd->fields), fptr, flen);
+        oak_chunk_add_field_layout(c->chunk, oak_dynarr_count(sd->fields), fptr);
     if (layout_id < 0)
     {
       oak_compiler_error_at(
           c, name_node->token, "internal error: could not add record layout");
       if (fptr)
         OAK_FREE(c->allocator, fptr);
-      if (flen)
-        OAK_FREE(c->allocator, flen);
       goto cleanup_exprs;
     }
     if (fptr)
       OAK_FREE(c->allocator, fptr);
-    if (flen)
-      OAK_FREE(c->allocator, flen);
 
     struct oak_obj_string_t* type_name_obj =
-        oak_string_new(c->allocator, sd->name, sd->name_len);
+        oak_string_new_len(c->allocator, sd->name, strlen(sd->name));
     const u16 name_idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(type_name_obj));
     oak_compiler_emit_constant(

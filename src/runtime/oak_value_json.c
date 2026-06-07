@@ -237,11 +237,11 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
                                              struct oak_value_t value)
 {
   if (oak_is_none_like(value))
-    return oak_string_new(allocator, "none", 4);
+    return oak_string_new_len(allocator, "none", 4);
   if (oak_is_bool(value))
   {
     const char* s = oak_as_bool(value) ? "true" : "false";
-    return oak_string_new(allocator, s, strlen(s));
+    return oak_string_new_len(allocator, s, strlen(s));
   }
   if (oak_is_number(value))
   {
@@ -253,7 +253,7 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
       n = snprintf(buf, sizeof(buf), "%d", oak_as_i32(value));
     if (n < 0)
       return null;
-    return oak_string_new(allocator, buf, (usize)n);
+    return oak_string_new_len(allocator, buf, (usize)n);
   }
   if (oak_is_string(value))
   {
@@ -270,7 +270,7 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
                  (unsigned long long)oak_value_as_handle(value));
     if (n < 0)
       return null;
-    return oak_string_new(allocator, buf, (usize)n);
+    return oak_string_new_len(allocator, buf, (usize)n);
   }
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
   if (!doc)
@@ -287,7 +287,7 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
   yyjson_mut_doc_free(doc);
   if (!p)
     return null;
-  struct oak_obj_string_t* s = oak_string_new(allocator, p, json_len);
+  struct oak_obj_string_t* s = oak_string_new_len(allocator, p, json_len);
   free(p);
   return s;
 }

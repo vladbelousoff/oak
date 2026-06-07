@@ -59,8 +59,7 @@ void oak_register_native_types(
     struct oak_bind_type_t* nt = opts->native_types[i];
     if (!nt)
       continue;
-    nt->resolved_type_id = oak_type_registry_intern(
-        &c->types, nt->name, (int)strlen(nt->name));
+    nt->resolved_type_id = oak_type_registry_intern(&c->types, nt->name);
   }
 
   /* Resume from the cursor: entries before it were registered by an earlier
@@ -70,9 +69,8 @@ void oak_register_native_types(
     struct oak_bind_type_t* nt = opts->native_types[i];
     if (!nt)
       continue;
-    const int nt_name_len = (int)strlen(nt->name);
 
-    if (oak_records_find(&c->records, nt->name, (usize)nt_name_len))
+    if (oak_records_find(&c->records, nt->name))
     {
       oak_compiler_error_at(
           c,
@@ -94,7 +92,6 @@ void oak_register_native_types(
     }
     struct oak_registered_record_t proto = { 0 };
     proto.name = nt->name;
-    proto.name_len = nt_name_len;
     proto.type_id = tid;
     proto.source_module_id = OAK_MODULE_ID_NONE;
     oak_assert(oak_dynarr_init(c->allocator, &proto.fields, sizeof *proto.fields));
@@ -108,14 +105,13 @@ void oak_register_native_types(
       const struct oak_bind_field_t* nf = &nt->fields[fi];
       struct oak_record_field_t sf = {
         .name = nf->name,
-        .name_len = (int)strlen(nf->name),
       };
       lower_bind_ref(&nf->type, &sf.type);
       oak_assert(oak_dynarr_push(&proto.fields, &sf));
     }
 
     if (!oak_compiler_declare_symbol(
-            c, null, proto.name, proto.name_len, OAK_SYMBOL_RECORD,
+            c, null, proto.name, OAK_SYMBOL_RECORD,
             oak_dynarr_count(c->records.entries), OAK_MODULE_ID_NONE, 0))
       return;
     oak_record_registry_insert(&c->records, &proto);
@@ -148,7 +144,6 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     if (!b->name || !b->impl || b->module_name)
       continue;
 
-    const int name_len = (int)strlen(b->name);
     struct oak_obj_native_fn_t* native =
         oak_native_fn_new(c->allocator, b->impl, b->arity, b->name);
     const u16 idx =
@@ -156,7 +151,6 @@ void oak_register_native_fns(struct oak_compiler_t* c,
 
     struct oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
-    entry.name_len = name_len;
     entry.const_idx = idx;
     entry.arity = b->arity;
     lower_bind_ref(&b->return_type, &entry.return_type);
@@ -172,13 +166,13 @@ void oak_register_native_fns(struct oak_compiler_t* c,
         lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
     }
 
-    if (oak_fn_registry_find(&c->fns, b->name, name_len))
+    if (oak_fn_registry_find(&c->fns, b->name))
     {
       oak_compiler_error_at(c, null, "duplicate native function '%s'", b->name);
       return;
     }
     if (!oak_compiler_declare_symbol(
-            c, null, entry.name, entry.name_len, OAK_SYMBOL_FUNCTION,
+            c, null, entry.name, OAK_SYMBOL_FUNCTION,
             oak_dynarr_count(c->fns.entries), OAK_MODULE_ID_NONE, 0))
       return;
     oak_fn_registry_insert(&c->fns, &entry);
@@ -194,7 +188,6 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     if (!b->name || !b->impl)
       continue;
 
-    const int name_len = (int)strlen(b->name);
     const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
                              ? b->arity + 1
                              : b->arity;
@@ -235,7 +228,6 @@ void oak_register_native_fns(struct oak_compiler_t* c,
 
     struct oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
-    entry.name_len = name_len;
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type->resolved_type_id;
     lower_bind_ref(&b->return_type, &entry.return_type);

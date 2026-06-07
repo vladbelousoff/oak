@@ -39,15 +39,15 @@ oak_record_registry_insert(struct oak_record_registry_t* r,
   const int idx = oak_dynarr_count(r->entries) - 1;
   oak_htable_insert(&r->by_name,
                     r->entries[idx].name,
-                    r->entries[idx].name_len,
+                    strlen(r->entries[idx].name),
                     idx);
   return &r->entries[idx];
 }
 
 const struct oak_registered_record_t* oak_records_find(
-    const struct oak_record_registry_t* r, const char* name, usize len)
+    const struct oak_record_registry_t* r, const char* name)
 {
-  const int idx = oak_htable_get(&r->by_name, name, len);
+  const int idx = oak_htable_get(&r->by_name, name, strlen(name));
   if (idx < 0)
     return null;
   return &r->entries[idx];

@@ -139,8 +139,7 @@ int oak_type_accepts(const struct oak_type_t* want,
 oak_type_id_t oak_intern_type_tok(struct oak_compiler_t* c,
                                              const struct oak_token_t* token)
 {
-  return oak_type_registry_intern(
-      &c->types, oak_token_text(token), oak_token_size(token));
+  return oak_type_registry_intern(&c->types, oak_token_text(token));
 }
 
 int oak_local_type_get(struct oak_compiler_t* c,

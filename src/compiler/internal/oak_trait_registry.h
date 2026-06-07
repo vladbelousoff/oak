@@ -10,7 +10,6 @@ struct oak_ast_node_t;
 struct oak_trait_method_t
 {
   const char* name;
-  int name_len;
   int arity;  /* total, including self */
   const struct oak_ast_node_t* sig_decl; /* set for local traits; null for imported */
   const struct oak_ast_node_t* decl; /* for default impl; null = abstract */
@@ -22,7 +21,6 @@ struct oak_trait_method_t
 struct oak_registered_trait_t
 {
   const char* name;
-  int name_len;
   oak_type_id_t trait_id;
   u16 source_module_id;
   struct oak_trait_method_t* methods;

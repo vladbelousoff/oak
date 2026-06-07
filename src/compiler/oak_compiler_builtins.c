@@ -19,7 +19,6 @@ static void register_native_fn(struct oak_compiler_t* c,
 
   struct oak_registered_fn_t entry = {
     .name = binding->name,
-    .name_len = (int)strlen(binding->name),
     .const_idx = idx,
     .arity = binding->arity,
     .return_type = { .id = binding->return_type_id },
@@ -28,7 +27,7 @@ static void register_native_fn(struct oak_compiler_t* c,
     .attr_count = 0,
     .source_module_id = OAK_MODULE_ID_NONE,
   };
-  if (!oak_compiler_declare_symbol(c, null, entry.name, entry.name_len,
+  if (!oak_compiler_declare_symbol(c, null, entry.name,
                                    OAK_SYMBOL_FUNCTION,
                                    oak_dynarr_count(c->fns.entries),
                                    OAK_MODULE_ID_NONE, 0))

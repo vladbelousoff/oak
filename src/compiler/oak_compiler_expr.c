@@ -116,7 +116,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     {
       const char* chars = oak_token_text(node->token);
       const int len = oak_token_size(node->token);
-      struct oak_obj_string_t* str = oak_string_new(c->allocator, chars, len);
+      struct oak_obj_string_t* str = oak_string_new_len(c->allocator, chars, len);
       const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(str));
       oak_compiler_emit_constant(
           c, idx, oak_compiler_loc_from_token(node->token));
@@ -137,7 +137,6 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_IDENT:
     {
       const char* name = oak_token_text(node->token);
-      const int len = oak_token_size(node->token);
       const int slot = oak_compiler_find_local(c, name, null);
       if (slot >= 0)
       {
@@ -147,7 +146,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                              OAK_ARG_U8((u8)slot));
         break;
       }
-      const struct oak_registered_fn_t* fn_entry = oak_find_fn(c, name, len);
+      const struct oak_registered_fn_t* fn_entry = oak_find_fn(c, name);
       if (fn_entry)
       {
         const struct oak_code_loc_t loc =
@@ -163,7 +162,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         break;
       }
       if (c->scope.fn_depth > 0 &&
-          oak_is_module_scope(c, name, len))
+          oak_is_module_scope(c, name))
       {
         oak_compiler_error_at(c,
                               node->token,

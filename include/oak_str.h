@@ -4,8 +4,7 @@
 
 #include <string.h>
 
-/* Compare identifier-like strings. Tokens and runtime names are stored with a
- * trailing terminal byte, so length is only kept for callers that need it. */
+/* Compare identifier-like strings. */
 static inline int
 oak_name_eq(const char* a, const char* b)
 {

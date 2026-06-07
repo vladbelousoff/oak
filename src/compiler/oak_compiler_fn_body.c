@@ -121,7 +121,6 @@ void oak_compile_fn_body(
     self_ty.id = recv->type_id;
     oak_compiler_add_local(c,
                            "self",
-                           4u,
                            slot++,
                            oak_self_is_mut(sp),
                            self_ty);
@@ -165,7 +164,6 @@ void oak_compile_fn_body(
       oak_lower_type_node(c, type_id, &param_type);
     oak_compiler_add_local(c,
                            oak_token_text(id->token),
-                           oak_token_size(id->token),
                            slot++,
                            oak_param_is_mut(ch),
                            param_type);

@@ -199,7 +199,6 @@ register_method_table_from_defs(struct oak_compiler_t* c,
       return;
     struct oak_method_binding_t* slot = &slots[(*out_count)++];
     slot->name = def->name;
-    slot->name_len = (int)strlen(def->name);
     slot->const_idx = idx;
     slot->total_arity = def->total_arity;
     slot->return_type_id = def->return_type_id;

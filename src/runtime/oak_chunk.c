@@ -141,8 +141,7 @@ void oak_chunk_enable_debug(struct oak_chunk_t* chunk, const char* source_name)
 
 int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
                                const int n,
-                               const char* const* const names,
-                               const usize* const name_len)
+                               const char* const* const names)
 {
   if (n < 0 || n > OAK_CHUNK_MAX_RECORD_FIELDS)
     return -1;
@@ -175,7 +174,7 @@ int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
   usize tot = 0u;
   for (int i = 0; i < n; ++i)
   {
-    const usize a = name_len ? name_len[i] : strlen(names[i]);
+    const usize a = strlen(names[i]);
     tot += a + 1u;
   }
   char* const blob = OAK_ALLOC(c->allocator, tot);
@@ -184,7 +183,7 @@ int oak_chunk_add_field_layout(struct oak_chunk_t* const c,
     char* p = blob;
     for (int i = 0; i < n; ++i)
     {
-      const usize a = name_len ? name_len[i] : strlen(names[i]);
+      const usize a = strlen(names[i]);
       memcpy(p, names[i], a);
       p[a] = '\0';
       d->name[i] = p;
@@ -240,9 +239,9 @@ usize oak_chunk_add_constant(struct oak_chunk_t* chunk,
 
 void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
                                const int slot,
-                               const char* name,
-                               const usize length)
+                               const char* name)
 {
+  const usize length = strlen(name);
   if (length == 0)
     return;
   if (!chunk->debug)

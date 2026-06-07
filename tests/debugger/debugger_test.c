@@ -28,7 +28,7 @@ static struct oak_compile_result_t compile_debug(const char* source)
 {
   struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lex =
-      oak_lexer_tokenize(source, strlen(source), a);
+      oak_lexer_tokenize(source, a);
   struct oak_parser_result_t pr = { 0 };
   oak_parse(lex, OAK_NODE_PROGRAM, &pr, a);
   const struct oak_ast_node_t* root = oak_parser_root(&pr);

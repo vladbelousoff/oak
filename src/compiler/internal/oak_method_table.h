@@ -21,7 +21,6 @@ typedef void (*oak_method_validate_args_fn)(struct oak_compiler_t* c,
 struct oak_method_binding_t
 {
   const char* name;
-  int name_len;
   u16 const_idx;
   /* Includes the implicit receiver. So `arr.push(x)` -> arity 2. */
   int total_arity;

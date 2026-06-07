@@ -36,7 +36,7 @@ void oak_type_registry_init(struct oak_type_registry_t* reg,
 
   /* Slot 0 is OAK_TYPE_VOID; pre-register it so name lookup finds "void". */
   struct oak_type_entry_t void_entry = {
-    .name = "void", .len = 4, .id = OAK_TYPE_VOID
+    .name = "void", .id = OAK_TYPE_VOID
   };
   oak_assert(oak_dynarr_push(&reg->entries, &void_entry));
 
@@ -46,7 +46,6 @@ void oak_type_registry_init(struct oak_type_registry_t* reg,
     oak_assert(b->id == oak_dynarr_count(reg->entries));
     struct oak_type_entry_t entry = {
       .name = b->name,
-      .len = (int)strlen(b->name),
       .id = b->id,
     };
     oak_assert(oak_dynarr_push(&reg->entries, &entry));
@@ -66,10 +65,9 @@ void oak_type_registry_free(struct oak_type_registry_t* reg)
 }
 
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
-                                       const char* name,
-                                       const int len)
+                                       const char* name)
 {
-  if (!name || len == 0)
+  if (!name || !name[0])
     return -1;
 
   /* Include slot 0 (void) so that the name "void" is resolvable. */
@@ -83,10 +81,9 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
 }
 
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
-                                       const char* name,
-                                       const int len)
+                                       const char* name)
 {
-  const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
+  const oak_type_id_t existing = oak_type_registry_lookup(reg, name);
   if (existing >= 0)
     return existing;
 
@@ -97,24 +94,23 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
       reg->owner_module_id == OAK_TYPE_ID_MODULE_NONE
           ? (oak_type_id_t)slot
           : oak_type_id_make(reg->owner_module_id, slot);
-  struct oak_type_entry_t entry = { .name = name, .len = len, .id = id };
+  struct oak_type_entry_t entry = { .name = name, .id = id };
   oak_assert(oak_dynarr_push(&reg->entries, &entry));
   return id;
 }
 
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const char* name,
-                                               const int len,
                                                const oak_type_id_t id)
 {
-  if (!name || len == 0)
+  if (!name || !name[0])
     return -1;
   if (id < OAK_TYPE_FIRST_USER)
     return -1;
 
   /* If this exact name/ID pair is already cataloged, return it. Different
    * modules may legitimately contribute distinct IDs with the same name. */
-  const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
+  const oak_type_id_t existing = oak_type_registry_lookup(reg, name);
   if (existing == id)
     return existing;
 
@@ -122,7 +118,7 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
     if (reg->entries[i].id == id)
       return -1;
 
-  struct oak_type_entry_t entry = { .name = name, .len = len, .id = id };
+  struct oak_type_entry_t entry = { .name = name, .id = id };
   oak_assert(oak_dynarr_push(&reg->entries, &entry));
   const u16 slot = oak_type_id_local_slot(id);
   if (oak_type_id_module(id) == reg->owner_module_id &&

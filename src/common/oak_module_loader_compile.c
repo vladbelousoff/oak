@@ -1,4 +1,5 @@
 #include "internal/oak_module_loader.h"
+#include "internal/oak_lexer.h"
 
 void loader_error(struct oak_module_loader_result_t* out,
                   const char* fmt,
@@ -180,8 +181,8 @@ struct oak_module_t* parse_or_get_module(
     loader_error(out, "could not open '%s'", canonical_path);
     return null;
   }
-  mod->lexer = oak_lexer_tokenize(mod->source.data, mod->source.size,
-                                   mod->allocator);
+  mod->lexer =
+      oak_lexer_tokenize_len(mod->source.data, mod->source.size, mod->allocator);
   oak_parse(mod->lexer, OAK_NODE_PROGRAM, &mod->parser, mod->allocator);
 
   for (int i = 0; i < oak_parser_error_count(&mod->parser) &&

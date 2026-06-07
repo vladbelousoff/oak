@@ -480,9 +480,8 @@ static enum oak_lex_status_t try_scan(const struct oak_lexer_ctx_t* ctx,
   return OAK_LEX_NO_MATCH;
 }
 
-struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
-                                              const usize len,
-                                              struct oak_allocator_t* allocator)
+struct oak_lexer_result_t* oak_lexer_tokenize_len(
+    const char* input, const usize len, struct oak_allocator_t* allocator)
 {
   if (len > 0 && !input)
     return null;
@@ -529,6 +528,14 @@ struct oak_lexer_result_t* oak_lexer_tokenize(const char* input,
   }
 
   return result;
+}
+
+struct oak_lexer_result_t* oak_lexer_tokenize(
+    const char* input, struct oak_allocator_t* allocator)
+{
+  if (!input)
+    return null;
+  return oak_lexer_tokenize_len(input, strlen(input), allocator);
 }
 
 const struct oak_list_entry_t*

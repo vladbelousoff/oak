@@ -174,9 +174,9 @@ static u32 hash_string(const char* chars, const usize length)
   return hash;
 }
 
-struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
-                                        const char* chars,
-                                        const usize length)
+struct oak_obj_string_t* oak_string_new_len(struct oak_allocator_t* a,
+                                            const char* chars,
+                                            const usize length)
 {
   struct oak_obj_string_t* str =
       OAK_ALLOC(a, sizeof(struct oak_obj_string_t) + length + 1);
@@ -186,6 +186,12 @@ struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
   str->chars[length] = 0;
   str->hash = hash_string(chars, length);
   return str;
+}
+
+struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
+                                        const char* chars)
+{
+  return oak_string_new_len(a, chars, strlen(chars));
 }
 
 struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
@@ -263,8 +269,7 @@ void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
 struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
                                         const int field_count,
                                         const char* const type_name,
-                                        const char* const* const field_names,
-                                        const usize* const field_name_len)
+                                        const char* const* const field_names)
 {
   oak_assert(field_count >= 0);
   const usize size = sizeof(struct oak_obj_record_t) +
@@ -282,8 +287,7 @@ struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
     usize strings_total = 0u;
     for (int i = 0; i < field_count; ++i)
     {
-      const usize n =
-          field_name_len ? field_name_len[i] : strlen(field_names[i]);
+      const usize n = strlen(field_names[i]);
       strings_total += n + 1u;
     }
     const usize blob = (usize)field_count * sizeof(const char*) + strings_total;
@@ -294,8 +298,7 @@ struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
     char* p = raw + (usize)field_count * (usize)sizeof(const char*);
     for (int i = 0; i < field_count; ++i)
     {
-      const usize n =
-          field_name_len ? field_name_len[i] : strlen(field_names[i]);
+      const usize n = strlen(field_names[i]);
       memcpy(p, field_names[i], n);
       p[n] = '\0';
       ptrs[i] = p;

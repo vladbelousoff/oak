@@ -203,13 +203,10 @@ OAK_API void oak_chunk_free(struct oak_chunk_t* chunk);
 OAK_API void oak_chunk_enable_debug(struct oak_chunk_t* chunk,
                                     const char* source_name);
 
-/* Intern a field-name layout. Returns a stable id >= 0, or -1 on failure.
- * `names[i]` is `name_len[i]` bytes if `name_len` is non-NULL, else
- * `names[i]` is a C string. */
+/* Intern a field-name layout. Returns a stable id >= 0, or -1 on failure. */
 OAK_API int oak_chunk_add_field_layout(struct oak_chunk_t* chunk,
                                        int field_count,
-                                       const char* const* names,
-                                       const usize* name_len);
+                                       const char* const* names);
 
 OAK_API void oak_chunk_write(struct oak_chunk_t* chunk,
                              u8 byte,
@@ -219,8 +216,7 @@ OAK_API usize oak_chunk_add_constant(struct oak_chunk_t* chunk,
                                      struct oak_value_t value);
 OAK_API void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
                                        int slot,
-                                       const char* name,
-                                       usize length);
+                                       const char* name);
 OAK_API void oak_chunk_end_debug_local(struct oak_chunk_t* chunk, int slot);
 OAK_API void oak_chunk_disassemble(const struct oak_chunk_t* chunk);
 OAK_API usize oak_chunk_disassemble_instruction(const struct oak_chunk_t* chunk,

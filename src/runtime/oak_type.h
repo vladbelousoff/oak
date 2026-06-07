@@ -36,7 +36,6 @@ struct oak_type_t
 struct oak_type_entry_t
 {
   const char* name;
-  int len;
   oak_type_id_t id;
 };
 
@@ -57,20 +56,17 @@ void oak_type_registry_free(struct oak_type_registry_t* reg);
 
 /* Returns the id of an existing entry, or -1 if not found. */
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
-                                       const char* name,
-                                       int len);
+                                       const char* name);
 
 /* Returns the id of an existing entry, or registers a new one. Returns
  * -1 if `name` is null/empty. */
 oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
-                                       const char* name,
-                                       int len);
+                                       const char* name);
 
 /* Catalogs a caller-supplied module-qualified ID under `name`.
  * Returns `id` on success, or -1 on a name/ID conflict. */
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const char* name,
-                                               int len,
                                                oak_type_id_t id);
 
 /* Returns a printable name for `id` (always non-null; "<void>" if the id

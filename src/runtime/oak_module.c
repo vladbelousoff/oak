@@ -156,7 +156,7 @@ const struct oak_symbol_t* oak_module_find_export_symbol(
     const struct oak_module_t* mod, const char* name)
 {
   const struct oak_symbol_t* symbol =
-      oak_symbol_registry_find(&mod->symbols, name, (int)strlen(name));
+      oak_symbol_registry_find(&mod->symbols, name);
   return symbol && symbol->is_exported ? symbol : null;
 }
 

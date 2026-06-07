@@ -57,7 +57,6 @@ void oak_compiler_move_types_to_module(struct oak_compiler_t* c);
 int oak_compiler_declare_symbol(struct oak_compiler_t* c,
                                 const struct oak_token_t* token,
                                 const char* name,
-                                int name_len,
                                 enum oak_symbol_kind_t kind,
                                 int payload_index,
                                 u16 owner_module_id,
@@ -86,12 +85,10 @@ int oak_compiler_find_local(const struct oak_compiler_t* c,
 
 /* True if `name` is bound at module scope (top-level `let` in this program). */
 int oak_is_module_scope(const struct oak_compiler_t* c,
-                                      const char* name,
-                                      usize len);
+                        const char* name);
 
 void oak_compiler_add_local(struct oak_compiler_t* c,
                             const char* name,
-                            usize length,
                             int slot,
                             int is_mutable,
                             struct oak_type_t type);
@@ -392,7 +389,7 @@ void oak_register_method_on_record(struct oak_compiler_t* c,
                                     struct oak_registered_record_t* sd);
 
 const struct oak_registered_fn_t* oak_find_fn(
-    struct oak_compiler_t* c, const char* name, usize len);
+    struct oak_compiler_t* c, const char* name);
 
 void oak_compile_return(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node);

@@ -39,6 +39,9 @@ struct oak_growable_buf_t
   struct oak_allocator_t* allocator;
 };
 
+struct oak_lexer_result_t* oak_lexer_tokenize_len(
+    const char* input, usize len, struct oak_allocator_t* allocator);
+
 void oak_growable_buf_init(struct oak_growable_buf_t* b,
                            char tls[OAK_LEXER_TLS_BUF],
                            struct oak_allocator_t* allocator);

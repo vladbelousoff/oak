@@ -32,7 +32,7 @@ static void stub_setter(struct oak_value_t self, struct oak_value_t value)
 static enum oak_test_status_t compile_ex_ok(const char* source,
                                             struct oak_compile_options_t* opts)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, oak_test_allocator());
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
@@ -51,7 +51,7 @@ static enum oak_test_status_t compile_ex_ok(const char* source,
 static enum oak_test_status_t
 compile_ex_fails(const char* source, struct oak_compile_options_t* opts)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, oak_test_allocator());
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
@@ -534,7 +534,7 @@ run_with_native_instance(const char* source,
                          struct oak_bind_type_t* nt,
                          void* instance)
 {
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, oak_test_allocator());
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&result);
@@ -588,8 +588,7 @@ OAK_TEST_DECL(NativeGetterInvokedOnFieldRead)
   /* Compile an Oak function that accepts NTSensor and reads .value. */
   struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
-      "fn read_sensor(s : NTSensor) -> number { return s.value; }",
-      strlen("fn read_sensor(s : NTSensor) -> number { return s.value; }"), a);
+      "fn read_sensor(s : NTSensor) -> number { return s.value; }", a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
@@ -632,8 +631,7 @@ OAK_TEST_DECL(NativeReadOnlyFieldAssignFailsAtRuntime)
    * time because `s` is not declared `mut`. */
   struct oak_allocator_t* a = oak_test_allocator();
   struct oak_lexer_result_t* lexer = oak_lexer_tokenize(
-      "fn try_write(s : NTRO) -> number { s.val = 1; return s.val; }",
-      strlen("fn try_write(s : NTRO) -> number { s.val = 1; return s.val; }"), a);
+      "fn try_write(s : NTRO) -> number { s.val = 1; return s.val; }", a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
   const struct oak_ast_node_t* root = oak_parser_root(&result);

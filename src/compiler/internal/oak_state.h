@@ -19,7 +19,6 @@ struct oak_compile_options_t; /* defined in oak_bind.h */
 struct oak_local_t
 {
   const char* name;
-  usize length;
   int slot;
   int is_mutable;
   int depth;

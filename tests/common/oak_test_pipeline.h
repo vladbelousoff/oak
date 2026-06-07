@@ -14,7 +14,7 @@
 static enum oak_test_status_t oak_pipeline_expect_ok(const char* source)
 {
   struct oak_allocator_t* a = oak_test_allocator();
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
@@ -41,7 +41,7 @@ static enum oak_test_status_t
 oak_pipeline_expect_compile_error(const char* source)
 {
   struct oak_allocator_t* a = oak_test_allocator();
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
@@ -63,7 +63,7 @@ static enum oak_test_status_t
 oak_pipeline_expect_parse_or_compile_error(const char* source)
 {
   struct oak_allocator_t* a = oak_test_allocator();
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
   const struct oak_ast_node_t* root = oak_parser_root(&result);
@@ -90,7 +90,7 @@ static enum oak_test_status_t
 oak_pipeline_expect_runtime_error(const char* source)
 {
   struct oak_allocator_t* a = oak_test_allocator();
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), a);
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, a);
   struct oak_parser_result_t result = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &result, a);
   const struct oak_ast_node_t* root = oak_parser_root(&result);

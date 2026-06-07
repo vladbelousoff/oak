@@ -6,7 +6,7 @@
 
 #include <string.h>
 
-#define OAK_LEX(S) oak_lexer_tokenize((S), strlen(S), oak_test_allocator())
+#define OAK_LEX(S) oak_lexer_tokenize((S), oak_test_allocator())
 
 static struct oak_ast_node_t*
 oak_test_ast_child(const struct oak_ast_node_t* node, const usize index)

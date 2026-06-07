@@ -1,10 +1,9 @@
 #include "internal/oak_compiler.h"
 
 int oak_is_module_scope(const struct oak_compiler_t* c,
-                                      const char* name,
-                                      const usize len)
+                        const char* name)
 {
-  return oak_htable_get(&c->module_scope_names, name, len) >= 0;
+  return oak_htable_get(&c->module_scope_names, name, strlen(name)) >= 0;
 }
 
 int oak_compiler_find_local(const struct oak_compiler_t* c,
@@ -27,7 +26,6 @@ int oak_compiler_find_local(const struct oak_compiler_t* c,
 
 void oak_compiler_add_local(struct oak_compiler_t* c,
                             const char* name,
-                            const usize length,
                             const int slot,
                             const int is_mutable,
                             const struct oak_type_t type)
@@ -40,13 +38,12 @@ void oak_compiler_add_local(struct oak_compiler_t* c,
   }
   struct oak_local_t* local = &c->scope.locals[c->scope.local_count++];
   local->name = name;
-  local->length = length;
   local->slot = slot;
   local->is_mutable = is_mutable;
   local->depth = c->scope.scope_depth;
   local->type = type;
 
-  oak_chunk_add_debug_local(c->chunk, slot, name, length);
+  oak_chunk_add_debug_local(c->chunk, slot, name);
 }
 
 void oak_compiler_begin_scope(struct oak_compiler_t* c)
@@ -132,13 +129,12 @@ int oak_compile_assign_target(struct oak_compiler_t* c,
     return -1;
   }
   const char* name = oak_token_text(lhs->token);
-  const int name_len = oak_token_size(lhs->token);
   int is_mutable = 0;
   const int slot = oak_compiler_find_local(c, name, &is_mutable);
   if (slot < 0)
   {
     if (c->scope.fn_depth > 0 &&
-        oak_is_module_scope(c, name, name_len))
+        oak_is_module_scope(c, name))
     {
       oak_compiler_error_at(
           c,

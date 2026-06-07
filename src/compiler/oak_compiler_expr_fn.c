@@ -9,9 +9,9 @@ void oak_compile_expr_fn(struct oak_compiler_t* c,
 
   char name_buf[32];
   snprintf(name_buf, sizeof(name_buf), "__anon_%d", c->anon_fn_count++);
-  const int name_len = (int)strlen(name_buf);
-  char* name_copy = OAK_ALLOC(c->allocator, (usize)(name_len + 1));
-  memcpy(name_copy, name_buf, (usize)(name_len + 1));
+  const usize len = strlen(name_buf) + 1u;
+  char* name_copy = OAK_ALLOC(c->allocator, len);
+  memcpy(name_copy, name_buf, len);
 
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
@@ -21,7 +21,6 @@ void oak_compile_expr_fn(struct oak_compiler_t* c,
 
   struct oak_registered_fn_t entry = { 0 };
   entry.name = name_copy;
-  entry.name_len = name_len;
   entry.const_idx = idx;
   entry.arity = arity;
   entry.decl = node;

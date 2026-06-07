@@ -9,9 +9,7 @@ struct oak_enum_variant_t
 {
   /* Borrowed pointers into the lexer arena (live for the compilation). */
   const char* name;
-  int name_len;
   const char* enum_name;
-  int enum_name_len;
   u16 const_idx;
   int value;
   /* Type id of the enum that owns this variant.  Populated when the enum
@@ -27,7 +25,6 @@ struct oak_enum_variant_t
 struct oak_registered_enum_t
 {
   const char* name;
-  int name_len;
   oak_type_id_t type_id;
   u16 source_module_id;
   /* Attribute names.  Always heap-allocated; freed by registry_free. */
@@ -65,7 +62,7 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
 
 /* O(1) lookup by unqualified variant name. Returns null if not found. */
 const struct oak_enum_variant_t* oak_enum_registry_find(
-    const struct oak_enum_registry_t* r, const char* name, usize len);
+    const struct oak_enum_registry_t* r, const char* name);
 
 /* O(n) lookup by qualified (enum_name, variant_name). */
 const struct oak_enum_variant_t*
@@ -74,9 +71,7 @@ oak_enums_find_qualified(const struct oak_enum_registry_t* r,
                                  const char* variant_name);
 
 /* O(1) check: is this name a registered enum type name? */
-int oak_is_enum_name(const struct oak_enum_registry_t* r,
-                                   const char* name,
-                                   usize len);
+int oak_is_enum_name(const struct oak_enum_registry_t* r, const char* name);
 
 /* O(n) lookup by name. Returns null if not found. */
 const struct oak_registered_enum_t* oak_enum_find(

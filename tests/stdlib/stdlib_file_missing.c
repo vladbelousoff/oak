@@ -19,7 +19,7 @@ OAK_TEST_DECL(StdlibFileMissingPathRuntimeError)
       "r.close();\n"
       "print(t);\n";
 
-  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, strlen(source), oak_test_allocator());
+  struct oak_lexer_result_t* lexer = oak_lexer_tokenize(source, oak_test_allocator());
   struct oak_parser_result_t pr = { 0 };
   oak_parse(lexer, OAK_NODE_PROGRAM, &pr, oak_test_allocator());
   const struct oak_ast_node_t* root = oak_parser_root(&pr);

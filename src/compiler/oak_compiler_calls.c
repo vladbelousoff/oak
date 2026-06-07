@@ -47,11 +47,9 @@ void oak_compiler_compile_fn_call(struct oak_compiler_t* c,
 
   if (callee && callee->kind == OAK_NODE_IDENT)
   {
-    const int callee_len = oak_token_size(callee->token);
     const char* callee_name = oak_token_text(callee->token);
 
-    const struct oak_registered_fn_t* entry =
-        oak_find_fn(c, callee_name, callee_len);
+    const struct oak_registered_fn_t* entry = oak_find_fn(c, callee_name);
 
     if (entry)
     {

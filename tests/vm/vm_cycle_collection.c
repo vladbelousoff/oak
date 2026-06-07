@@ -45,7 +45,7 @@ OAK_TEST_DECL(MultiObjectCycleIsCollected)
 OAK_TEST_DECL(RecordArrayCycleIsCollected)
 {
   struct oak_obj_record_t* record =
-      oak_record_new(oak_test_allocator(), 1, "Node", null, null);
+      oak_record_new(oak_test_allocator(), 1, "Node", null);
   struct oak_obj_array_t* arr = oak_array_new(oak_test_allocator());
   record->fields[0] = OAK_VALUE_OBJ(arr);
   oak_obj_incref(&arr->obj);
@@ -61,7 +61,7 @@ OAK_TEST_DECL(MapCycleIsCollected)
 {
   struct oak_obj_map_t* map = oak_map_new(oak_test_allocator());
   struct oak_obj_string_t* key =
-      oak_string_new(oak_test_allocator(), "self", 4);
+      oak_string_new(oak_test_allocator(), "self");
   OAK_CHECK(oak_map_set(map, OAK_VALUE_OBJ(key), OAK_VALUE_OBJ(map)));
   oak_obj_decref(&key->obj);
   oak_obj_decref(&map->obj);
@@ -251,18 +251,18 @@ OAK_TEST_DECL(MapCycleSurvivesTombstones)
   static const char* const keys[] = { "k0", "k1", "k2", "k3" };
   for (int i = 0; i < 4; ++i)
   {
-    struct oak_obj_string_t* k = oak_string_new(a, keys[i], 2);
+    struct oak_obj_string_t* k = oak_string_new(a, keys[i]);
     OAK_CHECK(oak_map_set(map, OAK_VALUE_OBJ(k), oak_value_i32(i)));
     oak_obj_decref(&k->obj);
   }
   for (int i = 0; i < 2; ++i)
   {
-    struct oak_obj_string_t* dk = oak_string_new(a, keys[i], 2);
+    struct oak_obj_string_t* dk = oak_string_new(a, keys[i]);
     OAK_CHECK(oak_map_delete(map, OAK_VALUE_OBJ(dk)) == 1);
     oak_obj_decref(&dk->obj);
   }
 
-  struct oak_obj_string_t* self = oak_string_new(a, "self", 4);
+  struct oak_obj_string_t* self = oak_string_new(a, "self");
   OAK_CHECK(oak_map_set(map, OAK_VALUE_OBJ(self), OAK_VALUE_OBJ(map)));
   oak_obj_decref(&self->obj);
   oak_obj_decref(&map->obj);

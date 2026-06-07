@@ -537,8 +537,11 @@ OAK_API int oak_is_truthy(struct oak_value_t value);
 OAK_API int oak_value_equal(struct oak_value_t a, struct oak_value_t b);
 
 OAK_API struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
-                                                const char* chars,
-                                                usize length);
+                                                const char* chars);
+
+struct oak_obj_string_t* oak_string_new_len(struct oak_allocator_t* a,
+                                            const char* chars,
+                                            usize length);
 
 OAK_API struct oak_obj_string_t*
 oak_string_concat(struct oak_allocator_t* a,
@@ -564,8 +567,7 @@ OAK_API struct oak_obj_record_t* oak_record_new(
     struct oak_allocator_t* a,
     int field_count,
     const char* type_name,
-    const char* const* field_names,
-    const usize* field_name_len);
+    const char* const* field_names);
 
 OAK_API struct oak_obj_native_record_t*
 oak_obj_native_record_new(struct oak_allocator_t* a,

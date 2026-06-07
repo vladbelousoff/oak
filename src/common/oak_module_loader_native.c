@@ -141,7 +141,7 @@ void apply_native_module_function_exports(
     if (!native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const struct oak_symbol_t* symbol =
-        oak_symbol_registry_find(&mod->symbols, fn->name, (int)strlen(fn->name));
+        oak_symbol_registry_find(&mod->symbols, fn->name);
     if (!symbol || symbol->kind != OAK_SYMBOL_FUNCTION)
       continue;
     const int eidx = symbol->payload_index;
@@ -195,7 +195,7 @@ void apply_native_module_function_exports(
   {
     struct oak_module_export_record_t* rec = &mod->exports_record.items[ri];
     const oak_type_id_t rec_type_id =
-        oak_type_registry_intern(&mod->types, rec->name, (int)strlen(rec->name));
+        oak_type_registry_intern(&mod->types, rec->name);
     for (int mi = 0; mi < oak_dynarr_count(rec->methods); ++mi)
     {
       struct oak_module_export_record_method_t* me = &rec->methods[mi];
@@ -409,14 +409,12 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
     {
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(item);
       const char* name = oak_token_text(name_node->token);
-      const int name_len = oak_token_size(name_node->token);
       const int arity = loader_fn_decl_param_count(item);
       if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, arity))
       {
         loader_error(out,
-                     "%s: bodyless function '%.*s' has no native binding",
+                     "%s: bodyless function '%s' has no native binding",
                      mod->dotted_name,
-                     (int)name_len,
                      name);
         ok = 0;
       }
@@ -430,7 +428,6 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
         continue;
       const char* type_name = oak_token_text(type_node->token);
       const char* name = oak_token_text(name_node->token);
-      const int name_len = oak_token_size(name_node->token);
       const int has_self = loader_method_decl_has_self(item);
       const int arity = loader_method_decl_param_count(item);
       const struct oak_bind_type_t* receiver =
@@ -438,10 +435,9 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
       if (!native_method_decl_exists(opts, receiver, name, has_self, arity))
       {
         loader_error(out,
-                     "%s: bodyless method '%s.%.*s' has no native binding",
+                     "%s: bodyless method '%s.%s' has no native binding",
                      mod->dotted_name,
                      type_name,
-                     (int)name_len,
                      name);
         ok = 0;
       }
@@ -454,7 +450,6 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
     if (!record_name_node)
       continue;
     const char* record_name = oak_token_text(record_name_node->token);
-    const int record_name_len = oak_token_size(record_name_node->token);
     const struct oak_bind_type_t* receiver =
         find_native_type_decl(opts, mod->dotted_name, record_name);
     struct oak_list_entry_t* mpos;
@@ -468,17 +463,14 @@ int validate_bodyless_native_decls(struct oak_module_loader_result_t* out,
         continue;
       const struct oak_ast_node_t* name_node = loader_fn_decl_name_node(member);
       const char* name = oak_token_text(name_node->token);
-      const int name_len = oak_token_size(name_node->token);
       const int has_self = loader_fn_decl_has_self(member);
       const int arity = loader_fn_decl_param_count(member);
       if (!native_method_decl_exists(opts, receiver, name, has_self, arity))
       {
         loader_error(out,
-                     "%s: bodyless method '%.*s.%.*s' has no native binding",
+                     "%s: bodyless method '%s.%s' has no native binding",
                      mod->dotted_name,
-                     (int)record_name_len,
                      record_name,
-                     (int)name_len,
                      name);
         ok = 0;
       }
@@ -522,8 +514,7 @@ struct oak_module_t* create_native_module(
     struct oak_bind_type_t* type = opts->native_types[i];
     if (!type || !native_module_name_eq(type->module_name, dotted))
       continue;
-    type->resolved_type_id = oak_type_registry_intern(
-        &mod->types, type->name, (int)strlen(type->name));
+    type->resolved_type_id = oak_type_registry_intern(&mod->types, type->name);
   }
 
   for (int i = 0; i < oak_dynarr_count(opts->native_global_fns); ++i)
@@ -565,7 +556,6 @@ struct oak_module_t* create_native_module(
     oak_assert(oak_dynarr_push(&mod->exports_fn.items, &exp));
     struct oak_symbol_t symbol = {
       .name = exp.name,
-      .name_len = (int)strlen(exp.name),
       .kind = OAK_SYMBOL_FUNCTION,
       .owner_module_id = mod->module_id,
       .payload_index = idx,
@@ -602,7 +592,6 @@ struct oak_module_t* create_native_module(
     oak_assert(oak_dynarr_push(&mod->exports_record.items, &exp));
     struct oak_symbol_t symbol = {
       .name = exp.name,
-      .name_len = (int)strlen(exp.name),
       .kind = OAK_SYMBOL_RECORD,
       .owner_module_id = mod->module_id,
       .payload_index = idx,
@@ -631,7 +620,6 @@ struct oak_module_t* create_native_module(
     oak_assert(oak_dynarr_push(&mod->exports_enum.items, &exp));
     struct oak_symbol_t symbol = {
       .name = exp.name,
-      .name_len = (int)strlen(exp.name),
       .kind = OAK_SYMBOL_ENUM,
       .owner_module_id = mod->module_id,
       .payload_index = idx,

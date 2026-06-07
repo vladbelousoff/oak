@@ -8,7 +8,7 @@
 #include <math.h>
 #include <string.h>
 
-#define OAK_LEX(S) oak_lexer_tokenize((S), strlen(S), oak_test_allocator())
+#define OAK_LEX(S) oak_lexer_tokenize((S), oak_test_allocator())
 
 struct oak_expected_token_t
 {

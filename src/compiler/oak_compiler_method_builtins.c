@@ -90,7 +90,7 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
   const struct oak_obj_string_t* tmpl = oak_as_string(args[0]);
   const struct oak_obj_array_t* subs = oak_as_array(args[1]);
 
-  struct oak_obj_string_t* acc = oak_string_new(ctx->allocator, "", 0);
+  struct oak_obj_string_t* acc = oak_string_new_len(ctx->allocator, "", 0);
   const char* s = tmpl->chars;
   const usize len = tmpl->length;
   usize i = 0;
@@ -102,7 +102,7 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
     {
       if (i + 1 < len && s[i + 1] == '{')
       {
-        struct oak_obj_string_t* lit = oak_string_new(ctx->allocator, "{", 1);
+        struct oak_obj_string_t* lit = oak_string_new_len(ctx->allocator, "{", 1);
         struct oak_obj_string_t* next = oak_string_concat(ctx->allocator, acc, lit);
         oak_value_decref(OAK_VALUE_OBJ(acc));
         oak_value_decref(OAK_VALUE_OBJ(lit));
@@ -161,7 +161,7 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
 
     if (i + 1 < len && s[i] == '}' && s[i + 1] == '}')
     {
-      struct oak_obj_string_t* lit = oak_string_new(ctx->allocator, "}", 1);
+      struct oak_obj_string_t* lit = oak_string_new_len(ctx->allocator, "}", 1);
       struct oak_obj_string_t* next = oak_string_concat(ctx->allocator, acc, lit);
       oak_value_decref(OAK_VALUE_OBJ(acc));
       oak_value_decref(OAK_VALUE_OBJ(lit));
@@ -180,7 +180,7 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
           break;
         ++i;
       }
-      struct oak_obj_string_t* lit = oak_string_new(ctx->allocator, s + start, i - start);
+      struct oak_obj_string_t* lit = oak_string_new_len(ctx->allocator, s + start, i - start);
       struct oak_obj_string_t* next = oak_string_concat(ctx->allocator, acc, lit);
       oak_value_decref(OAK_VALUE_OBJ(acc));
       oak_value_decref(OAK_VALUE_OBJ(lit));

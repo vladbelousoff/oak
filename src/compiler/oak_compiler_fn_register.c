@@ -31,15 +31,15 @@ oak_fn_registry_insert(struct oak_fn_registry_t* r,
   const int idx = oak_dynarr_count(r->entries) - 1;
   oak_htable_insert(&r->by_name,
                     r->entries[idx].name,
-                    r->entries[idx].name_len,
+                    strlen(r->entries[idx].name),
                     idx);
   return &r->entries[idx];
 }
 
 const struct oak_registered_fn_t* oak_fn_registry_find(
-    const struct oak_fn_registry_t* r, const char* name, usize len)
+    const struct oak_fn_registry_t* r, const char* name)
 {
-  const int idx = oak_htable_get(&r->by_name, name, len);
+  const int idx = oak_htable_get(&r->by_name, name, strlen(name));
   if (idx < 0)
     return null;
   return &r->entries[idx];
@@ -71,7 +71,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
 {
   const struct oak_ast_node_t* name_node = oak_fn_name_node(item);
   const char* name = oak_token_text(name_node->token);
-  const int name_len = oak_token_size(name_node->token);
+  const int len = (int)strlen(name);
   const int explicit_arity = oak_count_fn_params(item);
   const struct oak_ast_node_t* self_param =
       oak_fn_self_param(item);
@@ -88,7 +88,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     return;
   }
 
-  if (oak_fn_registry_find(&c->fns, name, name_len))
+  if (oak_fn_registry_find(&c->fns, name))
   {
     oak_compiler_error_at(c, name_node->token, "duplicate function '%s'", name);
     return;
@@ -97,9 +97,8 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
   struct oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, explicit_arity, mid);
-  char* name_copy = OAK_ALLOC(c->allocator, name_len + 1u);
-  memcpy(name_copy, name, name_len);
-  name_copy[name_len] = 0;
+  char* name_copy = OAK_ALLOC(c->allocator, len + 1u);
+  memcpy(name_copy, name, len + 1u);
   fn_obj->name = name_copy;
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
@@ -145,7 +144,6 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
   oak_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   struct oak_registered_fn_t entry = {
     .name = name,
-    .name_len = name_len,
     .const_idx = idx,
     .arity = explicit_arity,
     .decl = item,
@@ -153,7 +151,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     .attr_count = attr_count,
     .source_module_id = OAK_MODULE_ID_NONE,
   };
-  if (!oak_compiler_declare_symbol(c, name_node->token, name, name_len,
+  if (!oak_compiler_declare_symbol(c, name_node->token, name,
                                    OAK_SYMBOL_FUNCTION,
                                    oak_dynarr_count(c->fns.entries),
                                    mid, 0))
@@ -168,7 +166,7 @@ void oak_register_method_on_record(struct oak_compiler_t* c,
 {
   const struct oak_ast_node_t* name_node = oak_fn_name_node(item);
   const char* name = oak_token_text(name_node->token);
-  const int name_len = oak_token_size(name_node->token);
+  const int len = (int)strlen(name);
   const int explicit_arity = oak_count_fn_params(item);
   const struct oak_ast_node_t* self_param =
       oak_fn_self_param(item);
@@ -194,7 +192,6 @@ void oak_register_method_on_record(struct oak_compiler_t* c,
 
   struct oak_registered_fn_t slot = { 0 };
   slot.name = name;
-  slot.name_len = name_len;
   slot.receiver_type_id = sd->type_id;
   oak_type_clear(&slot.return_type);
   slot.is_static = (self_param == null);
@@ -206,9 +203,8 @@ void oak_register_method_on_record(struct oak_compiler_t* c,
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
   struct oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, total_arity, mid);
-  char* method_name_copy = OAK_ALLOC(c->allocator, name_len + 1u);
-  memcpy(method_name_copy, name, name_len);
-  method_name_copy[name_len] = 0;
+  char* method_name_copy = OAK_ALLOC(c->allocator, len + 1u);
+  memcpy(method_name_copy, name, len + 1u);
   fn_obj->name = method_name_copy;
   oak_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
@@ -241,7 +237,7 @@ void oak_register_program_methods(struct oak_compiler_t* c,
 }
 
 const struct oak_registered_fn_t* oak_find_fn(
-    struct oak_compiler_t* c, const char* name, const usize len)
+    struct oak_compiler_t* c, const char* name)
 {
-  return oak_fn_registry_find(&c->fns, name, len);
+  return oak_fn_registry_find(&c->fns, name);
 }

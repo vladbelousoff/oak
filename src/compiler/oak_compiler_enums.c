@@ -51,11 +51,11 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
    * qualified lookup uses a linear scan and always works). */
   if (oak_htable_get(&r->by_name,
                      r->variants[idx].name,
-                     r->variants[idx].name_len) < 0)
+                     strlen(r->variants[idx].name)) < 0)
   {
     oak_htable_insert(&r->by_name,
                       r->variants[idx].name,
-                      r->variants[idx].name_len,
+                      strlen(r->variants[idx].name),
                       idx);
   }
 
@@ -63,11 +63,11 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
    */
   if (oak_htable_get(&r->enum_names,
                      r->variants[idx].enum_name,
-                     r->variants[idx].enum_name_len) < 0)
+                     strlen(r->variants[idx].enum_name)) < 0)
   {
     oak_htable_insert(&r->enum_names,
                       r->variants[idx].enum_name,
-                      r->variants[idx].enum_name_len,
+                      strlen(r->variants[idx].enum_name),
                       1);
   }
 
@@ -75,9 +75,9 @@ oak_enum_registry_insert(struct oak_enum_registry_t* r,
 }
 
 const struct oak_enum_variant_t* oak_enum_registry_find(
-    const struct oak_enum_registry_t* r, const char* name, usize len)
+    const struct oak_enum_registry_t* r, const char* name)
 {
-  const int idx = oak_htable_get(&r->by_name, name, len);
+  const int idx = oak_htable_get(&r->by_name, name, strlen(name));
   if (idx < 0)
     return null;
   return &r->variants[idx];
@@ -100,11 +100,9 @@ oak_enums_find_qualified(const struct oak_enum_registry_t* r,
   return null;
 }
 
-int oak_is_enum_name(const struct oak_enum_registry_t* r,
-                                   const char* name,
-                                   usize len)
+int oak_is_enum_name(const struct oak_enum_registry_t* r, const char* name)
 {
-  return oak_htable_get(&r->enum_names, name, len) >= 0;
+  return oak_htable_get(&r->enum_names, name, strlen(name)) >= 0;
 }
 
 
@@ -122,8 +120,7 @@ void oak_register_native_enums(
     if (ne->module_name)
       continue;
 
-    const int ne_name_len = (int)strlen(ne->name);
-    if (oak_is_enum_name(&c->enums, ne->name, ne_name_len))
+    if (oak_is_enum_name(&c->enums, ne->name))
     {
       oak_compiler_error_at(
           c,
@@ -134,7 +131,7 @@ void oak_register_native_enums(
     }
 
     const oak_type_id_t enum_type_id =
-        oak_type_registry_intern(&c->types, ne->name, ne_name_len);
+        oak_type_registry_intern(&c->types, ne->name);
     if (enum_type_id < 0)
     {
       oak_compiler_error_at(
@@ -145,14 +142,13 @@ void oak_register_native_enums(
     {
       struct oak_registered_enum_t re = {
         .name = ne->name,
-        .name_len = ne_name_len,
         .type_id = enum_type_id,
         .source_module_id = OAK_MODULE_ID_NONE,
         .attrs = null,
         .attr_count = 0,
       };
       if (!oak_compiler_declare_symbol(
-              c, null, re.name, re.name_len, OAK_SYMBOL_ENUM,
+              c, null, re.name, OAK_SYMBOL_ENUM,
               oak_dynarr_count(c->enums.enums), OAK_MODULE_ID_NONE, 0))
         return;
       oak_assert(oak_dynarr_push(&c->enums.enums, &re));
@@ -162,8 +158,7 @@ void oak_register_native_enums(
     {
       const struct oak_bind_enum_variant_t* nv = &ne->variants[vi];
 
-      const int nv_name_len = (int)strlen(nv->name);
-      if (oak_enum_registry_find(&c->enums, nv->name, nv_name_len))
+      if (oak_enum_registry_find(&c->enums, nv->name))
       {
         oak_compiler_error_at(
             c,
@@ -180,9 +175,7 @@ void oak_register_native_enums(
 
       struct oak_enum_variant_t v = {
         .name = nv->name,
-        .name_len = nv_name_len,
         .enum_name = ne->name,
-        .enum_name_len = ne_name_len,
         .const_idx = idx,
         .value = nv->value,
         .type_id = enum_type_id,
@@ -214,8 +207,7 @@ void oak_register_program_enums(struct oak_compiler_t* c,
     }
 
     const char* enum_name_check = oak_token_text(name_node->token);
-    const int enum_name_check_len = oak_token_size(name_node->token);
-    if (oak_is_enum_name(&c->enums, enum_name_check, enum_name_check_len))
+    if (oak_is_enum_name(&c->enums, enum_name_check))
     {
       oak_compiler_error_at(
           c, name_node->token, "enum '%s' conflicts with an imported enum",
@@ -242,7 +234,6 @@ void oak_register_program_enums(struct oak_compiler_t* c,
           null, 0, null, 0, -1);
       struct oak_registered_enum_t re = {
         .name = enum_name,
-        .name_len = oak_token_size(name_node->token),
         .type_id = enum_type_id,
         .attrs = attrs,
         .attr_count = attr_count,
@@ -250,7 +241,7 @@ void oak_register_program_enums(struct oak_compiler_t* c,
       const u16 owner_module_id =
           c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
       if (!oak_compiler_declare_symbol(
-              c, name_node->token, re.name, re.name_len, OAK_SYMBOL_ENUM,
+              c, name_node->token, re.name, OAK_SYMBOL_ENUM,
               oak_dynarr_count(c->enums.enums), owner_module_id, 0))
         return;
       oak_assert(oak_dynarr_push(&c->enums.enums, &re));
@@ -266,10 +257,9 @@ void oak_register_program_enums(struct oak_compiler_t* c,
         continue;
 
       const char* vname = oak_token_text(variant->token);
-      const int vname_len = oak_token_size(variant->token);
 
       /* Duplicate variant name check (across all enums). */
-      if (oak_enum_registry_find(&c->enums, vname, vname_len))
+      if (oak_enum_registry_find(&c->enums, vname))
       {
         oak_compiler_error_at(
             c, variant->token, "duplicate enum variant '%s'", vname);
@@ -283,9 +273,7 @@ void oak_register_program_enums(struct oak_compiler_t* c,
 
       struct oak_enum_variant_t v = {
         .name = vname,
-        .name_len = vname_len,
         .enum_name = oak_token_text(name_node->token),
-        .enum_name_len = oak_token_size(name_node->token),
         .const_idx = idx,
         .value = ordinal,
         .type_id = enum_type_id,

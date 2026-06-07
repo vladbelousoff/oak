@@ -64,7 +64,7 @@ struct oak_obj_string_t* oak_string_from_value_repr(
   usize len = (usize)n;
   if (len >= sizeof(buf))
     len = sizeof(buf) - 1u;
-  return oak_string_new(allocator, buf, len);
+  return oak_string_new_len(allocator, buf, len);
 }
 
 void oak_value_println(struct oak_allocator_t* allocator,
