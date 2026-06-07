@@ -135,7 +135,6 @@ else
     dependencies: [yyjson_dep, math_dep],
     gnu_symbol_visibility: 'hidden',
     version: meson.project_version(),
-    soversion: '2',
   )
 endif
 
