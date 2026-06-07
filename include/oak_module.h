@@ -97,27 +97,6 @@ struct oak_module_export_trait_t
   struct oak_module_export_trait_method_t* methods;
 };
 
-/* ----- Export tables: each bundles a name→index htable with its typed array */
-
-struct oak_fn_export_table_t
-{
-  struct oak_module_export_fn_t* items;
-};
-
-struct oak_rec_export_table_t
-{
-  struct oak_module_export_record_t* items;
-};
-
-struct oak_enum_export_table_t
-{
-  struct oak_module_export_enum_t* items;
-};
-
-struct oak_trait_export_table_t
-{
-  struct oak_module_export_trait_t* items;
-};
 
 /* ----- Module ----- */
 
@@ -147,12 +126,8 @@ struct oak_module_t
    * Persists so imports can resolve names for module-qualified type IDs. */
   struct oak_type_registry_t types;
 
-  /* Exports (populated post-compile) */
-  struct oak_symbol_registry_t symbols;
-  struct oak_fn_export_table_t exports_fn;
-  struct oak_rec_export_table_t exports_record;
-  struct oak_enum_export_table_t exports_enum;
-  struct oak_trait_export_table_t exports_trait;
+  /* Exports (populated post-compile) — unified symbol registry with payloads */
+  struct oak_symbol_registry_t exports;
 
   /* Lifecycle */
   enum

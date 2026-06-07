@@ -141,13 +141,13 @@ void apply_native_module_function_exports(
     if (!native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const struct oak_symbol_t* symbol =
-        oak_symbol_registry_find(&mod->symbols, fn->name);
+        oak_symbol_registry_find(&mod->exports, fn->name);
     if (!symbol || symbol->kind != OAK_SYMBOL_FUNCTION)
       continue;
     const int eidx = symbol->payload_index;
     struct oak_obj_native_fn_t* native =
         oak_native_fn_new(mod->allocator, fn->impl, fn->arity, fn->name);
-    struct oak_module_export_fn_t* exp = &mod->exports_fn.items[eidx];
+    struct oak_module_export_fn_t* exp = &mod->exports.fns[eidx];
     if (exp->stub_attrs && exp->stub_attr_count > 0)
       oak_apply_attr_hooks(
           opts, null, native, exp->stub_attrs, exp->stub_attr_count);
@@ -191,9 +191,9 @@ void apply_native_module_function_exports(
     if (fn->return_type.kind == OAK_TYPE_KIND_MAP)
       exp->return_type.key_id = native_ref_key_id(&fn->return_type);
   }
-  for (int ri = 0; ri < oak_dynarr_count(mod->exports_record.items); ++ri)
+  for (int ri = 0; ri < oak_dynarr_count(mod->exports.records); ++ri)
   {
-    struct oak_module_export_record_t* rec = &mod->exports_record.items[ri];
+    struct oak_module_export_record_t* rec = &mod->exports.records[ri];
     const oak_type_id_t rec_type_id =
         oak_type_registry_intern(&mod->types, rec->name);
     for (int mi = 0; mi < oak_dynarr_count(rec->methods); ++mi)
@@ -552,16 +552,8 @@ struct oak_module_t* create_native_module(
           exp.param_types[pi].key_id = native_ref_key_id(&fn->param_types[pi]);
       }
     }
-    const int idx = oak_dynarr_count(mod->exports_fn.items);
-    oak_assert(oak_dynarr_push(&mod->exports_fn.items, &exp));
-    struct oak_symbol_t symbol = {
-      .name = exp.name,
-      .kind = OAK_SYMBOL_FUNCTION,
-      .owner_module_id = mod->module_id,
-      .payload_index = idx,
-      .is_exported = 1,
-    };
-    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
+    oak_symbol_registry_insert_fn(
+        &mod->exports, exp.name, mod->module_id, &exp);
   }
 
   for (int i = 0; i < oak_dynarr_count(opts->native_types); ++i)
@@ -588,16 +580,8 @@ struct oak_module_t* create_native_module(
       };
       oak_assert(oak_dynarr_push(&exp.fields, &field));
     }
-    const int idx = oak_dynarr_count(mod->exports_record.items);
-    oak_assert(oak_dynarr_push(&mod->exports_record.items, &exp));
-    struct oak_symbol_t symbol = {
-      .name = exp.name,
-      .kind = OAK_SYMBOL_RECORD,
-      .owner_module_id = mod->module_id,
-      .payload_index = idx,
-      .is_exported = 1,
-    };
-    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
+    oak_symbol_registry_insert_record(
+        &mod->exports, exp.name, mod->module_id, &exp);
   }
 
   for (int i = 0; i < oak_dynarr_count(opts->native_enums); ++i)
@@ -616,16 +600,8 @@ struct oak_module_t* create_native_module(
       };
       oak_assert(oak_dynarr_push(&exp.variants, &variant));
     }
-    const int idx = oak_dynarr_count(mod->exports_enum.items);
-    oak_assert(oak_dynarr_push(&mod->exports_enum.items, &exp));
-    struct oak_symbol_t symbol = {
-      .name = exp.name,
-      .kind = OAK_SYMBOL_ENUM,
-      .owner_module_id = mod->module_id,
-      .payload_index = idx,
-      .is_exported = 1,
-    };
-    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
+    oak_symbol_registry_insert_enum(
+        &mod->exports, exp.name, mod->module_id, &exp);
   }
 
   mod->state = OAK_MOD_COMPILED;

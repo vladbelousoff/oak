@@ -405,29 +405,27 @@ resolve_dep_for_import(struct oak_compiler_t* c, int import_idx)
 static void import_all_from_dep(struct oak_compiler_t* c,
                                 const struct oak_module_t* dep)
 {
-  for (int i = 0; i < oak_dynarr_count(dep->symbols.symbols); ++i)
+  for (int i = 0; i < oak_dynarr_count(dep->exports.symbols); ++i)
   {
-    const struct oak_symbol_t* symbol = &dep->symbols.symbols[i];
-    if (!symbol->is_exported)
-      continue;
+    const struct oak_symbol_t* symbol = &dep->exports.symbols[i];
     switch (symbol->kind)
     {
     case OAK_SYMBOL_RECORD:
       import_record_from_dep(
-          c, dep, &dep->exports_record.items[symbol->payload_index]);
+          c, dep, &dep->exports.records[symbol->payload_index]);
       break;
     case OAK_SYMBOL_ENUM:
       import_enum_from_dep(
-          c, dep, &dep->exports_enum.items[symbol->payload_index]);
+          c, dep, &dep->exports.enums[symbol->payload_index]);
       break;
     case OAK_SYMBOL_TRAIT:
       import_trait_from_dep(
-          c, dep, &dep->exports_trait.items[symbol->payload_index]);
+          c, dep, &dep->exports.traits[symbol->payload_index]);
       break;
     case OAK_SYMBOL_FUNCTION:
     {
       const struct oak_module_export_fn_t* exp =
-          &dep->exports_fn.items[symbol->payload_index];
+          &dep->exports.fns[symbol->payload_index];
       import_fn_from_dep(c, dep, exp, exp->name);
       break;
     }
@@ -634,7 +632,7 @@ static struct oak_type_t lower_return_type(struct oak_compiler_t* c,
   return rt;
 }
 
-/* Export a single free function (no receiver) into the module's exports_fn. */
+/* Export a single free function (no receiver) into the module's export registry. */
 static void export_free_fn(struct oak_compiler_t* c,
                            struct oak_module_t* mod,
                            const struct oak_registered_fn_t* e)
@@ -652,16 +650,7 @@ static void export_free_fn(struct oak_compiler_t* c,
     .stub_attrs = oak_alloc_attrs(c->allocator, e->attrs, e->attr_count),
     .stub_attr_count = e->attr_count,
   };
-  const int idx = oak_dynarr_count(mod->exports_fn.items);
-  oak_assert(oak_dynarr_push(&mod->exports_fn.items, &exp));
-  struct oak_symbol_t symbol = {
-    .name = e->name,
-    .kind = OAK_SYMBOL_FUNCTION,
-    .owner_module_id = mod->module_id,
-    .payload_index = idx,
-    .is_exported = 1,
-  };
-  oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
+  oak_symbol_registry_insert_fn(&mod->exports, e->name, mod->module_id, &exp);
 }
 
 static void export_user_fns(struct oak_compiler_t* c, struct oak_module_t* mod)
@@ -729,16 +718,8 @@ static void export_user_records(struct oak_compiler_t* c,
     }
     export_record_methods(c, &exp, r);
     exp.layout_id = 0;
-    const int idx = oak_dynarr_count(mod->exports_record.items);
-    oak_assert(oak_dynarr_push(&mod->exports_record.items, &exp));
-    struct oak_symbol_t symbol = {
-      .name = exp.name,
-      .kind = OAK_SYMBOL_RECORD,
-      .owner_module_id = mod->module_id,
-      .payload_index = idx,
-      .is_exported = 1,
-    };
-    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
+    oak_symbol_registry_insert_record(
+        &mod->exports, exp.name, mod->module_id, &exp);
   }
 }
 
@@ -768,16 +749,8 @@ static void export_user_enums(struct oak_compiler_t* c,
       };
       oak_assert(oak_dynarr_push(&ee.variants, &variant));
     }
-    const int eidx = oak_dynarr_count(mod->exports_enum.items);
-    oak_assert(oak_dynarr_push(&mod->exports_enum.items, &ee));
-    struct oak_symbol_t symbol = {
-      .name = ee.name,
-      .kind = OAK_SYMBOL_ENUM,
-      .owner_module_id = mod->module_id,
-      .payload_index = eidx,
-      .is_exported = 1,
-    };
-    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
+    oak_symbol_registry_insert_enum(
+        &mod->exports, ee.name, mod->module_id, &ee);
   }
 }
 
@@ -813,16 +786,8 @@ static void export_user_traits(struct oak_compiler_t* c,
       };
       oak_assert(oak_dynarr_push(&exp.methods, &tm));
     }
-    const int tidx = oak_dynarr_count(mod->exports_trait.items);
-    oak_assert(oak_dynarr_push(&mod->exports_trait.items, &exp));
-    struct oak_symbol_t symbol = {
-      .name = exp.name,
-      .kind = OAK_SYMBOL_TRAIT,
-      .owner_module_id = mod->module_id,
-      .payload_index = tidx,
-      .is_exported = 1,
-    };
-    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
+    oak_symbol_registry_insert_trait(
+        &mod->exports, exp.name, mod->module_id, &exp);
   }
 }
 
