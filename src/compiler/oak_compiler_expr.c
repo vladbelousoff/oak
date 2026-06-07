@@ -321,8 +321,6 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
       oak_emit_loop_jump(
           c,
           is_break ? &loop->break_jumps : &loop->continue_jumps,
-          is_break ? &loop->break_count : &loop->continue_count,
-          is_break ? &loop->break_capacity : &loop->continue_capacity,
           is_break ? loop->exit_depth : loop->continue_depth);
       break;
     }

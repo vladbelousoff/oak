@@ -7,37 +7,33 @@ void oak_fn_registry_init(struct oak_fn_registry_t* r,
 {
   r->allocator = allocator;
   oak_htable_init(&r->by_name, allocator);
-  oak_dynarr_init(&r->entries.items, &r->entries.count, &r->entries.capacity);
+  oak_assert(oak_dynarr_init(r->allocator, &r->entries, sizeof *r->entries));
 }
 
 void oak_fn_registry_free(struct oak_fn_registry_t* r)
 {
-  for (int i = 0; i < r->entries.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->entries); ++i)
   {
-    if (r->entries.items[i].attrs)
-      OAK_FREE(r->allocator, r->entries.items[i].attrs);
-    if (r->entries.items[i].param_types)
-      OAK_FREE(r->allocator, r->entries.items[i].param_types);
+    if (r->entries[i].attrs)
+      OAK_FREE(r->allocator, r->entries[i].attrs);
+    if (r->entries[i].param_types)
+      OAK_FREE(r->allocator, r->entries[i].param_types);
   }
   oak_htable_free(&r->by_name);
-  oak_dynarr_free(r->allocator, &r->entries.items, &r->entries.count, &r->entries.capacity);
+  oak_dynarr_free(&r->entries);
 }
 
 struct oak_registered_fn_t*
 oak_fn_registry_insert(struct oak_fn_registry_t* r,
                        const struct oak_registered_fn_t* fn)
 {
-  oak_dynarr_push(r->allocator, &r->entries.items,
-                  &r->entries.count,
-                  &r->entries.capacity,
-                  fn,
-                  sizeof(*fn));
-  const int idx = r->entries.count - 1;
+  oak_assert(oak_dynarr_push(&r->entries, fn));
+  const int idx = oak_dynarr_count(r->entries) - 1;
   oak_htable_insert(&r->by_name,
-                    r->entries.items[idx].name,
-                    r->entries.items[idx].name_len,
+                    r->entries[idx].name,
+                    r->entries[idx].name_len,
                     idx);
-  return &r->entries.items[idx];
+  return &r->entries[idx];
 }
 
 const struct oak_registered_fn_t* oak_fn_registry_find(
@@ -46,7 +42,7 @@ const struct oak_registered_fn_t* oak_fn_registry_find(
   const int idx = oak_htable_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
-  return &r->entries.items[idx];
+  return &r->entries[idx];
 }
 
 /* ---------- Registration helpers ---------- */
@@ -172,9 +168,9 @@ void oak_register_method_on_record(struct oak_compiler_t* c,
   const struct oak_ast_node_t* self_param =
       oak_fn_self_param(item);
 
-  for (int i = 0; i < sd->methods.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(sd->methods); ++i)
   {
-    const struct oak_registered_fn_t* e = &sd->methods.items[i];
+    const struct oak_registered_fn_t* e = &sd->methods[i];
     if (strcmp(e->name, name) == 0)
     {
       oak_compiler_error_at(c,
@@ -212,11 +208,7 @@ void oak_register_method_on_record(struct oak_compiler_t* c,
   oak_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   slot.const_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
   slot.arity = total_arity;
-  oak_dynarr_push(c->allocator, &sd->methods.items,
-                  &sd->methods.count,
-                  &sd->methods.capacity,
-                  &slot,
-                  sizeof(slot));
+  oak_assert(oak_dynarr_push(&sd->methods, &slot));
 }
 
 void oak_register_program_fns(

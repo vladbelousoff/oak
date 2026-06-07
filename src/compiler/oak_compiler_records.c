@@ -43,9 +43,9 @@ static const struct oak_bind_type_t* native_record_binding(
 {
   if (!c->opts)
     return null;
-  for (int i = 0; i < c->opts->native_types.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(c->opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* native = c->opts->native_types.items[i];
+    const struct oak_bind_type_t* native = c->opts->native_types[i];
     if (!native || native->kind != OAK_BIND_TYPE_RECORD || !native->name)
       continue;
     if ((int)strlen(native->name) == name_len &&
@@ -71,7 +71,7 @@ static const struct oak_bind_field_t* native_record_field(
     const char* name,
     int name_len)
 {
-  for (int i = 0; i < native->field_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(native->fields); ++i)
   {
     const struct oak_bind_field_t* field = &native->fields[i];
     if ((int)strlen(field->name) == name_len &&
@@ -102,7 +102,7 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
        fpos = fpos->next)
     ++field_count;
 
-  if (field_count != native->field_count)
+  if (field_count != oak_dynarr_count(native->fields))
   {
     oak_compiler_error_at(c,
                           name_ident->token,
@@ -110,7 +110,7 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
                           "but binding has %d",
                           native->name,
                           field_count,
-                          native->field_count);
+                          oak_dynarr_count(native->fields));
     return 0;
   }
 
@@ -231,9 +231,8 @@ void oak_register_program_records(struct oak_compiler_t* c,
     proto.name = name;
     proto.name_len = name_len;
     proto.type_id = oak_type_registry_intern(&c->types, name, name_len);
-    proto.fields = null;
-    proto.field_count = 0;
-    proto.field_capacity = 0;
+    oak_assert(oak_dynarr_init(c->allocator, &proto.fields, sizeof *proto.fields));
+    oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
     proto.attrs = oak_extract_attrs(c->allocator, raw_item, &proto.attr_count);
 
     /* Pre-scan fields for attribute callbacks. */
@@ -345,7 +344,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
 
     const char* fn_name = oak_token_text(fname->token);
     const int fn_len = oak_token_size(fname->token);
-    for (int i = 0; i < slot->field_count; ++i)
+    for (int i = 0; i < oak_dynarr_count(slot->fields); ++i)
     {
       if (strcmp(slot->fields[i].name, fn_name) == 0)
       {
@@ -373,11 +372,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
           "record field must be 'name : type'");
       return 0;
     }
-    oak_dynarr_push(c->allocator, &slot->fields,
-                    &slot->field_count,
-                    &slot->field_capacity,
-                    &f,
-                    sizeof(f));
+    oak_assert(oak_dynarr_push(&slot->fields, &f));
   }
   return 1;
 }

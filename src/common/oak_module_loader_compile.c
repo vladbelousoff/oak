@@ -42,7 +42,7 @@ const struct oak_token_t* loader_import_alias_token(
 }
 
 int collect_imports(const struct oak_module_t* mod,
-                    struct loader_import_vec_t* out)
+                    struct loader_import_t** out)
 {
   const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
   if (!root)
@@ -67,10 +67,9 @@ int collect_imports(const struct oak_module_t* mod,
     {
       continue;
     }
-    oak_dynarr_push(mod->allocator,
-        &out->items, &out->count, &out->capacity, &imp, sizeof(imp));
+    oak_assert(oak_dynarr_push(out, &imp));
   }
-  return out->count;
+  return oak_dynarr_count(*out);
 }
 
 static int validate_imported_module_body(

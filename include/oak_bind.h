@@ -114,8 +114,6 @@ struct oak_bind_type_t
    * this type from another binding. */
   oak_type_id_t type_id;
   struct oak_bind_field_t* fields;
-  int field_count;
-  int field_capacity;
   oak_bind_destructor_t destructor;
   struct oak_allocator_t* allocator;
 };
@@ -182,8 +180,6 @@ struct oak_bind_enum_t
   const char* module_name;
   const char* name;
   struct oak_bind_enum_variant_t* variants;
-  int variant_count;
-  int variant_capacity;
   struct oak_allocator_t* allocator;
 };
 
@@ -252,39 +248,6 @@ struct oak_bind_attr_t
   void* user_data;               /* forwarded to both callbacks */
 };
 
-/* ---------- Concrete dynamic-array types for compile options ---------- */
-
-struct oak_bind_type_ptr_vec_t
-{
-  struct oak_bind_type_t** items;
-  int count;
-  int capacity;
-};
-struct oak_bind_fn_vec_t
-{
-  struct oak_bind_fn_t* items;
-  int count;
-  int capacity;
-};
-struct oak_bind_global_fn_vec_t
-{
-  struct oak_bind_global_fn_t* items;
-  int count;
-  int capacity;
-};
-struct oak_bind_enum_ptr_vec_t
-{
-  struct oak_bind_enum_t** items;
-  int count;
-  int capacity;
-};
-struct oak_bind_attr_vec_t
-{
-  struct oak_bind_attr_t* items;
-  int count;
-  int capacity;
-};
-
 /* ---------- Compilation options ---------- */
 
 struct oak_compile_options_t
@@ -296,20 +259,20 @@ struct oak_compile_options_t
   const char* source_name;
 
   /* Native record types (owned; populated by oak_bind_type). */
-  struct oak_bind_type_ptr_vec_t native_types;
+  struct oak_bind_type_t** native_types;
 
   /* Native method bindings (owned; populated by oak_bind_fn). */
-  struct oak_bind_fn_vec_t native_fns;
+  struct oak_bind_fn_t* native_fns;
 
   /* Native global and module-scoped functions (owned; populated by oak_bind_fn_global). */
-  struct oak_bind_global_fn_vec_t native_global_fns;
+  struct oak_bind_global_fn_t* native_global_fns;
 
   /* Native enums (owned; populated by oak_bind_enum / oak_bind_enum_variant).
    */
-  struct oak_bind_enum_ptr_vec_t native_enums;
+  struct oak_bind_enum_t** native_enums;
 
   /* Named attribute bindings (owned; populated by oak_bind_attr). */
-  struct oak_bind_attr_vec_t native_attrs;
+  struct oak_bind_attr_t* native_attrs;
 
   /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
    * oak_compile_options_init and incremented by each oak_bind_type call. */

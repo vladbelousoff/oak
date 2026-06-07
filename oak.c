@@ -61,9 +61,9 @@ int main(const int argc, const char* argv[])
     exit_code = 0;
     if (cli.disassemble)
     {
-      for (int i = 0; i < registry.modules.count; ++i)
+      for (int i = 0; i < oak_dynarr_count(registry.modules); ++i)
       {
-        const struct oak_module_t* m = registry.modules.items[i];
+        const struct oak_module_t* m = registry.modules[i];
         oak_log(OAK_LOG_INFO,
                 "==== module [%s] ====",
                 m->dotted_name ? m->dotted_name : "<entry>");

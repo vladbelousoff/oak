@@ -10,9 +10,9 @@ static const struct oak_bind_type_t*
 find_bind_type_by_id(const struct oak_compile_options_t* opts,
                      oak_type_id_t type_id)
 {
-  for (int i = 0; i < opts->native_types.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* t = opts->native_types.items[i];
+    const struct oak_bind_type_t* t = opts->native_types[i];
     if (t && t->type_id == type_id)
       return t;
   }
@@ -26,9 +26,9 @@ find_module_by_dotted(const struct oak_module_registry_t* reg,
 {
   if (!reg || !dotted)
     return null;
-  for (int i = 0; i < reg->modules.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(reg->modules); ++i)
   {
-    const struct oak_module_t* m = reg->modules.items[i];
+    const struct oak_module_t* m = reg->modules[i];
     if (m && m->dotted_name && strcmp(m->dotted_name, dotted) == 0)
       return m;
   }
@@ -40,7 +40,7 @@ static const struct oak_module_export_record_method_t*
 find_method_export(const struct oak_module_export_record_t* rec,
                    const char* name)
 {
-  for (int i = 0; i < rec->method_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(rec->methods); ++i)
     if (strcmp(rec->methods[i].name, name) == 0)
       return &rec->methods[i];
   return null;
@@ -62,14 +62,14 @@ static void lower_bind_ref(const struct oak_bind_type_ref_t* r,
 void oak_register_native_types(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
-  if (!opts || opts->native_types.count == 0)
+  if (!opts || oak_dynarr_count(opts->native_types) == 0)
     return;
 
   /* Resume from the cursor: entries before it were registered by an earlier
    * pass (see oak_compiler_t.native_types_cursor). */
-  for (int i = c->native_types_cursor; i < opts->native_types.count; ++i)
+  for (int i = c->native_types_cursor; i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* nt = opts->native_types.items[i];
+    const struct oak_bind_type_t* nt = opts->native_types[i];
     if (!nt)
       continue;
     const int nt_name_len = (int)strlen(nt->name);
@@ -103,14 +103,13 @@ void oak_register_native_types(
     proto.name = nt->name;
     proto.name_len = nt_name_len;
     proto.type_id = tid;
-    proto.fields = null;
-    proto.field_count = 0;
-    proto.field_capacity = 0;
+    oak_assert(oak_dynarr_init(c->allocator, &proto.fields, sizeof *proto.fields));
+    oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
     proto.attrs = null;
     proto.attr_count = 0;
     proto.is_value = (nt->kind == OAK_BIND_TYPE_VALUE);
 
-    for (int fi = 0; fi < nt->field_count; ++fi)
+    for (int fi = 0; fi < oak_dynarr_count(nt->fields); ++fi)
     {
       const struct oak_bind_field_t* nf = &nt->fields[fi];
       struct oak_record_field_t sf = {
@@ -118,11 +117,7 @@ void oak_register_native_types(
         .name_len = (int)strlen(nf->name),
       };
       lower_bind_ref(&nf->type, &sf.type);
-      oak_dynarr_push(c->allocator, &proto.fields,
-                      &proto.field_count,
-                      &proto.field_capacity,
-                      &sf,
-                      sizeof(sf));
+      oak_assert(oak_dynarr_push(&proto.fields, &sf));
     }
 
     oak_record_registry_insert(&c->records, &proto);
@@ -130,20 +125,15 @@ void oak_register_native_types(
       return;
   }
 
-  c->native_types_cursor = opts->native_types.count;
+  c->native_types_cursor = oak_dynarr_count(opts->native_types);
 }
 
 /* ---------- Native function registration ---------- */
 
-static void record_append_method(struct oak_allocator_t* allocator,
-                                 struct oak_registered_record_t* sd,
+static void record_append_method(struct oak_registered_record_t* sd,
                                  const struct oak_registered_fn_t* m)
 {
-  oak_dynarr_push(allocator, &sd->methods.items,
-                  &sd->methods.count,
-                  &sd->methods.capacity,
-                  m,
-                  sizeof(*m));
+  oak_assert(oak_dynarr_push(&sd->methods, m));
 }
 
 void oak_register_native_fns(struct oak_compiler_t* c,
@@ -154,9 +144,9 @@ void oak_register_native_fns(struct oak_compiler_t* c,
 
   /* Both loops resume from their cursors so a second registration pass only
    * sees bindings added since the first (see native_*_cursor). */
-  for (int i = c->native_global_fns_cursor; i < opts->native_global_fns.count; ++i)
+  for (int i = c->native_global_fns_cursor; i < oak_dynarr_count(opts->native_global_fns); ++i)
   {
-    const struct oak_bind_global_fn_t* b = &opts->native_global_fns.items[i];
+    const struct oak_bind_global_fn_t* b = &opts->native_global_fns[i];
     if (!b->name || !b->impl || b->module_name)
       continue;
 
@@ -194,11 +184,11 @@ void oak_register_native_fns(struct oak_compiler_t* c,
       return;
   }
 
-  c->native_global_fns_cursor = opts->native_global_fns.count;
+  c->native_global_fns_cursor = oak_dynarr_count(opts->native_global_fns);
 
-  for (int i = c->native_fns_cursor; i < opts->native_fns.count; ++i)
+  for (int i = c->native_fns_cursor; i < oak_dynarr_count(opts->native_fns); ++i)
   {
-    const struct oak_bind_fn_t* b = &opts->native_fns.items[i];
+    const struct oak_bind_fn_t* b = &opts->native_fns[i];
     if (!b->name || !b->impl)
       continue;
 
@@ -285,9 +275,9 @@ void oak_register_native_fns(struct oak_compiler_t* c,
       for (int pi = 0; pi < b->arity; ++pi, ++slot)
         lower_bind_ref(&b->param_types[pi], &entry.param_types[slot]);
     }
-    for (int j = 0; j < sd->methods.count; ++j)
+    for (int j = 0; j < oak_dynarr_count(sd->methods); ++j)
     {
-      if (strcmp(sd->methods.items[j].name, b->name) == 0)
+      if (strcmp(sd->methods[j].name, b->name) == 0)
       {
         oak_compiler_error_at(c,
                               null,
@@ -301,10 +291,10 @@ void oak_register_native_fns(struct oak_compiler_t* c,
         return;
       }
     }
-    record_append_method(c->allocator, sd, &entry);
+    record_append_method(sd, &entry);
     if (c->has_error)
       return;
   }
 
-  c->native_fns_cursor = opts->native_fns.count;
+  c->native_fns_cursor = oak_dynarr_count(opts->native_fns);
 }

@@ -14,7 +14,7 @@ static int type_is_enum(struct oak_compiler_t* c, const struct oak_type_t* t)
 {
   if (!t || t->kind != OAK_TYPE_KIND_SCALAR)
     return 0;
-  if (t->id < OAK_TYPE_FIRST_USER || t->id >= c->types.count)
+  if (t->id < OAK_TYPE_FIRST_USER || t->id >= oak_dynarr_count(c->types.entries))
     return 0;
   const char* name = c->types.entries[t->id].name;
   if (!name)

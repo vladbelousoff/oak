@@ -43,8 +43,6 @@ struct oak_type_registry_t
 {
   struct oak_allocator_t* allocator;
   struct oak_type_entry_t* entries;
-  int count;
-  int capacity;
 };
 
 /* Initializes the registry and pre-populates the built-in type ids. */

@@ -171,6 +171,7 @@ else
   )
 
   test_sources = {
+    'dynarr': 'tests/common/dynarr.c',
     'compiler_anon_fn': 'tests/compiler/compiler_anon_fn.c',
     'compiler_const_mut_binding': 'tests/compiler/compiler_const_mut_binding.c',
     'compiler_enum_access': 'tests/compiler/compiler_enum_access.c',

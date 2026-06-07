@@ -7,46 +7,41 @@ void oak_record_registry_init(struct oak_record_registry_t* r,
 {
   r->allocator = allocator;
   oak_htable_init(&r->by_name, allocator);
-  oak_dynarr_init(&r->entries.items, &r->entries.count, &r->entries.capacity);
+  oak_assert(oak_dynarr_init(r->allocator, &r->entries, sizeof *r->entries));
 }
 
 void oak_record_registry_free(struct oak_record_registry_t* r)
 {
   oak_htable_free(&r->by_name);
-  for (int i = 0; i < r->entries.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->entries); ++i)
   {
-    struct oak_registered_record_t* e = &r->entries.items[i];
+    struct oak_registered_record_t* e = &r->entries[i];
     if (e->attrs)
       OAK_FREE(r->allocator, e->attrs);
-    for (int j = 0; j < e->methods.count; ++j)
+    for (int j = 0; j < oak_dynarr_count(e->methods); ++j)
     {
-      if (e->methods.items[j].attrs)
-        OAK_FREE(r->allocator, e->methods.items[j].attrs);
-      if (e->methods.items[j].param_types)
-        OAK_FREE(r->allocator, e->methods.items[j].param_types);
+      if (e->methods[j].attrs)
+        OAK_FREE(r->allocator, e->methods[j].attrs);
+      if (e->methods[j].param_types)
+        OAK_FREE(r->allocator, e->methods[j].param_types);
     }
-    oak_dynarr_free(r->allocator, &e->fields, &e->field_count, &e->field_capacity);
-    oak_dynarr_free(r->allocator, &e->methods.items, &e->methods.count,
-                    &e->methods.capacity);
+    oak_dynarr_free(&e->fields);
+    oak_dynarr_free(&e->methods);
   }
-  oak_dynarr_free(r->allocator, &r->entries.items, &r->entries.count, &r->entries.capacity);
+  oak_dynarr_free(&r->entries);
 }
 
 struct oak_registered_record_t*
 oak_record_registry_insert(struct oak_record_registry_t* r,
                            const struct oak_registered_record_t* s)
 {
-  oak_dynarr_push(r->allocator, &r->entries.items,
-                  &r->entries.count,
-                  &r->entries.capacity,
-                  s,
-                  sizeof(*s));
-  const int idx = r->entries.count - 1;
+  oak_assert(oak_dynarr_push(&r->entries, s));
+  const int idx = oak_dynarr_count(r->entries) - 1;
   oak_htable_insert(&r->by_name,
-                    r->entries.items[idx].name,
-                    r->entries.items[idx].name_len,
+                    r->entries[idx].name,
+                    r->entries[idx].name_len,
                     idx);
-  return &r->entries.items[idx];
+  return &r->entries[idx];
 }
 
 const struct oak_registered_record_t* oak_records_find(
@@ -55,7 +50,7 @@ const struct oak_registered_record_t* oak_records_find(
   const int idx = oak_htable_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
-  return &r->entries.items[idx];
+  return &r->entries[idx];
 }
 
 const struct oak_registered_record_t*
@@ -64,10 +59,10 @@ oak_records_find_by_id(const struct oak_record_registry_t* r,
 {
   if (type_id == OAK_TYPE_VOID)
     return null;
-  for (int i = 0; i < r->entries.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->entries); ++i)
   {
-    if (r->entries.items[i].type_id == type_id)
-      return &r->entries.items[i];
+    if (r->entries[i].type_id == type_id)
+      return &r->entries[i];
   }
   return null;
 }
@@ -77,7 +72,7 @@ oak_records_find_by_id(const struct oak_record_registry_t* r,
 int oak_record_field(const struct oak_registered_record_t* s,
                                    const char* name)
 {
-  for (int i = 0; i < s->field_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(s->fields); ++i)
   {
     const struct oak_record_field_t* f = &s->fields[i];
     if (strcmp(f->name, name) == 0)
@@ -93,9 +88,9 @@ oak_find_record_method(const struct oak_registered_record_t* sd,
 {
   if (!sd)
     return null;
-  for (int i = 0; i < sd->methods.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(sd->methods); ++i)
   {
-    const struct oak_registered_fn_t* m = &sd->methods.items[i];
+    const struct oak_registered_fn_t* m = &sd->methods[i];
     if ((!!m->is_static) != (!!static_only))
       continue;
     if (strcmp(m->name, name) == 0)

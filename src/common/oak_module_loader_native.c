@@ -10,21 +10,21 @@ int opts_has_native_module(const struct oak_compile_options_t* opts,
 {
   if (!opts || !dotted)
     return 0;
-  for (int i = 0; i < opts->native_global_fns.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_global_fns); ++i)
   {
-    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns[i];
     if (native_module_name_eq(fn->module_name, dotted))
       return 1;
   }
-  for (int i = 0; i < opts->native_types.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    const struct oak_bind_type_t* type = opts->native_types[i];
     if (type && native_module_name_eq(type->module_name, dotted))
       return 1;
   }
-  for (int i = 0; i < opts->native_enums.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_enums); ++i)
   {
-    const struct oak_bind_enum_t* e = opts->native_enums.items[i];
+    const struct oak_bind_enum_t* e = opts->native_enums[i];
     if (e && native_module_name_eq(e->module_name, dotted))
       return 1;
   }
@@ -50,9 +50,9 @@ static int native_type_in_module(const struct oak_compile_options_t* opts,
 {
   if (!opts || !dotted)
     return 0;
-  for (int i = 0; i < opts->native_types.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    const struct oak_bind_type_t* type = opts->native_types[i];
     if (type && type->type_id == type_id &&
         native_module_name_eq(type->module_name, dotted))
       return 1;
@@ -75,63 +75,41 @@ void module_loader_filter_native_decls(
    * by the Oak stub instead). */
   const int is_native_module = opts_has_native_module(base_opts, dotted);
 
-  oak_dynarr_init(
-      &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
-  oak_dynarr_init(
-      &opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
-  oak_dynarr_init(&opts->native_global_fns.items,
-                  &opts->native_global_fns.count,
-                  &opts->native_global_fns.capacity);
-  oak_dynarr_init(&opts->native_enums.items,
-                  &opts->native_enums.count,
-                  &opts->native_enums.capacity);
+  oak_assert(oak_dynarr_init(opts->allocator, &opts->native_types, sizeof *opts->native_types));
+  oak_assert(oak_dynarr_init(opts->allocator, &opts->native_fns, sizeof *opts->native_fns));
+  oak_assert(oak_dynarr_init(opts->allocator, &opts->native_global_fns, sizeof *opts->native_global_fns));
+  oak_assert(oak_dynarr_init(opts->allocator, &opts->native_enums, sizeof *opts->native_enums));
 
-  for (int i = 0; i < base_opts->native_types.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(base_opts->native_types); ++i)
   {
-    struct oak_bind_type_t* type = base_opts->native_types.items[i];
+    struct oak_bind_type_t* type = base_opts->native_types[i];
     if (is_native_module && type && native_module_name_eq(type->module_name, dotted))
       continue;
-    oak_dynarr_push(opts->allocator, &opts->native_types.items,
-                    &opts->native_types.count,
-                    &opts->native_types.capacity,
-                    &type,
-                    sizeof(type));
+    oak_assert(oak_dynarr_push(&opts->native_types, &type));
   }
 
-  for (int i = 0; i < base_opts->native_fns.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(base_opts->native_fns); ++i)
   {
-    const struct oak_bind_fn_t* fn = &base_opts->native_fns.items[i];
+    const struct oak_bind_fn_t* fn = &base_opts->native_fns[i];
     if (is_native_module && native_type_in_module(base_opts, fn->receiver_type_id, dotted))
       continue;
-    oak_dynarr_push(opts->allocator, &opts->native_fns.items,
-                    &opts->native_fns.count,
-                    &opts->native_fns.capacity,
-                    fn,
-                    sizeof(*fn));
+    oak_assert(oak_dynarr_push(&opts->native_fns, fn));
   }
 
-  for (int i = 0; i < base_opts->native_global_fns.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(base_opts->native_global_fns); ++i)
   {
-    const struct oak_bind_global_fn_t* fn = &base_opts->native_global_fns.items[i];
+    const struct oak_bind_global_fn_t* fn = &base_opts->native_global_fns[i];
     if (is_native_module && native_module_name_eq(fn->module_name, dotted))
       continue;
-    oak_dynarr_push(opts->allocator, &opts->native_global_fns.items,
-                    &opts->native_global_fns.count,
-                    &opts->native_global_fns.capacity,
-                    fn,
-                    sizeof(*fn));
+    oak_assert(oak_dynarr_push(&opts->native_global_fns, fn));
   }
 
-  for (int i = 0; i < base_opts->native_enums.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(base_opts->native_enums); ++i)
   {
-    struct oak_bind_enum_t* e = base_opts->native_enums.items[i];
+    struct oak_bind_enum_t* e = base_opts->native_enums[i];
     if (is_native_module && e && native_module_name_eq(e->module_name, dotted))
       continue;
-    oak_dynarr_push(opts->allocator, &opts->native_enums.items,
-                    &opts->native_enums.count,
-                    &opts->native_enums.capacity,
-                    &e,
-                    sizeof(e));
+    oak_assert(oak_dynarr_push(&opts->native_enums, &e));
   }
 }
 
@@ -145,16 +123,10 @@ void module_loader_free_filtered_native_decls(
   /* Mirrors module_loader_filter_native_decls, which always allocates owned
    * copies of these vectors. Frees the copied item arrays (not the bound
    * structs they point at, which the embedder owns). */
-  oak_dynarr_free(opts->allocator,
-      &opts->native_types.items, &opts->native_types.count, &opts->native_types.capacity);
-  oak_dynarr_free(opts->allocator,
-      &opts->native_fns.items, &opts->native_fns.count, &opts->native_fns.capacity);
-  oak_dynarr_free(opts->allocator, &opts->native_global_fns.items,
-                  &opts->native_global_fns.count,
-                  &opts->native_global_fns.capacity);
-  oak_dynarr_free(opts->allocator, &opts->native_enums.items,
-                  &opts->native_enums.count,
-                  &opts->native_enums.capacity);
+  oak_dynarr_free(&opts->native_types);
+  oak_dynarr_free(&opts->native_fns);
+  oak_dynarr_free(&opts->native_global_fns);
+  oak_dynarr_free(&opts->native_enums);
 }
 
 void apply_native_module_function_exports(
@@ -163,9 +135,9 @@ void apply_native_module_function_exports(
 {
   if (!mod || !mod->chunk || !opts || !opts_has_native_module(opts, mod->dotted_name))
     return;
-  for (int i = 0; i < opts->native_global_fns.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_global_fns); ++i)
   {
-    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns[i];
     if (!native_module_name_eq(fn->module_name, mod->dotted_name))
       continue;
     const int eidx =
@@ -218,17 +190,17 @@ void apply_native_module_function_exports(
     if (fn->return_type.kind == OAK_TYPE_KIND_MAP)
       exp->return_type.key_id = fn->return_type.key_id;
   }
-  for (int ri = 0; ri < mod->exports_record.count; ++ri)
+  for (int ri = 0; ri < oak_dynarr_count(mod->exports_record.items); ++ri)
   {
     struct oak_module_export_record_t* rec = &mod->exports_record.items[ri];
     const oak_type_id_t rec_type_id =
         oak_type_registry_intern(&mod->types, rec->name, (int)strlen(rec->name));
-    for (int mi = 0; mi < rec->method_count; ++mi)
+    for (int mi = 0; mi < oak_dynarr_count(rec->methods); ++mi)
     {
       struct oak_module_export_record_method_t* me = &rec->methods[mi];
-      for (int fi = 0; fi < opts->native_fns.count; ++fi)
+      for (int fi = 0; fi < oak_dynarr_count(opts->native_fns); ++fi)
       {
-        const struct oak_bind_fn_t* fn = &opts->native_fns.items[fi];
+        const struct oak_bind_fn_t* fn = &opts->native_fns[fi];
         if (fn->receiver_type_id != rec_type_id)
           continue;
         if (!native_type_in_module(opts, fn->receiver_type_id, mod->dotted_name))
@@ -371,9 +343,9 @@ find_native_type_decl(const struct oak_compile_options_t* opts,
                       const char* dotted,
                       const char* name)
 {
-  for (int i = 0; opts && i < opts->native_types.count; ++i)
+  for (int i = 0; opts && i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    const struct oak_bind_type_t* type = opts->native_types[i];
     if (type && native_module_name_eq(type->module_name, dotted) &&
         strcmp(type->name, name) == 0)
       return type;
@@ -386,9 +358,9 @@ static int native_global_fn_decl_exists(const struct oak_compile_options_t* opts
                                         const char* name,
                                         int arity)
 {
-  for (int i = 0; opts && i < opts->native_global_fns.count; ++i)
+  for (int i = 0; opts && i < oak_dynarr_count(opts->native_global_fns); ++i)
   {
-    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns[i];
     if (native_module_name_eq(fn->module_name, dotted) &&
         strcmp(fn->name, name) == 0 && fn->arity == arity)
       return 1;
@@ -402,9 +374,9 @@ static int native_method_decl_exists(const struct oak_compile_options_t* opts,
                                      int has_self,
                                      int arity)
 {
-  for (int i = 0; opts && receiver && i < opts->native_fns.count; ++i)
+  for (int i = 0; opts && receiver && i < oak_dynarr_count(opts->native_fns); ++i)
   {
-    const struct oak_bind_fn_t* fn = &opts->native_fns.items[i];
+    const struct oak_bind_fn_t* fn = &opts->native_fns[i];
     const enum oak_bind_fn_kind_t want_kind =
         has_self ? OAK_BIND_FN_INSTANCE_METHOD : OAK_BIND_FN_STATIC_METHOD;
     if (fn->kind == want_kind && fn->receiver_type_id == receiver->type_id &&
@@ -542,9 +514,9 @@ struct oak_module_t* create_native_module(
   oak_chunk_init(mod->chunk, a);
   mod->chunk->module_id = mod->module_id;
 
-  for (int i = 0; i < opts->native_global_fns.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_global_fns); ++i)
   {
-    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns.items[i];
+    const struct oak_bind_global_fn_t* fn = &opts->native_global_fns[i];
     if (!native_module_name_eq(fn->module_name, dotted))
       continue;
     struct oak_obj_native_fn_t* native =
@@ -577,26 +549,22 @@ struct oak_module_t* create_native_module(
           exp.param_types[pi].key_id = fn->param_types[pi].key_id;
       }
     }
-    const int idx = mod->exports_fn.count;
-    oak_dynarr_push(a, &mod->exports_fn.items,
-                    &mod->exports_fn.count,
-                    &mod->exports_fn.capacity,
-                    &exp,
-                    sizeof(exp));
+    const int idx = oak_dynarr_count(mod->exports_fn.items);
+    oak_assert(oak_dynarr_push(&mod->exports_fn.items, &exp));
     oak_htable_insert(&mod->exports_fn.by_name, exp.name, (int)strlen(exp.name), idx);
   }
 
-  for (int i = 0; i < opts->native_types.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    const struct oak_bind_type_t* type = opts->native_types[i];
     if (!type || !native_module_name_eq(type->module_name, dotted))
       continue;
     struct oak_module_export_record_t exp = { 0 };
     exp.name = type->name;
     exp.is_value = (type->kind == OAK_BIND_TYPE_VALUE);
-    oak_dynarr_init(&exp.fields, &exp.field_count, &exp.field_capacity);
-    oak_dynarr_init(&exp.methods, &exp.method_count, &exp.method_capacity);
-    for (int fi = 0; fi < type->field_count; ++fi)
+    oak_assert(oak_dynarr_init(a, &exp.fields, sizeof *exp.fields));
+    oak_assert(oak_dynarr_init(a, &exp.methods, sizeof *exp.methods));
+    for (int fi = 0; fi < oak_dynarr_count(type->fields); ++fi)
     {
       struct oak_module_export_record_field_t field = {
         .name = type->fields[fi].name,
@@ -608,55 +576,39 @@ struct oak_module_t* create_native_module(
           .kind = type->fields[fi].type.kind,
         },
       };
-      oak_dynarr_push(a, &exp.fields,
-                      &exp.field_count,
-                      &exp.field_capacity,
-                      &field,
-                      sizeof(field));
+      oak_assert(oak_dynarr_push(&exp.fields, &field));
     }
-    const int idx = mod->exports_record.count;
-    oak_dynarr_push(a, &mod->exports_record.items,
-                    &mod->exports_record.count,
-                    &mod->exports_record.capacity,
-                    &exp,
-                    sizeof(exp));
+    const int idx = oak_dynarr_count(mod->exports_record.items);
+    oak_assert(oak_dynarr_push(&mod->exports_record.items, &exp));
     oak_htable_insert(
         &mod->exports_record.by_name, exp.name, (int)strlen(exp.name), idx);
   }
 
-  for (int i = 0; i < opts->native_enums.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_enums); ++i)
   {
-    const struct oak_bind_enum_t* e = opts->native_enums.items[i];
+    const struct oak_bind_enum_t* e = opts->native_enums[i];
     if (!e || !native_module_name_eq(e->module_name, dotted))
       continue;
     struct oak_module_export_enum_t exp = { 0 };
     exp.name = e->name;
-    oak_dynarr_init(&exp.variants, &exp.variant_count, &exp.variant_capacity);
-    for (int vi = 0; vi < e->variant_count; ++vi)
+    oak_assert(oak_dynarr_init(a, &exp.variants, sizeof *exp.variants));
+    for (int vi = 0; vi < oak_dynarr_count(e->variants); ++vi)
     {
       struct oak_module_export_enum_variant_t variant = {
         .name = e->variants[vi].name,
         .value = e->variants[vi].value,
       };
-      oak_dynarr_push(a, &exp.variants,
-                      &exp.variant_count,
-                      &exp.variant_capacity,
-                      &variant,
-                      sizeof(variant));
+      oak_assert(oak_dynarr_push(&exp.variants, &variant));
     }
-    const int idx = mod->exports_enum.count;
-    oak_dynarr_push(a, &mod->exports_enum.items,
-                    &mod->exports_enum.count,
-                    &mod->exports_enum.capacity,
-                    &exp,
-                    sizeof(exp));
+    const int idx = oak_dynarr_count(mod->exports_enum.items);
+    oak_assert(oak_dynarr_push(&mod->exports_enum.items, &exp));
     oak_htable_insert(&mod->exports_enum.by_name, exp.name, (int)strlen(exp.name), idx);
   }
 
   oak_type_registry_init(&mod->types, a);
-  for (int i = 0; i < opts->native_types.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* type = opts->native_types.items[i];
+    const struct oak_bind_type_t* type = opts->native_types[i];
     if (!type || !native_module_name_eq(type->module_name, dotted))
       continue;
     if (type->type_id >= OAK_TYPE_FIRST_USER)

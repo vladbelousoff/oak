@@ -68,8 +68,8 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
   }
 
   const struct oak_ast_node_t** exprs =
-      OAK_ALLOC(c->allocator, (usize)sd->field_count * sizeof(*exprs));
-  for (int i = 0; i < sd->field_count; ++i)
+      OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(sd->fields) * sizeof(*exprs));
+  for (int i = 0; i < oak_dynarr_count(sd->fields); ++i)
     exprs[i] = null;
 
   struct oak_list_entry_t* pos;
@@ -131,7 +131,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     exprs[idx] = fexpr;
   }
 
-  for (int i = 0; i < sd->field_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(sd->fields); ++i)
   {
     if (!exprs[i])
     {
@@ -146,15 +146,15 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
 
   {
     const char** fptr =
-        OAK_ALLOC(c->allocator, (usize)sd->field_count * sizeof(*fptr));
-    usize* flen = OAK_ALLOC(c->allocator, (usize)sd->field_count * sizeof(*flen));
-    for (int i = 0; i < sd->field_count; ++i)
+        OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(sd->fields) * sizeof(*fptr));
+    usize* flen = OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(sd->fields) * sizeof(*flen));
+    for (int i = 0; i < oak_dynarr_count(sd->fields); ++i)
     {
       fptr[i] = sd->fields[i].name;
       flen[i] = sd->fields[i].name_len;
     }
     const int layout_id =
-        oak_chunk_add_field_layout(c->chunk, sd->field_count, fptr, flen);
+        oak_chunk_add_field_layout(c->chunk, oak_dynarr_count(sd->fields), fptr, flen);
     if (layout_id < 0)
     {
       oak_compiler_error_at(
@@ -177,7 +177,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     oak_compiler_emit_constant(
         c, name_idx, oak_compiler_loc_from_token(name_node->token));
 
-    for (int i = 0; i < sd->field_count; ++i)
+    for (int i = 0; i < oak_dynarr_count(sd->fields); ++i)
     {
       oak_compiler_compile_node(c, exprs[i]);
       if (c->has_error)
@@ -199,9 +199,9 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
     oak_compiler_emit_op(c,
                          OAK_OP_NEW_RECORD,
                          OAK_LOC_SYNTHETIC,
-                         OAK_ARG_U8((u8)sd->field_count),
+                         OAK_ARG_U8((u8)oak_dynarr_count(sd->fields)),
                          OAK_ARG_U16((u16)layout_id));
-    c->scope.stack_depth -= sd->field_count;
+    c->scope.stack_depth -= oak_dynarr_count(sd->fields);
   }
 
 cleanup_exprs:

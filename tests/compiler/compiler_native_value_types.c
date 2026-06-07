@@ -158,7 +158,7 @@ OAK_TEST_DECL(ValueTypeRejectsFields)
                                   .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                   .getter = null });
   OAK_CHECK(r == -1);
-  OAK_CHECK(h->field_count == 0);
+  OAK_CHECK(oak_dynarr_count(h->fields) == 0);
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
 }

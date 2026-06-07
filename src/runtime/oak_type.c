@@ -30,35 +30,28 @@ void oak_type_registry_init(struct oak_type_registry_t* reg,
                             struct oak_allocator_t* allocator)
 {
   reg->allocator = allocator;
-  oak_dynarr_init(&reg->entries, &reg->count, &reg->capacity);
+  oak_assert(oak_dynarr_init(allocator, &reg->entries, sizeof *reg->entries));
 
   /* Slot 0 is OAK_TYPE_VOID; pre-register it so name lookup finds "void". */
   struct oak_type_entry_t void_entry = { .name = "void", .len = 4 };
-  oak_dynarr_push(allocator,
-      &reg->entries, &reg->count, &reg->capacity, &void_entry, sizeof(void_entry));
+  oak_assert(oak_dynarr_push(&reg->entries, &void_entry));
 
   for (int i = 0; i < OAK_BUILTIN_COUNT; ++i)
   {
     const struct oak_builtin_type_t* b = &builtin_types[i];
-    oak_assert(b->id == reg->count);
+    oak_assert(b->id == oak_dynarr_count(reg->entries));
     struct oak_type_entry_t entry = {
       .name = b->name,
       .len = (int)strlen(b->name),
     };
-    oak_dynarr_push(allocator,
-        &reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
+    oak_assert(oak_dynarr_push(&reg->entries, &entry));
   }
-  oak_assert(reg->count == OAK_TYPE_FIRST_USER);
-  for (int i = reg->count; i < reg->capacity; ++i)
-  {
-    reg->entries[i].name = null;
-    reg->entries[i].len = 0;
-  }
+  oak_assert(oak_dynarr_count(reg->entries) == OAK_TYPE_FIRST_USER);
 }
 
 void oak_type_registry_free(struct oak_type_registry_t* reg)
 {
-  oak_dynarr_free(reg->allocator, &reg->entries, &reg->count, &reg->capacity);
+  oak_dynarr_free(&reg->entries);
 }
 
 oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
@@ -69,7 +62,7 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
     return -1;
 
   /* Include slot 0 (void) so that the name "void" is resolvable. */
-  for (int i = 0; i < reg->count; ++i)
+  for (int i = 0; i < oak_dynarr_count(reg->entries); ++i)
   {
     const struct oak_type_entry_t* e = &reg->entries[i];
     if (e->name && oak_name_eq(e->name, name))
@@ -89,29 +82,17 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
   /* The pointer is borrowed from the source buffer (lexer arena outlives
    * compilation); the registry never frees it. */
   struct oak_type_entry_t entry = { .name = name, .len = len };
-  oak_dynarr_push(reg->allocator, &reg->entries, &reg->count, &reg->capacity, &entry, sizeof(entry));
-  const oak_type_id_t id = (oak_type_id_t)(reg->count - 1);
+  oak_assert(oak_dynarr_push(&reg->entries, &entry));
+  const oak_type_id_t id = (oak_type_id_t)(oak_dynarr_count(reg->entries) - 1);
   return id;
 }
 
 static void oak_type_registry_ensure_slot(struct oak_type_registry_t* reg,
                                           const oak_type_id_t id)
 {
-  if (id < reg->capacity)
+  if (id < oak_dynarr_count(reg->entries))
     return;
-
-  int new_capacity = reg->capacity < 8 ? 8 : reg->capacity;
-  while (id >= new_capacity)
-    new_capacity *= 2;
-
-  reg->entries = OAK_REALLOC(reg->allocator, reg->entries,
-                             (usize)new_capacity * sizeof(*reg->entries));
-  for (int i = reg->capacity; i < new_capacity; ++i)
-  {
-    reg->entries[i].name = null;
-    reg->entries[i].len = 0;
-  }
-  reg->capacity = new_capacity;
+  oak_assert(oak_dynarr_resize(&reg->entries, id + 1));
 }
 
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
@@ -130,14 +111,6 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
     return existing == id ? existing : -1;
 
   oak_type_registry_ensure_slot(reg, id);
-  if (id >= reg->count)
-  {
-    for (int i = reg->count; i <= id; ++i)
-    {
-      reg->entries[i].name = null;
-      reg->entries[i].len = 0;
-    }
-  }
 
   /* The target slot must be empty. */
   if (reg->entries[id].name != null)
@@ -146,18 +119,13 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
   reg->entries[id].name = name;
   reg->entries[id].len = len;
 
-  /* Advance the sequential counter so that subsequent oak_type_registry_intern
-   * calls assign ids strictly after all pre-assigned ones. */
-  if (reg->count <= id)
-    reg->count = id + 1;
-
   return id;
 }
 
 const char* oak_type_registry_name(const struct oak_type_registry_t* reg,
                                    const oak_type_id_t id)
 {
-  if (id < 0 || id >= reg->count)
+  if (id < 0 || id >= oak_dynarr_count(reg->entries))
     return "<unknown>";
   return reg->entries[id].name ? reg->entries[id].name : "<unknown>";
 }

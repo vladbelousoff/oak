@@ -189,9 +189,9 @@ void oak_compile_fn_body(
 
 void oak_compile_fn_bodies(struct oak_compiler_t* c)
 {
-  for (int i = 0; i < c->fns.entries.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(c->fns.entries); ++i)
   {
-    const struct oak_registered_fn_t* e = &c->fns.entries.items[i];
+    const struct oak_registered_fn_t* e = &c->fns.entries[i];
     if (!e->decl)
       continue;
     if (!oak_fn_block(e->decl))
@@ -212,12 +212,12 @@ void oak_compile_fn_bodies(struct oak_compiler_t* c)
 
 void oak_compile_method_bodies(struct oak_compiler_t* c)
 {
-  for (int s = 0; s < c->records.entries.count; ++s)
+  for (int s = 0; s < oak_dynarr_count(c->records.entries); ++s)
   {
-    const struct oak_registered_record_t* sd = &c->records.entries.items[s];
-    for (int m = 0; m < sd->methods.count; ++m)
+    const struct oak_registered_record_t* sd = &c->records.entries[s];
+    for (int m = 0; m < oak_dynarr_count(sd->methods); ++m)
     {
-      const struct oak_registered_fn_t* me = &sd->methods.items[m];
+      const struct oak_registered_fn_t* me = &sd->methods[m];
       if (!me->decl)
         continue;
       if (!oak_fn_block(me->decl))

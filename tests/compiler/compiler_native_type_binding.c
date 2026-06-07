@@ -80,7 +80,7 @@ OAK_TEST_DECL(BindTypeCreatesDescriptor)
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec2");
   OAK_CHECK(t != null);
   OAK_CHECK(strcmp(t->name, "NTVec2") == 0);
-  OAK_CHECK(t->field_count == 0);
+  OAK_CHECK(oak_dynarr_count(t->fields) == 0);
   OAK_CHECK(t->type_id >= OAK_TYPE_FIRST_USER);
 
   oak_compile_options_free(&opts);
@@ -140,7 +140,7 @@ OAK_TEST_DECL(BindFieldSucceeds)
                                   .getter = stub_getter,
                                   .setter = null });
   OAK_CHECK(r == 0);
-  OAK_CHECK(t->field_count == 1);
+  OAK_CHECK(oak_dynarr_count(t->fields) == 1);
   OAK_CHECK(strcmp(t->fields[0].name, "x") == 0);
   OAK_CHECK(t->fields[0].type.id == OAK_TYPE_NUMBER);
   OAK_CHECK(t->fields[0].getter == stub_getter);
@@ -200,7 +200,7 @@ OAK_TEST_DECL(BindFieldMultipleFields)
                                             .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                             .getter = stub_getter,
                                             .setter = null }) == 0);
-  OAK_CHECK(t->field_count == 3);
+  OAK_CHECK(oak_dynarr_count(t->fields) == 3);
   OAK_CHECK(strcmp(t->fields[0].name, "r") == 0);
   OAK_CHECK(strcmp(t->fields[1].name, "g") == 0);
   OAK_CHECK(strcmp(t->fields[2].name, "b") == 0);
@@ -226,7 +226,7 @@ OAK_TEST_DECL(BindFieldNullGetterRejected)
                                   .getter = null,
                                   .setter = null });
   OAK_CHECK(r == -1);
-  OAK_CHECK(t->field_count == 0);
+  OAK_CHECK(oak_dynarr_count(t->fields) == 0);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -249,7 +249,7 @@ OAK_TEST_DECL(BindFieldNullNameRejected)
                                   .getter = stub_getter,
                                   .setter = null });
   OAK_CHECK(r == -1);
-  OAK_CHECK(t->field_count == 0);
+  OAK_CHECK(oak_dynarr_count(t->fields) == 0);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -291,7 +291,7 @@ OAK_TEST_DECL(BindFieldDuplicateNameRejected)
                                   .getter = stub_getter,
                                   .setter = null });
   OAK_CHECK(r == -1);
-  OAK_CHECK(t->field_count == 1);
+  OAK_CHECK(oak_dynarr_count(t->fields) == 1);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;

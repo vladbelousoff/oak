@@ -72,6 +72,4 @@ void oak_compiler_move_types_to_module(struct oak_compiler_t* c)
 
   c->current_module->types = c->types;
   c->types.entries = null;
-  c->types.count = 0;
-  c->types.capacity = 0;
 }

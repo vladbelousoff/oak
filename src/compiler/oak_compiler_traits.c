@@ -6,33 +6,31 @@ void oak_trait_registry_init(struct oak_trait_registry_t* r,
                              struct oak_allocator_t* allocator)
 {
   r->allocator = allocator;
-  oak_dynarr_init(&r->traits, &r->trait_count, &r->trait_capacity);
-  oak_dynarr_init(&r->impls, &r->impl_count, &r->impl_capacity);
+  oak_assert(oak_dynarr_init(r->allocator, &r->traits, sizeof *r->traits));
+  oak_assert(oak_dynarr_init(r->allocator, &r->impls, sizeof *r->impls));
 }
 
 void oak_trait_registry_free(struct oak_trait_registry_t* r)
 {
-  for (int i = 0; i < r->trait_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->traits); ++i)
   {
-    for (int mi = 0; mi < r->traits[i].method_count; ++mi)
+    for (int mi = 0; mi < oak_dynarr_count(r->traits[i].methods); ++mi)
     {
       if (r->traits[i].methods[mi].param_types)
         OAK_FREE(r->allocator, r->traits[i].methods[mi].param_types);
     }
-    oak_dynarr_free(r->allocator, &r->traits[i].methods,
-                    &r->traits[i].method_count,
-                    &r->traits[i].method_capacity);
+    oak_dynarr_free(&r->traits[i].methods);
   }
-  oak_dynarr_free(r->allocator, &r->traits, &r->trait_count, &r->trait_capacity);
+  oak_dynarr_free(&r->traits);
 
-  for (int i = 0; i < r->impl_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->impls); ++i)
   {
     if (r->impls[i].vtable)
       OAK_FREE(r->allocator, r->impls[i].vtable);
     r->impls[i].vtable = null;
     r->impls[i].vtable_count = 0;
   }
-  oak_dynarr_free(r->allocator, &r->impls, &r->impl_count, &r->impl_capacity);
+  oak_dynarr_free(&r->impls);
 }
 
 /* ---------- Trait coercion emission ---------- */
@@ -155,9 +153,9 @@ void oak_register_program_traits(struct oak_compiler_t* c,
       .name_len = tname_len,
       .trait_id = oak_type_registry_intern(&c->types, tname, tname_len),
       .methods = null,
-      .method_count = 0,
-      .method_capacity = 0,
     };
+
+    oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
 
     if (proto.trait_id < 0)
     {
@@ -165,13 +163,9 @@ void oak_register_program_traits(struct oak_compiler_t* c,
       return;
     }
 
-    oak_dynarr_push(c->allocator, &c->traits.traits,
-                    &c->traits.trait_count,
-                    &c->traits.trait_capacity,
-                    &proto,
-                    sizeof(proto));
+    oak_assert(oak_dynarr_push(&c->traits.traits, &proto));
     struct oak_registered_trait_t* tr =
-        &c->traits.traits[c->traits.trait_count - 1];
+        &c->traits.traits[oak_dynarr_count(c->traits.traits) - 1];
 
     /* Walk trait members — each must be a FN_DECL. */
     const struct oak_ast_node_t* members = item->rhs;
@@ -210,11 +204,7 @@ void oak_register_program_traits(struct oak_compiler_t* c,
         .param_types = null,
         .return_type = { 0 },
       };
-      oak_dynarr_push(c->allocator, &tr->methods,
-                      &tr->method_count,
-                      &tr->method_capacity,
-                      &tm,
-                      sizeof(tm));
+      oak_assert(oak_dynarr_push(&tr->methods, &tm));
     }
   }
 }
@@ -251,11 +241,11 @@ void oak_register_method_decls(struct oak_compiler_t* c,
     const char* rname = oak_token_text(type_ident->token);
 
     struct oak_registered_record_t* sd = null;
-    for (int i = 0; i < c->records.entries.count; ++i)
+    for (int i = 0; i < oak_dynarr_count(c->records.entries); ++i)
     {
-      if (oak_name_eq(c->records.entries.items[i].name, rname))
+      if (oak_name_eq(c->records.entries[i].name, rname))
       {
-        sd = &c->records.entries.items[i];
+        sd = &c->records.entries[i];
         break;
       }
     }
@@ -336,7 +326,7 @@ int oak_record_satisfies_trait(struct oak_compiler_t* c,
                                 const struct oak_registered_record_t* sd,
                                 const struct oak_registered_trait_t* tr)
 {
-  for (int i = 0; i < tr->method_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
   {
     const struct oak_trait_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =
@@ -439,25 +429,21 @@ u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
     struct oak_trait_impl_t proto = {
       .trait_id = tr->trait_id,
       .record_type_id = sd->type_id,
-      .vtable = OAK_ALLOC(c->allocator, (usize)tr->method_count * sizeof(u16)),
-      .vtable_count = tr->method_count,
+      .vtable = OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(tr->methods) * sizeof(u16)),
+      .vtable_count = oak_dynarr_count(tr->methods),
       .vtable_array_const_idx = 0,
       .vtable_built = 0,
     };
 
-    for (int i = 0; i < tr->method_count; ++i)
+    for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
     {
       const struct oak_trait_method_t* tm = &tr->methods[i];
       const struct oak_registered_fn_t* sm =
           oak_find_record_method(sd, tm->name, 0);
       proto.vtable[i] = sm ? sm->const_idx : 0;
     }
-    oak_dynarr_push(c->allocator, &c->traits.impls,
-                    &c->traits.impl_count,
-                    &c->traits.impl_capacity,
-                    &proto,
-                    sizeof(proto));
-    impl = &c->traits.impls[c->traits.impl_count - 1];
+    oak_assert(oak_dynarr_push(&c->traits.impls, &proto));
+    impl = &c->traits.impls[oak_dynarr_count(c->traits.impls) - 1];
   }
 
   if (impl->vtable_built)
@@ -466,7 +452,7 @@ u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
   /* Build vtable as an OAK_OBJ_ARRAY of function values.
      For imported methods, resolve the function from the source module. */
   struct oak_obj_array_t* arr = oak_array_new(c->allocator);
-  for (int i = 0; i < tr->method_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
   {
     const struct oak_trait_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =

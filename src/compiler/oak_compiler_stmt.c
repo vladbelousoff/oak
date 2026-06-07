@@ -89,12 +89,10 @@ void oak_compile_while(struct oak_compiler_t* c,
     .exit_depth = c->scope.stack_depth,
     .continue_depth = c->scope.stack_depth,
     .break_jumps = null,
-    .break_count = 0,
-    .break_capacity = 0,
     .continue_jumps = null,
-    .continue_count = 0,
-    .continue_capacity = 0,
   };
+  oak_assert(oak_dynarr_init(c->allocator, &loop.break_jumps, sizeof *loop.break_jumps));
+  oak_assert(oak_dynarr_init(c->allocator, &loop.continue_jumps, sizeof *loop.continue_jumps));
 
   /* current_loop points at a stack-allocated frame; reset before return. */
   c->scope.current_loop = &loop;
@@ -103,9 +101,8 @@ void oak_compile_while(struct oak_compiler_t* c,
   if (c->has_error)
   {
     c->scope.current_loop = loop.enclosing;
-    oak_dynarr_free(c->allocator, &loop.break_jumps, &loop.break_count, &loop.break_capacity);
-    oak_dynarr_free(c->allocator,
-        &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
+    oak_dynarr_free(&loop.break_jumps);
+    oak_dynarr_free(&loop.continue_jumps);
     return;
   }
 
@@ -115,13 +112,12 @@ void oak_compile_while(struct oak_compiler_t* c,
 
   oak_compiler_compile_block(c, node->rhs);
 
-  oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
+  oak_compiler_patch_jumps(c, loop.continue_jumps, oak_dynarr_count(loop.continue_jumps));
   oak_compiler_emit_loop(c, loop.loop_start, OAK_LOC_SYNTHETIC);
   oak_compiler_patch_jump(c, exit_jump);
-  oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
+  oak_compiler_patch_jumps(c, loop.break_jumps, oak_dynarr_count(loop.break_jumps));
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(c->allocator, &loop.break_jumps, &loop.break_count, &loop.break_capacity);
-  oak_dynarr_free(c->allocator,
-      &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
+  oak_dynarr_free(&loop.break_jumps);
+  oak_dynarr_free(&loop.continue_jumps);
 }

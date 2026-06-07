@@ -32,12 +32,6 @@ struct loader_import_t
   const struct oak_ast_node_t* alias_node;
 };
 
-struct loader_import_vec_t
-{
-  struct loader_import_t* items;
-  int count;
-  int capacity;
-};
 
 /* ---------- Diagnostics (oak_module_loader_compile.c) ---------- */
 
@@ -102,7 +96,7 @@ const struct oak_token_t* loader_import_alias_token(
     const struct loader_import_t* imp);
 
 int collect_imports(const struct oak_module_t* mod,
-                    struct loader_import_vec_t* out);
+                    struct loader_import_t** out);
 
 struct oak_module_t* parse_or_get_module(
     struct oak_module_registry_t* reg,

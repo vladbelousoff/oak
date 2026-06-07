@@ -5,23 +5,10 @@
 struct loader_frame_t
 {
   struct oak_module_t* mod;
-  struct loader_import_vec_t imports;
+  struct loader_import_t* imports;
   int next_import_idx;
 };
 
-struct loader_frame_vec_t
-{
-  struct loader_frame_t* items;
-  int count;
-  int capacity;
-};
-
-struct char_vec_t
-{
-  char* items;
-  int count;
-  int capacity;
-};
 
 int oak_module_loader_load_program(const char* entry_path,
                                    struct oak_compile_options_t* opts,
@@ -41,53 +28,40 @@ int oak_module_loader_load_program(const char* entry_path,
   if (!entry || out->error_count > 0)
     return -1;
 
-  struct loader_frame_vec_t stack;
-  oak_dynarr_init(&stack.items, &stack.count, &stack.capacity);
-  struct oak_module_ptr_vec_t topo;
-  oak_dynarr_init(&topo.items, &topo.count, &topo.capacity);
-  struct char_vec_t visiting;
-  oak_dynarr_init(&visiting.items, &visiting.count, &visiting.capacity);
-  struct char_vec_t visited;
-  oak_dynarr_init(&visited.items, &visited.count, &visited.capacity);
+  struct loader_frame_t* stack;
+  oak_assert(oak_dynarr_init(a, &stack, sizeof *stack));
+  struct oak_module_t** topo;
+  oak_assert(oak_dynarr_init(a, &topo, sizeof *topo));
+  char* visiting;
+  oak_assert(oak_dynarr_init(a, &visiting, sizeof *visiting));
+  char* visited;
+  oak_assert(oak_dynarr_init(a, &visited, sizeof *visited));
 
 #define ENSURE_FLAGS(_id)                                                      \
   do                                                                           \
   {                                                                            \
-    while (visiting.count <= (int)(_id))                                       \
+    while (oak_dynarr_count(visiting) <= (int)(_id))                           \
     {                                                                          \
       char _zz = 0;                                                            \
-      oak_dynarr_push(a, &visiting.items,                                         \
-                      &visiting.count,                                         \
-                      &visiting.capacity,                                      \
-                      &_zz,                                                    \
-                      sizeof(char));                                           \
+      oak_assert(oak_dynarr_push(&visiting, &_zz));                            \
     }                                                                          \
-    while (visited.count <= (int)(_id))                                        \
+    while (oak_dynarr_count(visited) <= (int)(_id))                            \
     {                                                                          \
       char _zz = 0;                                                            \
-      oak_dynarr_push(a, &visited.items,                                          \
-                      &visited.count,                                          \
-                      &visited.capacity,                                       \
-                      &_zz,                                                    \
-                      sizeof(char));                                           \
+      oak_assert(oak_dynarr_push(&visited, &_zz));                             \
     }                                                                          \
   } while (0)
 
   ENSURE_FLAGS(entry->module_id);
-  visiting.items[entry->module_id] = 1;
+  visiting[entry->module_id] = 1;
   {
     struct loader_frame_t entry_frame;
     entry_frame.mod = entry;
-    oak_dynarr_init(&entry_frame.imports.items,
-                    &entry_frame.imports.count,
-                    &entry_frame.imports.capacity);
+    oak_assert(
+        oak_dynarr_init(a, &entry_frame.imports, sizeof *entry_frame.imports));
     collect_imports(entry, &entry_frame.imports);
     entry_frame.next_import_idx = 0;
-    oak_dynarr_push(a, &stack.items,
-                    &stack.count,
-                    &stack.capacity,
-                    &entry_frame,
-                    sizeof(entry_frame));
+    oak_assert(oak_dynarr_push(&stack, &entry_frame));
   }
 
 #define RECORD_ALIAS(_parent_mod, _imp, _dep_id)                               \
@@ -104,26 +78,21 @@ int oak_module_loader_load_program(const char* entry_path,
   } while (0)
 
   int rc = 0;
-  while (stack.count > 0 && rc == 0)
+  while (oak_dynarr_count(stack) > 0 && rc == 0)
   {
-    struct loader_frame_t* top = &stack.items[stack.count - 1];
-    if (top->next_import_idx >= top->imports.count)
+    struct loader_frame_t* top = &stack[oak_dynarr_count(stack) - 1];
+    if (top->next_import_idx >= oak_dynarr_count(top->imports))
     {
-      visiting.items[top->mod->module_id] = 0;
-      visited.items[top->mod->module_id] = 1;
-      oak_dynarr_push(a, &topo.items,
-                      &topo.count,
-                      &topo.capacity,
-                      &top->mod,
-                      sizeof(top->mod));
-      oak_dynarr_free(a,
-          &top->imports.items, &top->imports.count, &top->imports.capacity);
-      stack.count--;
+      visiting[top->mod->module_id] = 0;
+      visited[top->mod->module_id] = 1;
+      oak_assert(oak_dynarr_push(&topo, &top->mod));
+      oak_dynarr_free(&top->imports);
+      oak_assert(oak_dynarr_pop(&stack, null));
       continue;
     }
 
     const struct loader_import_t* imp =
-        &top->imports.items[top->next_import_idx++];
+        &top->imports[top->next_import_idx++];
     if (!imp->path)
     {
       loader_error(out, "%s: malformed import", top->mod->dotted_name);
@@ -178,13 +147,9 @@ int oak_module_loader_load_program(const char* entry_path,
         }
         oak_htable_insert(&top->mod->imports, alias, alen, (int)dep->module_id);
       }
-      oak_dynarr_push(a, &top->mod->import_modules.items,
-                      &top->mod->import_modules.count,
-                      &top->mod->import_modules.capacity,
-                      &dep->module_id,
-                      sizeof(dep->module_id));
+      oak_assert(oak_dynarr_push(&top->mod->import_modules, &dep->module_id));
       ENSURE_FLAGS(dep->module_id);
-      visited.items[dep->module_id] = 1;
+      visited[dep->module_id] = 1;
       OAK_FREE(a, dotted);
       OAK_FREE(a, file_path);
       continue;
@@ -194,14 +159,14 @@ int oak_module_loader_load_program(const char* entry_path,
 
     struct oak_module_t* found =
         oak_module_registry_find_by_path(out_reg, canonical);
-    if (found && (int)found->module_id < visiting.count &&
-        visiting.items[found->module_id])
+    if (found && (int)found->module_id < oak_dynarr_count(visiting) &&
+        visiting[found->module_id])
     {
       char buf[256];
       usize w = 0;
-      for (int i = 0; i < stack.count && w < sizeof(buf) - 8; ++i)
+      for (int i = 0; i < oak_dynarr_count(stack) && w < sizeof(buf) - 8; ++i)
       {
-        const char* nm = stack.items[i].mod->dotted_name;
+        const char* nm = stack[i].mod->dotted_name;
         const usize nl = strlen(nm);
         if (w + nl + 4 >= sizeof(buf))
           break;
@@ -225,15 +190,11 @@ int oak_module_loader_load_program(const char* entry_path,
       break;
     }
 
-    if (found && (int)found->module_id < visited.count &&
-        visited.items[found->module_id])
+    if (found && (int)found->module_id < oak_dynarr_count(visited) &&
+        visited[found->module_id])
     {
       RECORD_ALIAS(top->mod, imp, found->module_id);
-      oak_dynarr_push(a, &top->mod->import_modules.items,
-                      &top->mod->import_modules.count,
-                      &top->mod->import_modules.capacity,
-                      &found->module_id,
-                      sizeof(found->module_id));
+      oak_assert(oak_dynarr_push(&top->mod->import_modules, &found->module_id));
       OAK_FREE(a, dotted);
       OAK_FREE(a, file_path);
       OAK_FREE(a, canonical);
@@ -274,54 +235,47 @@ int oak_module_loader_load_program(const char* entry_path,
         oak_htable_insert(&top->mod->imports, alias, alen, (int)dep->module_id);
       }
     }
-    oak_dynarr_push(a, &top->mod->import_modules.items,
-                    &top->mod->import_modules.count,
-                    &top->mod->import_modules.capacity,
-                    &dep->module_id,
-                    sizeof(dep->module_id));
+    oak_assert(oak_dynarr_push(&top->mod->import_modules, &dep->module_id));
 
     OAK_FREE(a, dotted);
     OAK_FREE(a, file_path);
     OAK_FREE(a, canonical);
 
     ENSURE_FLAGS(dep->module_id);
-    if (visiting.items[dep->module_id] || visited.items[dep->module_id])
+    if (visiting[dep->module_id] || visited[dep->module_id])
       continue;
-    visiting.items[dep->module_id] = 1;
+    visiting[dep->module_id] = 1;
     {
       struct loader_frame_t f;
       f.mod = dep;
-      oak_dynarr_init(&f.imports.items, &f.imports.count, &f.imports.capacity);
+      oak_assert(oak_dynarr_init(a, &f.imports, sizeof *f.imports));
       collect_imports(dep, &f.imports);
       f.next_import_idx = 0;
-      oak_dynarr_push(a,
-          &stack.items, &stack.count, &stack.capacity, &f, sizeof(f));
+      oak_assert(oak_dynarr_push(&stack, &f));
     }
   }
 
-  for (int i = 0; i < stack.count; ++i)
-    oak_dynarr_free(a, &stack.items[i].imports.items,
-                    &stack.items[i].imports.count,
-                    &stack.items[i].imports.capacity);
+  for (int i = 0; i < oak_dynarr_count(stack); ++i)
+    oak_dynarr_free(&stack[i].imports);
 
-  oak_dynarr_free(a, &stack.items, &stack.count, &stack.capacity);
-  oak_dynarr_free(a, &visiting.items, &visiting.count, &visiting.capacity);
-  oak_dynarr_free(a, &visited.items, &visited.count, &visited.capacity);
+  oak_dynarr_free(&stack);
+  oak_dynarr_free(&visiting);
+  oak_dynarr_free(&visited);
 
 #undef RECORD_ALIAS
 
   if (rc != 0)
   {
-    oak_dynarr_free(a, &topo.items, &topo.count, &topo.capacity);
+    oak_dynarr_free(&topo);
     return rc;
   }
 
-  for (int i = 0; i < topo.count && rc == 0; ++i)
+  for (int i = 0; i < oak_dynarr_count(topo) && rc == 0; ++i)
   {
-    if (compile_module(topo.items[i], opts, out_reg, out) != 0)
+    if (compile_module(topo[i], opts, out_reg, out) != 0)
       rc = -1;
   }
-  oak_dynarr_free(a, &topo.items, &topo.count, &topo.capacity);
+  oak_dynarr_free(&topo);
 
   if (rc == 0)
     out->entry = entry;

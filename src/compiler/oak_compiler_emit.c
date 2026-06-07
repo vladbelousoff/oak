@@ -138,8 +138,6 @@ void oak_compiler_emit_pops(struct oak_compiler_t* c,
 
 void oak_emit_loop_jump(struct oak_compiler_t* c,
                          usize** jumps,
-                         int* count,
-                         int* capacity,
                          const int target_depth)
 {
   const int saved_depth = c->scope.stack_depth;
@@ -147,6 +145,6 @@ void oak_emit_loop_jump(struct oak_compiler_t* c,
       c, c->scope.stack_depth - target_depth, OAK_LOC_SYNTHETIC);
 
   const usize jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
-  oak_dynarr_push(c->allocator, jumps, count, capacity, &jump, sizeof(jump));
+  oak_assert(oak_dynarr_push(jumps, &jump));
   c->scope.stack_depth = saved_depth;
 }

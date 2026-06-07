@@ -20,11 +20,9 @@ struct oak_registered_record_t
   oak_type_id_t type_id;
   u16 source_module_id;
   struct oak_record_field_t* fields;
-  int field_count;
-  int field_capacity;
   /* Instance and static methods share one growable array, distinguished by
    * `is_static` on each entry. Freed by oak_record_registry_free. */
-  struct oak_registered_fn_vec_t methods;
+  struct oak_registered_fn_t* methods;
   /* Attribute names.  Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;
@@ -34,12 +32,6 @@ struct oak_registered_record_t
 };
 
 /* Concrete dynamic-array type for registered records. */
-struct oak_registered_record_vec_t
-{
-  struct oak_registered_record_t* items;
-  int count;
-  int capacity;
-};
 
 /* Unbounded registry of user record types.
  * by_name gives O(1) name lookup; find_by_type_id uses a linear scan
@@ -48,7 +40,7 @@ struct oak_record_registry_t
 {
   struct oak_allocator_t* allocator;
   struct oak_htable_t by_name; /* name bytes → index */
-  struct oak_registered_record_vec_t entries;
+  struct oak_registered_record_t* entries;
 };
 
 /* ---------- Lifecycle ---------- */

@@ -62,12 +62,10 @@ void oak_compile_for_from(struct oak_compiler_t* c,
     .exit_depth = c->scope.stack_depth - 2,
     .continue_depth = c->scope.stack_depth,
     .break_jumps = null,
-    .break_count = 0,
-    .break_capacity = 0,
     .continue_jumps = null,
-    .continue_count = 0,
-    .continue_capacity = 0,
   };
+  oak_assert(oak_dynarr_init(c->allocator, &loop.break_jumps, sizeof *loop.break_jumps));
+  oak_assert(oak_dynarr_init(c->allocator, &loop.continue_jumps, sizeof *loop.continue_jumps));
 
   c->scope.current_loop = &loop;
 
@@ -85,7 +83,7 @@ void oak_compile_for_from(struct oak_compiler_t* c,
     oak_compiler_compile_block(c, body);
     c->scope.stack_depth = merge_stack_depth;
 
-    oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
+    oak_compiler_patch_jumps(c, loop.continue_jumps, oak_dynarr_count(loop.continue_jumps));
 
     {
       oak_compiler_emit_byte(c, OAK_OP_INC_LOCAL_LOOP, ident_loc);
@@ -110,12 +108,11 @@ void oak_compile_for_from(struct oak_compiler_t* c,
 
   oak_compiler_end_scope(c);
 
-  oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
+  oak_compiler_patch_jumps(c, loop.break_jumps, oak_dynarr_count(loop.break_jumps));
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(c->allocator, &loop.break_jumps, &loop.break_count, &loop.break_capacity);
-  oak_dynarr_free(c->allocator,
-      &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
+  oak_dynarr_free(&loop.break_jumps);
+  oak_dynarr_free(&loop.continue_jumps);
 }
 
 /* Iterates over an array or map.
@@ -297,12 +294,10 @@ void oak_compile_for_in(struct oak_compiler_t* c,
     .exit_depth = base_depth,
     .continue_depth = base_depth + 3,
     .break_jumps = null,
-    .break_count = 0,
-    .break_capacity = 0,
     .continue_jumps = null,
-    .continue_count = 0,
-    .continue_capacity = 0,
   };
+  oak_assert(oak_dynarr_init(c->allocator, &loop.break_jumps, sizeof *loop.break_jumps));
+  oak_assert(oak_dynarr_init(c->allocator, &loop.continue_jumps, sizeof *loop.continue_jumps));
   c->scope.current_loop = &loop;
 
   /* Loop condition: idx < limit (fused compare+branch). */
@@ -324,7 +319,7 @@ void oak_compile_for_in(struct oak_compiler_t* c,
   oak_compiler_end_scope(c);
 
   /* `continue` lands here (after k/v are popped). */
-  oak_compiler_patch_jumps(c, loop.continue_jumps, loop.continue_count);
+  oak_compiler_patch_jumps(c, loop.continue_jumps, oak_dynarr_count(loop.continue_jumps));
 
   oak_compiler_emit_op(c, OAK_OP_INC_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
   oak_compiler_emit_loop(c, loop.loop_start, loc);
@@ -334,10 +329,9 @@ void oak_compile_for_in(struct oak_compiler_t* c,
   oak_compiler_end_scope(c);
 
   /* `break` lands here, after all iterator state is popped. */
-  oak_compiler_patch_jumps(c, loop.break_jumps, loop.break_count);
+  oak_compiler_patch_jumps(c, loop.break_jumps, oak_dynarr_count(loop.break_jumps));
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(c->allocator, &loop.break_jumps, &loop.break_count, &loop.break_capacity);
-  oak_dynarr_free(c->allocator,
-      &loop.continue_jumps, &loop.continue_count, &loop.continue_capacity);
+  oak_dynarr_free(&loop.break_jumps);
+  oak_dynarr_free(&loop.continue_jumps);
 }

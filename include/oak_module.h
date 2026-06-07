@@ -60,12 +60,8 @@ struct oak_module_export_record_t
 {
   const char* name; /* borrowed from lexer arena */
   struct oak_module_export_record_field_t* fields;
-  int field_count;
-  int field_capacity;
   u16 layout_id; /* const-pool slot in this module's chunk (for new mod.T{}) */
   struct oak_module_export_record_method_t* methods;
-  int method_count;
-  int method_capacity;
   /* 1 for inline value types (OAK_BIND_TYPE_VALUE): non-refcounted, inline. */
   int is_value;
 };
@@ -81,8 +77,6 @@ struct oak_module_export_enum_t
 {
   const char* name; /* enum type name, borrowed from lexer arena */
   struct oak_module_export_enum_variant_t* variants;
-  int variant_count;
-  int variant_capacity;
 };
 
 /* Per-method metadata for an exported trait. */
@@ -100,17 +94,6 @@ struct oak_module_export_trait_t
 {
   const char* name;
   struct oak_module_export_trait_method_t* methods;
-  int method_count;
-  int method_capacity;
-};
-
-/* ----- Dynamic-array type for module-id lists ----- */
-
-struct oak_u16_vec_t
-{
-  u16* items;
-  int count;
-  int capacity;
 };
 
 /* ----- Export tables: each bundles a name→index htable with its typed array */
@@ -119,32 +102,24 @@ struct oak_fn_export_table_t
 {
   struct oak_htable_t by_name;
   struct oak_module_export_fn_t* items;
-  int count;
-  int capacity;
 };
 
 struct oak_rec_export_table_t
 {
   struct oak_htable_t by_name;
   struct oak_module_export_record_t* items;
-  int count;
-  int capacity;
 };
 
 struct oak_enum_export_table_t
 {
   struct oak_htable_t by_name;
   struct oak_module_export_enum_t* items;
-  int count;
-  int capacity;
 };
 
 struct oak_trait_export_table_t
 {
   struct oak_htable_t by_name;
   struct oak_module_export_trait_t* items;
-  int count;
-  int capacity;
 };
 
 /* ----- Module ----- */
@@ -169,7 +144,7 @@ struct oak_module_t
 
   /* Resolved imports (alias_name -> dependency module_id) */
   struct oak_htable_t imports;
-  struct oak_u16_vec_t import_modules; /* module_ids of direct deps */
+  u16* import_modules; /* module_ids of direct deps */
 
   /* Type registry (moved from compiler after compilation).
    * Persists so importing modules can translate type IDs. */
@@ -191,17 +166,10 @@ struct oak_module_t
 
 /* ----- Registry ----- */
 
-struct oak_module_ptr_vec_t
-{
-  struct oak_module_t** items;
-  int count;
-  int capacity;
-};
-
 struct oak_module_registry_t
 {
   struct oak_allocator_t* allocator;
-  struct oak_module_ptr_vec_t modules;   /* index = module_id */
+  struct oak_module_t** modules;   /* index = module_id */
   struct oak_htable_t by_canonical_path; /* path -> module_id */
 };
 

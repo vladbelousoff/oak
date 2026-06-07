@@ -292,14 +292,14 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       else if (oak_is_native_record(recv))
       {
         const struct oak_obj_native_record_t* ns = oak_as_native_record(recv);
-        if ((int)idx >= ns->type->field_count)
+        if ((int)idx >= oak_dynarr_count(ns->type->fields))
         {
           oak_vm_runtime_error(vm,
                                "field index %u out of bounds (native record "
                                "'%s' has %d fields)",
                                (unsigned)idx,
                                ns->type->name,
-                               ns->type->field_count);
+                               oak_dynarr_count(ns->type->fields));
           oak_value_decref(recv);
           return OAK_VM_RUNTIME_ERROR;
         }
@@ -344,14 +344,14 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       else if (oak_is_native_record(recv))
       {
         const struct oak_obj_native_record_t* ns = oak_as_native_record(recv);
-        if ((int)idx >= ns->type->field_count)
+        if ((int)idx >= oak_dynarr_count(ns->type->fields))
         {
           oak_vm_runtime_error(vm,
                                "field index %u out of bounds (native record "
                                "'%s' has %d fields)",
                                (unsigned)idx,
                                ns->type->name,
-                               ns->type->field_count);
+                               oak_dynarr_count(ns->type->fields));
           oak_value_decref(recv);
           oak_value_decref(value);
           return OAK_VM_RUNTIME_ERROR;

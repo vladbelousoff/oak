@@ -23,8 +23,7 @@ void oak_module_registry_init(struct oak_module_registry_t* reg,
                               struct oak_allocator_t* allocator)
 {
   reg->allocator = allocator;
-  oak_dynarr_init(
-      &reg->modules.items, &reg->modules.count, &reg->modules.capacity);
+  oak_assert(oak_dynarr_init(allocator, &reg->modules, sizeof *reg->modules));
   oak_htable_init(&reg->by_canonical_path, allocator);
 }
 
@@ -46,12 +45,10 @@ static void oak_module_free(struct oak_module_t* mod)
   }
   oak_file_unmap(&mod->source);
   oak_htable_free(&mod->imports);
-  oak_dynarr_free(a, &mod->import_modules.items,
-                  &mod->import_modules.count,
-                  &mod->import_modules.capacity);
+  oak_dynarr_free(&mod->import_modules);
   oak_type_registry_free(&mod->types);
   oak_htable_free(&mod->exports_fn.by_name);
-  for (int i = 0; i < mod->exports_fn.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(mod->exports_fn.items); ++i)
   {
     if (mod->exports_fn.items[i].stub_attrs)
       OAK_FREE(a, mod->exports_fn.items[i].stub_attrs);
@@ -60,16 +57,12 @@ static void oak_module_free(struct oak_module_t* mod)
     if (mod->exports_fn.items[i].param_mut_flags)
       OAK_FREE(a, mod->exports_fn.items[i].param_mut_flags);
   }
-  oak_dynarr_free(a, &mod->exports_fn.items,
-                  &mod->exports_fn.count,
-                  &mod->exports_fn.capacity);
+  oak_dynarr_free(&mod->exports_fn.items);
   oak_htable_free(&mod->exports_record.by_name);
-  for (int i = 0; i < mod->exports_record.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(mod->exports_record.items); ++i)
   {
-    oak_dynarr_free(a, &mod->exports_record.items[i].fields,
-                    &mod->exports_record.items[i].field_count,
-                    &mod->exports_record.items[i].field_capacity);
-    for (int mi = 0; mi < mod->exports_record.items[i].method_count; ++mi)
+    oak_dynarr_free(&mod->exports_record.items[i].fields);
+    for (int mi = 0; mi < oak_dynarr_count(mod->exports_record.items[i].methods); ++mi)
     {
       if (mod->exports_record.items[i].methods[mi].stub_attrs)
         OAK_FREE(a, mod->exports_record.items[i].methods[mi].stub_attrs);
@@ -78,36 +71,24 @@ static void oak_module_free(struct oak_module_t* mod)
       if (mod->exports_record.items[i].methods[mi].param_mut_flags)
         OAK_FREE(a, mod->exports_record.items[i].methods[mi].param_mut_flags);
     }
-    oak_dynarr_free(a, &mod->exports_record.items[i].methods,
-                    &mod->exports_record.items[i].method_count,
-                    &mod->exports_record.items[i].method_capacity);
+    oak_dynarr_free(&mod->exports_record.items[i].methods);
   }
-  oak_dynarr_free(a, &mod->exports_record.items,
-                  &mod->exports_record.count,
-                  &mod->exports_record.capacity);
+  oak_dynarr_free(&mod->exports_record.items);
   oak_htable_free(&mod->exports_enum.by_name);
-  for (int i = 0; i < mod->exports_enum.count; ++i)
-    oak_dynarr_free(a, &mod->exports_enum.items[i].variants,
-                    &mod->exports_enum.items[i].variant_count,
-                    &mod->exports_enum.items[i].variant_capacity);
-  oak_dynarr_free(a, &mod->exports_enum.items,
-                  &mod->exports_enum.count,
-                  &mod->exports_enum.capacity);
+  for (int i = 0; i < oak_dynarr_count(mod->exports_enum.items); ++i)
+    oak_dynarr_free(&mod->exports_enum.items[i].variants);
+  oak_dynarr_free(&mod->exports_enum.items);
   oak_htable_free(&mod->exports_trait.by_name);
-  for (int i = 0; i < mod->exports_trait.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(mod->exports_trait.items); ++i)
   {
-    for (int mi = 0; mi < mod->exports_trait.items[i].method_count; ++mi)
+    for (int mi = 0; mi < oak_dynarr_count(mod->exports_trait.items[i].methods); ++mi)
     {
       if (mod->exports_trait.items[i].methods[mi].param_types)
         OAK_FREE(a, mod->exports_trait.items[i].methods[mi].param_types);
     }
-    oak_dynarr_free(a, &mod->exports_trait.items[i].methods,
-                    &mod->exports_trait.items[i].method_count,
-                    &mod->exports_trait.items[i].method_capacity);
+    oak_dynarr_free(&mod->exports_trait.items[i].methods);
   }
-  oak_dynarr_free(a, &mod->exports_trait.items,
-                  &mod->exports_trait.count,
-                  &mod->exports_trait.capacity);
+  oak_dynarr_free(&mod->exports_trait.items);
   if (mod->canonical_path)
     OAK_FREE(a, mod->canonical_path);
   if (mod->dotted_name)
@@ -117,19 +98,18 @@ static void oak_module_free(struct oak_module_t* mod)
 
 void oak_module_registry_free(struct oak_module_registry_t* reg)
 {
-  for (int i = 0; i < reg->modules.count; ++i)
-    oak_module_free(reg->modules.items[i]);
-  oak_dynarr_free(reg->allocator,
-      &reg->modules.items, &reg->modules.count, &reg->modules.capacity);
+  for (int i = 0; i < oak_dynarr_count(reg->modules); ++i)
+    oak_module_free(reg->modules[i]);
+  oak_dynarr_free(&reg->modules);
   oak_htable_free(&reg->by_canonical_path);
 }
 
 struct oak_module_t*
 oak_module_registry_get(const struct oak_module_registry_t* reg, u16 module_id)
 {
-  if ((int)module_id >= reg->modules.count)
+  if ((int)module_id >= oak_dynarr_count(reg->modules))
     return null;
-  return reg->modules.items[module_id];
+  return reg->modules[module_id];
 }
 
 struct oak_module_t*
@@ -140,7 +120,7 @@ oak_module_registry_find_by_path(const struct oak_module_registry_t* reg,
       &reg->by_canonical_path, canonical_path, strlen(canonical_path));
   if (idx < 0)
     return null;
-  return reg->modules.items[idx];
+  return reg->modules[idx];
 }
 
 struct oak_module_t*
@@ -157,34 +137,20 @@ oak_module_registry_create(struct oak_module_registry_t* reg,
   mod->allocator = a;
   mod->canonical_path = oak_strdup_alloc(a, canonical_path);
   mod->dotted_name = oak_strdup_alloc(a, dotted_name);
-  mod->module_id = (u16)reg->modules.count;
+  mod->module_id = (u16)oak_dynarr_count(reg->modules);
   mod->state = OAK_MOD_PARSED;
   oak_htable_init(&mod->imports, a);
-  oak_dynarr_init(&mod->import_modules.items,
-                  &mod->import_modules.count,
-                  &mod->import_modules.capacity);
+  oak_assert(oak_dynarr_init(a, &mod->import_modules, sizeof *mod->import_modules));
   oak_htable_init(&mod->exports_fn.by_name, a);
-  oak_dynarr_init(&mod->exports_fn.items,
-                  &mod->exports_fn.count,
-                  &mod->exports_fn.capacity);
+  oak_assert(oak_dynarr_init(a, &mod->exports_fn.items, sizeof *mod->exports_fn.items));
   oak_htable_init(&mod->exports_record.by_name, a);
-  oak_dynarr_init(&mod->exports_record.items,
-                  &mod->exports_record.count,
-                  &mod->exports_record.capacity);
+  oak_assert(oak_dynarr_init(a, &mod->exports_record.items, sizeof *mod->exports_record.items));
   oak_htable_init(&mod->exports_enum.by_name, a);
-  oak_dynarr_init(&mod->exports_enum.items,
-                  &mod->exports_enum.count,
-                  &mod->exports_enum.capacity);
+  oak_assert(oak_dynarr_init(a, &mod->exports_enum.items, sizeof *mod->exports_enum.items));
   oak_htable_init(&mod->exports_trait.by_name, a);
-  oak_dynarr_init(&mod->exports_trait.items,
-                  &mod->exports_trait.count,
-                  &mod->exports_trait.capacity);
+  oak_assert(oak_dynarr_init(a, &mod->exports_trait.items, sizeof *mod->exports_trait.items));
 
-  oak_dynarr_push(a, &reg->modules.items,
-                  &reg->modules.count,
-                  &reg->modules.capacity,
-                  &mod,
-                  sizeof(mod));
+  oak_assert(oak_dynarr_push(&reg->modules, &mod));
   oak_htable_insert(&reg->by_canonical_path,
                     mod->canonical_path,
                     strlen(mod->canonical_path),

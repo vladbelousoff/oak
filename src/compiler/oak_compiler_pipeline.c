@@ -85,15 +85,15 @@ static void register_type_symbols(struct oak_compiler_t* c,
   oak_resolve_new_style_imports(c, program);
   CHECK_ERROR(c);
 
-  c->user_enum_start = c->enums.variants.count;
+  c->user_enum_start = oak_dynarr_count(c->enums.variants);
   oak_register_program_enums(c, program);
   CHECK_ERROR(c);
 
-  c->user_record_start = c->records.entries.count;
+  c->user_record_start = oak_dynarr_count(c->records.entries);
   oak_register_program_records(c, program);
   CHECK_ERROR(c);
 
-  c->user_trait_start = c->traits.trait_count;
+  c->user_trait_start = oak_dynarr_count(c->traits.traits);
   oak_register_program_traits(c, program);
 }
 
@@ -126,21 +126,21 @@ int oak_compiler_register_native_options(struct oak_compiler_t* c,
   if (!opts)
     return 1;
 
-  if (opts->native_types.count > 0)
+  if (oak_dynarr_count(opts->native_types) > 0)
   {
     oak_register_native_types(c, opts);
     if (c->has_error)
       return 0;
   }
 
-  if (opts->native_fns.count > 0 || opts->native_global_fns.count > 0)
+  if (oak_dynarr_count(opts->native_fns) > 0 || oak_dynarr_count(opts->native_global_fns) > 0)
   {
     oak_register_native_fns(c, opts);
     if (c->has_error)
       return 0;
   }
 
-  if (opts->native_enums.count > 0)
+  if (oak_dynarr_count(opts->native_enums) > 0)
   {
     oak_register_native_enums(c, opts);
     if (c->has_error)

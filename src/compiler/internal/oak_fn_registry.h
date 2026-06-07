@@ -38,12 +38,6 @@ struct oak_registered_fn_t
 };
 
 /* Concrete dynamic-array type for registered functions. */
-struct oak_registered_fn_vec_t
-{
-  struct oak_registered_fn_t* items;
-  int count;
-  int capacity;
-};
 
 /* Unbounded registry of user-declared and native fns.
  * Lookup is O(1) via the hash table; entries owns the storage. */
@@ -51,7 +45,7 @@ struct oak_fn_registry_t
 {
   struct oak_allocator_t* allocator;
   struct oak_htable_t by_name; /* name bytes → index into entries */
-  struct oak_registered_fn_vec_t entries;
+  struct oak_registered_fn_t* entries;
 };
 
 /* ---------- Lifecycle ---------- */

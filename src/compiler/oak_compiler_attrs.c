@@ -96,8 +96,8 @@ void oak_compiler_dispatch_attr_cbs(struct oak_compiler_t* c,
   {
     struct oak_compile_options_t* mutable_opts =
         (struct oak_compile_options_t*)c->opts;
-    if (mutable_opts->next_type_id < c->types.count)
-      mutable_opts->next_type_id = c->types.count;
+    if (mutable_opts->next_type_id < oak_dynarr_count(c->types.entries))
+      mutable_opts->next_type_id = oak_dynarr_count(c->types.entries);
   }
 
   oak_dispatch_compile_attr_cbs(c->opts, attrs, attr_count, decl_name, target,

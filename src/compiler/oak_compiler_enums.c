@@ -11,33 +11,31 @@ void oak_enum_registry_init(struct oak_enum_registry_t* r,
   r->allocator = allocator;
   oak_htable_init(&r->by_name, allocator);
   oak_htable_init(&r->enum_names, allocator);
-  oak_dynarr_init(
-      &r->variants.items, &r->variants.count, &r->variants.capacity);
-  oak_dynarr_init(&r->enums.items, &r->enums.count, &r->enums.capacity);
+  oak_assert(oak_dynarr_init(r->allocator, &r->variants, sizeof *r->variants));
+  oak_assert(oak_dynarr_init(r->allocator, &r->enums, sizeof *r->enums));
 }
 
 void oak_enum_registry_free(struct oak_enum_registry_t* r)
 {
-  for (int i = 0; i < r->enums.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->enums); ++i)
   {
-    struct oak_registered_enum_t* e = &r->enums.items[i];
+    struct oak_registered_enum_t* e = &r->enums[i];
     if (e->attrs)
       OAK_FREE(r->allocator, e->attrs);
   }
   oak_htable_free(&r->by_name);
   oak_htable_free(&r->enum_names);
-  oak_dynarr_free(r->allocator,
-      &r->variants.items, &r->variants.count, &r->variants.capacity);
-  oak_dynarr_free(r->allocator, &r->enums.items, &r->enums.count, &r->enums.capacity);
+  oak_dynarr_free(&r->variants);
+  oak_dynarr_free(&r->enums);
 }
 
 const struct oak_registered_enum_t* oak_enum_find(
     const struct oak_enum_registry_t* r, const char* name)
 {
-  for (int i = 0; i < r->enums.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->enums); ++i)
   {
-    if (strcmp(r->enums.items[i].name, name) == 0)
-      return &r->enums.items[i];
+    if (strcmp(r->enums[i].name, name) == 0)
+      return &r->enums[i];
   }
   return null;
 }
@@ -46,38 +44,34 @@ struct oak_enum_variant_t*
 oak_enum_registry_insert(struct oak_enum_registry_t* r,
                          const struct oak_enum_variant_t* v)
 {
-  oak_dynarr_push(r->allocator, &r->variants.items,
-                  &r->variants.count,
-                  &r->variants.capacity,
-                  v,
-                  sizeof(*v));
-  const int idx = r->variants.count - 1;
+  oak_assert(oak_dynarr_push(&r->variants, v));
+  const int idx = oak_dynarr_count(r->variants) - 1;
 
   /* Index by unqualified variant name (first-wins for unqualified lookup;
    * qualified lookup uses a linear scan and always works). */
   if (oak_htable_get(&r->by_name,
-                     r->variants.items[idx].name,
-                     r->variants.items[idx].name_len) < 0)
+                     r->variants[idx].name,
+                     r->variants[idx].name_len) < 0)
   {
     oak_htable_insert(&r->by_name,
-                      r->variants.items[idx].name,
-                      r->variants.items[idx].name_len,
+                      r->variants[idx].name,
+                      r->variants[idx].name_len,
                       idx);
   }
 
   /* Index the enum type name as a set entry (value 1) if not already present.
    */
   if (oak_htable_get(&r->enum_names,
-                     r->variants.items[idx].enum_name,
-                     r->variants.items[idx].enum_name_len) < 0)
+                     r->variants[idx].enum_name,
+                     r->variants[idx].enum_name_len) < 0)
   {
     oak_htable_insert(&r->enum_names,
-                      r->variants.items[idx].enum_name,
-                      r->variants.items[idx].enum_name_len,
+                      r->variants[idx].enum_name,
+                      r->variants[idx].enum_name_len,
                       1);
   }
 
-  return &r->variants.items[idx];
+  return &r->variants[idx];
 }
 
 const struct oak_enum_variant_t* oak_enum_registry_find(
@@ -86,7 +80,7 @@ const struct oak_enum_variant_t* oak_enum_registry_find(
   const int idx = oak_htable_get(&r->by_name, name, len);
   if (idx < 0)
     return null;
-  return &r->variants.items[idx];
+  return &r->variants[idx];
 }
 
 const struct oak_enum_variant_t*
@@ -96,9 +90,9 @@ oak_enums_find_qualified(const struct oak_enum_registry_t* r,
 {
   /* Linear scan: qualified lookup is rare (only EnumName.Variant expressions).
    */
-  for (int i = 0; i < r->variants.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->variants); ++i)
   {
-    const struct oak_enum_variant_t* v = &r->variants.items[i];
+    const struct oak_enum_variant_t* v = &r->variants[i];
     if (strcmp(v->enum_name, enum_name) == 0 &&
         strcmp(v->name, variant_name) == 0)
       return v;
@@ -117,12 +111,12 @@ int oak_is_enum_name(const struct oak_enum_registry_t* r,
 void oak_register_native_enums(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
 {
-  if (!opts || opts->native_enums.count == 0)
+  if (!opts || oak_dynarr_count(opts->native_enums) == 0)
     return;
 
-  for (int i = 0; i < opts->native_enums.count; ++i)
+  for (int i = 0; i < oak_dynarr_count(opts->native_enums); ++i)
   {
-    const struct oak_bind_enum_t* ne = opts->native_enums.items[i];
+    const struct oak_bind_enum_t* ne = opts->native_enums[i];
     if (!ne)
       continue;
     if (ne->module_name)
@@ -156,14 +150,10 @@ void oak_register_native_enums(
         .attrs = null,
         .attr_count = 0,
       };
-      oak_dynarr_push(c->allocator, &c->enums.enums.items,
-                      &c->enums.enums.count,
-                      &c->enums.enums.capacity,
-                      &re,
-                      sizeof(re));
+      oak_assert(oak_dynarr_push(&c->enums.enums, &re));
     }
 
-    for (int vi = 0; vi < ne->variant_count; ++vi)
+    for (int vi = 0; vi < oak_dynarr_count(ne->variants); ++vi)
     {
       const struct oak_bind_enum_variant_t* nv = &ne->variants[vi];
 
@@ -252,11 +242,7 @@ void oak_register_program_enums(struct oak_compiler_t* c,
         .attrs = attrs,
         .attr_count = attr_count,
       };
-      oak_dynarr_push(c->allocator, &c->enums.enums.items,
-                      &c->enums.enums.count,
-                      &c->enums.enums.capacity,
-                      &re,
-                      sizeof(re));
+      oak_assert(oak_dynarr_push(&c->enums.enums, &re));
     }
 
     int ordinal = 0;

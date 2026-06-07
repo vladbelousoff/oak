@@ -26,8 +26,6 @@ struct oak_registered_trait_t
   oak_type_id_t trait_id;
   u16 source_module_id;
   struct oak_trait_method_t* methods;
-  int method_count;
-  int method_capacity;
 };
 
 /* One entry per (concrete record, trait) impl pair.
@@ -48,11 +46,7 @@ struct oak_trait_registry_t
 {
   struct oak_allocator_t* allocator;
   struct oak_registered_trait_t* traits;
-  int trait_count;
-  int trait_capacity;
   struct oak_trait_impl_t* impls;
-  int impl_count;
-  int impl_capacity;
 };
 
 void oak_trait_registry_init(struct oak_trait_registry_t* r,
@@ -65,7 +59,7 @@ static inline const struct oak_registered_trait_t*
 oak_trait_find(const struct oak_trait_registry_t* r,
                 const char* name)
 {
-  for (int i = 0; i < r->trait_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->traits); ++i)
   {
     const struct oak_registered_trait_t* t = &r->traits[i];
     if (strcmp(t->name, name) == 0)
@@ -77,7 +71,7 @@ oak_trait_find(const struct oak_trait_registry_t* r,
 static inline const struct oak_registered_trait_t*
 oak_trait_find_by_id(const struct oak_trait_registry_t* r, oak_type_id_t id)
 {
-  for (int i = 0; i < r->trait_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->traits); ++i)
     if (r->traits[i].trait_id == id)
       return &r->traits[i];
   return null;
@@ -87,7 +81,7 @@ oak_trait_find_by_id(const struct oak_trait_registry_t* r, oak_type_id_t id)
 static inline int oak_trait_method_slot(const struct oak_registered_trait_t* tr,
                                          const char* name)
 {
-  for (int i = 0; i < tr->method_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
     if (strcmp(tr->methods[i].name, name) == 0)
       return i;
   return -1;
@@ -99,7 +93,7 @@ oak_trait_impl_find(struct oak_trait_registry_t* r,
                      oak_type_id_t record_type_id,
                      oak_type_id_t trait_id)
 {
-  for (int i = 0; i < r->impl_count; ++i)
+  for (int i = 0; i < oak_dynarr_count(r->impls); ++i)
   {
     if (r->impls[i].record_type_id == record_type_id &&
         r->impls[i].trait_id == trait_id)

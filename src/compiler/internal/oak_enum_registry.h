@@ -21,12 +21,6 @@ struct oak_enum_variant_t
 };
 
 /* Concrete dynamic-array type for enum variants. */
-struct oak_enum_variant_vec_t
-{
-  struct oak_enum_variant_t* items;
-  int count;
-  int capacity;
-};
 
 /* Per-enum metadata (attributes). Variants are stored separately in
  * oak_enum_variant_vec_t; this struct holds enum-level information. */
@@ -42,12 +36,6 @@ struct oak_registered_enum_t
 };
 
 /* Concrete dynamic-array type for registered enums. */
-struct oak_registered_enum_vec_t
-{
-  struct oak_registered_enum_t* items;
-  int count;
-  int capacity;
-};
 
 /* Unbounded registry of enum variants.
  * by_name gives O(1) unqualified variant lookup.
@@ -58,8 +46,8 @@ struct oak_enum_registry_t
   struct oak_allocator_t* allocator;
   struct oak_htable_t by_name;    /* variant name → index into variants */
   struct oak_htable_t enum_names; /* enum type name → 1 (set)           */
-  struct oak_enum_variant_vec_t variants;
-  struct oak_registered_enum_vec_t enums; /* one entry per enum type */
+  struct oak_enum_variant_t* variants;
+  struct oak_registered_enum_t* enums; /* one entry per enum type */
 };
 
 /* ---------- Lifecycle ---------- */
