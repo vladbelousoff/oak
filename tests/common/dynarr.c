@@ -101,9 +101,9 @@ int main(void)
   oak_dynarr_free(&items);
   CHECK(items == null);
 
-  max_align_t* aligned = null;
+  union { void* _p; double _d; long long _ll; long double _ld; } *aligned = null;
   CHECK(oak_dynarr_init(&tracking, &aligned, sizeof *aligned));
-  CHECK((uintptr_t)aligned % _Alignof(max_align_t) == 0);
+  CHECK((uintptr_t)aligned % sizeof *aligned == 0);
   oak_dynarr_free(&aligned);
   CHECK(tracking.shutdown(&tracking) == 0);
 
