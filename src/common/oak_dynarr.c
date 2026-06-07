@@ -15,7 +15,7 @@ struct oak_dynarr_header_t
   int capacity;
 };
 
-static struct oak_dynarr_header_t* header_of(const void* items)
+static struct oak_dynarr_header_t* dynarr_header_of(const void* items)
 {
   return (struct oak_dynarr_header_t*)((char*)items -
                                       sizeof(struct oak_dynarr_header_t));
@@ -68,7 +68,7 @@ int oak_dynarr_reserve(void* array_ref, int capacity)
   load_ref(array_ref, &items);
   if (!items || capacity < 0)
     return 0;
-  struct oak_dynarr_header_t* h = header_of(items);
+  struct oak_dynarr_header_t* h = dynarr_header_of(items);
   if (capacity <= h->capacity)
     return 1;
   usize size;
@@ -90,7 +90,7 @@ int oak_dynarr_push(void* array_ref, const void* item)
   load_ref(array_ref, &items);
   if (!items)
     return 0;
-  struct oak_dynarr_header_t* h = header_of(items);
+  struct oak_dynarr_header_t* h = dynarr_header_of(items);
   if (h->count == INT_MAX)
     return 0;
   if (h->count == h->capacity)
@@ -101,7 +101,7 @@ int oak_dynarr_push(void* array_ref, const void* item)
     if (!oak_dynarr_reserve(array_ref, capacity))
       return 0;
     load_ref(array_ref, &items);
-    h = header_of(items);
+    h = dynarr_header_of(items);
   }
   memcpy((char*)items + (usize)h->count * h->item_size,
          item,
@@ -118,12 +118,12 @@ int oak_dynarr_resize(void* array_ref, int count)
   load_ref(array_ref, &items);
   if (!items)
     return 0;
-  struct oak_dynarr_header_t* h = header_of(items);
+  struct oak_dynarr_header_t* h = dynarr_header_of(items);
   const int old_count = h->count;
   if (count > h->capacity && !oak_dynarr_reserve(array_ref, count))
     return 0;
   load_ref(array_ref, &items);
-  h = header_of(items);
+  h = dynarr_header_of(items);
   if (count > old_count)
     memset((char*)items + (usize)old_count * h->item_size, 0,
            (usize)(count - old_count) * h->item_size);
@@ -139,7 +139,7 @@ int oak_dynarr_pop(void* array_ref, void* out_item)
   load_ref(array_ref, &items);
   if (!items)
     return 0;
-  struct oak_dynarr_header_t* h = header_of(items);
+  struct oak_dynarr_header_t* h = dynarr_header_of(items);
   if (h->count == 0)
     return 0;
   --h->count;
@@ -152,12 +152,12 @@ int oak_dynarr_pop(void* array_ref, void* out_item)
 
 int oak_dynarr_count(const void* items)
 {
-  return items ? header_of(items)->count : 0;
+  return items ? dynarr_header_of(items)->count : 0;
 }
 
 int oak_dynarr_capacity(const void* items)
 {
-  return items ? header_of(items)->capacity : 0;
+  return items ? dynarr_header_of(items)->capacity : 0;
 }
 
 void oak_dynarr_free(void* array_ref)
@@ -168,7 +168,7 @@ void oak_dynarr_free(void* array_ref)
   load_ref(array_ref, &items);
   if (!items)
     return;
-  struct oak_dynarr_header_t* h = header_of(items);
+  struct oak_dynarr_header_t* h = dynarr_header_of(items);
   OAK_FREE(h->allocator, h);
   store_ref(array_ref, null);
 }
