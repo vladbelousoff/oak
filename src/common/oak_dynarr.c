@@ -8,15 +8,12 @@
 
 struct oak_dynarr_header_t
 {
-  max_align_t alignment;
+  union { void* _p; double _d; long long _ll; long double _ld; } _align;
   struct oak_allocator_t* allocator;
   usize item_size;
   int count;
   int capacity;
 };
-
-_Static_assert(sizeof(struct oak_dynarr_header_t) % _Alignof(max_align_t) == 0,
-               "dynamic array data must be maximally aligned");
 
 static struct oak_dynarr_header_t* header_of(const void* items)
 {
