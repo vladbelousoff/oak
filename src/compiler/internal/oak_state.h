@@ -11,6 +11,7 @@ struct oak_compile_options_t; /* defined in oak_bind.h */
 #include "oak_trait_registry.h"
 #include "oak_htable.h"
 #include "oak_module.h"
+#include "oak_symbol.h"
 #include "oak_type.h"
 
 /* ---------- Per-fn ephemeral compilation state ---------- */
@@ -58,12 +59,10 @@ struct oak_scope_ctx_t
  *      free fns / methods → `fns` and `records.*.methods`).
  *   2. Imports from other modules (resolve_new_style_imports), which extend
  *      `records`, `enums`, `traits`, and `fns` with translated entries.
- *   3. The program's own decls: `user_record_start`, `user_enum_start`,
- *      `user_trait_start` mark where each pass's source-level entries
- *      begin in the corresponding registry.  Anything before the cursor is
- *      native or imported; anything after is exported to the module.
+ *   3. The program's own declarations are marked as exported symbols.
  *
- * `types` is the type-id interner shared by all registries.  After
+ * `types` catalogs type names and module-qualified IDs shared by all
+ * registries. After
  * compilation it is moved into `current_module` via
  * oak_compiler_move_types_to_module(). */
 
@@ -80,6 +79,9 @@ struct oak_compiler_t
   struct oak_record_registry_t records;
   struct oak_enum_registry_t enums;
   struct oak_trait_registry_t traits;
+  /* Authoritative namespace for all top-level declarations visible while
+   * compiling this module. Typed registries own declaration metadata. */
+  struct oak_symbol_registry_t symbols;
   /* Names bound at module scope (top-level `let` items only). Used to reject
    * access from inside user function and method bodies. */
   struct oak_htable_t module_scope_names;
@@ -87,22 +89,6 @@ struct oak_compiler_t
   struct oak_module_registry_t* module_registry;
   struct oak_module_t* current_module;
   int allow_bodyless_fns;
-  /* Index into c->records.entries where user-defined records begin (after
-   * native and imported records).  Set just before register_program_records. */
-  int user_record_start;
-  /* Index into c->enums.variants where user-defined enum variants begin.
-   * Set just before register_program_enums.  -1 means unset. */
-  int user_enum_start;
-  int user_trait_start;
-  /* Snapshot of the record/enum/trait counts taken at the start of the import
-   * pass (oak_resolve_new_style_imports). An imported symbol whose index is at
-   * or after the snapshot was registered by a native binding or this same
-   * import pass; one before the snapshot is a pre-existing definition, so a
-   * name clash from a different module is reported as an import collision.
-   * Per-compiler state so concurrent compiles stay independent. */
-  int pre_import_record_count;
-  int pre_import_enum_count;
-  int pre_import_trait_count;
   /* Compile options (borrowed; NULL when compiling standalone). Used by
    * attribute callback dispatch to look up named attribute bindings. */
   const struct oak_compile_options_t* opts;

@@ -15,23 +15,23 @@ static int ensure_sig_types_imported(struct oak_compiler_t* c,
                                      const struct oak_type_t* param_types,
                                      int arity);
 
-/* Translate a type from a dependency module's type registry into the local
- * compiler's registry.  Builtin IDs (number, string, bool, void, none) are
- * stable across registries and need no translation. */
-static struct oak_type_t translate_type(struct oak_compiler_t* c,
-                                        const struct oak_module_t* dep,
-                                        struct oak_type_t src)
+/* Catalog names for a dependency type while preserving its qualified ID. */
+static struct oak_type_t import_type_ref(struct oak_compiler_t* c,
+                                         const struct oak_module_t* dep,
+                                         struct oak_type_t src)
 {
   struct oak_type_t dst = src;
   if (src.id >= OAK_TYPE_FIRST_USER)
   {
     const char* name = oak_type_registry_name(&dep->types, src.id);
-    dst.id = oak_type_registry_intern(&c->types, name, (int)strlen(name));
+    oak_type_registry_intern_with_id(
+        &c->types, name, (int)strlen(name), src.id);
   }
   if (src.key_id >= OAK_TYPE_FIRST_USER)
   {
     const char* name = oak_type_registry_name(&dep->types, src.key_id);
-    dst.key_id = oak_type_registry_intern(&c->types, name, (int)strlen(name));
+    oak_type_registry_intern_with_id(
+        &c->types, name, (int)strlen(name), src.key_id);
   }
   return dst;
 }
@@ -47,7 +47,7 @@ static struct oak_type_t* translate_param_types(struct oak_compiler_t* c,
   struct oak_type_t* dst =
       OAK_ALLOC(c->allocator, sizeof(struct oak_type_t) * (usize)count);
   for (int i = 0; i < count; ++i)
-    dst[i] = translate_type(c, dep, src[i]);
+    dst[i] = import_type_ref(c, dep, src[i]);
   return dst;
 }
 
@@ -59,9 +59,7 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
       oak_trait_find(&c->traits, exp->name);
   if (existing)
   {
-    int idx = (int)(existing - c->traits.traits);
-    if (idx >= c->pre_import_trait_count &&
-        existing->source_module_id != dep->module_id)
+    if (existing->source_module_id != dep->module_id)
       oak_compiler_error_at(c, null,
                             "import collision: '%s' is already defined",
                             exp->name);
@@ -69,7 +67,13 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
   }
   const int exp_name_len = (int)strlen(exp->name);
   const oak_type_id_t tid =
-      oak_type_registry_intern(&c->types, exp->name, exp_name_len);
+      oak_type_registry_lookup(&dep->types, exp->name, exp_name_len);
+  oak_type_registry_intern_with_id(&c->types, exp->name, exp_name_len, tid);
+
+  if (!oak_compiler_declare_symbol(
+          c, null, exp->name, exp_name_len, OAK_SYMBOL_TRAIT,
+          oak_dynarr_count(c->traits.traits), dep->module_id, 1))
+    return;
 
   /* Insert a provisional (empty) entry so self-referential or mutually
      recursive traits short-circuit through the oak_trait_find check above
@@ -106,7 +110,7 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
       .decl = null,
       .self_is_mut = src->self_is_mut,
       .param_types = translate_param_types(c, dep, src->param_types, src->arity),
-      .return_type = translate_type(c, dep, src->return_type),
+      .return_type = import_type_ref(c, dep, src->return_type),
     };
     struct oak_registered_trait_t* entry = &c->traits.traits[trait_idx];
     oak_assert(oak_dynarr_push(&entry->methods, &tm));
@@ -122,16 +126,17 @@ static void import_enum_from_dep(struct oak_compiler_t* c,
   {
     const struct oak_registered_enum_t* re =
         oak_enum_find(&c->enums, exp->name);
-    int idx = re ? (int)(re - c->enums.enums) : -1;
-    if (idx >= c->pre_import_enum_count &&
-        re->source_module_id != dep->module_id)
+    if (!re || (re->source_module_id != OAK_MODULE_ID_NONE &&
+                re->source_module_id != dep->module_id))
       oak_compiler_error_at(c, null,
                             "import collision: '%s' is already defined",
                             exp->name);
     return;
   }
   const oak_type_id_t enum_type_id =
-      oak_type_registry_intern(&c->types, exp->name, exp_name_len);
+      oak_type_registry_lookup(&dep->types, exp->name, exp_name_len);
+  oak_type_registry_intern_with_id(
+      &c->types, exp->name, exp_name_len, enum_type_id);
   if (enum_type_id < 0)
   {
     oak_compiler_error_at(c, null, "failed to register imported enum '%s'",
@@ -147,6 +152,10 @@ static void import_enum_from_dep(struct oak_compiler_t* c,
       .attrs = null,
       .attr_count = 0,
     };
+    if (!oak_compiler_declare_symbol(
+            c, null, exp->name, exp_name_len, OAK_SYMBOL_ENUM,
+            oak_dynarr_count(c->enums.enums), dep->module_id, 1))
+      return;
     oak_assert(oak_dynarr_push(&c->enums.enums, &re));
   }
   for (int vi = 0; vi < oak_dynarr_count(exp->variants); ++vi)
@@ -176,16 +185,18 @@ static void import_record_from_dep(struct oak_compiler_t* c,
   const int exp_name_len = (int)strlen(exp->name);
   if (oak_records_find(&c->records, exp->name, exp_name_len))
   {
-    int idx = oak_htable_get(&c->records.by_name, exp->name, exp_name_len);
-    if (idx >= c->pre_import_record_count &&
-        c->records.entries[idx].source_module_id != dep->module_id)
+    const struct oak_registered_record_t* existing =
+        oak_records_find(&c->records, exp->name, exp_name_len);
+    if (existing->source_module_id != OAK_MODULE_ID_NONE &&
+        existing->source_module_id != dep->module_id)
       oak_compiler_error_at(c, null,
                             "import collision: '%s' is already defined",
                             exp->name);
     return;
   }
   const oak_type_id_t tid =
-      oak_type_registry_intern(&c->types, exp->name, exp_name_len);
+      oak_type_registry_lookup(&dep->types, exp->name, exp_name_len);
+  oak_type_registry_intern_with_id(&c->types, exp->name, exp_name_len, tid);
   struct oak_registered_record_t proto = { 0 };
   proto.name = exp->name;
   proto.source_module_id = dep->module_id;
@@ -200,6 +211,10 @@ static void import_record_from_dep(struct oak_compiler_t* c,
      above instead of recursing infinitely via ensure_dep_type_imported.
      We store the index (not a pointer) because ensure_dep_type_imported
      may trigger further imports that reallocate the entries array. */
+  if (!oak_compiler_declare_symbol(
+          c, null, exp->name, exp_name_len, OAK_SYMBOL_RECORD,
+          oak_dynarr_count(c->records.entries), dep->module_id, 1))
+    return;
   oak_record_registry_insert(&c->records, &proto);
   const int entry_idx =
       oak_htable_get(&c->records.by_name, exp->name, exp_name_len);
@@ -220,7 +235,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
     struct oak_record_field_t field = {
       .name = exp->fields[fi].name,
       .name_len = (int)strlen(exp->fields[fi].name),
-      .type = translate_type(c, dep, exp->fields[fi].type),
+      .type = import_type_ref(c, dep, exp->fields[fi].type),
     };
     struct oak_registered_record_t* e = REC_ENTRY();
     oak_assert(oak_dynarr_push(&e->fields, &field));
@@ -237,7 +252,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
     mfn.const_idx = 0;
     mfn.arity = me->arity;
     mfn.receiver_type_id = tid;
-    mfn.return_type = translate_type(c, dep, me->return_type);
+    mfn.return_type = import_type_ref(c, dep, me->return_type);
     mfn.is_static = me->is_static;
     mfn.decl = null;
     mfn.param_types = translate_param_types(c, dep, me->param_types, me->arity);
@@ -377,13 +392,17 @@ static void import_fn_from_dep(struct oak_compiler_t* c,
     .const_idx = 0,
     .arity = exp->arity,
     .receiver_type_id = OAK_TYPE_VOID,
-    .return_type = translate_type(c, dep, exp->return_type),
+    .return_type = import_type_ref(c, dep, exp->return_type),
     .decl = null,
     .param_types = translate_param_types(c, dep, exp->param_types, exp->arity),
     .param_mut_flags = exp->param_mut_flags,
     .source_module_id = dep->module_id,
     .source_const_idx = exp->const_idx,
   };
+  if (!oak_compiler_declare_symbol(
+          c, null, local_name, local_name_len, OAK_SYMBOL_FUNCTION,
+          oak_dynarr_count(c->fns.entries), dep->module_id, 1))
+    return;
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
@@ -405,28 +424,35 @@ resolve_dep_for_import(struct oak_compiler_t* c, int import_idx)
 static void import_all_from_dep(struct oak_compiler_t* c,
                                 const struct oak_module_t* dep)
 {
-  for (int i = 0; i < oak_dynarr_count(dep->exports_record.items); ++i)
+  for (int i = 0; i < oak_dynarr_count(dep->symbols.symbols); ++i)
   {
-    import_record_from_dep(c, dep, &dep->exports_record.items[i]);
-    if (c->has_error)
-      return;
-  }
-  for (int i = 0; i < oak_dynarr_count(dep->exports_enum.items); ++i)
-  {
-    import_enum_from_dep(c, dep, &dep->exports_enum.items[i]);
-    if (c->has_error)
-      return;
-  }
-  for (int i = 0; i < oak_dynarr_count(dep->exports_trait.items); ++i)
-  {
-    import_trait_from_dep(c, dep, &dep->exports_trait.items[i]);
-    if (c->has_error)
-      return;
-  }
-  for (int i = 0; i < oak_dynarr_count(dep->exports_fn.items); ++i)
-  {
-    const struct oak_module_export_fn_t* exp = &dep->exports_fn.items[i];
-    import_fn_from_dep(c, dep, exp, exp->name, (int)strlen(exp->name));
+    const struct oak_symbol_t* symbol = &dep->symbols.symbols[i];
+    if (!symbol->is_exported)
+      continue;
+    switch (symbol->kind)
+    {
+    case OAK_SYMBOL_RECORD:
+      import_record_from_dep(
+          c, dep, &dep->exports_record.items[symbol->payload_index]);
+      break;
+    case OAK_SYMBOL_ENUM:
+      import_enum_from_dep(
+          c, dep, &dep->exports_enum.items[symbol->payload_index]);
+      break;
+    case OAK_SYMBOL_TRAIT:
+      import_trait_from_dep(
+          c, dep, &dep->exports_trait.items[symbol->payload_index]);
+      break;
+    case OAK_SYMBOL_FUNCTION:
+    {
+      const struct oak_module_export_fn_t* exp =
+          &dep->exports_fn.items[symbol->payload_index];
+      import_fn_from_dep(c, dep, exp, exp->name, (int)strlen(exp->name));
+      break;
+    }
+    default:
+      break;
+    }
     if (c->has_error)
       return;
   }
@@ -534,9 +560,16 @@ void oak_resolve_new_style_imports(struct oak_compiler_t* c,
   if (!c->current_module || !c->module_registry || !program)
     return;
 
-  c->pre_import_record_count = oak_dynarr_count(c->records.entries);
-  c->pre_import_enum_count = oak_dynarr_count(c->enums.enums);
-  c->pre_import_trait_count = oak_dynarr_count(c->traits.traits);
+  for (int i = 0; i < c->current_module->imports.capacity; ++i)
+  {
+    const struct oak_htable_slot_t* slot = &c->current_module->imports.slots[i];
+    if (!slot->key)
+      continue;
+    if (!oak_compiler_declare_symbol(
+            c, null, slot->key, slot->key_len, OAK_SYMBOL_MODULE_ALIAS,
+            slot->value, (u16)slot->value, 1))
+      return;
+  }
 
   int import_idx = 0;
   struct oak_list_entry_t* pos;
@@ -641,16 +674,26 @@ static void export_free_fn(struct oak_compiler_t* c,
   };
   const int idx = oak_dynarr_count(mod->exports_fn.items);
   oak_assert(oak_dynarr_push(&mod->exports_fn.items, &exp));
-  oak_htable_insert(&mod->exports_fn.by_name, e->name, (int)strlen(e->name), idx);
+  struct oak_symbol_t symbol = {
+    .name = e->name,
+    .name_len = e->name_len,
+    .kind = OAK_SYMBOL_FUNCTION,
+    .owner_module_id = mod->module_id,
+    .payload_index = idx,
+    .is_exported = 1,
+  };
+  oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
 }
 
 static void export_user_fns(struct oak_compiler_t* c, struct oak_module_t* mod)
 {
-  for (int i = 0; i < oak_dynarr_count(c->fns.entries); ++i)
+  for (int i = 0; i < oak_dynarr_count(c->symbols.symbols); ++i)
   {
-    const struct oak_registered_fn_t* e = &c->fns.entries[i];
-    if (!e->decl || e->receiver_type_id != OAK_TYPE_VOID)
+    const struct oak_symbol_t* symbol = &c->symbols.symbols[i];
+    if (!symbol->is_exported || symbol->kind != OAK_SYMBOL_FUNCTION)
       continue;
+    const struct oak_registered_fn_t* e =
+        &c->fns.entries[symbol->payload_index];
     export_free_fn(c, mod, e);
   }
 }
@@ -686,9 +729,14 @@ static void export_record_methods(struct oak_compiler_t* c,
 static void export_user_records(struct oak_compiler_t* c,
                                 struct oak_module_t* mod)
 {
-  for (int i = c->user_record_start; i < oak_dynarr_count(c->records.entries); ++i)
+  for (int i = 0; i < oak_dynarr_count(c->symbols.symbols); ++i)
   {
-    const struct oak_registered_record_t* r = &c->records.entries[i];
+    const struct oak_symbol_t* source_symbol = &c->symbols.symbols[i];
+    if (!source_symbol->is_exported ||
+        source_symbol->kind != OAK_SYMBOL_RECORD)
+      continue;
+    const struct oak_registered_record_t* r =
+        &c->records.entries[source_symbol->payload_index];
     struct oak_module_export_record_t exp = { 0 };
     exp.name = r->name;
     oak_assert(oak_dynarr_init(c->allocator, &exp.fields, sizeof *exp.fields));
@@ -704,8 +752,15 @@ static void export_user_records(struct oak_compiler_t* c,
     exp.layout_id = 0;
     const int idx = oak_dynarr_count(mod->exports_record.items);
     oak_assert(oak_dynarr_push(&mod->exports_record.items, &exp));
-    oak_htable_insert(
-        &mod->exports_record.by_name, exp.name, (int)strlen(exp.name), idx);
+    struct oak_symbol_t symbol = {
+      .name = exp.name,
+      .name_len = r->name_len,
+      .kind = OAK_SYMBOL_RECORD,
+      .owner_module_id = mod->module_id,
+      .payload_index = idx,
+      .is_exported = 1,
+    };
+    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
   }
 }
 
@@ -714,38 +769,51 @@ static void export_user_records(struct oak_compiler_t* c,
 static void export_user_enums(struct oak_compiler_t* c,
                               struct oak_module_t* mod)
 {
-  if (c->user_enum_start < 0)
-    return;
-  for (int i = c->user_enum_start; i < oak_dynarr_count(c->enums.variants); ++i)
+  for (int i = 0; i < oak_dynarr_count(c->symbols.symbols); ++i)
   {
-    const struct oak_enum_variant_t* v = &c->enums.variants[i];
-    int eidx = oak_htable_get(
-        &mod->exports_enum.by_name, v->enum_name, v->enum_name_len);
-    if (eidx < 0)
+    const struct oak_symbol_t* source_symbol = &c->symbols.symbols[i];
+    if (!source_symbol->is_exported || source_symbol->kind != OAK_SYMBOL_ENUM)
+      continue;
+    const struct oak_registered_enum_t* src =
+        &c->enums.enums[source_symbol->payload_index];
+    struct oak_module_export_enum_t ee = { 0 };
+    ee.name = src->name;
+    oak_assert(oak_dynarr_init(c->allocator, &ee.variants, sizeof *ee.variants));
+    for (int vi = 0; vi < oak_dynarr_count(c->enums.variants); ++vi)
     {
-      struct oak_module_export_enum_t ee = { 0 };
-      oak_assert(oak_dynarr_init(c->allocator, &ee.variants, sizeof *ee.variants));
-      ee.name = v->enum_name;
-      eidx = oak_dynarr_count(mod->exports_enum.items);
-      oak_assert(oak_dynarr_push(&mod->exports_enum.items, &ee));
-      oak_htable_insert(
-          &mod->exports_enum.by_name, ee.name, (int)strlen(ee.name), eidx);
+      const struct oak_enum_variant_t* v = &c->enums.variants[vi];
+      if (v->type_id != src->type_id)
+        continue;
+      struct oak_module_export_enum_variant_t variant = {
+        .name = v->name,
+        .value = v->value,
+      };
+      oak_assert(oak_dynarr_push(&ee.variants, &variant));
     }
-    struct oak_module_export_enum_t* ee = &mod->exports_enum.items[eidx];
-    struct oak_module_export_enum_variant_t variant = {
-      .name = v->name,
-      .value = v->value,
+    const int eidx = oak_dynarr_count(mod->exports_enum.items);
+    oak_assert(oak_dynarr_push(&mod->exports_enum.items, &ee));
+    struct oak_symbol_t symbol = {
+      .name = ee.name,
+      .name_len = src->name_len,
+      .kind = OAK_SYMBOL_ENUM,
+      .owner_module_id = mod->module_id,
+      .payload_index = eidx,
+      .is_exported = 1,
     };
-    oak_assert(oak_dynarr_push(&ee->variants, &variant));
+    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
   }
 }
 
 static void export_user_traits(struct oak_compiler_t* c,
                                struct oak_module_t* mod)
 {
-  for (int i = c->user_trait_start; i < oak_dynarr_count(c->traits.traits); ++i)
+  for (int i = 0; i < oak_dynarr_count(c->symbols.symbols); ++i)
   {
-    const struct oak_registered_trait_t* tr = &c->traits.traits[i];
+    const struct oak_symbol_t* source_symbol = &c->symbols.symbols[i];
+    if (!source_symbol->is_exported || source_symbol->kind != OAK_SYMBOL_TRAIT)
+      continue;
+    const struct oak_registered_trait_t* tr =
+        &c->traits.traits[source_symbol->payload_index];
     struct oak_module_export_trait_t exp = { 0 };
     exp.name = tr->name;
     oak_assert(oak_dynarr_init(c->allocator, &exp.methods, sizeof *exp.methods));
@@ -770,8 +838,15 @@ static void export_user_traits(struct oak_compiler_t* c,
     }
     const int tidx = oak_dynarr_count(mod->exports_trait.items);
     oak_assert(oak_dynarr_push(&mod->exports_trait.items, &exp));
-    oak_htable_insert(
-        &mod->exports_trait.by_name, exp.name, (int)strlen(exp.name), tidx);
+    struct oak_symbol_t symbol = {
+      .name = exp.name,
+      .name_len = tr->name_len,
+      .kind = OAK_SYMBOL_TRAIT,
+      .owner_module_id = mod->module_id,
+      .payload_index = tidx,
+      .is_exported = 1,
+    };
+    oak_assert(oak_symbol_registry_insert(&mod->symbols, &symbol));
   }
 }
 

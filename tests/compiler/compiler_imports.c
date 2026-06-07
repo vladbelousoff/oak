@@ -21,10 +21,7 @@
 #endif
 
 /* These tests build a tiny on-disk module graph and drive it through the real
- * module loader. They cover the import path that uses the per-compiler
- * pre-import snapshot counters (formerly file-scope statics): loading the same
- * graph twice in one process must behave identically, and a name exported by
- * two different modules must be reported as an import collision. */
+ * module loader. */
 
 static void write_file(const char* path, const char* contents)
 {
@@ -192,6 +189,37 @@ OAK_TEST_DECL(CrossModuleTraitDispatch)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(SameNamedTypesInDifferentModulesStayDistinct)
+{
+  char dir[256];
+  OAK_CHECK(make_module_dir(dir, sizeof(dir)) == 0);
+
+  char main_path[512];
+  char a_path[512];
+  char b_path[512];
+  snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
+  snprintf(a_path, sizeof(a_path), "%s/lib/a.oak", dir);
+  snprintf(b_path, sizeof(b_path), "%s/lib/b.oak", dir);
+
+  write_file(a_path,
+             "record Shared { x : number; }\n"
+             "fn take_a(v : Shared) -> number { return v.x; }\n");
+  write_file(b_path,
+             "record Shared { x : number; }\n"
+             "fn make_b() -> Shared { return new Shared { x : 1 }; }\n");
+  write_file(main_path,
+             "import { take_a } from lib.a;\n"
+             "import { make_b } from lib.b;\n"
+             "let bad = take_a(make_b());\n");
+
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  remove(a_path);
+  remove(b_path);
+  remove(main_path);
+  return OAK_TEST_OK;
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -200,6 +228,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(ImportLoadRunsAndIsRepeatable),
     OAK_TEST_ENTRY(ImportCollisionIsRejected),
     OAK_TEST_ENTRY(CrossModuleTraitDispatch),
+    OAK_TEST_ENTRY(SameNamedTypesInDifferentModulesStayDistinct),
   };
   return oak_test_run(tests, sizeof(tests) / sizeof(tests[0]));
 }

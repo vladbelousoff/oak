@@ -207,7 +207,7 @@ void oak_register_program_records(struct oak_compiler_t* c,
     {
       const struct oak_bind_type_t* native =
           native_record_binding(c, name, name_len);
-      if (native && existing->type_id == native->type_id)
+      if (native && existing->type_id == native->resolved_type_id)
       {
         if (!native_record_decl_matches(c, native, item, name_ident))
           return;
@@ -285,6 +285,12 @@ void oak_register_program_records(struct oak_compiler_t* c,
       return;
     }
 
+    const u16 owner_module_id =
+        c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
+    if (!oak_compiler_declare_symbol(
+            c, name_ident->token, name, name_len, OAK_SYMBOL_RECORD,
+            oak_dynarr_count(c->records.entries), owner_module_id, 0))
+      return;
     struct oak_registered_record_t* slot =
         oak_record_registry_insert(&c->records, &proto);
 

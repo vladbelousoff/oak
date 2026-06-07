@@ -11,6 +11,7 @@
 
 struct oak_module_registry_t;
 struct oak_module_t;
+struct oak_bind_type_t;
 
 /* ---------- Kind discriminants ---------- */
 
@@ -42,6 +43,8 @@ struct oak_bind_type_ref_t
 {
   oak_type_id_t id;          /* element/value type */
   oak_type_id_t key_id;      /* map key type; ignored for non-map kinds */
+  const struct oak_bind_type_t* type;     /* custom element/value type */
+  const struct oak_bind_type_t* key_type; /* custom map key type */
   enum oak_type_kind_t kind; /* SCALAR / ARRAY / MAP */
 };
 
@@ -55,6 +58,8 @@ static inline struct oak_bind_type_ref_t oak_bind_type_ref_make(
   struct oak_bind_type_ref_t ref;
   ref.id = id;
   ref.key_id = key_id;
+  ref.type = null;
+  ref.key_type = null;
   ref.kind = kind;
   return ref;
 }
@@ -66,6 +71,25 @@ static inline struct oak_bind_type_ref_t oak_bind_type_ref_make(
   oak_bind_type_ref_make((elem), 0, OAK_TYPE_KIND_ARRAY)
 #define OAK_BIND_MAP(k, v)                                                     \
   oak_bind_type_ref_make((v), (k), OAK_TYPE_KIND_MAP)
+
+static inline struct oak_bind_type_ref_t oak_bind_type_ref_native_make(
+    const struct oak_bind_type_t* type,
+    const struct oak_bind_type_t* key_type,
+    enum oak_type_kind_t kind)
+{
+  struct oak_bind_type_ref_t ref = oak_bind_type_ref_make(
+      OAK_TYPE_VOID, OAK_TYPE_VOID, kind);
+  ref.type = type;
+  ref.key_type = key_type;
+  return ref;
+}
+
+#define OAK_BIND_NATIVE(t)                                                     \
+  oak_bind_type_ref_native_make((t), null, OAK_TYPE_KIND_SCALAR)
+#define OAK_BIND_NATIVE_ARRAY(t)                                               \
+  oak_bind_type_ref_native_make((t), null, OAK_TYPE_KIND_ARRAY)
+#define OAK_BIND_NATIVE_MAP(k, v)                                              \
+  oak_bind_type_ref_native_make((v), (k), OAK_TYPE_KIND_MAP)
 
 /* ---------- Getter / setter / destructor callbacks ---------- */
 
@@ -91,8 +115,8 @@ typedef void (*oak_bind_destructor_t)(void* instance);
 struct oak_bind_field_t
 {
   const char* name;
-  /* Compile-time type of this field.  Build with OAK_BIND_SCALAR(tid),
-   * OAK_BIND_ARRAY(elem), or OAK_BIND_MAP(k, v). */
+  /* Compile-time type of this field. Use OAK_BIND_* for builtins and
+   * OAK_BIND_NATIVE* for custom descriptors. */
   struct oak_bind_type_ref_t type;
   oak_bind_field_getter_t getter;
   oak_bind_field_setter_t setter; /* NULL = read-only */
@@ -108,11 +132,9 @@ struct oak_bind_type_t
    * registered in the global namespace as before. */
   const char* module_name;
   const char* name;
-  /* Stable id assigned by oak_bind_type() from opts->next_type_id.
-   * Valid for the lifetime of the oak_compile_options_t it was registered in.
-   * Use this value as field_type_id or receiver_type_id when referencing
-   * this type from another binding. */
-  oak_type_id_t type_id;
+  /* Assigned when this descriptor is installed into a module/compiler
+   * registry. Embedders should reference the descriptor, not this value. */
+  oak_type_id_t resolved_type_id; /* private */
   struct oak_bind_field_t* fields;
   oak_bind_destructor_t destructor;
   struct oak_allocator_t* allocator;
@@ -145,8 +167,8 @@ struct oak_bind_global_fn_t
 struct oak_bind_fn_t
 {
   enum oak_bind_fn_kind_t kind; /* INSTANCE_METHOD or STATIC_METHOD */
-  /* The native record type_id for the receiver type. */
-  oak_type_id_t receiver_type_id;
+  /* Native record descriptor for the receiver type. */
+  const struct oak_bind_type_t* receiver_type;
   const char* name;
   oak_native_fn_t impl;
   /* User-visible arity: for STATIC_METHOD, full argument count;
@@ -274,10 +296,6 @@ struct oak_compile_options_t
   /* Named attribute bindings (owned; populated by oak_bind_attr). */
   struct oak_bind_attr_t* native_attrs;
 
-  /* Next type id to assign; initialised to OAK_TYPE_FIRST_USER by
-   * oak_compile_options_init and incremented by each oak_bind_type call. */
-  oak_type_id_t next_type_id; /* private */
-
   /* When non-zero (default), the compiler attaches a debug section to the
    * chunk: per-byte source line/column and local-variable names. Set to 0 to
    * skip these allocations and produce a minimal runtime-only chunk. */
@@ -304,10 +322,9 @@ OAK_API void oak_compile_options_free(struct oak_compile_options_t* opts);
 
 /* ---------- Binding API ---------- */
 
-/* Allocate a native type descriptor, assign it a stable type_id from
- * opts->next_type_id, register it in opts, and return a pointer for
- * subsequent oak_bind_field calls.  The descriptor is owned by opts and
- * freed by oak_compile_options_free; do not free it separately.
+/* Allocate a native type descriptor, register it in opts, and return a pointer
+ * for subsequent field/method/signature bindings. The descriptor is owned by
+ * opts and freed by oak_compile_options_free; do not free it separately.
  * Returns NULL if opts or name is NULL. */
 OAK_API struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
                                               enum oak_bind_type_kind_t kind,
@@ -335,10 +352,9 @@ OAK_API int oak_bind_fn_global(struct oak_compile_options_t* opts,
 
 /* Register a native instance or static method on a native type.
  * `params->kind` must be OAK_BIND_FN_INSTANCE_METHOD or OAK_BIND_FN_STATIC_METHOD.
- * `params->receiver_type_id` must be a type_id from a prior oak_bind_type() call.
+ * `params->receiver_type` must be a descriptor from a prior oak_bind_type() call.
  *   INSTANCE_METHOD: `arity` excludes implicit self (compiler adds +1 for VM).
  *   STATIC_METHOD: `arity` is the full argument count; called as TypeName.name(...).
- *   return_shape: OAK_BIND_SHAPE_ARRAY means return_type_id[].
  * Returns 0 on success, -1 on invalid arguments. */
 OAK_API int oak_bind_fn(struct oak_compile_options_t* opts,
                         const struct oak_bind_fn_t* params);

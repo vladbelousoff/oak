@@ -37,17 +37,22 @@ struct oak_type_entry_t
 {
   const char* name;
   int len;
+  oak_type_id_t id;
 };
 
 struct oak_type_registry_t
 {
   struct oak_allocator_t* allocator;
   struct oak_type_entry_t* entries;
+  u16 owner_module_id;
+  u16 next_local_slot;
 };
 
 /* Initializes the registry and pre-populates the built-in type ids. */
 void oak_type_registry_init(struct oak_type_registry_t* reg,
                             struct oak_allocator_t* allocator);
+void oak_type_registry_set_owner(struct oak_type_registry_t* reg,
+                                 u16 module_id);
 void oak_type_registry_free(struct oak_type_registry_t* reg);
 
 /* Returns the id of an existing entry, or -1 if not found. */
@@ -61,13 +66,8 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
                                        const char* name,
                                        int len);
 
-/* Like oak_type_registry_intern but uses a caller-supplied `id` instead of
- * assigning the next sequential one.  Use this when native types have been
- * pre-assigned stable ids by oak_bind_type() so that the compiler registry
- * matches those ids exactly.
- * `id` must be >= OAK_TYPE_FIRST_USER.
- * Returns `id` on success, or -1 if the slot is already occupied by a
- * different name or `id` is invalid. */
+/* Catalogs a caller-supplied module-qualified ID under `name`.
+ * Returns `id` on success, or -1 on a name/ID conflict. */
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
                                                const char* name,
                                                int len,

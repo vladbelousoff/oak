@@ -81,7 +81,7 @@ OAK_TEST_DECL(BindTypeCreatesDescriptor)
   OAK_CHECK(t != null);
   OAK_CHECK(strcmp(t->name, "NTVec2") == 0);
   OAK_CHECK(oak_dynarr_count(t->fields) == 0);
-  OAK_CHECK(t->type_id >= OAK_TYPE_FIRST_USER);
+  OAK_CHECK(t->resolved_type_id == OAK_TYPE_VOID);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -100,8 +100,8 @@ OAK_TEST_DECL(BindTypeNullNameReturnsNull)
   return OAK_TEST_OK;
 }
 
-/* Each call to oak_bind_type assigns a unique, stable type id. */
-OAK_TEST_DECL(BindTypeDistinctIds)
+/* Type identities are assigned only when descriptors enter a registry. */
+OAK_TEST_DECL(BindTypeIdsAreDeferred)
 {
   struct oak_compile_options_t opts;
   oak_compile_options_init(&opts, oak_test_allocator());
@@ -111,9 +111,8 @@ OAK_TEST_DECL(BindTypeDistinctIds)
   struct oak_bind_type_t* b =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBeta");
   OAK_CHECK(a != null && b != null);
-  OAK_CHECK(a->type_id != b->type_id);
-  OAK_CHECK(a->type_id >= OAK_TYPE_FIRST_USER);
-  OAK_CHECK(b->type_id >= OAK_TYPE_FIRST_USER);
+  OAK_CHECK(a->resolved_type_id == OAK_TYPE_VOID);
+  OAK_CHECK(b->resolved_type_id == OAK_TYPE_VOID);
 
   oak_compile_options_free(&opts);
   return OAK_TEST_OK;
@@ -659,7 +658,7 @@ int main(const int argc, char* argv[])
     /* oak_bind_type C API */
     OAK_TEST_ENTRY(BindTypeCreatesDescriptor),
     OAK_TEST_ENTRY(BindTypeNullNameReturnsNull),
-    OAK_TEST_ENTRY(BindTypeDistinctIds),
+    OAK_TEST_ENTRY(BindTypeIdsAreDeferred),
     /* oak_bind_field C API */
     OAK_TEST_ENTRY(BindFieldSucceeds),
     OAK_TEST_ENTRY(BindFieldReadWriteSucceeds),

@@ -5,20 +5,6 @@
 /* Shared attribute storage for all native items — borrowed by every
  * oak_registered_*_t that is registered from the C binding API. */
 
-/* Find the oak_bind_type_t whose type_id matches, or null. */
-static const struct oak_bind_type_t*
-find_bind_type_by_id(const struct oak_compile_options_t* opts,
-                     oak_type_id_t type_id)
-{
-  for (int i = 0; i < oak_dynarr_count(opts->native_types); ++i)
-  {
-    const struct oak_bind_type_t* t = opts->native_types[i];
-    if (t && t->type_id == type_id)
-      return t;
-  }
-  return null;
-}
-
 /* Find a compiled module by its dotted name (linear scan). */
 static const struct oak_module_t*
 find_module_by_dotted(const struct oak_module_registry_t* reg,
@@ -52,9 +38,9 @@ static void lower_bind_ref(const struct oak_bind_type_ref_t* r,
 {
   oak_type_clear(out);
   out->kind = r->kind;
-  out->id = r->id;
+  out->id = r->type ? r->type->resolved_type_id : r->id;
   if (r->kind == OAK_TYPE_KIND_MAP)
-    out->key_id = r->key_id;
+    out->key_id = r->key_type ? r->key_type->resolved_type_id : r->key_id;
 }
 
 /* ---------- Native type registration ---------- */
@@ -65,11 +51,23 @@ void oak_register_native_types(
   if (!opts || oak_dynarr_count(opts->native_types) == 0)
     return;
 
+  /* Assign every descriptor first so fields/signatures may reference a type
+   * registered later in the binding list. */
+  for (int i = c->native_types_cursor; i < oak_dynarr_count(opts->native_types);
+       ++i)
+  {
+    struct oak_bind_type_t* nt = opts->native_types[i];
+    if (!nt)
+      continue;
+    nt->resolved_type_id = oak_type_registry_intern(
+        &c->types, nt->name, (int)strlen(nt->name));
+  }
+
   /* Resume from the cursor: entries before it were registered by an earlier
    * pass (see oak_compiler_t.native_types_cursor). */
   for (int i = c->native_types_cursor; i < oak_dynarr_count(opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* nt = opts->native_types[i];
+    struct oak_bind_type_t* nt = opts->native_types[i];
     if (!nt)
       continue;
     const int nt_name_len = (int)strlen(nt->name);
@@ -84,11 +82,7 @@ void oak_register_native_types(
       return;
     }
 
-    /* Register the pre-assigned stable id into the compiler's type registry.
-     * This ensures that references to this name in Oak source resolve to the
-     * same id that the embedding code holds in nt->type_id. */
-    const oak_type_id_t tid = oak_type_registry_intern_with_id(
-        &c->types, nt->name, nt_name_len, nt->type_id);
+    const oak_type_id_t tid = nt->resolved_type_id;
     if (tid < 0)
     {
       oak_compiler_error_at(c,
@@ -98,11 +92,11 @@ void oak_register_native_types(
                             nt->name);
       return;
     }
-
     struct oak_registered_record_t proto = { 0 };
     proto.name = nt->name;
     proto.name_len = nt_name_len;
     proto.type_id = tid;
+    proto.source_module_id = OAK_MODULE_ID_NONE;
     oak_assert(oak_dynarr_init(c->allocator, &proto.fields, sizeof *proto.fields));
     oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
     proto.attrs = null;
@@ -120,6 +114,10 @@ void oak_register_native_types(
       oak_assert(oak_dynarr_push(&proto.fields, &sf));
     }
 
+    if (!oak_compiler_declare_symbol(
+            c, null, proto.name, proto.name_len, OAK_SYMBOL_RECORD,
+            oak_dynarr_count(c->records.entries), OAK_MODULE_ID_NONE, 0))
+      return;
     oak_record_registry_insert(&c->records, &proto);
     if (c->has_error)
       return;
@@ -179,6 +177,10 @@ void oak_register_native_fns(struct oak_compiler_t* c,
       oak_compiler_error_at(c, null, "duplicate native function '%s'", b->name);
       return;
     }
+    if (!oak_compiler_declare_symbol(
+            c, null, entry.name, entry.name_len, OAK_SYMBOL_FUNCTION,
+            oak_dynarr_count(c->fns.entries), OAK_MODULE_ID_NONE, 0))
+      return;
     oak_fn_registry_insert(&c->fns, &entry);
     if (c->has_error)
       return;
@@ -203,8 +205,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
      * belongs to a module that has a compiled stub with attributed methods. */
     if (c->module_registry && c->opts)
     {
-      const struct oak_bind_type_t* bind_type =
-          find_bind_type_by_id(opts, b->receiver_type_id);
+      const struct oak_bind_type_t* bind_type = b->receiver_type;
       if (bind_type && bind_type->module_name)
       {
         const struct oak_module_t* stub_mod =
@@ -236,7 +237,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     entry.name = b->name;
     entry.name_len = name_len;
     entry.const_idx = idx;
-    entry.receiver_type_id = b->receiver_type_id;
+    entry.receiver_type_id = b->receiver_type->resolved_type_id;
     lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
@@ -245,7 +246,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
 
     struct oak_registered_record_t* sd =
         (struct oak_registered_record_t*)oak_records_find_by_id(
-            &c->records, b->receiver_type_id);
+            &c->records, entry.receiver_type_id);
     if (!sd)
     {
       oak_compiler_error_at(c,
@@ -253,7 +254,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
                             "native method '%s': no record registered for "
                             "receiver type id %d",
                             b->name,
-                            b->receiver_type_id);
+                            entry.receiver_type_id);
       return;
     }
     const int is_static = (b->kind == OAK_BIND_FN_STATIC_METHOD);
@@ -269,7 +270,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
       if (!is_static)
       {
         oak_type_clear(&entry.param_types[slot]);
-        entry.param_types[slot].id = b->receiver_type_id;
+        entry.param_types[slot].id = entry.receiver_type_id;
         ++slot;
       }
       for (int pi = 0; pi < b->arity; ++pi, ++slot)

@@ -7,6 +7,7 @@
 #include "oak_file_map.h"
 #include "oak_htable.h"
 #include "oak_parser.h"
+#include "oak_symbol.h"
 #include "oak_type.h"
 
 /* Sentinel module_id used by native fns and the entry-only chunk before a
@@ -100,25 +101,21 @@ struct oak_module_export_trait_t
 
 struct oak_fn_export_table_t
 {
-  struct oak_htable_t by_name;
   struct oak_module_export_fn_t* items;
 };
 
 struct oak_rec_export_table_t
 {
-  struct oak_htable_t by_name;
   struct oak_module_export_record_t* items;
 };
 
 struct oak_enum_export_table_t
 {
-  struct oak_htable_t by_name;
   struct oak_module_export_enum_t* items;
 };
 
 struct oak_trait_export_table_t
 {
-  struct oak_htable_t by_name;
   struct oak_module_export_trait_t* items;
 };
 
@@ -146,11 +143,12 @@ struct oak_module_t
   struct oak_htable_t imports;
   u16* import_modules; /* module_ids of direct deps */
 
-  /* Type registry (moved from compiler after compilation).
-   * Persists so importing modules can translate type IDs. */
+  /* Type catalog (moved from compiler after compilation).
+   * Persists so imports can resolve names for module-qualified type IDs. */
   struct oak_type_registry_t types;
 
   /* Exports (populated post-compile) */
+  struct oak_symbol_registry_t symbols;
   struct oak_fn_export_table_t exports_fn;
   struct oak_rec_export_table_t exports_record;
   struct oak_enum_export_table_t exports_enum;
@@ -194,6 +192,10 @@ OAK_API struct oak_module_t*
 oak_module_registry_create(struct oak_module_registry_t* reg,
                            const char* canonical_path,
                            const char* dotted_name);
+
+/* Look up any exported top-level symbol in the module's single namespace. */
+OAK_API const struct oak_symbol_t* oak_module_find_export_symbol(
+    const struct oak_module_t* mod, const char* name);
 
 /* Look up a function export. Returns null if not found. */
 OAK_API const struct oak_module_export_fn_t* oak_module_find_export_fn(

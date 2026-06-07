@@ -52,6 +52,17 @@ void oak_compiler_teardown(struct oak_compiler_t* c);
 
 void oak_compiler_move_types_to_module(struct oak_compiler_t* c);
 
+/* ---------- oak_compiler_symbols.c ---------- */
+
+int oak_compiler_declare_symbol(struct oak_compiler_t* c,
+                                const struct oak_token_t* token,
+                                const char* name,
+                                int name_len,
+                                enum oak_symbol_kind_t kind,
+                                int payload_index,
+                                u16 owner_module_id,
+                                int is_imported);
+
 /* ---------- oak_compiler_pipeline.c ---------- */
 
 int oak_compiler_register_native_options(struct oak_compiler_t* c,

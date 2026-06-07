@@ -47,6 +47,19 @@ OAK_TEST_DECL(DuplicateTypeBindingWithFieldsFails)
       "record Vec { x : number; y : number; z : number; }\n");
 }
 
+/* All top-level declaration kinds share one namespace. */
+OAK_TEST_DECL(RecordAndFunctionNameCollisionFails)
+{
+  return expect_compile_error("record Clash;\n"
+                              "fn Clash() {}\n");
+}
+
+OAK_TEST_DECL(EnumAndGlobalNameCollisionFails)
+{
+  return expect_compile_error("enum State { Ready }\n"
+                              "let State = 1;\n");
+}
+
 /* =========================================================================
  * Struct literal — unknown type
  * ========================================================================= */
@@ -230,6 +243,8 @@ int main(const int argc, char* argv[])
     /* duplicate name */
     OAK_TEST_ENTRY(DuplicateTypeBindingFails),
     OAK_TEST_ENTRY(DuplicateTypeBindingWithFieldsFails),
+    OAK_TEST_ENTRY(RecordAndFunctionNameCollisionFails),
+    OAK_TEST_ENTRY(EnumAndGlobalNameCollisionFails),
     /* unknown record in literal */
     OAK_TEST_ENTRY(UnknownTypeInStructLiteralFails),
     OAK_TEST_ENTRY(MisspelledTypeInStructLiteralFails),

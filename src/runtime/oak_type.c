@@ -30,10 +30,14 @@ void oak_type_registry_init(struct oak_type_registry_t* reg,
                             struct oak_allocator_t* allocator)
 {
   reg->allocator = allocator;
+  reg->owner_module_id = OAK_TYPE_ID_MODULE_NONE;
+  reg->next_local_slot = OAK_TYPE_FIRST_USER;
   oak_assert(oak_dynarr_init(allocator, &reg->entries, sizeof *reg->entries));
 
   /* Slot 0 is OAK_TYPE_VOID; pre-register it so name lookup finds "void". */
-  struct oak_type_entry_t void_entry = { .name = "void", .len = 4 };
+  struct oak_type_entry_t void_entry = {
+    .name = "void", .len = 4, .id = OAK_TYPE_VOID
+  };
   oak_assert(oak_dynarr_push(&reg->entries, &void_entry));
 
   for (int i = 0; i < OAK_BUILTIN_COUNT; ++i)
@@ -43,10 +47,17 @@ void oak_type_registry_init(struct oak_type_registry_t* reg,
     struct oak_type_entry_t entry = {
       .name = b->name,
       .len = (int)strlen(b->name),
+      .id = b->id,
     };
     oak_assert(oak_dynarr_push(&reg->entries, &entry));
   }
   oak_assert(oak_dynarr_count(reg->entries) == OAK_TYPE_FIRST_USER);
+}
+
+void oak_type_registry_set_owner(struct oak_type_registry_t* reg,
+                                 u16 module_id)
+{
+  reg->owner_module_id = module_id;
 }
 
 void oak_type_registry_free(struct oak_type_registry_t* reg)
@@ -66,7 +77,7 @@ oak_type_id_t oak_type_registry_lookup(const struct oak_type_registry_t* reg,
   {
     const struct oak_type_entry_t* e = &reg->entries[i];
     if (e->name && oak_name_eq(e->name, name))
-      return (oak_type_id_t)i;
+      return e->id;
   }
   return -1;
 }
@@ -81,18 +92,14 @@ oak_type_id_t oak_type_registry_intern(struct oak_type_registry_t* reg,
 
   /* The pointer is borrowed from the source buffer (lexer arena outlives
    * compilation); the registry never frees it. */
-  struct oak_type_entry_t entry = { .name = name, .len = len };
+  const u16 slot = reg->next_local_slot++;
+  const oak_type_id_t id =
+      reg->owner_module_id == OAK_TYPE_ID_MODULE_NONE
+          ? (oak_type_id_t)slot
+          : oak_type_id_make(reg->owner_module_id, slot);
+  struct oak_type_entry_t entry = { .name = name, .len = len, .id = id };
   oak_assert(oak_dynarr_push(&reg->entries, &entry));
-  const oak_type_id_t id = (oak_type_id_t)(oak_dynarr_count(reg->entries) - 1);
   return id;
-}
-
-static void oak_type_registry_ensure_slot(struct oak_type_registry_t* reg,
-                                          const oak_type_id_t id)
-{
-  if (id < oak_dynarr_count(reg->entries))
-    return;
-  oak_assert(oak_dynarr_resize(&reg->entries, id + 1));
 }
 
 oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
@@ -105,19 +112,22 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
   if (id < OAK_TYPE_FIRST_USER)
     return -1;
 
-  /* If already registered under the same name, return it. */
+  /* If this exact name/ID pair is already cataloged, return it. Different
+   * modules may legitimately contribute distinct IDs with the same name. */
   const oak_type_id_t existing = oak_type_registry_lookup(reg, name, len);
-  if (existing >= 0)
-    return existing == id ? existing : -1;
+  if (existing == id)
+    return existing;
 
-  oak_type_registry_ensure_slot(reg, id);
+  for (int i = 0; i < oak_dynarr_count(reg->entries); ++i)
+    if (reg->entries[i].id == id)
+      return -1;
 
-  /* The target slot must be empty. */
-  if (reg->entries[id].name != null)
-    return -1;
-
-  reg->entries[id].name = name;
-  reg->entries[id].len = len;
+  struct oak_type_entry_t entry = { .name = name, .len = len, .id = id };
+  oak_assert(oak_dynarr_push(&reg->entries, &entry));
+  const u16 slot = oak_type_id_local_slot(id);
+  if (oak_type_id_module(id) == reg->owner_module_id &&
+      slot >= reg->next_local_slot)
+    reg->next_local_slot = (u16)(slot + 1u);
 
   return id;
 }
@@ -125,7 +135,8 @@ oak_type_id_t oak_type_registry_intern_with_id(struct oak_type_registry_t* reg,
 const char* oak_type_registry_name(const struct oak_type_registry_t* reg,
                                    const oak_type_id_t id)
 {
-  if (id < 0 || id >= oak_dynarr_count(reg->entries))
-    return "<unknown>";
-  return reg->entries[id].name ? reg->entries[id].name : "<unknown>";
+  for (int i = 0; i < oak_dynarr_count(reg->entries); ++i)
+    if (reg->entries[i].id == id)
+      return reg->entries[i].name ? reg->entries[i].name : "<unknown>";
+  return "<unknown>";
 }

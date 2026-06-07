@@ -14,13 +14,10 @@ static int type_is_enum(struct oak_compiler_t* c, const struct oak_type_t* t)
 {
   if (!t || t->kind != OAK_TYPE_KIND_SCALAR)
     return 0;
-  if (t->id < OAK_TYPE_FIRST_USER || t->id >= oak_dynarr_count(c->types.entries))
-    return 0;
-  const char* name = c->types.entries[t->id].name;
-  if (!name)
-    return 0;
-  return oak_is_enum_name(
-      &c->enums, name, c->types.entries[t->id].len);
+  for (int i = 0; i < oak_dynarr_count(c->enums.enums); ++i)
+    if (c->enums.enums[i].type_id == t->id)
+      return 1;
+  return 0;
 }
 
 /* Returns 1 if `t` is an inline native value type (OAK_BIND_TYPE_VALUE). */

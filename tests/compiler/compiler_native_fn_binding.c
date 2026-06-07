@@ -164,14 +164,14 @@ OAK_TEST_DECL(BindFnMethodRegisters)
   const int r = oak_bind_fn(
       &opts,
       &(struct oak_bind_fn_t){ .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                               .receiver_type_id = t->type_id,
+                               .receiver_type = t,
                                .name = "length",
                                .impl = stub_fn,
                                .arity = 0,
                                .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
   OAK_CHECK(r == 0);
   OAK_CHECK(oak_dynarr_count(opts.native_fns) == 1);
-  OAK_CHECK(opts.native_fns[0].receiver_type_id == t->type_id);
+  OAK_CHECK(opts.native_fns[0].receiver_type == t);
   OAK_CHECK(opts.native_fns[0].arity == 0);
 
   oak_compile_options_free(&opts);
@@ -409,7 +409,7 @@ OAK_TEST_DECL(NativeMethodCallCompiles)
   OAK_CHECK(oak_bind_fn(&opts,
                         &(struct oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                            .receiver_type_id = t->type_id,
+                            .receiver_type = t,
                             .name = "len",
                             .impl = stub_fn,
                             .arity = 0,
@@ -440,7 +440,7 @@ OAK_TEST_DECL(NativeMethodWrongArgCountFails)
   OAK_CHECK(oak_bind_fn(&opts,
                         &(struct oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                            .receiver_type_id = t->type_id,
+                            .receiver_type = t,
                             .name = "scale",
                             .impl = stub_fn,
                             .arity = 1,
@@ -471,7 +471,7 @@ OAK_TEST_DECL(NativeMethodReturnTypeInferred)
   OAK_CHECK(oak_bind_fn(&opts,
                         &(struct oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                            .receiver_type_id = t->type_id,
+                            .receiver_type = t,
                             .name = "area",
                             .impl = stub_fn,
                             .arity = 0,
@@ -506,7 +506,7 @@ OAK_TEST_DECL(NativeMethodReturnTypeWrongFails)
   OAK_CHECK(oak_bind_fn(&opts,
                         &(struct oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                            .receiver_type_id = t->type_id,
+                            .receiver_type = t,
                             .name = "perimeter",
                             .impl = stub_fn,
                             .arity = 0,
@@ -573,12 +573,12 @@ OAK_TEST_DECL(GlobalFnAndMethodBothCompile)
                             .name = "make_unit_rect",
                             .impl = stub_fn,
                             .arity = 0,
-                            .return_type = OAK_BIND_SCALAR(t->type_id) }) == 0);
+                            .return_type = OAK_BIND_NATIVE(t) }) == 0);
   /* Method on the record */
   OAK_CHECK(oak_bind_fn(&opts,
                         &(struct oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                            .receiver_type_id = t->type_id,
+                            .receiver_type = t,
                             .name = "area",
                             .impl = stub_fn,
                             .arity = 0,
@@ -637,7 +637,7 @@ OAK_TEST_DECL(NativeMethodTooManyArgsFails)
   OAK_CHECK(oak_bind_fn(&opts,
                         &(struct oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                            .receiver_type_id = t->type_id,
+                            .receiver_type = t,
                             .name = "scale",
                             .impl = stub_fn,
                             .arity = 1,
@@ -706,7 +706,7 @@ OAK_TEST_DECL(NativeMethodMultiArgCompiles)
   OAK_CHECK(oak_bind_fn(&opts,
                         &(struct oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                            .receiver_type_id = t->type_id,
+                            .receiver_type = t,
                             .name = "set",
                             .impl = stub_fn,
                             .arity = 2,

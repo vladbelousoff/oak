@@ -87,19 +87,6 @@ void oak_compiler_dispatch_attr_cbs(struct oak_compiler_t* c,
                                     int field_count,
                                     int const_index)
 {
-  /* A compile-time attribute callback may bind new native types/methods via
-   * the binding API (oak_bind_type / oak_bind_fn on ctx->opts). oak_bind_type
-   * assigns the type's id from opts->next_type_id, so first advance that
-   * counter past every id the compiler has already assigned (initial native
-   * pass, imports, earlier records) to guarantee the new id is free. */
-  if (c->opts)
-  {
-    struct oak_compile_options_t* mutable_opts =
-        (struct oak_compile_options_t*)c->opts;
-    if (mutable_opts->next_type_id < oak_dynarr_count(c->types.entries))
-      mutable_opts->next_type_id = oak_dynarr_count(c->types.entries);
-  }
-
   oak_dispatch_compile_attr_cbs(c->opts, attrs, attr_count, decl_name, target,
                                 params, param_count, fields, field_count,
                                 const_index);

@@ -153,6 +153,11 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     .attr_count = attr_count,
     .source_module_id = OAK_MODULE_ID_NONE,
   };
+  if (!oak_compiler_declare_symbol(c, name_node->token, name, name_len,
+                                   OAK_SYMBOL_FUNCTION,
+                                   oak_dynarr_count(c->fns.entries),
+                                   mid, 0))
+    return;
   oak_fn_registry_insert(&c->fns, &entry);
 }
 

@@ -220,7 +220,7 @@ struct oak_bind_type_t* file_type =
 
 oak_bind_fn(&opts, &(struct oak_bind_fn_t){
     .kind = OAK_BIND_FN_INSTANCE_METHOD,
-    .receiver_type_id = file_type->type_id,
+    .receiver_type = file_type,
     .name = "read_all",
     .impl = file_read_all,
     .arity = 0,
@@ -234,7 +234,9 @@ oak_compile_options_free(&opts);
 
 Field, parameter, and return types are described by `oak_bind_type_ref_t`,
 built with the `OAK_BIND_*` helpers: `OAK_BIND_SCALAR(id)`,
-`OAK_BIND_ARRAY(elem)`, and `OAK_BIND_MAP(key, value)`.
+`OAK_BIND_ARRAY(elem)`, and `OAK_BIND_MAP(key, value)` for builtins, or
+`OAK_BIND_NATIVE(type)`, `OAK_BIND_NATIVE_ARRAY(type)`, and
+`OAK_BIND_NATIVE_MAP(key_type, value_type)` for native type descriptors.
 
 Native functions and methods may optionally describe their parameter types with
 the `param_types` / `param_count` fields so the compiler can type-check call
@@ -256,7 +258,7 @@ struct oak_bind_type_t* handle =
     oak_bind_type(&opts, OAK_BIND_TYPE_VALUE, "Handle");
 oak_bind_fn(&opts, &(struct oak_bind_fn_t){
     .kind = OAK_BIND_FN_INSTANCE_METHOD,
-    .receiver_type_id = handle->type_id,
+    .receiver_type = handle,
     .name = "id", .impl = handle_id, .arity = 0,
     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
 });

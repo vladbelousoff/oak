@@ -89,15 +89,15 @@ static enum oak_fn_call_result_t handle_id_impl(struct oak_native_ctx_t* ctx,
 
 
 /* Register the Handle value type, its id() method, and a make_handle()
- * constructor.  Returns the value type's type id. */
-static oak_type_id_t bind_handle(struct oak_compile_options_t* opts)
+ * constructor. */
+static void bind_handle(struct oak_compile_options_t* opts)
 {
   struct oak_bind_type_t* h =
       oak_bind_type(opts, OAK_BIND_TYPE_VALUE, "Handle");
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type_id = h->type_id,
+                  .receiver_type = h,
                   .name = "id",
                   .impl = handle_id_impl,
                   .arity = 0,
@@ -108,9 +108,8 @@ static oak_type_id_t bind_handle(struct oak_compile_options_t* opts)
                          .name = "make_handle",
                          .impl = make_handle_impl,
                          .arity = 0,
-                         .return_type = OAK_BIND_SCALAR(h->type_id),
+                         .return_type = OAK_BIND_NATIVE(h),
                      });
-  return h->type_id;
 }
 
 /* =========================================================================
@@ -199,7 +198,7 @@ static void bind_token(struct oak_compile_options_t* opts)
                          .name = "make_token",
                          .impl = make_handle_impl,
                          .arity = 0,
-                         .return_type = OAK_BIND_SCALAR(t->type_id),
+                         .return_type = OAK_BIND_NATIVE(t),
                      });
 }
 

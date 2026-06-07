@@ -28,6 +28,11 @@ static void register_native_fn(struct oak_compiler_t* c,
     .attr_count = 0,
     .source_module_id = OAK_MODULE_ID_NONE,
   };
+  if (!oak_compiler_declare_symbol(c, null, entry.name, entry.name_len,
+                                   OAK_SYMBOL_FUNCTION,
+                                   oak_dynarr_count(c->fns.entries),
+                                   OAK_MODULE_ID_NONE, 0))
+    return;
   oak_fn_registry_insert(&c->fns, &entry);
 }
 

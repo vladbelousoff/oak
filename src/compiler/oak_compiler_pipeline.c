@@ -19,7 +19,15 @@ static void collect_module_scope_names(struct oak_compiler_t* c,
     const char* name = oak_token_text(ident->token);
     const int name_len = oak_token_size(ident->token);
     if (oak_htable_get(&c->module_scope_names, name, name_len) < 0)
+    {
+      const u16 owner_module_id =
+          c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
+      if (!oak_compiler_declare_symbol(
+              c, ident->token, name, name_len, OAK_SYMBOL_GLOBAL, -1,
+              owner_module_id, 0))
+        return;
       oak_htable_insert(&c->module_scope_names, name, name_len, 1);
+    }
   }
 }
 
@@ -85,15 +93,12 @@ static void register_type_symbols(struct oak_compiler_t* c,
   oak_resolve_new_style_imports(c, program);
   CHECK_ERROR(c);
 
-  c->user_enum_start = oak_dynarr_count(c->enums.variants);
   oak_register_program_enums(c, program);
   CHECK_ERROR(c);
 
-  c->user_record_start = oak_dynarr_count(c->records.entries);
   oak_register_program_records(c, program);
   CHECK_ERROR(c);
 
-  c->user_trait_start = oak_dynarr_count(c->traits.traits);
   oak_register_program_traits(c, program);
 }
 
@@ -163,6 +168,7 @@ void oak_compiler_compile_program(struct oak_compiler_t* c,
   CHECK_ERROR(c);
 
   collect_module_scope_names(c, program);
+  CHECK_ERROR(c);
   compile_program_items(c, program);
   CHECK_ERROR(c);
 

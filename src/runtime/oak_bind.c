@@ -23,7 +23,6 @@ void oak_compile_options_init(struct oak_compile_options_t* opts,
   oak_assert(oak_dynarr_init(opts->allocator, &opts->native_global_fns, sizeof *opts->native_global_fns));
   oak_assert(oak_dynarr_init(opts->allocator, &opts->native_enums, sizeof *opts->native_enums));
   oak_assert(oak_dynarr_init(opts->allocator, &opts->native_attrs, sizeof *opts->native_attrs));
-  opts->next_type_id = OAK_TYPE_FIRST_USER;
   opts->emit_debug_info = 1;
   opts->module_registry = null;
   opts->current_module = null;
@@ -50,7 +49,6 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
   }
   oak_dynarr_free(&opts->native_enums);
   oak_dynarr_free(&opts->native_attrs);
-  opts->next_type_id = OAK_TYPE_FIRST_USER;
 }
 
 /* ---------- Binding API ---------- */
@@ -76,7 +74,7 @@ struct oak_bind_type_t* oak_bind_type_in_module(
   t->module_name = module_name;
   t->kind = kind;
   t->name = name;
-  t->type_id = opts->next_type_id++;
+  t->resolved_type_id = OAK_TYPE_VOID;
   t->allocator = opts->allocator;
   oak_assert(oak_dynarr_init(t->allocator, &t->fields, sizeof *t->fields));
   t->destructor = null;
@@ -148,7 +146,7 @@ int oak_bind_fn(struct oak_compile_options_t* opts,
   if (p->kind != OAK_BIND_FN_INSTANCE_METHOD &&
       p->kind != OAK_BIND_FN_STATIC_METHOD)
     return -1;
-  if (p->receiver_type_id == OAK_TYPE_VOID)
+  if (!p->receiver_type)
     return -1;
 
   struct oak_bind_fn_t copy = *p;

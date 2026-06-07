@@ -163,6 +163,12 @@ void oak_register_program_traits(struct oak_compiler_t* c,
       return;
     }
 
+    const u16 owner_module_id =
+        c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
+    if (!oak_compiler_declare_symbol(
+            c, item->lhs->token, tname, tname_len, OAK_SYMBOL_TRAIT,
+            oak_dynarr_count(c->traits.traits), owner_module_id, 0))
+      return;
     oak_assert(oak_dynarr_push(&c->traits.traits, &proto));
     struct oak_registered_trait_t* tr =
         &c->traits.traits[oak_dynarr_count(c->traits.traits) - 1];

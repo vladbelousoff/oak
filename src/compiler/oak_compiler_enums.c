@@ -147,9 +147,14 @@ void oak_register_native_enums(
         .name = ne->name,
         .name_len = ne_name_len,
         .type_id = enum_type_id,
+        .source_module_id = OAK_MODULE_ID_NONE,
         .attrs = null,
         .attr_count = 0,
       };
+      if (!oak_compiler_declare_symbol(
+              c, null, re.name, re.name_len, OAK_SYMBOL_ENUM,
+              oak_dynarr_count(c->enums.enums), OAK_MODULE_ID_NONE, 0))
+        return;
       oak_assert(oak_dynarr_push(&c->enums.enums, &re));
     }
 
@@ -242,6 +247,12 @@ void oak_register_program_enums(struct oak_compiler_t* c,
         .attrs = attrs,
         .attr_count = attr_count,
       };
+      const u16 owner_module_id =
+          c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
+      if (!oak_compiler_declare_symbol(
+              c, name_node->token, re.name, re.name_len, OAK_SYMBOL_ENUM,
+              oak_dynarr_count(c->enums.enums), owner_module_id, 0))
+        return;
       oak_assert(oak_dynarr_push(&c->enums.enums, &re));
     }
 

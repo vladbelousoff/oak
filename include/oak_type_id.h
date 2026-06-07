@@ -1,11 +1,12 @@
 #pragma once
 
-/* Stable, monotonically increasing integer identifier for a type.
+#include "oak_types.h"
+
+/* Module-qualified integer identifier for a type.
  *
- * 0 is OAK_TYPE_VOID and is the zero / absent type: a zero-initialised
- * oak_type_t represents void (no type), and oak_type_clear() sets a slot back
- * to void.  Native types registered via oak_bind_type() are pre-assigned ids
- * starting at OAK_TYPE_FIRST_USER. */
+ * Builtins occupy the small fixed IDs below. User types declared in a source
+ * module encode the owning module and its local type slot. Standalone
+ * compilation uses small local IDs. */
 typedef int oak_type_id_t;
 
 #define OAK_TYPE_VOID       ((oak_type_id_t)0)
@@ -15,3 +16,28 @@ typedef int oak_type_id_t;
 #define OAK_TYPE_FN         ((oak_type_id_t)4)
 #define OAK_TYPE_NONE       ((oak_type_id_t)-1)
 #define OAK_TYPE_FIRST_USER ((oak_type_id_t)5)
+
+#define OAK_TYPE_ID_MODULE_NONE ((u16)0xFFFF)
+#define OAK_TYPE_ID_SLOT_MASK   ((oak_type_id_t)0xFFFF)
+
+static inline oak_type_id_t oak_type_id_make(u16 module_id, u16 local_slot)
+{
+  return (oak_type_id_t)(((u32)module_id + 1u) << 16u) | local_slot;
+}
+
+static inline int oak_type_id_is_qualified(oak_type_id_t id)
+{
+  return id > OAK_TYPE_ID_SLOT_MASK;
+}
+
+static inline u16 oak_type_id_module(oak_type_id_t id)
+{
+  return oak_type_id_is_qualified(id)
+             ? (u16)(((u32)id >> 16u) - 1u)
+             : OAK_TYPE_ID_MODULE_NONE;
+}
+
+static inline u16 oak_type_id_local_slot(oak_type_id_t id)
+{
+  return (u16)((u32)id & (u32)OAK_TYPE_ID_SLOT_MASK);
+}

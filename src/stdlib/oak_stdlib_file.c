@@ -193,21 +193,21 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
                          .name = "open",
                          .impl = file_open,
                          .arity = 2,
-                         .return_type = OAK_BIND_SCALAR(t->type_id),
+                         .return_type = OAK_BIND_NATIVE(t),
                      });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_STATIC_METHOD,
-                  .receiver_type_id = t->type_id,
+                  .receiver_type = t,
                   .name = "open",
                   .impl = file_open,
                   .arity = 2,
-                  .return_type = OAK_BIND_SCALAR(t->type_id),
+                  .return_type = OAK_BIND_NATIVE(t),
               });
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type_id = t->type_id,
+                  .receiver_type = t,
                   .name = "read",
                   .impl = file_read,
                   .arity = 0,
@@ -216,7 +216,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type_id = t->type_id,
+                  .receiver_type = t,
                   .name = "read_all",
                   .impl = file_read_all,
                   .arity = 0,
@@ -225,7 +225,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type_id = t->type_id,
+                  .receiver_type = t,
                   .name = "write",
                   .impl = file_write,
                   .arity = 1,
@@ -234,7 +234,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type_id = t->type_id,
+                  .receiver_type = t,
                   .name = "eof",
                   .impl = file_eof,
                   .arity = 0,
@@ -243,7 +243,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
   oak_bind_fn(opts,
               &(struct oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type_id = t->type_id,
+                  .receiver_type = t,
                   .name = "close",
                   .impl = file_close,
                   .arity = 0,
