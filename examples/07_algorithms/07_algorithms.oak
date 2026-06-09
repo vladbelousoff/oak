@@ -15,7 +15,7 @@ fn is_prime(n : number) -> bool {
 }
 
 fn collect_primes(limit : number) -> number[] {
-  let mut primes = [] as number[];
+  let mut primes = new number[];
   for n from 2 to limit {
     if is_prime(n) {
       primes.push(n);

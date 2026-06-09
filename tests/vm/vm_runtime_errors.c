@@ -18,7 +18,7 @@ OAK_TEST_DECL(ArrayNegativeIndexRuntime)
 /* Reading a missing map key is a runtime error. */
 OAK_TEST_DECL(MapMissingKeyRuntime)
 {
-  return expect_runtime_error("let mut m = [:] as [string:number];\n"
+  return expect_runtime_error("let mut m = new [string:number];\n"
                               "m['a'] = 1;\n"
                               "print(m['nope']);\n");
 }

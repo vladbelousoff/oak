@@ -279,6 +279,10 @@ static const char* oak_parser_node_display(const enum oak_node_kind_t kind)
       return "an index expression";
     case OAK_NODE_EXPR_CAST:
       return "a cast expression";
+    case OAK_NODE_EXPR_NEW_ARRAY:
+      return "a new array expression";
+    case OAK_NODE_EXPR_NEW_MAP:
+      return "a new map expression";
     case OAK_NODE_EXPR_RECORD_LITERAL:
       return "a record literal";
     case OAK_NODE_ENUM_VARIANTS:

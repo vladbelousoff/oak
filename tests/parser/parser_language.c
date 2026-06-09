@@ -107,9 +107,9 @@ OAK_TEST_DECL(ParseFunctionsRecordsEnumsAndModules)
 
 OAK_TEST_DECL(ParseCollectionTypesAndLiterals)
 {
-  OAK_CHECK(parse_ok("let nums = [] as number[];\n"
+  OAK_CHECK(parse_ok("let nums = new number[];\n"
                      "let words = ['a', 'b'];\n"
-                     "let map = [:] as [string:number];\n"
+                     "let map = new [string:number];\n"
                      "let scores = ['alice': 1, 'bob': 2];\n"
                      "fn first(values : number[]) -> number { return values[0]; }\n"
                      "fn get(values : [string:number]) -> number { return values['x']; }\n",

@@ -528,8 +528,11 @@ void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
 void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node);
 
-void oak_compiler_compile_cast(struct oak_compiler_t* c,
-                               const struct oak_ast_node_t* node);
+void oak_compiler_compile_new_array(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* node);
+
+void oak_compiler_compile_new_map(struct oak_compiler_t* c,
+                                  const struct oak_ast_node_t* node);
 
 void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* node);

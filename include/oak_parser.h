@@ -140,6 +140,12 @@ enum oak_node_kind_t
   OAK_NODE_TYPE_FN,
   /* (number, string) — comma-separated parameter types inside a fn type. */
   OAK_NODE_TYPE_FN_PARAMS,
+  /* new T[] — typed empty array constructor.
+   * Unary: child = TYPE_ARRAY. */
+  OAK_NODE_EXPR_NEW_ARRAY,
+  /* new [K:V] — typed empty map constructor.
+   * Unary: child = TYPE_MAP. */
+  OAK_NODE_EXPR_NEW_MAP,
 };
 
 struct oak_ast_node_t

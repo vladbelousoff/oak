@@ -24,19 +24,19 @@ fn print_links(node : Node weak) {
 
 let mut lexer = new Node {
   name : 'lexer',
-  links : [] as Edge[]
+  links : new Edge[]
 };
 let mut parser = new Node {
   name : 'parser',
-  links : [] as Edge[]
+  links : new Edge[]
 };
 let mut compiler = new Node {
   name : 'compiler',
-  links : [] as Edge[]
+  links : new Edge[]
 };
 let mut vm = new Node {
   name : 'vm',
-  links : [] as Edge[]
+  links : new Edge[]
 };
 
 lexer.links.push(new Edge {
@@ -69,7 +69,7 @@ print_links(vm);
 
 let empty_graph = new Graph {
   name : 'empty',
-  nodes : [] as Node[],
+  nodes : new Node[],
   entry : none
 };
 print(empty_graph.entry == none);

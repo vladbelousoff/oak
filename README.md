@@ -102,12 +102,12 @@ print(Color.Green);  /* 1 */
 Arrays and maps are mutable through methods and indexing:
 
 ```oak
-let mut nums = [] as number[];
+let mut nums = new number[];
 nums.push(10);
 nums.push(20);
 print(nums[0]);
 
-let mut scores = [:] as [string:number];
+let mut scores = new [string:number];
 scores['alice'] = 95;
 print(scores.has('alice'));
 for name, score in scores { print(name + ': {}'.format([score])); }
@@ -125,7 +125,7 @@ record Rect { w : number; h : number; }
 fn Rect.area(self) -> number { return self.w * self.h; }
 
 let r = new Rect { w: 4, h: 5 };
-let mut shapes = [] as Shape[];
+let mut shapes = new Shape[];
 shapes.push(r);
 print(shapes[0].area());
 ```

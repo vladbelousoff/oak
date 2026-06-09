@@ -177,66 +177,45 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
   c->scope.stack_depth -= (int)count * 2;
 }
 
-void oak_compiler_compile_cast(struct oak_compiler_t* c,
-                               const struct oak_ast_node_t* node)
+void oak_compiler_compile_new_array(struct oak_compiler_t* c,
+                                    const struct oak_ast_node_t* node)
 {
-  const struct oak_ast_node_t* value = node->lhs;
-  const struct oak_ast_node_t* type_node = node->rhs;
-  if (!value || !type_node)
+  const struct oak_ast_node_t* type_node = node->child;
+  if (!type_node || type_node->kind != OAK_NODE_TYPE_ARRAY)
   {
-    oak_compiler_error_at(c, null, "malformed 'as' expression");
+    oak_compiler_error_at(c, null, "malformed 'new' array expression");
     return;
   }
-
-  if (type_node->kind == OAK_NODE_TYPE_ARRAY)
+  const struct oak_ast_node_t* elem = type_node->child;
+  if (!elem || elem->kind != OAK_NODE_IDENT)
   {
-    const struct oak_ast_node_t* elem = type_node->child;
-    if (!elem || elem->kind != OAK_NODE_IDENT)
-    {
-      oak_compiler_error_at(
-          c, null, "array cast requires an element type (e.g. 'number[]')");
-      return;
-    }
-    if (value->kind != OAK_NODE_EXPR_EMPTY_ARRAY)
-    {
-      oak_compiler_error_at(c,
-                            null,
-                            "only empty array literals can be cast to an "
-                            "array type (e.g. '[] as number[]')");
-      return;
-    }
-    oak_compiler_emit_op(c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
+    oak_compiler_error_at(
+        c, null, "array constructor requires an element type (e.g. 'new number[]')");
     return;
   }
+  oak_compiler_emit_op(c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
+}
 
-  if (type_node->kind == OAK_NODE_TYPE_MAP)
+void oak_compiler_compile_new_map(struct oak_compiler_t* c,
+                                  const struct oak_ast_node_t* node)
+{
+  const struct oak_ast_node_t* type_node = node->child;
+  if (!type_node || type_node->kind != OAK_NODE_TYPE_MAP)
   {
-    const struct oak_ast_node_t* key = type_node->lhs;
-    const struct oak_ast_node_t* val = type_node->rhs;
-    if (!key || !val || key->kind != OAK_NODE_IDENT ||
-        val->kind != OAK_NODE_IDENT)
-    {
-      oak_compiler_error_at(
-          c,
-          null,
-          "map cast requires key and value types (e.g. '[string:number]')");
-      return;
-    }
-    if (value->kind != OAK_NODE_EXPR_EMPTY_MAP)
-    {
-      oak_compiler_error_at(c,
-                            null,
-                            "only empty map literals can be cast to a "
-                            "map type (e.g. '[:] as [string:number]')");
-      return;
-    }
-    oak_compiler_emit_op(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
+    oak_compiler_error_at(c, null, "malformed 'new' map expression");
     return;
   }
-
-  oak_compiler_error_at(c,
-                        null,
-                        "'as' is currently only supported for typing array "
-                        "and map literals (e.g. '[] as number[]', "
-                        "'[:] as [string:number]')");
+  const struct oak_ast_node_t* key = type_node->lhs;
+  const struct oak_ast_node_t* val = type_node->rhs;
+  if (!key || !val || key->kind != OAK_NODE_IDENT ||
+      val->kind != OAK_NODE_IDENT)
+  {
+    oak_compiler_error_at(
+        c,
+        null,
+        "map constructor requires key and value types "
+        "(e.g. 'new [string:number]')");
+    return;
+  }
+  oak_compiler_emit_op(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
 }

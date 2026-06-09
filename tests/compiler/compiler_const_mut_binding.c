@@ -230,7 +230,7 @@ OAK_TEST_DECL(MutArrayPushImmutableRefFails)
 {
   return expect_compile_error("record Point { x : number; }\n"
                               "let p = new Point { x : 1 };\n"
-                              "let mut points = [] as Point[];\n"
+                              "let mut points = new Point[];\n"
                               "points.push(p);\n");
 }
 
@@ -239,7 +239,7 @@ OAK_TEST_DECL(MutMapStoreImmutableRefFails)
 {
   return expect_compile_error("record Point { x : number; }\n"
                               "let p = new Point { x : 1 };\n"
-                              "let mut points = [:] as [string:Point];\n"
+                              "let mut points = new [string:Point];\n"
                               "points['p'] = p;\n");
 }
 

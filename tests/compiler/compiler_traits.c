@@ -178,7 +178,7 @@ OAK_TEST_DECL(TraitArrayPushAndIterateOk)
       "record Rect { w : number; h : number; }\n"
       "fn Rect.area(self) -> number { return self.w * self.h; }\n"
       "fn Rect.describe(self) -> string { return 'rect'; }\n"
-      "let mut shapes = [] as Shape[];\n"
+      "let mut shapes = new Shape[];\n"
       "shapes.push(new Circle { radius: 3 });\n"
       "shapes.push(new Rect { w: 2, h: 5 });\n"
       "let mut total = 0;\n"
@@ -191,7 +191,7 @@ OAK_TEST_DECL(TraitArrayIndexOk)
   return expect_ok(
       TRAIT_SHAPE
       RECORD_CIRCLE
-      "let mut shapes = [] as Shape[];\n"
+      "let mut shapes = new Shape[];\n"
       "shapes.push(new Circle { radius: 4 });\n"
       "print(shapes[0].area());\n");
 }
@@ -201,7 +201,7 @@ OAK_TEST_DECL(TraitArrayPushNonConformingRejected)
   return expect_compile_error(
       TRAIT_SHAPE
       "record Plain { x : number; }\n"
-      "let mut shapes = [] as Shape[];\n"
+      "let mut shapes = new Shape[];\n"
       "shapes.push(new Plain { x: 1 });\n");
 }
 

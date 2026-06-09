@@ -178,7 +178,7 @@ OAK_TEST_DECL(CrossModuleTraitDispatch)
              "fn use_shape(s : Shape) -> number { return s.area(); }\n"
              "let mut c = new Circle { radius : 4 };\n"
              "print(use_shape(c));\n"
-             "let mut shapes = [] as Shape[];\n"
+             "let mut shapes = new Shape[];\n"
              "shapes.push(c);\n"
              "print(shapes[0].area());\n");
 

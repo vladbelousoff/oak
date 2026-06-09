@@ -37,7 +37,7 @@ let mut r = new Rect { w: 3, h: 4 };
 print_shape(c);
 print_shape(r);
 
-let mut shapes = [] as Shape[];
+let mut shapes = new Shape[];
 shapes.push(c);
 shapes.push(r);
 

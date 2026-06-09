@@ -277,7 +277,7 @@ OAK_TEST_DECL(LanguageSelfCycleIsCollectedAtVmTeardown)
                    "  links : Node[];\n"
                    "}\n"
                    "let mut node = new Node {\n"
-                   "  links : [] as Node[]\n"
+                   "  links : new Node[]\n"
                    "};\n"
                    "node.links.push(node);\n");
 }

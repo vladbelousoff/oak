@@ -47,8 +47,8 @@ OAK_TEST_DECL(RuntimeArrays)
                       "print(total);\n") == OAK_TEST_OK);
 
   OAK_CHECK(expect_compile_error("let bad = [1, 'two'];\n") == OAK_TEST_OK);
-  OAK_CHECK(expect_compile_error("let mut arr = [];\n") == OAK_TEST_OK);
-  OAK_CHECK(expect_compile_error("let mut arr = [] as number[];\n"
+  OAK_CHECK(expect_parse_or_compile_error("let mut arr = [];\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_compile_error("let mut arr = new number[];\n"
                                  "arr.push('oops');\n") == OAK_TEST_OK);
   OAK_CHECK(expect_compile_error("let mut arr = [1, 2, 3];\n"
                                  "arr[0] = 'oops';\n") == OAK_TEST_OK);
@@ -82,12 +82,12 @@ OAK_TEST_DECL(RuntimeMaps)
 
   OAK_CHECK(expect_compile_error("let bad = ['a': 1, 'b': 'two'];\n") == OAK_TEST_OK);
   OAK_CHECK(expect_compile_error("let bad = ['a': 1, 2: 3];\n") == OAK_TEST_OK);
-  OAK_CHECK(expect_compile_error("let mut m = [:];\n") == OAK_TEST_OK);
-  OAK_CHECK(expect_compile_error("let mut m = [:] as [string:number];\n"
+  OAK_CHECK(expect_parse_or_compile_error("let mut m = [:];\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_compile_error("let mut m = new [string:number];\n"
                                  "m[1] = 2;\n") == OAK_TEST_OK);
-  OAK_CHECK(expect_compile_error("let mut m = [:] as [string:number];\n"
+  OAK_CHECK(expect_compile_error("let mut m = new [string:number];\n"
                                  "m['c'] = 'oops';\n") == OAK_TEST_OK);
-  OAK_CHECK(expect_compile_error("let mut m = [:] as [string:number];\n"
+  OAK_CHECK(expect_compile_error("let mut m = new [string:number];\n"
                                  "m.has(1);\n") == OAK_TEST_OK);
   OAK_CHECK(expect_compile_error("let m = ['x': 1];\n"
                                  "m['x'] = 2;\n") == OAK_TEST_OK);
@@ -183,7 +183,7 @@ OAK_TEST_DECL(RuntimeTraits)
       "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
       "record Rect { w : number; h : number; }\n"
       "fn Rect.area(self) -> number { return self.w * self.h; }\n"
-      "let mut shapes = [] as Shape[];\n"
+      "let mut shapes = new Shape[];\n"
       "shapes.push(new Circle { radius: 2 });\n"
       "shapes.push(new Rect { w: 3, h: 4 });\n"
       "let mut total = 0;\n"

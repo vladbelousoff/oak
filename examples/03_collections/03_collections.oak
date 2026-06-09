@@ -1,4 +1,4 @@
-let mut scores = [] as number[];
+let mut scores = new number[];
 scores.push(10);
 scores.push(20);
 scores.push(30);
@@ -18,7 +18,7 @@ for i, score in scores {
 scores[1] = 25;
 print(scores[1]);
 
-let mut inventory = [:] as [string:number];
+let mut inventory = new [string:number];
 inventory['apples'] = 4;
 inventory['pears'] = 6;
 inventory['plums'] = 3;

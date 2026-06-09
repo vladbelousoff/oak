@@ -252,28 +252,17 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_FN_CALL:
       oak_compiler_compile_fn_call(c, node);
       break;
-    case OAK_NODE_EXPR_EMPTY_ARRAY:
-      oak_compiler_error_at(
-          c,
-          null,
-          "untyped array literal; arrays must be typed (e.g. '[] as "
-          "number[]')");
-      break;
     case OAK_NODE_EXPR_ARRAY_LITERAL:
       oak_compiler_compile_array_literal(c, node);
-      break;
-    case OAK_NODE_EXPR_EMPTY_MAP:
-      oak_compiler_error_at(
-          c,
-          null,
-          "untyped map literal; maps must be typed (e.g. '[:] as "
-          "[string:number]')");
       break;
     case OAK_NODE_EXPR_MAP_LITERAL:
       oak_compiler_compile_map_literal(c, node);
       break;
-    case OAK_NODE_EXPR_CAST:
-      oak_compiler_compile_cast(c, node);
+    case OAK_NODE_EXPR_NEW_ARRAY:
+      oak_compiler_compile_new_array(c, node);
+      break;
+    case OAK_NODE_EXPR_NEW_MAP:
+      oak_compiler_compile_new_map(c, node);
       break;
     case OAK_NODE_INDEX_ACCESS:
     {

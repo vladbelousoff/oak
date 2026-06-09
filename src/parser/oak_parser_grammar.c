@@ -168,12 +168,6 @@ static const struct oak_pratt_rule_t expr_infix[] = {
       .r_bp = OAK_BP_MEMBER_R,
       .node_kind = OAK_NODE_MEMBER_ACCESS,
   },
-  {
-      .kind = OAK_PRATT_CAST,
-      .trigger_token = OAK_TOKEN_AS,
-      .l_bp = OAK_BP_CAST_L,
-      .node_kind = OAK_NODE_EXPR_CAST,
-  },
   { 0 },
 };
 
@@ -374,8 +368,9 @@ struct oak_grammar_entry_t oak_grammar[] = {
       .infix = expr_infix,
     },
   },
-  // EXPR_PRIMARY -> INT | FLOAT | STRING | '[]' | '[:]'
+  // EXPR_PRIMARY -> INT | FLOAT | STRING
   //               | EXPR_MAP_LITERAL | EXPR_ARRAY_LITERAL
+  //               | EXPR_NEW_ARRAY | EXPR_NEW_MAP
   //               | EXPR_RECORD_LITERAL | IDENT
   [OAK_NODE_EXPR_PRIMARY] = {
     .op = OAK_GRAMMAR_CHOICE,
@@ -386,10 +381,10 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_TRUE,
       OAK_NODE_FALSE,
       OAK_NODE_NONE_LITERAL,
-      OAK_NODE_EXPR_EMPTY_ARRAY,
-      OAK_NODE_EXPR_EMPTY_MAP,
       OAK_NODE_EXPR_MAP_LITERAL,
       OAK_NODE_EXPR_ARRAY_LITERAL,
+      OAK_NODE_EXPR_NEW_ARRAY,
+      OAK_NODE_EXPR_NEW_MAP,
       OAK_NODE_EXPR_RECORD_LITERAL,
       OAK_NODE_EXPR_FN,
       OAK_NODE_SELF,
@@ -483,6 +478,22 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_COLON | OAK_RULE_TOKEN,
       OAK_NODE_EXPR,
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
+    },
+  },
+  // EXPR_NEW_ARRAY -> 'new' TYPE_ARRAY
+  [OAK_NODE_EXPR_NEW_ARRAY] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_NEW | OAK_RULE_TOKEN,
+      OAK_NODE_TYPE_ARRAY,
+    },
+  },
+  // EXPR_NEW_MAP -> 'new' TYPE_MAP
+  [OAK_NODE_EXPR_NEW_MAP] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_NEW | OAK_RULE_TOKEN,
+      OAK_NODE_TYPE_MAP,
     },
   },
   [OAK_NODE_INT] = {

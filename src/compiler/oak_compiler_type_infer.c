@@ -93,9 +93,17 @@ void oak_infer_type(struct oak_compiler_t* c,
     case OAK_NODE_FN_CALL:
       oak_infer_fn_call_type(c, expr, out);
       return;
-    case OAK_NODE_EXPR_CAST:
+    case OAK_NODE_EXPR_NEW_ARRAY:
     {
-      const struct oak_ast_node_t* type_node = expr->rhs;
+      const struct oak_ast_node_t* type_node = expr->child;
+      if (!type_node)
+        return;
+      oak_lower_type_node(c, type_node, out);
+      return;
+    }
+    case OAK_NODE_EXPR_NEW_MAP:
+    {
+      const struct oak_ast_node_t* type_node = expr->child;
       if (!type_node)
         return;
       oak_lower_type_node(c, type_node, out);

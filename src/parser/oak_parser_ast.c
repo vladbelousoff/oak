@@ -241,6 +241,10 @@ const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
       return "INDEX_ACCESS";
     case OAK_NODE_EXPR_CAST:
       return "EXPR_CAST";
+    case OAK_NODE_EXPR_NEW_ARRAY:
+      return "EXPR_NEW_ARRAY";
+    case OAK_NODE_EXPR_NEW_MAP:
+      return "EXPR_NEW_MAP";
     case OAK_NODE_EXPR_RECORD_LITERAL:
       return "EXPR_RECORD_LITERAL";
     case OAK_NODE_RECORD_LITERAL_FIELDS:
