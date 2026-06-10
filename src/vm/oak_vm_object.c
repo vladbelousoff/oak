@@ -304,7 +304,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
           return OAK_VM_RUNTIME_ERROR;
         }
         /* Getter returns an owned reference; push without extra incref. */
-        const struct oak_value_t result = ns->type->fields[idx].getter(recv);
+        const struct oak_value_t result = ns->type->fields[idx].getter(
+            recv, ns->type->fields[idx].user_data);
         oak_value_decref(recv);
         OAK_VM_TRY(oak_vm_push_owned(vm, result));
       }
@@ -367,7 +368,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
           oak_value_decref(value);
           return OAK_VM_RUNTIME_ERROR;
         }
-        ns->type->fields[idx].setter(recv, value);
+        ns->type->fields[idx].setter(
+            recv, value, ns->type->fields[idx].user_data);
         oak_value_decref(recv);
         oak_value_decref(value);
       }

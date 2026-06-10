@@ -371,6 +371,8 @@ struct oak_obj_native_fn_t
   oak_native_fn_t fn;
   int arity;
   const char* name;
+  /* Forwarded to the callback through oak_native_ctx_t::user_data. */
+  void* user_data;
   struct oak_attr_hook_entry_t* attr_hooks;
   int attr_hook_count;
 };
@@ -434,6 +436,9 @@ struct oak_native_ctx_t
 {
   struct oak_vm_t* vm;
   struct oak_allocator_t* allocator;
+  /* Per-binding user pointer from oak_bind_global_fn_t / oak_bind_fn_t;
+   * null for builtins and bindings that did not set one. */
+  void* user_data;
 };
 
 /* ===== Typed cast helpers ===== */
@@ -557,7 +562,8 @@ OAK_API struct oak_obj_native_fn_t*
 oak_native_fn_new(struct oak_allocator_t* a,
                   oak_native_fn_t fn,
                   int arity,
-                  const char* name);
+                  const char* name,
+                  void* user_data);
 
 OAK_API struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a);
 OAK_API void oak_array_push(struct oak_obj_array_t* arr,

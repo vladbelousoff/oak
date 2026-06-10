@@ -214,7 +214,8 @@ struct oak_obj_native_fn_t*
 oak_native_fn_new(struct oak_allocator_t* a,
                   const oak_native_fn_t fn,
                   const int arity,
-                  const char* name)
+                  const char* name,
+                  void* user_data)
 {
   struct oak_obj_native_fn_t* native =
       OAK_ALLOC(a, sizeof(struct oak_obj_native_fn_t));
@@ -222,6 +223,7 @@ oak_native_fn_new(struct oak_allocator_t* a,
   native->fn = fn;
   native->arity = arity;
   native->name = name;
+  native->user_data = user_data;
   native->attr_hooks = null;
   native->attr_hook_count = 0;
   return native;

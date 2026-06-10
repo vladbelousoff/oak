@@ -219,7 +219,7 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
       for (int i = 0; i < oak_dynarr_count(t->fields); ++i)
       {
         const struct oak_bind_field_t* f = &t->fields[i];
-        struct oak_value_t fv = f->getter(self);
+        struct oak_value_t fv = f->getter(self, f->user_data);
         yyjson_mut_val* fj = oak_value_to_yyjson(doc, fv, depth + 1u);
         oak_value_decref(fv);
         if (!fj)

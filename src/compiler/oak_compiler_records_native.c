@@ -144,8 +144,8 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     if (!b->name || !b->impl || b->module_name)
       continue;
 
-    struct oak_obj_native_fn_t* native =
-        oak_native_fn_new(c->allocator, b->impl, b->arity, b->name);
+    struct oak_obj_native_fn_t* native = oak_native_fn_new(
+        c->allocator, b->impl, b->arity, b->name, b->user_data);
     const u16 idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
@@ -191,8 +191,8 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
                              ? b->arity + 1
                              : b->arity;
-    struct oak_obj_native_fn_t* native =
-        oak_native_fn_new(c->allocator, b->impl, vm_arity, b->name);
+    struct oak_obj_native_fn_t* native = oak_native_fn_new(
+        c->allocator, b->impl, vm_arity, b->name, b->user_data);
 
     /* Apply runtime attribute hooks from the module stub, if the receiver type
      * belongs to a module that has a compiled stub with attributed methods. */

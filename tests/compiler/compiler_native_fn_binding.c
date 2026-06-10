@@ -90,9 +90,11 @@ static enum oak_fn_call_result_t void_fn_no_out(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static struct oak_value_t stub_getter(struct oak_value_t self)
+static struct oak_value_t stub_getter(struct oak_value_t self,
+                                       void* user_data)
 {
   (void)self;
+  (void)user_data;
   return OAK_VALUE_I32(0);
 }
 
@@ -788,7 +790,7 @@ OAK_TEST_DECL(VoidNativeFnWithoutOutRunsOk)
 /* The formatted representation of a native fn uses "arity=N" (not a range). */
 OAK_TEST_DECL(NativeFnFormatSingleArity)
 {
-  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_test_allocator(), stub_fn, 3, "my_fn");
+  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_test_allocator(), stub_fn, 3, "my_fn", null);
   OAK_CHECK(fn != null);
 
   char buf[128];
@@ -805,7 +807,7 @@ OAK_TEST_DECL(NativeFnFormatSingleArity)
 /* Anonymous native fn (no name) also uses single-arity format. */
 OAK_TEST_DECL(NativeFnFormatAnonymousSingleArity)
 {
-  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_test_allocator(), stub_fn, 0, null);
+  struct oak_obj_native_fn_t* fn = oak_native_fn_new(oak_test_allocator(), stub_fn, 0, null, null);
   OAK_CHECK(fn != null);
 
   char buf[128];

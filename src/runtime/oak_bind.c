@@ -113,6 +113,7 @@ int oak_bind_field(struct oak_bind_type_t* type,
     .type = p->type,
     .getter = p->getter,
     .setter = p->setter,
+    .user_data = p->user_data,
   };
   oak_assert(oak_dynarr_push(&type->fields, &f));
   return 0;

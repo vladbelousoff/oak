@@ -97,14 +97,18 @@ static inline struct oak_bind_type_ref_t oak_bind_type_ref_native_make(
  * The returned value is owned by the caller (the VM): for object values the
  * getter must return a fresh reference (refcount already incremented); for
  * scalar values (number, bool) no refcounting is required.
+ * `user_data` is the oak_bind_field_t::user_data pointer for this field.
  * Access the underlying C pointer with oak_native_instance(self). */
-typedef struct oak_value_t (*oak_bind_field_getter_t)(struct oak_value_t self);
+typedef struct oak_value_t (*oak_bind_field_getter_t)(struct oak_value_t self,
+                                                      void* user_data);
 
 /* Writes `value` into the native record instance `self`.
+ * `user_data` is the oak_bind_field_t::user_data pointer for this field.
  * A NULL setter makes the field read-only; the VM will emit a runtime error
  * if Oak code attempts to assign to such a field. */
 typedef void (*oak_bind_field_setter_t)(struct oak_value_t self,
-                                        struct oak_value_t value);
+                                        struct oak_value_t value,
+                                        void* user_data);
 
 /* Optional: frees heap data owned by `instance` when the native record's
  * refcount reaches zero. If NULL, only the wrapper object is freed (legacy). */
@@ -120,6 +124,9 @@ struct oak_bind_field_t
   struct oak_bind_type_ref_t type;
   oak_bind_field_getter_t getter;
   oak_bind_field_setter_t setter; /* NULL = read-only */
+  /* Optional pointer passed to both getter and setter; borrowed and must
+   * outlive every value of this type. */
+  void* user_data;
 };
 
 /* ---------- Native type descriptor ---------- */
@@ -158,6 +165,9 @@ struct oak_bind_global_fn_t
    * array (it is copied at registration) and it must outlive oak_compile_ex. */
   const struct oak_bind_type_ref_t* param_types;
   int param_count;
+  /* Optional pointer surfaced to `impl` as oak_native_ctx_t::user_data;
+   * borrowed and must outlive every chunk compiled with this binding. */
+  void* user_data;
 };
 
 /* ---------- Native method binding descriptor ---------- */
@@ -182,6 +192,9 @@ struct oak_bind_fn_t
    * must outlive oak_compile_ex. */
   const struct oak_bind_type_ref_t* param_types;
   int param_count;
+  /* Optional pointer surfaced to `impl` as oak_native_ctx_t::user_data;
+   * borrowed and must outlive every chunk compiled with this binding. */
+  void* user_data;
 };
 
 /* ---------- Native enum descriptor ---------- */

@@ -6,15 +6,16 @@ u16 oak_intern_native_const(struct oak_compiler_t* c,
                                         const int arity,
                                         const char* name)
 {
-  struct oak_obj_native_fn_t* native = oak_native_fn_new(c->allocator, impl, arity, name);
+  struct oak_obj_native_fn_t* native =
+      oak_native_fn_new(c->allocator, impl, arity, name, null);
   return oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
 static void register_native_fn(struct oak_compiler_t* c,
                                const struct oak_native_binding_t* binding)
 {
-  struct oak_obj_native_fn_t* native =
-      oak_native_fn_new(c->allocator, binding->impl, binding->arity, binding->name);
+  struct oak_obj_native_fn_t* native = oak_native_fn_new(
+      c->allocator, binding->impl, binding->arity, binding->name, null);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
   struct oak_registered_fn_t entry = {

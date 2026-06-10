@@ -16,17 +16,22 @@
  * ------------------------------------------------------------------------- */
 
 /* Stub getter: returns 0. Used wherever a real getter is not under test. */
-static struct oak_value_t stub_getter(struct oak_value_t self)
+static struct oak_value_t stub_getter(struct oak_value_t self,
+                                       void* user_data)
 {
   (void)self;
+  (void)user_data;
   return OAK_VALUE_I32(0);
 }
 
 /* Stub setter: does nothing. Used wherever a real setter is not under test. */
-static void stub_setter(struct oak_value_t self, struct oak_value_t value)
+static void stub_setter(struct oak_value_t self,
+                        struct oak_value_t value,
+                        void* user_data)
 {
   (void)self;
   (void)value;
+  (void)user_data;
 }
 
 static enum oak_test_status_t compile_ex_ok(const char* source,
@@ -511,16 +516,21 @@ static int s_getter_call_count = 0;
 static int s_setter_call_count = 0;
 static struct oak_value_t s_setter_last_value;
 
-static struct oak_value_t tracking_getter(struct oak_value_t self)
+static struct oak_value_t tracking_getter(struct oak_value_t self,
+                                           void* user_data)
 {
   (void)self;
+  (void)user_data;
   ++s_getter_call_count;
   return OAK_VALUE_I32(42);
 }
 
-static void tracking_setter(struct oak_value_t self, struct oak_value_t value)
+static void tracking_setter(struct oak_value_t self,
+                            struct oak_value_t value,
+                            void* user_data)
 {
   (void)self;
+  (void)user_data;
   ++s_setter_call_count;
   s_setter_last_value = value;
 }

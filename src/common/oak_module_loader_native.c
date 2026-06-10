@@ -145,8 +145,8 @@ void apply_native_module_function_exports(
     if (!symbol || symbol->kind != OAK_SYMBOL_FUNCTION)
       continue;
     const int eidx = symbol->payload_index;
-    struct oak_obj_native_fn_t* native =
-        oak_native_fn_new(mod->allocator, fn->impl, fn->arity, fn->name);
+    struct oak_obj_native_fn_t* native = oak_native_fn_new(
+        mod->allocator, fn->impl, fn->arity, fn->name, fn->user_data);
     struct oak_module_export_fn_t* exp = &mod->exports.fns[eidx];
     if (exp->stub_attrs && exp->stub_attr_count > 0)
       oak_apply_attr_hooks(
@@ -213,8 +213,8 @@ void apply_native_module_function_exports(
                         : OAK_BIND_FN_STATIC_METHOD;
         if (fn->kind != want_kind || strcmp(fn->name, me->name) != 0)
           continue;
-        struct oak_obj_native_fn_t* native =
-            oak_native_fn_new(mod->allocator, fn->impl, me->arity, fn->name);
+        struct oak_obj_native_fn_t* native = oak_native_fn_new(
+            mod->allocator, fn->impl, me->arity, fn->name, fn->user_data);
         if (me->stub_attrs && me->stub_attr_count > 0)
           oak_apply_attr_hooks(
               opts, null, native, me->stub_attrs, me->stub_attr_count);
@@ -523,7 +523,7 @@ struct oak_module_t* create_native_module(
     if (!native_module_name_eq(fn->module_name, dotted))
       continue;
     struct oak_obj_native_fn_t* native =
-        oak_native_fn_new(a, fn->impl, fn->arity, fn->name);
+        oak_native_fn_new(a, fn->impl, fn->arity, fn->name, fn->user_data);
     const u16 const_idx =
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
     struct oak_module_export_fn_t exp = {
