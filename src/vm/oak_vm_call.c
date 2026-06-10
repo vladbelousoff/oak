@@ -236,12 +236,20 @@ enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
    * the VM sees HALT and oak_vm_resume returns OAK_VM_OK. */
   vm->ip = halt_trampoline;
 
-  OAK_VM_TRY(oak_vm_push(vm, fn_val));
+  enum oak_vm_result_t r = oak_vm_push(vm, fn_val);
+  if (r != OAK_VM_OK)
+    return r;
   for (int i = 0; i < argc; ++i)
-    OAK_VM_TRY(oak_vm_push(vm, args[i]));
-  OAK_VM_TRY(oak_vm_op_call_with_argc(vm, (u8)argc));
+  {
+    r = oak_vm_push(vm, args[i]);
+    if (r != OAK_VM_OK)
+      return r;
+  }
+  r = oak_vm_op_call_with_argc(vm, (u8)argc);
+  if (r != OAK_VM_OK)
+    return r;
 
-  enum oak_vm_result_t r = oak_vm_resume(vm);
+  r = oak_vm_resume(vm);
 
   if (r == OAK_VM_OK && out_result)
   {

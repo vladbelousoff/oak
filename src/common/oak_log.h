@@ -27,6 +27,11 @@
 #endif
 
 OAK_API const char* oak_path_basename(const char* path);
+#ifdef __cplusplus
+[[noreturn]] OAK_API void oak_panic(const char* message);
+#else
+OAK_API _Noreturn void oak_panic(const char* message);
+#endif
 
 enum oak_log_level_t
 {

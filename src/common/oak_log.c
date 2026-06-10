@@ -5,8 +5,21 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+_Noreturn void oak_panic(const char* message)
+{
+  _oak_log_printf(OAK_LOG_ERROR,
+#ifdef OAK_DEBUG_LOGGING
+                  __FILE__,
+                  __LINE__,
+#endif
+                  "panic: %s",
+                  message);
+  abort();
+}
 
 const char* oak_path_basename(const char* path)
 {

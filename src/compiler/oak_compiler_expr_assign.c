@@ -1,5 +1,82 @@
 #include "internal/oak_compiler.h"
 
+static int validate_index_assign_target(struct oak_compiler_t* c,
+                                        const struct oak_ast_node_t* lhs,
+                                        struct oak_type_t* coll_ty)
+{
+  if (!oak_compiler_expr_is_mutable_place(c, lhs->lhs))
+  {
+    oak_compiler_error_at(c,
+                          lhs->token,
+                          "cannot assign to indexed value of immutable "
+                          "collection");
+    return 0;
+  }
+
+  oak_infer_type(c, lhs->lhs, coll_ty);
+  if (coll_ty->kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(coll_ty))
+  {
+    oak_compiler_error_at(c,
+                          lhs->lhs->token,
+                          "indexed assignment requires a typed array or map");
+    return 0;
+  }
+
+  if (coll_ty->kind == OAK_TYPE_KIND_MAP)
+  {
+    struct oak_type_t key_ty;
+    oak_infer_type(c, lhs->rhs, &key_ty);
+    if (oak_type_is_known(&key_ty))
+    {
+      const struct oak_type_t want_key = { .id = coll_ty->key_id };
+      if (!oak_type_equal(&want_key, &key_ty))
+      {
+        oak_compiler_error_at(c,
+                              lhs->rhs->token,
+                              "map key must be of type '%s', got '%s'",
+                              oak_type_full_name(c, want_key),
+                              oak_type_full_name(c, key_ty));
+        return 0;
+      }
+    }
+  }
+
+  return 1;
+}
+
+static int validate_field_assign_target(
+    struct oak_compiler_t* c,
+    const struct oak_ast_node_t* lhs,
+    const struct oak_ast_node_t** recv,
+    const struct oak_ast_node_t** fname,
+    const struct oak_registered_record_t** sd)
+{
+  *recv = lhs->lhs;
+  *fname = lhs->rhs;
+  if (!*recv || !*fname || (*fname)->kind != OAK_NODE_IDENT)
+  {
+    oak_compiler_error_at(
+        c, lhs->token, "field assignment requires 'expr.field = expr'");
+    return -1;
+  }
+
+  const int idx = oak_require_record_field(c, *recv, *fname, 1, sd);
+  if (idx < 0)
+    return -1;
+
+  if (!oak_compiler_expr_is_mutable_place(c, *recv))
+  {
+    oak_compiler_error_at(c,
+                          (*fname)->token,
+                          "cannot assign to field '%.*s' of immutable record",
+                          oak_token_size((*fname)->token),
+                          oak_token_text((*fname)->token));
+    return -1;
+  }
+
+  return idx;
+}
+
 void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
                                           const struct oak_ast_node_t* node)
 {
@@ -8,43 +85,9 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
 
   if (lhs->kind == OAK_NODE_INDEX_ACCESS)
   {
-    if (!oak_compiler_expr_is_mutable_place(c, lhs->lhs))
-    {
-      oak_compiler_error_at(c,
-                            lhs->token,
-                            "cannot assign to indexed value of immutable "
-                            "collection");
-      return;
-    }
-
     struct oak_type_t coll_ty;
-    oak_infer_type(c, lhs->lhs, &coll_ty);
-    if (coll_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&coll_ty))
-    {
-      oak_compiler_error_at(c,
-                            lhs->lhs->token,
-                            "indexed assignment requires a typed array or map");
+    if (!validate_index_assign_target(c, lhs, &coll_ty))
       return;
-    }
-
-    if (coll_ty.kind == OAK_TYPE_KIND_MAP)
-    {
-      struct oak_type_t key_ty;
-      oak_infer_type(c, lhs->rhs, &key_ty);
-      if (oak_type_is_known(&key_ty))
-      {
-        const struct oak_type_t want_key = { .id = coll_ty.key_id };
-        if (!oak_type_equal(&want_key, &key_ty))
-        {
-          oak_compiler_error_at(c,
-                                lhs->rhs->token,
-                                "map key must be of type '%s', got '%s'",
-                                oak_type_full_name(c, want_key),
-                                oak_type_full_name(c, key_ty));
-          return;
-        }
-      }
-    }
 
     struct oak_type_t val_ty;
     oak_infer_type(c, rhs, &val_ty);
@@ -84,28 +127,13 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
 
   if (lhs->kind == OAK_NODE_MEMBER_ACCESS)
   {
-    const struct oak_ast_node_t* recv = lhs->lhs;
-    const struct oak_ast_node_t* fname = lhs->rhs;
-    if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
-    {
-      oak_compiler_error_at(
-          c, lhs->token, "field assignment requires 'expr.field = expr'");
-      return;
-    }
+    const struct oak_ast_node_t* recv;
+    const struct oak_ast_node_t* fname;
     const struct oak_registered_record_t* sd = null;
-    const int idx = oak_require_record_field(c, recv, fname, 1, &sd);
+    const int idx =
+        validate_field_assign_target(c, lhs, &recv, &fname, &sd);
     if (idx < 0)
       return;
-
-    if (!oak_compiler_expr_is_mutable_place(c, recv))
-    {
-      oak_compiler_error_at(c,
-                            fname->token,
-                            "cannot assign to field '%.*s' of immutable record",
-                            oak_token_size(fname->token),
-                            oak_token_text(fname->token));
-      return;
-    }
 
     struct oak_type_t val_ty;
     oak_infer_type(c, rhs, &val_ty);
@@ -186,43 +214,9 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
 
   if (lhs->kind == OAK_NODE_INDEX_ACCESS)
   {
-    if (!oak_compiler_expr_is_mutable_place(c, lhs->lhs))
-    {
-      oak_compiler_error_at(c,
-                            lhs->token,
-                            "cannot assign to indexed value of immutable "
-                            "collection");
-      return;
-    }
-
     struct oak_type_t coll_ty;
-    oak_infer_type(c, lhs->lhs, &coll_ty);
-    if (coll_ty.kind == OAK_TYPE_KIND_SCALAR || !oak_type_is_known(&coll_ty))
-    {
-      oak_compiler_error_at(c,
-                            lhs->lhs->token,
-                            "indexed assignment requires a typed array or map");
+    if (!validate_index_assign_target(c, lhs, &coll_ty))
       return;
-    }
-
-    if (coll_ty.kind == OAK_TYPE_KIND_MAP)
-    {
-      struct oak_type_t key_ty;
-      oak_infer_type(c, lhs->rhs, &key_ty);
-      if (oak_type_is_known(&key_ty))
-      {
-        const struct oak_type_t want_key = { .id = coll_ty.key_id };
-        if (!oak_type_equal(&want_key, &key_ty))
-        {
-          oak_compiler_error_at(c,
-                                lhs->rhs->token,
-                                "map key must be of type '%s', got '%s'",
-                                oak_type_full_name(c, want_key),
-                                oak_type_full_name(c, key_ty));
-          return;
-        }
-      }
-    }
 
     oak_reject_void(c, node->rhs);
     if (c->has_error)
@@ -247,29 +241,13 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
 
   if (lhs->kind == OAK_NODE_MEMBER_ACCESS)
   {
-    const struct oak_ast_node_t* recv = lhs->lhs;
-    const struct oak_ast_node_t* fname = lhs->rhs;
-    if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
-    {
-      oak_compiler_error_at(
-          c, lhs->token, "field assignment requires 'expr.field = expr'");
-      return;
-    }
-
+    const struct oak_ast_node_t* recv;
+    const struct oak_ast_node_t* fname;
     const struct oak_registered_record_t* sd = null;
-    const int idx = oak_require_record_field(c, recv, fname, 1, &sd);
+    const int idx =
+        validate_field_assign_target(c, lhs, &recv, &fname, &sd);
     if (idx < 0)
       return;
-
-    if (!oak_compiler_expr_is_mutable_place(c, recv))
-    {
-      oak_compiler_error_at(c,
-                            fname->token,
-                            "cannot assign to field '%.*s' of immutable record",
-                            oak_token_size(fname->token),
-                            oak_token_text(fname->token));
-      return;
-    }
 
     oak_reject_void(c, node->rhs);
     if (c->has_error)

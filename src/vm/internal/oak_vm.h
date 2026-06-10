@@ -39,14 +39,6 @@ oak_vm_push_owned(struct oak_vm_t* vm, const struct oak_value_t value)
   return OAK_VM_OK;
 }
 
-#define OAK_VM_TRY(expr)                                                       \
-  do                                                                           \
-  {                                                                            \
-    const enum oak_vm_result_t _r = (expr);                                    \
-    if (_r != OAK_VM_OK)                                                       \
-      return _r;                                                               \
-  } while (0)
-
 static inline struct oak_value_t oak_vm_pop(struct oak_vm_t* vm)
 {
   oak_assert(vm->sp > vm->stack);

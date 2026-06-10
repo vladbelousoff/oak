@@ -257,6 +257,50 @@ static void import_record_from_dep(struct oak_compiler_t* c,
 #undef REC_ENTRY
 }
 
+static int import_named_type_from_dep(struct oak_compiler_t* c,
+                                      const struct oak_module_t* dep,
+                                      const char* name,
+                                      const struct oak_token_t* alias_token)
+{
+  const struct oak_module_export_record_t* rec =
+      oak_module_find_export_record(dep, name);
+  if (rec)
+  {
+    if (alias_token)
+      oak_compiler_error_at(
+          c, alias_token, "'as' aliases are not supported for record imports");
+    else
+      import_record_from_dep(c, dep, rec);
+    return 1;
+  }
+
+  const struct oak_module_export_enum_t* enm =
+      oak_module_find_export_enum(dep, name);
+  if (enm)
+  {
+    if (alias_token)
+      oak_compiler_error_at(
+          c, alias_token, "'as' aliases are not supported for enum imports");
+    else
+      import_enum_from_dep(c, dep, enm);
+    return 1;
+  }
+
+  const struct oak_module_export_trait_t* trt =
+      oak_module_find_export_trait(dep, name);
+  if (trt)
+  {
+    if (alias_token)
+      oak_compiler_error_at(
+          c, alias_token, "'as' aliases are not supported for trait imports");
+    else
+      import_trait_from_dep(c, dep, trt);
+    return 1;
+  }
+
+  return 0;
+}
+
 static void ensure_dep_type_imported(struct oak_compiler_t* c,
                                      const struct oak_module_t* dep,
                                      oak_type_id_t src_id)
@@ -266,27 +310,8 @@ static void ensure_dep_type_imported(struct oak_compiler_t* c,
   const char* name = oak_type_registry_name(&dep->types, src_id);
   if (!name || name[0] == '<')
     return;
-  const struct oak_module_export_record_t* rec =
-      oak_module_find_export_record(dep, name);
-  if (rec)
-  {
-    import_record_from_dep(c, dep, rec);
+  if (import_named_type_from_dep(c, dep, name, null))
     return;
-  }
-  const struct oak_module_export_enum_t* enm =
-      oak_module_find_export_enum(dep, name);
-  if (enm)
-  {
-    import_enum_from_dep(c, dep, enm);
-    return;
-  }
-  const struct oak_module_export_trait_t* trt =
-      oak_module_find_export_trait(dep, name);
-  if (trt)
-  {
-    import_trait_from_dep(c, dep, trt);
-    return;
-  }
 
   /* The type is not exported by the immediate dependency — it may have been
      imported transitively. Search the dep's own dependencies for the type
@@ -301,24 +326,8 @@ static void ensure_dep_type_imported(struct oak_compiler_t* c,
                                 dep->import_modules[di]);
     if (!transitive)
       continue;
-    rec = oak_module_find_export_record(transitive, name);
-    if (rec)
-    {
-      import_record_from_dep(c, transitive, rec);
+    if (import_named_type_from_dep(c, transitive, name, null))
       return;
-    }
-    enm = oak_module_find_export_enum(transitive, name);
-    if (enm)
-    {
-      import_enum_from_dep(c, transitive, enm);
-      return;
-    }
-    trt = oak_module_find_export_trait(transitive, name);
-    if (trt)
-    {
-      import_trait_from_dep(c, transitive, trt);
-      return;
-    }
   }
 }
 
@@ -461,72 +470,27 @@ static void import_selective_from_dep(struct oak_compiler_t* c,
     const int orig_len = oak_token_size(orig->token);
     const char* local_name = alias ? oak_token_text(alias->token) : orig_name;
 
-    int found = 0;
     const struct oak_module_export_fn_t* fn_exp =
         oak_module_find_export_fn(dep, orig_name);
     if (fn_exp)
     {
       import_fn_from_dep(c, dep, fn_exp, local_name);
-      found = 1;
+      if (c->has_error)
+        return;
+      continue;
     }
-    if (!found)
+    if (import_named_type_from_dep(
+            c, dep, orig_name, alias ? alias->token : null))
     {
-      const struct oak_module_export_record_t* rec_exp =
-          oak_module_find_export_record(dep, orig_name);
-      if (rec_exp)
-      {
-        if (alias)
-        {
-          oak_compiler_error_at(c, alias->token,
-                                "'as' aliases are not supported for record imports");
-          return;
-        }
-        import_record_from_dep(c, dep, rec_exp);
-        found = 1;
-      }
+      if (c->has_error)
+        return;
+      continue;
     }
-    if (!found)
-    {
-      const struct oak_module_export_enum_t* enum_exp =
-          oak_module_find_export_enum(dep, orig_name);
-      if (enum_exp)
-      {
-        if (alias)
-        {
-          oak_compiler_error_at(c, alias->token,
-                                "'as' aliases are not supported for enum imports");
-          return;
-        }
-        import_enum_from_dep(c, dep, enum_exp);
-        found = 1;
-      }
-    }
-    if (!found)
-    {
-      const struct oak_module_export_trait_t* trait_exp =
-          oak_module_find_export_trait(dep, orig_name);
-      if (trait_exp)
-      {
-        if (alias)
-        {
-          oak_compiler_error_at(c, alias->token,
-                                "'as' aliases are not supported for trait imports");
-          return;
-        }
-        import_trait_from_dep(c, dep, trait_exp);
-        found = 1;
-      }
-    }
-    if (!found)
-    {
-      oak_compiler_error_at(c, orig->token,
-                            "module '%s' does not export '%.*s'",
-                            dep->dotted_name,
-                            (int)orig_len, orig_name);
-      return;
-    }
-    if (c->has_error)
-      return;
+    oak_compiler_error_at(c, orig->token,
+                          "module '%s' does not export '%.*s'",
+                          dep->dotted_name,
+                          (int)orig_len, orig_name);
+    return;
   }
 }
 
