@@ -17,8 +17,9 @@ Useful CLI flags:
 
 | Flag | Purpose |
 |---|---|
+| `--debug` | run the script under the interactive debugger |
 | `--disassemble` | print bytecode before running |
-| `--no-debug` | compile without debug metadata |
+| `--no-debug-symbols` (alias `--no-debug`) | compile without debug metadata |
 | `--track-memory` | fail if tracked runtime allocations leak |
 | `--help` | show usage |
 
@@ -55,7 +56,9 @@ for i, value in [2, 3, 5] { print(i + value); }
 ```
 
 Core value types are `number`, `string`, `bool`, arrays, maps, records, enums,
-functions, `none`, and weak references. Strings are single-quoted.
+functions, `none`, and weak references. Strings are single-quoted (double
+quotes are a lexer error) and support the `\n`, `\t`, `\r`, `\\`, `\'`, and
+`\"` escapes.
 
 Heap values use reference counting with cycle collection. Unreachable ownership
 cycles are reclaimed automatically; weak references remain useful for modelling
@@ -63,6 +66,12 @@ non-owning relationships explicitly.
 
 Operators include arithmetic (`+ - * / // %`), comparison, `!`, and short-circuit
 logic (`&&`, `||`, `and`, `or`, `not`).
+
+Numbers are 32-bit integers or floats. `/` always produces a float; `//` is
+integer division and `%` is integer remainder. Integer `+ - *` wrap on
+overflow (two's complement); division by zero, `//` overflow, and `//`
+operands outside the integer range raise runtime errors. Integer literals
+outside the 32-bit range are rejected at lex time.
 
 Functions live at module scope:
 
@@ -282,6 +291,11 @@ Return `OAK_FN_CALL_OK` on success or `OAK_FN_CALL_RUNTIME_ERROR` to raise a VM
 runtime error. `OAK_TYPE_VOID` functions may leave `*out` untouched; the VM
 treats the result as `none`.
 
+Function and field bindings accept an optional `user_data` pointer. For
+functions it is surfaced to the implementation as
+`oak_native_ctx_t::user_data`; field getters and setters receive their
+binding's pointer as a trailing `user_data` argument.
+
 Wrap native instances with `oak_native_record_new(ctx->allocator, type, ptr)`;
 inside getters, setters, and methods, recover the C pointer with
 `oak_native_instance(value)`. If `type->destructor` is set, it runs when the Oak
@@ -300,6 +314,27 @@ fn File.read_all(self) -> string;
 fn File.write(mut self, value : string);
 fn File.eof(self) -> bool;
 fn File.close(self);
+```
+
+## C++ API
+
+`include/oak.hpp` wraps the C API in a header-only C++20 layer for native
+builds (the WASM build stays C-only). It provides RAII types — `oak::Allocator`,
+`oak::Value`, `oak::CompileOptions`, `oak::CompileResult`, `oak::TypeBuilder`,
+`oak::VM`, and `oak::ModuleRegistry` — over the same core library, with
+`raw()` accessors for dropping down to the C structs.
+
+```cpp
+#include <oak.hpp>
+
+oak::Allocator alloc;
+oak::CompileOptions opts(alloc);
+auto result = oak::compile("print('hello');", opts);
+if (result.ok())
+{
+  oak::VM vm(alloc);
+  vm.run(result);
+}
 ```
 
 ## Architecture

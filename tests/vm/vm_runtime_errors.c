@@ -58,6 +58,29 @@ OAK_TEST_DECL(IntModuloByZeroRuntime)
                               "print(x);\n");
 }
 
+/* INT_MIN // -1 overflows i32 and is reported instead of trapping (SIGFPE). */
+OAK_TEST_DECL(IntDivOverflowRuntime)
+{
+  return expect_runtime_error("let x = (0 - 2147483647 - 1) // (0 - 1);\n"
+                              "print(x);\n");
+}
+
+/* '//' with a float operand outside the i32 range is an error, not UB. */
+OAK_TEST_DECL(IntDivRangeRuntime)
+{
+  return expect_runtime_error("let x = 1.0e30 // 1;\n"
+                              "print(x);\n");
+}
+
+/* INT_MIN % -1 is mathematically 0 and must not trap. */
+OAK_TEST_DECL(IntModuloMinusOneIsZero)
+{
+  return expect_ok("if (0 - 2147483647 - 1) % (0 - 1) != 0 { print([1][3]); }\n"
+                   "let a = 0 - 2147483647 - 1;\n"
+                   "let b = 0 - 1;\n"
+                   "if a % b != 0 { print([1][3]); }\n");
+}
+
 /* Unbounded recursion exhausts the call-frame stack. */
 OAK_TEST_DECL(CallFrameOverflowRuntime)
 {
@@ -78,6 +101,9 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(NumberConversionTypeRuntime),
     OAK_TEST_ENTRY(MathBuiltinRuntime),
     OAK_TEST_ENTRY(IntModuloByZeroRuntime),
+    OAK_TEST_ENTRY(IntDivOverflowRuntime),
+    OAK_TEST_ENTRY(IntDivRangeRuntime),
+    OAK_TEST_ENTRY(IntModuloMinusOneIsZero),
     OAK_TEST_ENTRY(CallFrameOverflowRuntime),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));

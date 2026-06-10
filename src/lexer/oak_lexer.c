@@ -5,8 +5,10 @@
 #include "oak_allocator.h"
 #include "oak_utf8.h"
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void oak_lexer_advance_cursor(struct oak_lexer_cur_t* cur,
@@ -267,9 +269,11 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
         case '\\':
         case '\'':
         case '"':
-        default:
           cp = (u8)*p;
           break;
+        default:
+          oak_growable_buf_free(&gb);
+          return OAK_LEX_INVALID_ESCAPE;
       }
       n = 1;
     }
@@ -290,7 +294,7 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
     p += n;
     oak_lexer_advance_cursor(cur, 1, n);
 
-    if (*p == '\'')
+    if (p < end && *p == '\'')
     {
       oak_lexer_advance_cursor(cur, 1, 1);
       oak_lexer_save_token(
@@ -363,24 +367,32 @@ static enum oak_lex_status_t scan_number(const struct oak_lexer_ctx_t* ctx,
   if (len >= sizeof(tls_buffer))
     return OAK_LEX_NUMBER_TOO_LONG;
 
-  memset(tls_buffer, 0, sizeof(tls_buffer));
   memcpy(tls_buffer, start, len);
   tls_buffer[len] = '\0';
 
   if (has_dot || has_exp)
   {
-    float val = 0.0f;
-    if (sscanf(tls_buffer, "%f", &val) != 1)
+    char* parse_end = null;
+    errno = 0;
+    const float val = strtof(tls_buffer, &parse_end);
+    if (parse_end != tls_buffer + len)
       return OAK_LEX_NUMBER_SYNTAX;
+    if (errno == ERANGE && (val >= 1.0f || val <= -1.0f))
+      return OAK_LEX_NUMBER_RANGE;
 
     oak_lexer_save_token(
         ctx->lexer, &sav_cur, OAK_TOKEN_FLOAT, (char*)&val, sizeof(float));
   }
   else
   {
-    int val = 0;
-    if (sscanf(tls_buffer, "%d", &val) != 1)
+    char* parse_end = null;
+    errno = 0;
+    const long lval = strtol(tls_buffer, &parse_end, 10);
+    if (parse_end != tls_buffer + len)
       return OAK_LEX_NUMBER_SYNTAX;
+    if (errno == ERANGE || lval > INT_MAX)
+      return OAK_LEX_NUMBER_RANGE;
+    const int val = (int)lval;
 
     oak_lexer_save_token(
         ctx->lexer, &sav_cur, OAK_TOKEN_INT, (char*)&val, sizeof(int));
@@ -516,8 +528,17 @@ struct oak_lexer_result_t* oak_lexer_tokenize_len(
       u32 cp = 0;
       const usize rem = len - (usize)cur.buf_pos;
       const int n = oak_utf8_next_bounded(&input[cur.buf_pos], rem, &cp);
-      oak_log_cond(n < 0, OAK_LOG_ERROR, "invalid utf8 character: 0x%.8X", cp);
+      if (n < 0)
+        oak_log(OAK_LOG_ERROR, "invalid utf8 character: 0x%.8X", cp);
+      else
+        oak_log(OAK_LOG_ERROR,
+                "unexpected character U+%04X at line %d, column %d",
+                cp,
+                cur.line,
+                cur.column);
       result->error_count++;
+      /* Skip the offending bytes so scanning always makes progress. */
+      oak_lexer_advance_cursor(&cur, 1, n > 0 ? n : 1);
     }
     else
     {

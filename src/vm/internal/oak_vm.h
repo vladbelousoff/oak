@@ -71,6 +71,28 @@ static inline u16 oak_vm_read_u16(struct oak_vm_t* vm)
   return (u16)((hi << 8) | lo);
 }
 
+/* i32 arithmetic wraps on overflow (two's complement) instead of invoking
+ * signed-overflow UB. */
+static inline int oak_i32_wrap_add(const int a, const int b)
+{
+  return (int)((u32)a + (u32)b);
+}
+
+static inline int oak_i32_wrap_sub(const int a, const int b)
+{
+  return (int)((u32)a - (u32)b);
+}
+
+static inline int oak_i32_wrap_mul(const int a, const int b)
+{
+  return (int)((u32)a * (u32)b);
+}
+
+static inline int oak_i32_wrap_neg(const int a)
+{
+  return (int)(0u - (u32)a);
+}
+
 const char* oak_vm_value_kind_desc(struct oak_value_t v);
 
 #if defined(__GNUC__) || defined(__clang__)

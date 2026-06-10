@@ -31,7 +31,7 @@ Public headers live in `include/`. Internal compiler headers are in `src/compile
 
 ## Key Design Notes
 
-- Oak strings are **single-quoted** (`'hello'`). Double-quoted strings are not supported and cause hangs.
+- Oak strings are **single-quoted** (`'hello'`). Double-quoted strings are not supported and produce a lexer error.
 - The parser grammar is **declarative**: rules are SEQUENCE, CHOICE, BINARY, UNARY, TOKEN, PRATT entries in a table. CHOICE nodes are transparent (they return the matched child directly, not a wrapper).
 
 ## Tests

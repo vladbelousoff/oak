@@ -191,6 +191,7 @@ else
     'stdlib_file_missing': 'tests/stdlib/stdlib_file_missing.c',
     'vm_language_runtime': 'tests/vm/vm_language_runtime.c',
     'vm_cycle_collection': 'tests/vm/vm_cycle_collection.c',
+    'vm_map_table': 'tests/vm/vm_map_table.c',
     'vm_runtime_errors': 'tests/vm/vm_runtime_errors.c',
     'vm_short_circuit': 'tests/vm/vm_short_circuit.c',
     'vm_value_boxing': 'tests/vm/vm_value_boxing.c',

@@ -1,8 +1,21 @@
 #include "internal/oak_vm.h"
 
-static inline int coerce_i32(const struct oak_value_t v)
+#include <limits.h>
+
+/* Convert a number to i32 for '//'. Fails on NaN and on floats outside the
+ * i32 range, where a plain cast would be undefined behavior. */
+static inline int checked_i32(const struct oak_value_t v, int* out)
 {
-  return oak_is_f32(v) ? (int)oak_as_f32(v) : oak_as_i32(v);
+  if (oak_is_i32(v))
+  {
+    *out = oak_as_i32(v);
+    return 1;
+  }
+  const float f = oak_as_f32(v);
+  if (!(f >= -2147483648.0f && f < 2147483648.0f))
+    return 0;
+  *out = (int)f;
+  return 1;
 }
 
 static inline float coerce_f32(const struct oak_value_t v)
@@ -27,13 +40,25 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
           oak_vm_value_kind_desc(b));
       return OAK_VM_RUNTIME_ERROR;
     }
-    const int divisor = coerce_i32(b);
+    int dividend;
+    int divisor;
+    if (!checked_i32(a, &dividend) || !checked_i32(b, &divisor))
+    {
+      oak_vm_runtime_error(
+          vm, "integer division operand does not fit in an integer");
+      return OAK_VM_RUNTIME_ERROR;
+    }
     if (divisor == 0)
     {
       oak_vm_runtime_error(vm, "integer division by zero");
       return OAK_VM_RUNTIME_ERROR;
     }
-    return oak_vm_push(vm, OAK_VALUE_I32(coerce_i32(a) / divisor));
+    if (dividend == INT_MIN && divisor == -1)
+    {
+      oak_vm_runtime_error(vm, "integer division overflow");
+      return OAK_VM_RUNTIME_ERROR;
+    }
+    return oak_vm_push(vm, OAK_VALUE_I32(dividend / divisor));
   }
 
   if (oak_is_i32(a) && oak_is_i32(b) && binop != OAK_BINOP_DIVIDE)
@@ -42,13 +67,13 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
     switch (binop)
     {
       case OAK_BINOP_ADD:
-        result = oak_as_i32(a) + oak_as_i32(b);
+        result = oak_i32_wrap_add(oak_as_i32(a), oak_as_i32(b));
         break;
       case OAK_BINOP_SUBTRACT:
-        result = oak_as_i32(a) - oak_as_i32(b);
+        result = oak_i32_wrap_sub(oak_as_i32(a), oak_as_i32(b));
         break;
       case OAK_BINOP_MULTIPLY:
-        result = oak_as_i32(a) * oak_as_i32(b);
+        result = oak_i32_wrap_mul(oak_as_i32(a), oak_as_i32(b));
         break;
       case OAK_BINOP_MODULO:
         if (oak_as_i32(b) == 0)
@@ -57,7 +82,8 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
                                "integer remainder by zero (modulo by zero)");
           return OAK_VM_RUNTIME_ERROR;
         }
-        result = oak_as_i32(a) % oak_as_i32(b);
+        /* INT_MIN % -1 is mathematically 0 but traps on x86. */
+        result = oak_as_i32(b) == -1 ? 0 : oak_as_i32(a) % oak_as_i32(b);
         break;
       default:
         oak_vm_runtime_error(

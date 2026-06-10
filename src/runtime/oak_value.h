@@ -402,6 +402,9 @@ struct oak_obj_map_t
   struct oak_map_entry_t* entries;
   usize ht_capacity;
   usize* ht;
+  /* Tombstone slot count; rebuilds must account for it or churn can leave
+   * the table without a single EMPTY slot and probes would never end. */
+  usize ht_tombstones;
 };
 
 struct oak_obj_record_t

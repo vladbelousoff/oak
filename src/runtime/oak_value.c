@@ -348,6 +348,7 @@ struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
   map->entries = null;
   map->ht_capacity = 0;
   map->ht = null;
+  map->ht_tombstones = 0;
   return map;
 }
 
@@ -358,7 +359,11 @@ static u32 hash_value(const struct oak_value_t v)
   if (oak_is_i32(v))
     return (u32)oak_as_i32(v) * 2654435761u;
   if (oak_is_f32(v))
-    return oak_f32_to_bits(oak_as_f32(v)) * 2654435761u;
+  {
+    /* +0.0 and -0.0 compare equal, so they must hash identically. */
+    const float f = oak_as_f32(v);
+    return oak_f32_to_bits(f == 0.0f ? 0.0f : f) * 2654435761u;
+  }
   if (oak_is_none(v))
     return 0x9E3779B9u;
   if (oak_is_handle(v))
@@ -372,6 +377,16 @@ static u32 hash_value(const struct oak_value_t v)
     struct oak_obj_t* p = oak_val_obj_ptr(v);
     return (u32)(uintptr_t)p * 2654435761u;
   }
+}
+
+/* Keys must be stable under oak_value_equal: none and weak refs are excluded,
+ * and so is NaN because it never compares equal to itself — a NaN key could be
+ * inserted but never looked up or deleted again. */
+static int map_key_invalid(const struct oak_value_t key)
+{
+  if (oak_is_none(key) || oak_is_weak_obj(key))
+    return 1;
+  return oak_is_f32(key) && oak_as_f32(key) != oak_as_f32(key);
 }
 
 static usize ht_probe(const usize* ht,
@@ -425,13 +440,14 @@ static void map_ht_rebuild(struct oak_obj_map_t* map, const usize new_cap)
     OAK_FREE(a, map->ht);
   map->ht = new_ht;
   map->ht_capacity = new_cap;
+  map->ht_tombstones = 0;
 }
 
 int oak_map_get(const struct oak_obj_map_t* map,
                 const struct oak_value_t key,
                 struct oak_value_t* out)
 {
-  if (oak_is_none(key) || oak_is_weak_obj(key))
+  if (map_key_invalid(key))
     return 0;
   if (!map->ht || map->length == 0)
     return 0;
@@ -446,7 +462,7 @@ int oak_map_get(const struct oak_obj_map_t* map,
 
 int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
 {
-  if (oak_is_none(key) || oak_is_weak_obj(key))
+  if (map_key_invalid(key))
     return 0;
   if (!map->ht || map->length == 0)
     return 0;
@@ -457,7 +473,7 @@ int oak_map_has(const struct oak_obj_map_t* map, const struct oak_value_t key)
 
 int oak_map_delete(struct oak_obj_map_t* map, const struct oak_value_t key)
 {
-  if (oak_is_none(key) || oak_is_weak_obj(key))
+  if (map_key_invalid(key))
     return 0;
   if (!map->ht || map->length == 0)
     return 0;
@@ -472,6 +488,7 @@ int oak_map_delete(struct oak_obj_map_t* map, const struct oak_value_t key)
   const struct oak_value_t del_val = map->entries[entry_idx].value;
 
   map->ht[del_slot] = MAP_HT_TOMBSTONE;
+  map->ht_tombstones++;
 
   const usize last = map->length - 1u;
   if (entry_idx != last)
@@ -512,11 +529,17 @@ int oak_map_set(struct oak_obj_map_t* map,
                 const struct oak_value_t key,
                 const struct oak_value_t value)
 {
-  if (oak_is_weak_obj(key) || oak_is_none(key))
+  if (map_key_invalid(key))
     return 0;
-  if (!map->ht || (map->length + 1u) * 4u > map->ht_capacity * 3u)
+  /* Tombstones count toward the load factor so insert/delete churn cannot
+   * exhaust the EMPTY slots that terminate probing; capacity itself only
+   * grows when live entries demand it. */
+  if (!map->ht ||
+      (map->length + map->ht_tombstones + 1u) * 4u > map->ht_capacity * 3u)
   {
-    const usize new_cap = map->ht_capacity < 8u ? 8u : map->ht_capacity * 2u;
+    usize new_cap = map->ht_capacity < 8u ? 8u : map->ht_capacity;
+    while ((map->length + 1u) * 4u > new_cap * 3u)
+      new_cap *= 2u;
     map_ht_rebuild(map, new_cap);
   }
 
@@ -544,6 +567,8 @@ int oak_map_set(struct oak_obj_map_t* map,
   oak_value_incref(value);
   map->entries[map->length].key = key;
   map->entries[map->length].value = value;
+  if (map->ht[slot] == MAP_HT_TOMBSTONE)
+    map->ht_tombstones--;
   map->ht[slot] = map->length;
   map->length++;
   return 1;

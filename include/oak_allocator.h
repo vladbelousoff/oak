@@ -5,6 +5,10 @@
 
 struct oak_obj_t;
 
+/* Allocation callbacks must return usable memory: runtime call sites do not
+ * null-check. The built-in system and tracking allocators log and abort() on
+ * out-of-memory; custom allocators should fail the same way rather than
+ * return null. */
 struct oak_allocator_t
 {
   void* (*alloc)(struct oak_allocator_t* self,

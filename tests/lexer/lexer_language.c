@@ -171,6 +171,31 @@ OAK_TEST_DECL(LexWhitespaceNewlinesAndErrors)
   return OAK_TEST_OK;
 }
 
+/* Unrecognized characters are reported and skipped — lexing must terminate
+ * (a regression here is an infinite loop, e.g. on double-quoted strings). */
+OAK_TEST_DECL(LexErrorsTerminate)
+{
+  struct oak_lexer_result_t* lexer = OAK_LEX("let s = \"hi\";");
+  OAK_CHECK(oak_lexer_error_count(lexer) == 2);
+  oak_lexer_free(lexer);
+
+  lexer = OAK_LEX("let x = 1 # 2;");
+  OAK_CHECK(oak_lexer_error_count(lexer) == 1);
+  oak_lexer_free(lexer);
+
+  /* Unknown escape sequences are rejected. */
+  lexer = OAK_LEX("'a\\q'");
+  OAK_CHECK(oak_lexer_error_count(lexer) > 0);
+  oak_lexer_free(lexer);
+
+  /* Integer literals beyond the i32 range are rejected, not wrapped. */
+  lexer = OAK_LEX("2147483648");
+  OAK_CHECK(oak_lexer_error_count(lexer) > 0);
+  oak_lexer_free(lexer);
+
+  return OAK_TEST_OK;
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -182,6 +207,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(LexBlockComments),
     OAK_TEST_ENTRY(LexStringsEscapesUnicodeAndGrowth),
     OAK_TEST_ENTRY(LexWhitespaceNewlinesAndErrors),
+    OAK_TEST_ENTRY(LexErrorsTerminate),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
 }

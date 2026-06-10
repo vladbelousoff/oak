@@ -7,6 +7,19 @@
 #include "oak_log.h"
 #include "oak_value.h"
 
+/* Runtime call sites do not null-check allocations (see oak_allocator.h), so
+ * out-of-memory is fatal for the built-in allocators. */
+static void oom_abort(const usize size, const char* file, const int line)
+{
+  const char* at = file ? oak_path_basename(file) : "?";
+  oak_log(OAK_LOG_ERROR,
+          "out of memory allocating %lu bytes (%s:%d)",
+          (unsigned long)size,
+          at,
+          line);
+  abort();
+}
+
 /* --- System allocator (thin malloc wrapper, no tracking) --- */
 
 static void* sys_alloc(struct oak_allocator_t* self,
@@ -15,9 +28,10 @@ static void* sys_alloc(struct oak_allocator_t* self,
                        int line)
 {
   (void)self;
-  (void)file;
-  (void)line;
-  return malloc(size);
+  void* ptr = malloc(size);
+  if (!ptr && size != 0)
+    oom_abort(size, file, line);
+  return ptr;
 }
 
 static void* sys_realloc(struct oak_allocator_t* self,
@@ -27,9 +41,10 @@ static void* sys_realloc(struct oak_allocator_t* self,
                          int line)
 {
   (void)self;
-  (void)file;
-  (void)line;
-  return realloc(ptr, new_size);
+  void* new_ptr = realloc(ptr, new_size);
+  if (!new_ptr && new_size != 0)
+    oom_abort(new_size, file, line);
+  return new_ptr;
 }
 
 static void sys_free(struct oak_allocator_t* self,
@@ -98,7 +113,7 @@ static void* track_alloc(struct oak_allocator_t* self,
   struct oak_tracking_state_t* st = self->state;
   char* data = malloc(sizeof(struct oak_track_header_t) + size);
   if (!data)
-    return null;
+    oom_abort(size, file, line);
 
   struct oak_track_header_t* header = (struct oak_track_header_t*)data;
   header->signature = TRACK_SIG;
@@ -133,10 +148,7 @@ static void* track_realloc(struct oak_allocator_t* self,
   oak_list_remove(&old_header->link);
   char* data = realloc(old_header, sizeof(struct oak_track_header_t) + new_size);
   if (!data)
-  {
-    oak_list_add_tail(&st->allocations, &old_header->link);
-    return null;
-  }
+    oom_abort(new_size, file, line);
 
   if (new_size > old_size)
     memset(data + sizeof(struct oak_track_header_t) + old_size,
@@ -169,6 +181,9 @@ static void track_free(struct oak_allocator_t* self,
   else
   {
     oak_list_remove(&header->link);
+    /* Invalidate the signature so a double-free is reported as a mismatch
+     * instead of corrupting the heap. */
+    header->signature = 0;
     free(header);
   }
 }
