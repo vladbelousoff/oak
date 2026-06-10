@@ -171,6 +171,14 @@ else
     dependencies: acorn_dep,
   )
 
+  cli_parse_test = executable(
+    'cli_parse',
+    files('tests/cli/cli_parse.c', 'oak_cli.c'),
+    include_directories: include_directories('.'),
+    c_args: common_c_args,
+  )
+  test('cli_parse', cli_parse_test)
+
   test_sources = {
     'dynarr': 'tests/common/dynarr.c',
     'compiler_anon_fn': 'tests/compiler/compiler_anon_fn.c',

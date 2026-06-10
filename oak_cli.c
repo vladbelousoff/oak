@@ -54,7 +54,7 @@ int oak_cli_parse(int argc,
         args->disassemble = 1;
         continue;
       }
-      if (strcmp(a, "--no-debug-symbols") == 0 || strcmp(a, "--no-debug") == 0)
+      if (strcmp(a, "--no-debug-symbols") == 0)
       {
         args->no_debug_symbols = 1;
         continue;
