@@ -1,9 +1,12 @@
 project(
   'oak',
-  'c',
+  'c', 'cpp',
   version: '2.0.0',
   default_options: [
     'c_std=c17',
+    'cpp_std=c++20',
+    'cpp_eh=none',
+    'cpp_rtti=false',
     'default_library=static',
     'warning_level=2',
   ],
@@ -207,6 +210,21 @@ else
     )
     test(test_name, test_exe)
   endforeach
+
+  # C++ wrapper test
+  cxx = meson.get_compiler('cpp')
+  is_msvc_cxx = cxx.get_id() == 'msvc'
+  cpp_warning_args = is_msvc_cxx ? ['/wd4200'] : ['-Wno-unused-function']
+  cpp_args = cpp_warning_args + debug_defines + platform_defines + ['-DOAK_ATOMIC_REFCOUNT', stdlib_dir_define]
+
+  test_oak_hpp = executable(
+    'test_oak_hpp',
+    files('tests/cpp/test_oak_hpp.cpp'),
+    include_directories: [src_inc, public_inc],
+    cpp_args: cpp_args,
+    dependencies: acorn_dep,
+  )
+  test('test_oak_hpp', test_oak_hpp)
 
   example_sources = {
     '01_values': 'examples/01_values/01_values.oak',
