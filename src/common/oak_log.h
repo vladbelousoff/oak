@@ -3,6 +3,14 @@
 #include "oak_export.h"
 
 #if defined(_MSC_VER)
+#define OAK_NORETURN __declspec(noreturn)
+#elif defined(__cplusplus)
+#define OAK_NORETURN [[noreturn]]
+#else
+#define OAK_NORETURN _Noreturn
+#endif
+
+#if defined(_MSC_VER)
 #define oak_debug_break() __debugbreak()
 #elif defined(__clang__) || defined(__GNUC__)
 #define oak_debug_break() __builtin_trap()
@@ -27,11 +35,7 @@
 #endif
 
 OAK_API const char* oak_path_basename(const char* path);
-#ifdef __cplusplus
-[[noreturn]] OAK_API void oak_panic(const char* message);
-#else
-OAK_API _Noreturn void oak_panic(const char* message);
-#endif
+OAK_NORETURN OAK_API void oak_panic(const char* message);
 
 enum oak_log_level_t
 {

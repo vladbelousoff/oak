@@ -9,7 +9,7 @@
 #include <string.h>
 #include <time.h>
 
-_Noreturn void oak_panic(const char* message)
+OAK_NORETURN void oak_panic(const char* message)
 {
   _oak_log_printf(OAK_LOG_ERROR,
 #ifdef OAK_DEBUG_LOGGING
