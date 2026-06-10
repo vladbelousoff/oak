@@ -319,19 +319,347 @@ fn File.close(self);
 ## C++ API
 
 `include/oak.hpp` wraps the C API in a header-only C++20 layer for native
-builds (the WASM build stays C-only). It provides RAII types — `oak::Allocator`,
-`oak::Value`, `oak::CompileOptions`, `oak::CompileResult`, `oak::TypeBuilder`,
-`oak::VM`, and `oak::ModuleRegistry` — over the same core library, with
-`raw()` accessors for dropping down to the C structs.
+builds (the WASM build stays C-only). Every type is non-copyable and owns its
+resources; move semantics apply where transfer makes sense. `raw()` accessors
+drop down to the underlying C structs when needed.
 
 ```cpp
 #include <oak.hpp>
 
 oak::Allocator alloc;
 oak::CompileOptions opts(alloc);
+opts.with_stdlib();
+
 auto result = oak::compile("print('hello');", opts);
 if (result.ok())
 {
+  oak::VM vm(alloc);
+  vm.run(result);
+}
+else
+{
+  for (int i = 0; i < result.error_count(); ++i)
+  {
+    auto d = result.error(i);
+    fprintf(stderr, "%d:%d: %s\n", d.line(), d.column(), d.message());
+  }
+}
+```
+
+### `oak::Allocator`
+
+RAII wrapper around `oak_allocator_t`. Must outlive every object that was
+constructed with it.
+
+```cpp
+oak::Allocator alloc;                          // system allocator (default)
+oak::Allocator tracking(oak::Allocator::tracking); // leak-detecting allocator
+```
+
+| Member | Description |
+|---|---|
+| `Allocator(kind k = system)` | `system` or `tracking` |
+| `get()` | `oak_allocator_t*` |
+
+### `oak::Value`
+
+RAII wrapper around `oak_value_t` with automatic reference counting. Copy
+increments the refcount; move steals without touching it.
+
+**Static factories**
+
+| Factory | Description |
+|---|---|
+| `Value::i32(n)` | 32-bit integer |
+| `Value::f32(f)` | 32-bit float |
+| `Value::boolean(b)` | bool |
+| `Value::none()` | `none` |
+| `Value::handle(h)` | opaque `uint64_t` handle |
+| `Value::string(alloc, s)` | heap-allocated Oak string |
+
+Implicit constructors exist for `int`, `float`, `double`, and `bool`.
+Pointer-to-Value conversion is deleted to prevent accidental bool coercion.
+
+**Type predicates**
+
+`is_i32()`, `is_f32()`, `is_bool()`, `is_none()`, `is_number()`,
+`is_string()`, `is_array()`, `is_map()`, `is_fn()`, `is_record()`,
+`is_native_record()`, `is_handle()`, `is_truthy()`
+
+**Extractors**
+
+| Method | Returns |
+|---|---|
+| `as_i32()` | `int32_t` — coerces f32 if needed |
+| `as_f32()` | `float` — coerces i32 if needed |
+| `as_bool()` | `bool` |
+| `as_handle()` | `uint64_t` |
+| `as_string()` | `std::string_view` into the Oak heap |
+| `as_native_instance()` | `void*` C pointer inside a native record |
+
+**Other**
+
+| Method | Description |
+|---|---|
+| `raw()` | `oak_value_t` (refcount unaffected) |
+| `release()` | move out the raw value, leaving `none` here |
+| `operator==` | structural equality |
+
+### `oak::Args`
+
+Non-owning view over the argument array passed to a native function. Returned
+values are ref-counted copies.
+
+| Member | Description |
+|---|---|
+| `size()` | argument count |
+| `operator[](i)` | `Value` copy of argument `i` |
+| `raw(i)` | `oak_value_t` without refcount bump |
+
+### `oak::Context`
+
+Thin wrapper around `oak_native_ctx_t*` passed into native function closures.
+
+| Member | Description |
+|---|---|
+| `vm()` | `oak_vm_t*` |
+| `allocator()` | `oak_allocator_t*` |
+| `user_data()` | `void*` set via `VM::set_user_data()` |
+| `raw()` | `oak_native_ctx_t*` |
+
+### `oak::Diagnostic`
+
+Read-only view into a compile or load error.
+
+| Member | Description |
+|---|---|
+| `line()` | 1-based line number |
+| `column()` | 1-based column |
+| `message()` | null-terminated error string |
+
+### `oak::CompileResult`
+
+Move-only; owns the compiled `oak_chunk_t` and any diagnostics.
+
+| Member | Description |
+|---|---|
+| `ok()` | true if compilation succeeded |
+| `chunk()` | `oak_chunk_t*` |
+| `error_count()` | number of diagnostics |
+| `error(i)` | `Diagnostic` for error `i` |
+| `raw()` | `oak_compile_result_t*` |
+
+### `oak::CompileOptions`
+
+Builder for compile-time configuration and native bindings. All `bind_*`
+methods return `*this` for chaining. The object must outlive every chunk/VM
+compiled with it.
+
+**Configuration**
+
+| Method | Description |
+|---|---|
+| `source_name(name)` | label used in diagnostics |
+| `debug_info(bool)` | emit debug metadata (default on) |
+| `with_stdlib()` | register the standard library |
+
+**Global functions**
+
+```cpp
+// C++ closure — any callable (Context&, Args) -> Value
+opts.bind_fn("print_twice", 1,
+    [](oak::Context&, oak::Args args) -> oak::Value {
+        auto s = args[0].as_string();
+        printf("%.*s %.*s\n", (int)s.size(), s.data(),
+                              (int)s.size(), s.data());
+        return {};
+    });
+
+// In a named module
+opts.bind_fn("mymod", "helper", 0, ...);
+
+// Raw C callback
+opts.bind_fn_raw("low_level", 0, my_c_fn,
+                  OAK_BIND_SCALAR(OAK_TYPE_NUMBER));
+```
+
+Both `bind_fn` and `bind_fn_raw` accept an optional `return_type`
+(`oak_bind_type_ref_t`, default `OAK_TYPE_VOID`) and, for the raw overloads,
+an optional `user_data` pointer.
+
+**Native types**
+
+Returns a `TypeBuilder<T>` for fluent method and field registration:
+
+```cpp
+auto tb = opts.bind_type<MyObj>("MyObj");                   // global
+auto tb = opts.bind_type<MyObj>("mymod", "MyObj");          // in module
+auto tb = opts.bind_type<MyObj>("Handle", OAK_BIND_TYPE_VALUE); // value type
+```
+
+**Enums**
+
+```cpp
+opts.bind_enum("Color", {{"Red", 0}, {"Green", 1}, {"Blue", 2}});
+opts.bind_enum("io", "FileMode", {{"Read", 0}, {"Write", 1}});
+```
+
+**Attributes**
+
+```cpp
+opts.bind_attr(&my_attr_desc);  // oak_bind_attr_t* from the C API
+```
+
+| Method | Description |
+|---|---|
+| `raw()` | `oak_compile_options_t*` |
+
+### `oak::TypeBuilder<T>`
+
+Returned by `CompileOptions::bind_type<T>()`. All methods return `*this`.
+
+**Fields** (heap record types only — rejected for value types)
+
+```cpp
+// Member pointer — auto getter/setter for int, float, bool members
+tb.field("x", &MyObj::x);
+
+// Explicit getter/setter with a type descriptor
+tb.field("label", OAK_BIND_SCALAR(OAK_TYPE_STRING), my_getter, my_setter);
+```
+
+**Methods**
+
+```cpp
+// Instance method: args[0] is `self`
+tb.method("area", 0,
+    [](oak::Context&, oak::Args args) -> oak::Value {
+        auto* obj = static_cast<MyObj*>(args[0].as_native_instance());
+        return oak::Value(obj->width * obj->height);
+    }, OAK_BIND_SCALAR(OAK_TYPE_NUMBER));
+
+// Static method: no implicit self
+tb.static_method("create", 0, ...);
+```
+
+**Destructor** (heap record types)
+
+```cpp
+tb.destructor();              // delete-based; use only for `new T` instances
+tb.destructor([](void* p) {   // custom; must free the pointer itself
+    free_my_obj(static_cast<MyObj*>(p));
+});
+```
+
+| Method | Description |
+|---|---|
+| `raw()` | `oak_bind_type_t*` |
+
+### `oak::VM`
+
+Stack-based bytecode interpreter. Non-copyable, non-movable.
+
+```cpp
+oak::VM vm(alloc);
+vm.set_user_data(&app_state);
+
+// Run a chunk produced by compile()
+vm.run(result);
+
+// Call an Oak function value retrieved from the chunk
+oak::Value out;
+vm.call(fn_val, {oak::Value(1), oak::Value(2)}, &out);
+```
+
+| Method | Description |
+|---|---|
+| `run(chunk)` / `run(cr)` | execute from `oak_chunk_t*` or `CompileResult&` |
+| `call(fn, args, out)` | call an `oak_value_t` function; `out` may be `nullptr` |
+| `resume()` | resume after a paused execution |
+| `set_module_registry(reg)` | attach a `ModuleRegistry` or raw `oak_module_registry_t*` |
+| `set_user_data(p)` / `user_data()` | arbitrary pointer, surfaced as `Context::user_data()` |
+| `raw()` | `oak_vm_t*` |
+
+All `run`/`call`/`resume` methods return `oak_vm_result_t`
+(`OAK_VM_OK` / `OAK_VM_RUNTIME_ERROR`).
+
+### `oak::ModuleRegistry`
+
+Holds compiled modules for multi-file programs. Attach one to a `VM` so
+`import` statements can resolve at runtime.
+
+| Method | Description |
+|---|---|
+| `get(id)` | `oak_module_t*` by numeric id |
+| `find(path)` | `oak_module_t*` by file path |
+| `raw()` | `oak_module_registry_t*` |
+
+### Free functions
+
+**`oak::compile`**
+
+```cpp
+oak::CompileResult oak::compile(const char* source, oak::CompileOptions& opts);
+```
+
+Lex, parse, and compile a source string. Returns a `CompileResult`; check
+`ok()` before using the chunk.
+
+**`oak::load_program`**
+
+```cpp
+oak::LoadResult oak::load_program(const char* path,
+                                   oak::CompileOptions& opts,
+                                   oak::ModuleRegistry& reg);
+```
+
+Load a multi-module program from `path`, resolve imports, and populate `reg`.
+`LoadResult` mirrors `CompileResult`:
+
+| Member | Description |
+|---|---|
+| `ok()` | true if the entry module loaded |
+| `entry()` | `oak_module_t*` for the entry point |
+| `error_count()` | number of diagnostics |
+| `error(i)` | `Diagnostic` for error `i` |
+
+### Complete binding example
+
+```cpp
+#include <oak.hpp>
+
+struct Vec2 { float x, y; };
+
+int main()
+{
+  oak::Allocator alloc;
+  oak::CompileOptions opts(alloc);
+  opts.with_stdlib();
+
+  opts.bind_type<Vec2>("Vec2")
+      .field("x", &Vec2::x)
+      .field("y", &Vec2::y)
+      .method("len", 0,
+          [](oak::Context& ctx, oak::Args args) -> oak::Value {
+            auto* v = static_cast<Vec2*>(args[0].as_native_instance());
+            return oak::Value(std::sqrt(v->x * v->x + v->y * v->y));
+          }, OAK_BIND_SCALAR(OAK_TYPE_NUMBER))
+      .destructor();   // instances owned by Oak; freed with delete
+
+  opts.bind_fn("make_vec2", 2,
+      [](oak::Context& ctx, oak::Args args) -> oak::Value {
+        auto* v = new Vec2{args[0].as_f32(), args[1].as_f32()};
+        return oak::Value::from_raw(
+            oak_native_record_new(ctx.allocator(), /* type */ nullptr, v));
+      });
+
+  auto result = oak::compile(
+      "let v = make_vec2(3.0, 4.0);\n"
+      "print(v.len());\n",   /* expects 5 */
+      opts);
+
+  if (!result.ok()) { return 1; }
+
   oak::VM vm(alloc);
   vm.run(result);
 }
