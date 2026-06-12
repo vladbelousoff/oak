@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import socket
 import subprocess
@@ -26,7 +27,7 @@ def receive(sock):
     return json.loads(body)
 
 
-oak, program = sys.argv[1:3]
+oak, program = map(os.path.abspath, sys.argv[1:3])
 process = subprocess.Popen(
     [oak, "--debug", "--debug-port", "0", program],
     stdout=subprocess.PIPE,
