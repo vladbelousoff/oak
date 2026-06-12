@@ -86,7 +86,8 @@ recognize:
 
 | Option | Effect |
 |---|---|
-| `--debug` | Start the interactive debugger |
+| `--debug` | Start the localhost VS Code/DAP debugger server |
+| `--debug-port <port>` | Debug server port; use `0` to select a free port |
 | `--disassemble` | Print each compiled module's bytecode instead of running |
 | `--no-debug-symbols` | Compile without source-level debug metadata |
 | `--track-memory` | Exit with failure if tracked runtime allocations leak |
@@ -100,9 +101,19 @@ recognize:
 
 ### Debugger
 
-`--debug` stops before the first source line and opens a prompt. Type `help`
-there to list all commands; the core set is `step`, `next`, `finish`, `break`,
-`locals`, `print`, `backtrace`, and `continue`.
+The VS Code extension is in `editors/vscode`. Its `oak` debug type supports
+launch and localhost attach sessions, breakpoints, pause, stepping, stack
+frames, locals, watches, and expandable values.
+
+For an attach session, start Oak first and connect VS Code to the selected
+port:
+
+```sh
+./build/oak --debug --debug-port 4711 examples/04_functions/04_functions.oak
+```
+
+Use port `0` when another process should discover the free port from the
+`OAK_DAP_PORT=<port>` readiness line.
 
 ## The Language
 

@@ -3,6 +3,7 @@
 #include "oak_cli.h"
 #include "oak_compiler.h"
 #include "oak_debugger.h"
+#include "oak_dap.h"
 #include "oak_log.h"
 #include "oak_module.h"
 #include "oak_module_loader.h"
@@ -85,7 +86,10 @@ int main(const int argc, const char* argv[])
         oak_vm_set_debug_hook(&vm, &dbg_hook);
       }
       const enum oak_vm_result_t vm_result =
-          oak_vm_run(&vm, lr.entry->chunk);
+          cli.debug
+              ? oak_dap_serve(&debugger, &vm, lr.entry->chunk,
+                              cli.debug_port_set ? cli.debug_port : 4711)
+              : oak_vm_run(&vm, lr.entry->chunk);
       if (vm_result == OAK_VM_DEBUG_HALT)
         exit_code = 130;
       else

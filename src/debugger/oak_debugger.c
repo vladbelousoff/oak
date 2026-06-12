@@ -1,4 +1,5 @@
 #include "oak_debugger.h"
+#include "oak_dap.h"
 
 #include "oak_chunk.h"
 #include "oak_value.h"
@@ -117,6 +118,16 @@ int oak_debugger_remove_breakpoint(struct oak_debugger_t* dbg, const int id)
     }
   }
   return 0;
+}
+
+void oak_debugger_clear_breakpoints(struct oak_debugger_t* dbg,
+                                    const char* source_name)
+{
+  for (int i = dbg->bp_count - 1; i >= 0; --i)
+  {
+    if (!source_name || source_eq(dbg->breakpoints[i].source_name, source_name))
+      oak_debugger_remove_breakpoint(dbg, dbg->breakpoints[i].id);
+  }
 }
 
 static int hit_breakpoint(const struct oak_debugger_t* dbg, const int line,
@@ -609,6 +620,9 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
 {
   struct oak_debugger_t* dbg = (struct oak_debugger_t*)ctx;
 
+  if (dbg->dap_mode)
+    oak_dap_poll(dbg, vm);
+
   if (dbg->quit_requested)
     return OAK_DEBUG_HALT;
 
@@ -642,11 +656,19 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
        line == chunk->debug->locations[dbg->last_stopped_offset].line);
 
   int should_break = 0;
+  const char* stop_reason = "breakpoint";
 
-  if (dbg->initial_break)
+  if (dbg->pause_requested)
+  {
+    dbg->pause_requested = 0;
+    should_break = 1;
+    stop_reason = "pause";
+  }
+  else if (dbg->initial_break)
   {
     dbg->initial_break = 0;
     should_break = 1;
+    stop_reason = "entry";
   }
   else
   {
@@ -658,6 +680,7 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
         break;
       case OAK_DEBUG_MODE_STEP:
       {
+        stop_reason = "step";
         const int same_origin =
             (line == dbg->step_line && source_eq(src, dbg->step_source) &&
              vm->frame_count == dbg->step_frame_count);
@@ -666,6 +689,7 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
       }
       case OAK_DEBUG_MODE_NEXT:
       {
+        stop_reason = "step";
         const int same_origin =
             (line == dbg->step_line && source_eq(src, dbg->step_source));
         should_break = (line > 0 && !same_origin &&
@@ -676,6 +700,7 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
       }
       case OAK_DEBUG_MODE_FINISH:
       {
+        stop_reason = "step";
         should_break = (line > 0 &&
                         vm->frame_count < dbg->step_frame_count);
         if (!should_break && line > 0 && !suppressed)
@@ -690,8 +715,13 @@ enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm, void* ctx)
 
   dbg->last_stopped_offset = offset;
   dbg->last_stopped_chunk = chunk;
-  fprintf(dbg->out, "stopped at %s:%d\n", src ? src : "?", line);
-  debugger_repl(dbg, vm, line, src);
+  if (dbg->dap_mode)
+    oak_dap_stopped(dbg, vm, stop_reason);
+  else
+  {
+    fprintf(dbg->out, "stopped at %s:%d\n", src ? src : "?", line);
+    debugger_repl(dbg, vm, line, src);
+  }
 
   return dbg->quit_requested ? OAK_DEBUG_HALT : OAK_DEBUG_CONTINUE;
 }

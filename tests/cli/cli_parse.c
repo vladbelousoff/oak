@@ -28,5 +28,16 @@ int main(void)
   CHECK(args.script_argc == 1);
   CHECK(strcmp(args.script_argv[0], "--no-debug") == 0);
 
+  const char* debug_port[] = {
+    "oak", "--debug", "--debug-port", "0", "main.oak"
+  };
+  CHECK(oak_cli_parse(5, debug_port, &args) == 0);
+  CHECK(args.debug);
+  CHECK(args.debug_port == 0);
+
+  const char* invalid_port[] = { "oak", "--debug-port", "70000", "main.oak" };
+  CHECK(oak_cli_parse(4, invalid_port, &args) == -1);
+  CHECK(strcmp(args.error, "invalid debug port") == 0);
+
   return 0;
 }

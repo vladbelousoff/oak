@@ -48,6 +48,9 @@ struct oak_debugger_t
 
   int initial_break;
   int quit_requested;
+  int pause_requested;
+  int dap_mode;
+  void* dap_ctx;
 
   /* Command input and output streams. Default to stdin/stdout; tests redirect
    * them to in-memory files instead of reassigning the globals (which is not
@@ -67,3 +70,6 @@ OAK_API int oak_debugger_add_breakpoint(struct oak_debugger_t* dbg, int line,
                                        const char* source_name);
 OAK_API int oak_debugger_remove_breakpoint(struct oak_debugger_t* dbg,
                                            int id);
+
+OAK_API void oak_debugger_clear_breakpoints(struct oak_debugger_t* dbg,
+                                            const char* source_name);

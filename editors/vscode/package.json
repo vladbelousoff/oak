@@ -1,0 +1,94 @@
+{
+  "name": "oak-debug",
+  "displayName": "Oak Language and Debugger",
+  "description": "Source debugging support for the Oak language",
+  "version": "0.1.0",
+  "publisher": "oak-lang",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Programming Languages"
+  ],
+  "activationEvents": [],
+  "contributes": {
+    "languages": [
+      {
+        "id": "oak",
+        "aliases": ["Oak", "oak"],
+        "extensions": [".oak"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "oak"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "oak",
+        "label": "Oak",
+        "languages": ["oak"],
+        "program": "./src/adapter.js",
+        "runtime": "node",
+        "configurationAttributes": {
+          "launch": {
+            "required": ["program"],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Oak source file to run"
+              },
+              "oakExecutable": {
+                "type": "string",
+                "default": "${workspaceFolder}/build/oak",
+                "description": "Path to the Oak CLI executable"
+              },
+              "cwd": {
+                "type": "string",
+                "default": "${workspaceFolder}"
+              },
+              "args": {
+                "type": "array",
+                "items": {"type": "string"},
+                "default": []
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "attach": {
+            "required": ["port"],
+            "properties": {
+              "port": {
+                "type": "number",
+                "default": 4711,
+                "description": "Localhost port printed by oak --debug"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "oak",
+            "request": "launch",
+            "name": "Debug Oak Program",
+            "oakExecutable": "${workspaceFolder}/build/oak",
+            "program": "${file}",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "stopOnEntry": false
+          }
+        ]
+      }
+    ]
+  }
+}

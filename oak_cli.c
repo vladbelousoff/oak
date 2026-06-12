@@ -1,5 +1,7 @@
 #include "oak_cli.h"
 
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int is_long_option(const char* s)
@@ -49,6 +51,24 @@ int oak_cli_parse(int argc,
         args->debug = 1;
         continue;
       }
+      if (strcmp(a, "--debug-port") == 0)
+      {
+        if (++i >= argc)
+        {
+          args->error = "--debug-port requires a value";
+          return -1;
+        }
+        char* end = NULL;
+        const long port = strtol(argv[i], &end, 10);
+        if (*argv[i] == '\0' || *end != '\0' || port < 0 || port > 65535)
+        {
+          args->error = "invalid debug port";
+          return -1;
+        }
+        args->debug_port = (int)port;
+        args->debug_port_set = 1;
+        continue;
+      }
       if (strcmp(a, "--disassemble") == 0)
       {
         args->disassemble = 1;
@@ -96,6 +116,7 @@ int oak_cli_parse(int argc,
 void oak_cli_usage(FILE* out)
 {
   fprintf(out,
-          "usage: oak [--debug] [--disassemble] [--no-debug-symbols] "
+          "usage: oak [--debug] [--debug-port <port>] [--disassemble] "
+          "[--no-debug-symbols] "
           "[--track-memory] [--help] <script> [script args...]\n");
 }

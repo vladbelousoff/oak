@@ -24,6 +24,7 @@ common_c_args += ['-DOAK_ATOMIC_REFCOUNT']
 
 yyjson_dep = dependency('yyjson')
 math_dep = cc.find_library('m', required: false)
+socket_dep = host_machine.system() == 'windows' ? cc.find_library('ws2_32') : declare_dependency()
 
 stdlib_dir_define = '-DOAK_STDLIB_DIR="' + meson.current_source_dir() / 'stdlib' + '"'
 common_c_args += [stdlib_dir_define]
@@ -52,6 +53,7 @@ oak_core_sources = files(
   'src/common/oak_module_loader_compile.c',
   'src/common/oak_module_loader_native.c',
   'src/common/oak_module_loader_path.c',
+  'src/common/oak_net.c',
   'src/common/oak_run.c',
   'src/compiler/oak_compiler.c',
   'src/compiler/oak_compiler_builtins.c',
@@ -116,6 +118,7 @@ oak_core_sources = files(
   'src/vm/oak_vm_error.c',
   'src/vm/oak_vm_object.c',
   'src/debugger/oak_debugger.c',
+  'src/debugger/oak_dap.c',
 )
 
 if is_emscripten
@@ -124,7 +127,7 @@ if is_emscripten
     oak_core_sources,
     include_directories: [public_inc, src_inc],
     c_args: common_c_args + ['-DOAK_STATIC'],
-    dependencies: [yyjson_dep, math_dep],
+    dependencies: [yyjson_dep, math_dep, socket_dep],
   )
 else
   acorn = shared_library(
@@ -132,7 +135,7 @@ else
     oak_core_sources,
     include_directories: [public_inc, src_inc],
     c_args: common_c_args + ['-DOAK_BUILDING_ACORN'],
-    dependencies: [yyjson_dep, math_dep],
+    dependencies: [yyjson_dep, math_dep, socket_dep],
     gnu_symbol_visibility: 'hidden',
     version: meson.project_version(),
   )
@@ -141,7 +144,7 @@ endif
 acorn_dep = declare_dependency(
   link_with: acorn,
   include_directories: public_inc,
-  dependencies: [yyjson_dep, math_dep],
+  dependencies: [yyjson_dep, math_dep, socket_dep],
 )
 
 if is_emscripten
@@ -178,6 +181,16 @@ else
     c_args: common_c_args,
   )
   test('cli_parse', cli_parse_test)
+
+  test(
+    'dap_integration',
+    python,
+    args: [
+      files('tests/debugger/dap_test.py'),
+      oak.full_path(),
+      meson.project_source_root() / 'examples/04_functions/04_functions.oak',
+    ],
+  )
 
   test_sources = {
     'dynarr': 'tests/common/dynarr.c',
