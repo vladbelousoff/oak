@@ -9,6 +9,7 @@
 #include <memory>
 #include <span>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -331,6 +332,256 @@ native_fn_closure adapt_native_fn(F&& fn)
     Args args_view(a, argc);
     Value result = f(c, args_view);
     *out = result.release();
+    return OAK_FN_CALL_OK;
+  };
+}
+
+template<typename T>
+using binding_value_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
+template<typename T>
+concept typed_binding_value =
+    std::same_as<binding_value_t<T>, int> ||
+    std::same_as<binding_value_t<T>, float> ||
+    std::same_as<binding_value_t<T>, bool>;
+
+template<typename T>
+concept scalar_binding_arg =
+    typed_binding_value<T> && !std::is_reference_v<T> && !std::is_pointer_v<T>;
+
+template<typename T>
+struct native_binding_class;
+
+template<typename T>
+struct native_binding_class<T*>
+{
+  using type = std::remove_cv_t<T>;
+};
+
+template<typename T>
+struct native_binding_class<T&>
+{
+  using type = std::remove_cv_t<T>;
+};
+
+template<typename T>
+using native_binding_class_t = typename native_binding_class<T>::type;
+
+template<typename T>
+concept native_binding_arg =
+    (std::is_pointer_v<T> &&
+     std::is_object_v<std::remove_pointer_t<T>>) ||
+    (std::is_lvalue_reference_v<T> && !typed_binding_value<T>);
+
+template<typename T>
+concept typed_binding_arg = scalar_binding_arg<T> || native_binding_arg<T>;
+
+template<typename T>
+inline constexpr char native_type_token = 0;
+
+template<typename T>
+constexpr oak_bind_type_ref_t binding_type_ref()
+{
+  using V = binding_value_t<T>;
+  static_assert(typed_binding_value<V> || std::is_void_v<V>,
+                "typed Oak bindings support int, float, bool, and void");
+  return OAK_BIND_SCALAR(oak_type_for<V>);
+}
+
+template<typename T, typename Resolve>
+oak_bind_type_ref_t binding_param_type_ref(Resolve&& resolve)
+{
+  if constexpr (scalar_binding_arg<T>)
+  {
+    return binding_type_ref<T>();
+  }
+  else
+  {
+    static_assert(native_binding_arg<T>,
+                  "typed Oak binding parameters must be scalar values or "
+                  "native record pointers/references");
+    const oak_bind_type_t* type =
+        resolve(&native_type_token<native_binding_class_t<T>>);
+    assert(type != null && "native argument type must be bound first");
+    assert(type->kind == OAK_BIND_TYPE_RECORD &&
+           "typed native arguments currently support records only");
+    return OAK_BIND_NATIVE(type);
+  }
+}
+
+template<typed_binding_arg T>
+decltype(auto) binding_arg(const oak_value_t value)
+{
+  if constexpr (scalar_binding_arg<T>)
+  {
+    return from_oak_value<binding_value_t<T>>(value);
+  }
+  else if constexpr (std::is_pointer_v<T>)
+  {
+    return static_cast<T>(oak_native_instance(value));
+  }
+  else
+  {
+    using P = std::add_pointer_t<std::remove_reference_t<T>>;
+    return *static_cast<P>(oak_native_instance(value));
+  }
+}
+
+template<typename F>
+struct callable_traits : callable_traits<decltype(&std::remove_reference_t<F>::operator())>
+{
+};
+
+template<typename R, typename... A>
+struct callable_traits<R(A...)>
+{
+  using return_type = R;
+  using args = std::tuple<A...>;
+  static constexpr std::size_t arity = sizeof...(A);
+};
+
+template<typename R, typename... A>
+struct callable_traits<R (*)(A...)> : callable_traits<R(A...)>
+{
+};
+
+template<typename R, typename... A>
+struct callable_traits<R (*)(A...) noexcept> : callable_traits<R(A...)>
+{
+};
+
+template<typename C, typename R, typename... A>
+struct callable_traits<R (C::*)(A...)> : callable_traits<R(A...)>
+{
+  using class_type = C;
+};
+
+template<typename C, typename R, typename... A>
+struct callable_traits<R (C::*)(A...) const> : callable_traits<R(A...)>
+{
+  using class_type = C;
+};
+
+template<typename C, typename R, typename... A>
+struct callable_traits<R (C::*)(A...) noexcept> : callable_traits<R(A...)>
+{
+  using class_type = C;
+};
+
+template<typename C, typename R, typename... A>
+struct callable_traits<R (C::*)(A...) const noexcept> : callable_traits<R(A...)>
+{
+  using class_type = C;
+};
+
+template<typename Tuple, std::size_t... I>
+constexpr bool typed_args_impl(std::index_sequence<I...>)
+{
+  return (typed_binding_arg<std::tuple_element_t<I, Tuple>> && ...);
+}
+
+template<typename Tuple>
+constexpr bool typed_args =
+    typed_args_impl<Tuple>(std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+
+template<typename Tuple, typename Resolve, std::size_t... I>
+std::vector<oak_bind_type_ref_t> binding_param_types_impl(
+    Resolve&& resolve,
+    std::index_sequence<I...>)
+{
+  return {binding_param_type_ref<std::tuple_element_t<I, Tuple>>(resolve)...};
+}
+
+template<typename Tuple, typename Resolve>
+std::vector<oak_bind_type_ref_t> binding_param_types(Resolve&& resolve)
+{
+  static_assert(typed_args<Tuple>,
+                "typed Oak binding parameters must be int, float, bool, or "
+                "native record pointers/references");
+  return binding_param_types_impl<Tuple>(
+      std::forward<Resolve>(resolve),
+      std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+}
+
+template<typename R>
+oak_value_t binding_result(R&& result)
+{
+  return to_oak_value<binding_value_t<R>>(std::forward<R>(result));
+}
+
+template<typename F, typename Tuple, std::size_t... I>
+oak_value_t invoke_typed_fn(F& fn, const oak_value_t* args,
+                            std::index_sequence<I...>)
+{
+  using R = typename callable_traits<F>::return_type;
+  if constexpr (std::is_void_v<R>)
+  {
+    std::invoke(fn, binding_arg<std::tuple_element_t<I, Tuple>>(args[I])...);
+    return oak_value_none();
+  }
+  else
+  {
+    static_assert(typed_binding_value<R>,
+                  "typed Oak binding returns must be int, float, bool, or void");
+    return binding_result(
+        std::invoke(fn, binding_arg<std::tuple_element_t<I, Tuple>>(args[I])...));
+  }
+}
+
+template<typename F>
+native_fn_closure adapt_typed_fn(F&& fn)
+{
+  using Fn = std::decay_t<F>;
+  using Traits = callable_traits<Fn>;
+  using Tuple = typename Traits::args;
+  static_assert(typed_args<Tuple>,
+                "typed Oak binding parameters must be int, float, bool, or "
+                "native record pointers/references");
+
+  return [f = Fn(std::forward<F>(fn))](oak_native_ctx_t*, const oak_value_t* a,
+                                       int, oak_value_t* out) mutable {
+    *out = invoke_typed_fn<Fn, Tuple>(
+        f, a, std::make_index_sequence<Traits::arity>{});
+    return OAK_FN_CALL_OK;
+  };
+}
+
+template<typename T, typename F, typename Tuple, std::size_t... I>
+oak_value_t invoke_typed_method(T& self, F fn, const oak_value_t* args,
+                                std::index_sequence<I...>)
+{
+  using R = typename callable_traits<F>::return_type;
+  if constexpr (std::is_void_v<R>)
+  {
+    std::invoke(fn, self,
+                binding_arg<std::tuple_element_t<I, Tuple>>(args[I + 1])...);
+    return oak_value_none();
+  }
+  else
+  {
+    static_assert(typed_binding_value<R>,
+                  "typed Oak binding returns must be int, float, bool, or void");
+    return binding_result(std::invoke(
+        fn, self, binding_arg<std::tuple_element_t<I, Tuple>>(args[I + 1])...));
+  }
+}
+
+template<typename T, typename F>
+native_fn_closure adapt_typed_method(F fn)
+{
+  using Traits = callable_traits<F>;
+  using Tuple = typename Traits::args;
+  static_assert(std::same_as<std::remove_cv_t<typename Traits::class_type>, T>,
+                "bound member function must belong to the bound type");
+  static_assert(typed_args<Tuple>,
+                "typed Oak binding parameters must be int, float, bool, or "
+                "native record pointers/references");
+
+  return [fn](oak_native_ctx_t*, const oak_value_t* a, int,
+              oak_value_t* out) {
+    T& self = *static_cast<T*>(oak_native_instance(a[0]));
+    *out = invoke_typed_method<T, F, Tuple>(
+        self, fn, a, std::make_index_sequence<Traits::arity>{});
     return OAK_FN_CALL_OK;
   };
 }
@@ -677,6 +928,39 @@ public:
 
   // --- Native function binding ---
 
+  // Typed callable overload: arity, parameter types, conversions, and return
+  // type are inferred from a callable using int, float, bool, and/or void.
+  template<typename F>
+    requires (!std::is_member_function_pointer_v<std::decay_t<F>>)
+  CompileOptions& bind_fn(const char* name, F&& fn)
+  {
+    return bind_fn(null, name, std::forward<F>(fn));
+  }
+
+  template<typename F>
+    requires (!std::is_member_function_pointer_v<std::decay_t<F>>)
+  CompileOptions& bind_fn(const char* module, const char* name, F&& fn)
+  {
+    using Traits = detail::callable_traits<std::decay_t<F>>;
+    using R = typename Traits::return_type;
+    using Tuple = typename Traits::args;
+    auto param_types = detail::binding_param_types<Tuple>(
+        [this](const void* token) { return find_native_type(token); });
+
+    oak_bind_global_fn_t desc{};
+    desc.module_name = module;
+    desc.name = name;
+    desc.impl = detail::native_fn_bridge;
+    desc.user_data =
+        store_fn_closure(detail::adapt_typed_fn(std::forward<F>(fn)));
+    desc.arity = static_cast<int>(Traits::arity);
+    desc.return_type = detail::binding_type_ref<R>();
+    desc.param_types = store_param_types(std::move(param_types));
+    desc.param_count = desc.arity;
+    oak_bind_fn_global(&opts_, &desc);
+    return *this;
+  }
+
   template<typename F>
   CompileOptions& bind_fn(const char* name, int arity, F&& fn,
                            oak_bind_type_ref_t return_type =
@@ -738,6 +1022,7 @@ public:
                            oak_bind_type_kind_t kind = OAK_BIND_TYPE_RECORD)
   {
     oak_bind_type_t* t = oak_bind_type(&opts_, kind, name);
+    register_native_type<T>(t);
     return TypeBuilder<T>(*this, t);
   }
 
@@ -746,6 +1031,7 @@ public:
                            oak_bind_type_kind_t kind = OAK_BIND_TYPE_RECORD)
   {
     oak_bind_type_t* t = oak_bind_type_in_module(&opts_, module, kind, name);
+    register_native_type<T>(t);
     return TypeBuilder<T>(*this, t);
   }
 
@@ -784,6 +1070,8 @@ private:
   // chunk/VM compiled with it.
   std::vector<std::unique_ptr<detail::native_fn_closure>> fn_closures_;
   std::vector<std::unique_ptr<detail::field_closure>> field_closures_;
+  std::vector<std::unique_ptr<std::vector<oak_bind_type_ref_t>>> param_types_;
+  std::vector<std::pair<const void*, oak_bind_type_t*>> native_types_;
 
   detail::native_fn_closure* store_fn_closure(detail::native_fn_closure c)
   {
@@ -797,6 +1085,30 @@ private:
     field_closures_.push_back(
         std::make_unique<detail::field_closure>(std::move(c)));
     return field_closures_.back().get();
+  }
+
+  const oak_bind_type_ref_t* store_param_types(
+      std::vector<oak_bind_type_ref_t> types)
+  {
+    if (types.empty())
+      return null;
+    param_types_.push_back(
+        std::make_unique<std::vector<oak_bind_type_ref_t>>(std::move(types)));
+    return param_types_.back()->data();
+  }
+
+  template<typename T>
+  void register_native_type(oak_bind_type_t* type)
+  {
+    native_types_.emplace_back(&detail::native_type_token<T>, type);
+  }
+
+  const oak_bind_type_t* find_native_type(const void* token) const
+  {
+    for (auto it = native_types_.rbegin(); it != native_types_.rend(); ++it)
+      if (it->first == token)
+        return it->second;
+    return null;
   }
 
   CompileOptions& bind_enum_impl(
@@ -870,6 +1182,33 @@ public:
 
   // Instance method
   template<typename F>
+    requires std::is_member_function_pointer_v<F>
+  TypeBuilder& method(const char* name, F fn)
+  {
+    assert(type_->kind == OAK_BIND_TYPE_RECORD &&
+           "direct member-function bindings currently support records only");
+    using Traits = detail::callable_traits<F>;
+    using R = typename Traits::return_type;
+    using Tuple = typename Traits::args;
+    auto param_types = detail::binding_param_types<Tuple>(
+        [this](const void* token) { return opts_.find_native_type(token); });
+
+    oak_bind_fn_t desc{};
+    desc.kind = OAK_BIND_FN_INSTANCE_METHOD;
+    desc.receiver_type = type_;
+    desc.name = name;
+    desc.impl = detail::native_fn_bridge;
+    desc.user_data =
+        opts_.store_fn_closure(detail::adapt_typed_method<T>(fn));
+    desc.arity = static_cast<int>(Traits::arity);
+    desc.return_type = detail::binding_type_ref<R>();
+    desc.param_types = opts_.store_param_types(std::move(param_types));
+    desc.param_count = desc.arity;
+    oak_bind_fn(opts_.raw(), &desc);
+    return *this;
+  }
+
+  template<typename F>
   TypeBuilder& method(const char* name, int arity, F&& fn,
                       oak_bind_type_ref_t return_type =
                           OAK_BIND_SCALAR(OAK_TYPE_VOID))
@@ -888,6 +1227,31 @@ public:
   }
 
   // Static method
+  template<typename F>
+    requires (!std::is_member_function_pointer_v<std::decay_t<F>>)
+  TypeBuilder& static_method(const char* name, F&& fn)
+  {
+    using Traits = detail::callable_traits<std::decay_t<F>>;
+    using R = typename Traits::return_type;
+    using Tuple = typename Traits::args;
+    auto param_types = detail::binding_param_types<Tuple>(
+        [this](const void* token) { return opts_.find_native_type(token); });
+
+    oak_bind_fn_t desc{};
+    desc.kind = OAK_BIND_FN_STATIC_METHOD;
+    desc.receiver_type = type_;
+    desc.name = name;
+    desc.impl = detail::native_fn_bridge;
+    desc.user_data =
+        opts_.store_fn_closure(detail::adapt_typed_fn(std::forward<F>(fn)));
+    desc.arity = static_cast<int>(Traits::arity);
+    desc.return_type = detail::binding_type_ref<R>();
+    desc.param_types = opts_.store_param_types(std::move(param_types));
+    desc.param_count = desc.arity;
+    oak_bind_fn(opts_.raw(), &desc);
+    return *this;
+  }
+
   template<typename F>
   TypeBuilder& static_method(const char* name, int arity, F&& fn,
                              oak_bind_type_ref_t return_type =

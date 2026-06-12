@@ -246,37 +246,39 @@ needed.
 Register global functions with `CompileOptions::bind_fn()`:
 
 ```cpp
-options.bind_fn(
-    "add", 2,
-    [](oak::Context&, oak::Args args) {
-      return oak::Value(args[0].as_i32() + args[1].as_i32());
-    },
-    OAK_BIND_SCALAR(OAK_TYPE_NUMBER));
+options.bind_fn("add", [](int a, int b) { return a + b; });
 ```
 
-Records can expose C++ member fields and methods:
+Typed bindings infer arity, parameter types, conversions, and return types for
+`int`, `float`, `bool`, and `void`. Once `bind_type<T>()` has registered a
+native record, typed functions may also accept it as `T*`, `T&`, or
+`const T&`.
+
+Records can expose C++ member fields and bind member functions directly:
 
 ```cpp
-struct Vec2 { float x, y; };
+struct Vec2 {
+  float x, y;
+  float length_squared() const { return x * x + y * y; }
+  float dot(const Vec2& other) const { return x * other.x + y * other.y; }
+};
 
 auto vec2 = options.bind_type<Vec2>("Vec2");
 vec2.field("x", &Vec2::x)
     .field("y", &Vec2::y)
-    .method(
-        "length_squared", 0,
-        [](oak::Context&, oak::Args args) {
-          auto* self =
-              static_cast<Vec2*>(oak_native_instance(args.raw(0)));
-          return oak::Value(self->x * self->x + self->y * self->y);
-        },
-        OAK_BIND_SCALAR(OAK_TYPE_NUMBER))
+    .method("length_squared", &Vec2::length_squared)
+    .method("dot", &Vec2::dot)
     .destructor();
+
+options.bind_fn("vec_sum", [](const Vec2& v) { return v.x + v.y; });
 ```
 
-`method()` callbacks receive the record instance as argument zero.
-`static_method()` registers methods without an instance. Use `bind_enum()` for
-native enums, or `bind_fn_raw()` and explicit field accessors when the C
-callback API is preferable.
+The explicit-arity `bind_fn()`, `method()`, and `static_method()` overloads
+remain available for `(Context&, Args) -> Value` callbacks. Those method
+callbacks receive the record instance as argument zero. Use them when a
+binding needs the VM context, dynamic values, custom return types, or manual
+conversion. Use `bind_enum()` for native enums, or `bind_fn_raw()` and explicit
+field accessors when the C callback API is preferable.
 
 Bindings borrow names and store C++ callbacks inside `CompileOptions`, so the
 options object and borrowed strings must outlive compiled chunks and their VM

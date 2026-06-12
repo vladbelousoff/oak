@@ -176,10 +176,90 @@ static bool test_bind_multiple_fns()
   return true;
 }
 
+static bool test_bind_typed_fn()
+{
+  oak::Allocator alloc;
+  oak::CompileOptions opts(alloc);
+
+  opts.bind_fn("add", [](int a, int b) { return a + b; })
+      .bind_fn("positive", [](float value) { return value > 0.0f; })
+      .bind_fn("consume", [](bool) {});
+
+  auto result = oak::compile(
+      "let x = add(10, 20);\n"
+      "let y = positive(x);\n"
+      "consume(y);\n",
+      opts);
+  if (!result.ok())
+    for (int i = 0; i < result.error_count(); i++)
+      std::printf("  compile error: %s\n", result.error(i).message());
+  CHECK(result.ok());
+
+  auto bad = oak::compile("add(true, 20);", opts);
+  CHECK(!bad.ok());
+
+  oak::VM vm(alloc);
+  CHECK(vm.run(result) == OAK_VM_OK);
+
+  return true;
+}
+
+static int typed_double_noexcept(int value) noexcept
+{
+  return value * 2;
+}
+
+static bool test_bind_typed_callable_forms()
+{
+  oak::Allocator alloc;
+  oak::CompileOptions opts(alloc);
+  int calls = 0;
+  bool observed = false;
+
+  opts.bind_fn("double_noexcept", &typed_double_noexcept)
+      .bind_fn("next_call", [calls_ptr = &calls, local = 0]() mutable {
+        ++*calls_ptr;
+        return ++local;
+      })
+      .bind_fn("observe", [&observed](bool value) { observed = value; });
+
+  auto result = oak::compile(
+      "let doubled = double_noexcept(21);\n"
+      "let first = next_call();\n"
+      "let second = next_call();\n"
+      "observe(doubled == 42 && first == 1 && second == 2);\n",
+      opts);
+  CHECK(result.ok());
+
+  oak::VM vm(alloc);
+  CHECK(vm.run(result) == OAK_VM_OK);
+  CHECK(calls == 2);
+  CHECK(observed);
+
+  CHECK(!oak::compile("double_noexcept();", opts).ok());
+  CHECK(!oak::compile("observe(1);", opts).ok());
+  CHECK(!oak::compile("let value: bool = double_noexcept(1);", opts).ok());
+
+  return true;
+}
+
 struct Vec2
 {
   float x;
   float y;
+
+  float sum() const { return x + y; }
+  void scale(float factor)
+  {
+    x *= factor;
+    y *= factor;
+  }
+  float dot(const Vec2& other) const { return x * other.x + y * other.y; }
+};
+
+struct OtherVec
+{
+  float x;
 };
 
 // Binds a make_vec(x, y) factory returning a native Vec2 record. Instances
@@ -256,6 +336,111 @@ static bool test_bind_type_method()
   oak::VM vm(alloc);
   auto r = vm.run(result);
   CHECK(r == OAK_VM_OK);
+
+  return true;
+}
+
+static bool test_bind_typed_methods()
+{
+  oak::Allocator alloc;
+  oak::CompileOptions opts(alloc);
+
+  auto vec_type = opts.bind_type<Vec2>("Vec2");
+  vec_type.field("x", &Vec2::x)
+      .field("y", &Vec2::y)
+      .method("sum", &Vec2::sum)
+      .method("scale", &Vec2::scale)
+      .method("dot", &Vec2::dot)
+      .static_method("twice", [](int value) { return value * 2; })
+      .destructor();
+
+  bind_make_vec(opts, vec_type.raw());
+  opts.bind_fn("vec_sum", [](const Vec2* value) {
+    return value->x + value->y;
+  });
+
+  auto result = oak::compile(
+      "let mut v = make_vec(3.0, 4.0);\n"
+      "let other = make_vec(1.0, 2.0);\n"
+      "v.scale(2.0);\n"
+      "let sum = v.sum();\n"
+      "let dot_value = v.dot(other);\n"
+      "let global_sum = vec_sum(v);\n"
+      "let doubled = Vec2.twice(sum);\n",
+      opts);
+  if (!result.ok())
+    for (int i = 0; i < result.error_count(); i++)
+      std::printf("  compile error: %s\n", result.error(i).message());
+  CHECK(result.ok());
+
+  auto bad = oak::compile(
+      "let mut v = make_vec(3.0, 4.0);\n"
+      "v.scale(false);\n",
+      opts);
+  CHECK(!bad.ok());
+
+  auto bad_native_arg = oak::compile("vec_sum(false);", opts);
+  CHECK(!bad_native_arg.ok());
+  CHECK(!oak::compile(
+             "let v = make_vec(1.0, 2.0);\n"
+             "v.dot(false);\n",
+             opts)
+             .ok());
+
+  oak::VM vm(alloc);
+  CHECK(vm.run(result) == OAK_VM_OK);
+
+  return true;
+}
+
+static bool test_bind_typed_native_record_forms()
+{
+  oak::Allocator alloc;
+  oak::CompileOptions opts(alloc);
+  float observed_x = 0.0f;
+  float observed_y = 0.0f;
+
+  auto vec_type = opts.bind_type<Vec2>("Vec2");
+  vec_type.field("x", &Vec2::x)
+      .field("y", &Vec2::y)
+      .static_method("x_of", [](const Vec2& value) { return value.x; })
+      .destructor();
+  opts.bind_type<OtherVec>("OtherVec").field("x", &OtherVec::x).destructor();
+
+  bind_make_vec(opts, vec_type.raw());
+  opts.bind_fn("shift_ref", [](Vec2& value, float amount) {
+        value.x += amount;
+      })
+      .bind_fn("shift_ptr", [](Vec2* value, float amount) {
+        value->y += amount;
+      })
+      .bind_fn("observe_vec", [&observed_x, &observed_y](const Vec2* value) {
+        observed_x = value->x;
+        observed_y = value->y;
+      })
+      .bind_fn("other_x", [](const OtherVec& value) { return value.x; });
+
+  auto result = oak::compile(
+      "let mut v = make_vec(1.0, 2.0);\n"
+      "shift_ref(v, 3.0);\n"
+      "shift_ptr(v, 5.0);\n"
+      "let x = Vec2.x_of(v);\n"
+      "observe_vec(v);\n",
+      opts);
+  CHECK(result.ok());
+
+  oak::VM vm(alloc);
+  CHECK(vm.run(result) == OAK_VM_OK);
+  CHECK(observed_x == 4.0f);
+  CHECK(observed_y == 7.0f);
+
+  CHECK(!oak::compile(
+             "let v = make_vec(1.0, 2.0);\n"
+             "other_x(v);\n",
+             opts)
+             .ok());
+  CHECK(!oak::compile("shift_ref(false, 1.0);", opts).ok());
+  CHECK(!oak::compile("Vec2.x_of(false);", opts).ok());
 
   return true;
 }
@@ -496,8 +681,12 @@ int main()
       {"compile_error", test_compile_error},
       {"bind_native_fn", test_bind_native_fn},
       {"bind_multiple_fns", test_bind_multiple_fns},
+      {"bind_typed_fn", test_bind_typed_fn},
+      {"bind_typed_callable_forms", test_bind_typed_callable_forms},
       {"bind_type_field_access", test_bind_type_field_access},
       {"bind_type_method", test_bind_type_method},
+      {"bind_typed_methods", test_bind_typed_methods},
+      {"bind_typed_native_record_forms", test_bind_typed_native_record_forms},
       {"number_coercion", test_number_coercion},
       {"bind_enum", test_bind_enum},
       {"source_name", test_source_name},
