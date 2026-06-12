@@ -2,29 +2,46 @@
 
 Oak is a small, dynamically typed scripting language implemented in C17. It
 compiles source to bytecode and executes it on a stack-based virtual machine.
-The same runtime powers the native CLI, an embeddable C/C++ library, and a
-WebAssembly playground.
+One runtime powers three frontends: a native CLI, an embeddable C/C++ library,
+and a WebAssembly playground.
 
-Oak includes:
+Language and runtime features:
 
 - numbers, strings, booleans, `none`, arrays, and maps
 - functions, anonymous functions, records, enums, traits, and modules
 - reference counting with automatic cycle collection and weak references
 - native binding APIs for C and C++ hosts
-- an interactive source debugger and bytecode disassembler
+- an interactive source debugger and a bytecode disassembler
 
-The project is currently source-only; there are no packaged releases or
-installation targets.
+**Status:** version 1.0.0, source-only. There are no packaged releases and no
+install target; build from this repository.
 
-## Quick Start
+## Contents
 
-Prerequisites:
+- [Requirements](#requirements)
+- [Build and Run](#build-and-run)
+- [CLI Reference](#cli-reference)
+- [The Language](#the-language)
+- [Modules](#modules)
+- [Standard Library](#standard-library)
+- [Embedding Oak](#embedding-oak)
+- [Web Playground](#web-playground)
+- [Repository Layout](#repository-layout)
 
-- Meson and Ninja
-- a C17 compiler and a C++20 compiler
-- Git, so Meson can obtain the wrapped `yyjson` dependency when needed
+## Requirements
 
-Build and run the first example:
+| Component | Needed for |
+|---|---|
+| Meson + Ninja | all builds |
+| C17 compiler | the runtime and CLI |
+| C++20 compiler | the C++ wrapper tests and C++ embedding |
+| Python 3 | Meson build scripts |
+| Git | fetching the wrapped `yyjson` subproject on first setup |
+| Emscripten, Node.js, npm | the web playground only |
+
+GCC, Clang, and MSVC are supported.
+
+## Build and Run
 
 ```sh
 meson setup build
@@ -32,13 +49,15 @@ meson compile -C build
 ./build/oak examples/01_values/01_values.oak
 ```
 
-Run the complete test suite:
+Run the test suite (the examples also run as smoke tests):
 
 ```sh
-meson test -C build
+meson test -C build                  # everything
+meson test -C build compiler_traits  # one suite
+meson test -C build --print-errorlogs
 ```
 
-For a debug build with runtime memory tracking and debug logging enabled:
+For a debug build with runtime memory tracking and debug logging:
 
 ```sh
 meson setup build-debug --buildtype=debug
@@ -46,26 +65,32 @@ meson compile -C build-debug
 meson test -C build-debug
 ```
 
-## CLI
+The build produces the `oak` CLI executable and the `acorn` runtime library
+(shared on native targets, static under Emscripten).
+
+## CLI Reference
 
 ```text
 oak [options] <script> [script args...]
 ```
 
-Options must appear before the script path. Arguments after the script path are
-not parsed as Oak CLI options.
+Parsing rules — the CLI is strict and fails fast on anything it does not
+recognize:
+
+- Options must appear **before** the script path. Everything after the script
+  path is passed to the script verbatim, never parsed as CLI options.
+- Only long options are accepted. Short options (`-d`) and option values
+  (`--option=value`) are errors, as are unknown options.
+- A bare `--` ends option parsing; the next argument is the script path.
+- A script path is required unless `--help` is given.
 
 | Option | Effect |
 |---|---|
 | `--debug` | Start the interactive debugger |
 | `--disassemble` | Print each compiled module's bytecode instead of running |
 | `--no-debug-symbols` | Compile without source-level debug metadata |
-| `--track-memory` | Return a failure if tracked runtime allocations leak |
-| `--help` | Print command usage |
-
-The debugger stops before the first source line. Type `help` at its prompt to
-list commands such as `step`, `next`, `finish`, `break`, `locals`, `print`,
-`backtrace`, and `continue`.
+| `--track-memory` | Exit with failure if tracked runtime allocations leak |
+| `--help` | Print usage and exit |
 
 ```sh
 ./build/oak --debug examples/04_functions/04_functions.oak
@@ -73,14 +98,15 @@ list commands such as `step`, `next`, `finish`, `break`, `locals`, `print`,
 ./build/oak --track-memory examples/10_traits/10_traits.oak
 ```
 
-## Learn The Language
+### Debugger
 
-The numbered programs in [`examples/`](examples/README.md) form the language
-tour. They cover values, control flow, collections, functions, records, enums,
-modules, file I/O, diagnostics, traits, weak references, and anonymous
-functions. Meson also runs them as smoke tests.
+`--debug` stops before the first source line and opens a prompt. Type `help`
+there to list all commands; the core set is `step`, `next`, `finish`, `break`,
+`locals`, `print`, `backtrace`, and `continue`.
 
-A small Oak program looks like this:
+## The Language
+
+A small Oak program:
 
 ```oak
 fn sum(values : number[]) -> number {
@@ -109,31 +135,43 @@ print(report.name);
 print(report.total());
 ```
 
-Important syntax and runtime behavior:
+Rules worth knowing up front:
 
-- bindings are immutable by default; use `let mut` for reassignment
-- strings use single quotes; double-quoted strings are rejected
-- functions and methods may annotate parameter and return types
-- records are constructed with `new Type { ... }`
-- arrays and maps are mutable through indexing and methods
-- `/` produces a float, while `//` performs integer division
-- integers are signed 32-bit values and `+`, `-`, and `*` wrap on overflow
-- `none` represents an empty value
+- Bindings are immutable by default; use `let mut` for reassignment.
+- Strings use **single quotes**. Double-quoted strings are a lexer error.
+- Functions and methods may annotate parameter and return types; the compiler
+  checks them.
+- Records are constructed with `new Type { ... }`.
+- Arrays and maps are mutable through indexing and methods.
+- `/` always produces a float; `//` performs integer division.
+- Integers are signed 32-bit values; `+`, `-`, and `*` wrap on overflow.
+- `none` represents an empty value.
 
-See [`docs/traits.md`](docs/traits.md) for trait semantics and dispatch details.
+### Language tour
+
+The numbered programs in [`examples/`](examples/README.md) are the canonical
+tour, in reading order: values, control flow, collections, functions, records
+and enums, modules, algorithms, file I/O, diagnostics, traits, weak
+references, and anonymous functions. Each is a runnable script and part of the
+test suite, so they cannot drift out of date.
+
+Trait semantics and dispatch are specified in
+[`docs/traits.md`](docs/traits.md).
 
 ## Modules
 
-Imports use dotted module names resolved relative to the entry script. A module
-named `analytics.stats` is loaded from `analytics/stats.oak`.
+Imports use dotted module names resolved **relative to the entry script**. A
+module named `analytics.stats` is loaded from `analytics/stats.oak`.
 
 ```oak
 import { sum, average as mean } from analytics.stats;
 import * from domain.project;
 ```
 
-All top-level declarations are public. The loader rejects import cycles and
-reports diagnostics from every module involved in a load.
+- All top-level declarations are public; there is no export keyword.
+- Import cycles are rejected at load time.
+- Diagnostics are reported from every module involved in a load, not just the
+  entry script.
 
 ## Standard Library
 
@@ -144,8 +182,8 @@ Core globals and methods are available without an import:
 | `print(value)` | Print a value |
 | `to_int(value)`, `to_float(value)` | Convert a number |
 | `is_int(value)`, `is_float(value)` | Inspect numeric storage |
-| `.size()` | Return an array, map, or string length |
-| array `.push(value)` | Append and return the new size |
+| `.size()` | Length of an array, map, or string |
+| array `.push(value)` | Append; returns the new size |
 | map `.has(key)`, `.delete(key)` | Query or remove a key |
 | string `.format(values)` | Replace `{}` or `{n}` placeholders |
 
@@ -156,7 +194,7 @@ import { sqrt, min, max } from math;
 print(sqrt(max(16, 9)));
 ```
 
-The `io` module exposes native file access:
+File access lives in the `io` module:
 
 ```oak
 import * from io;
@@ -171,25 +209,29 @@ print(contents);
 
 ## Embedding Oak
 
-The shared library target is named `acorn`. Public C headers live in
-[`include/`](include/), and [`include/oak.hpp`](include/oak.hpp) provides a
-header-only C++20 wrapper. The C API exposes the complete compilation and
-execution pipeline:
+Link against the `acorn` library. Public C headers live in
+[`include/`](include/); [`include/oak.hpp`](include/oak.hpp) is a header-only
+C++20 wrapper over the same API.
+
+### C API
+
+The C API exposes the full pipeline. The required order is:
 
 1. Create an `oak_allocator_t`.
-2. Initialize `oak_compile_options_t` and register the standard library or
-   native bindings.
+2. Initialize `oak_compile_options_t`; call `oak_stdlib_register()` and/or
+   register your own native bindings ([`include/oak_bind.h`](include/oak_bind.h)).
 3. Load a program with `oak_module_loader_load_program()`, or lex, parse, and
    compile an in-memory source string.
 4. Initialize `oak_vm_t` and run the compiled chunk.
-5. Free results, registries, options, and the allocator in reverse order.
+5. Free results, registries, options, and the allocator **in reverse order of
+   creation**.
 
-Native functions, records, value types, enums, and attributes are registered
-through [`include/oak_bind.h`](include/oak_bind.h). Working examples are in
-[`src/stdlib/`](src/stdlib/) and the compiler binding tests under
+Working examples: [`src/stdlib/`](src/stdlib/) and the binding tests under
 [`tests/compiler/`](tests/compiler/).
 
-Minimal C++ execution:
+### C++ API
+
+Minimal compile-and-run:
 
 ```cpp
 #include <oak.hpp>
@@ -206,11 +248,16 @@ oak::VM vm(allocator);
 return vm.run(result) == OAK_VM_OK ? 0 : 1;
 ```
 
-The C++ wrapper owns runtime resources with RAII and supports native bindings
-through `oak::CompileOptions`.
+The wrapper owns runtime resources with RAII. Its main entry points:
 
-It also exposes parsing and read-only AST traversal for tools such as
-transpilers:
+- `oak::parse()` and `oak::walk()` — parsing and read-only AST traversal
+- `oak::compile()` and `oak::CompileOptions` — compilation and native bindings
+- `oak::VM`, `oak::Value`, `oak::Args` — execution and native calls
+- `oak::ModuleRegistry` and `oak::load_program()` — multi-module programs
+
+Most wrappers expose `raw()` for direct access to the underlying C object.
+
+Parsing and AST traversal (for tools such as transpilers):
 
 ```cpp
 oak::Allocator allocator;
@@ -225,21 +272,9 @@ oak::walk(parsed.root(), [](oak::AstNode node) {
 });
 ```
 
-`oak::ParseResult` owns the parser and lexer storage, so `oak::AstNode` views
-remain valid until their parse result is destroyed. Nodes expose `children()`,
-`child()`, token text and source locations, and the underlying C node via
-`raw()`.
-
-The main C++ API includes:
-
-- `oak::parse()` and `oak::walk()` for parsing and read-only AST traversal.
-- `oak::compile()` and `oak::CompileOptions` for compilation and native
-  bindings.
-- `oak::VM`, `oak::Value`, and `oak::Args` for execution and native calls.
-- `oak::ModuleRegistry` and `oak::load_program()` for multi-module programs.
-
-Most wrappers expose `raw()` when direct access to the underlying C API is
-needed.
+`oak::ParseResult` owns the parser and lexer storage; `oak::AstNode` views are
+valid only until their parse result is destroyed. Nodes expose `children()`,
+`child()`, token text, source locations, and `raw()`.
 
 ### C++ Native Bindings
 
@@ -273,45 +308,34 @@ vec2.field("x", &Vec2::x)
 options.bind_fn("vec_sum", [](const Vec2& v) { return v.x + v.y; });
 ```
 
-The explicit-arity `bind_fn()`, `method()`, and `static_method()` overloads
-remain available for `(Context&, Args) -> Value` callbacks. Those method
-callbacks receive the record instance as argument zero. Use them when a
-binding needs the VM context, dynamic values, custom return types, or manual
-conversion. Use `bind_enum()` for native enums, or `bind_fn_raw()` and explicit
-field accessors when the C callback API is preferable.
+For cases the typed layer cannot express — VM context access, dynamic values,
+custom return types, manual conversion — use the explicit-arity `bind_fn()`,
+`method()`, and `static_method()` overloads taking `(Context&, Args) -> Value`
+callbacks; method callbacks receive the record instance as argument zero. Use
+`bind_enum()` for native enums, or `bind_fn_raw()` and explicit field
+accessors when the C callback API is preferable.
 
-Bindings borrow names and store C++ callbacks inside `CompileOptions`, so the
-options object and borrowed strings must outlive compiled chunks and their VM
-execution. The no-argument `destructor()` uses `delete T*`; provide a custom
-destructor when instances use another allocation strategy.
+**Lifetime rules** — violating either is undefined behavior:
+
+- Bindings borrow name strings and store C++ callbacks inside
+  `CompileOptions`. The options object and every borrowed string must outlive
+  all chunks compiled with them **and** their VM execution.
+- The no-argument `destructor()` calls `delete` on a `T*`. If instances use
+  any other allocation strategy, provide a custom destructor.
 
 ## Web Playground
 
-The browser playground builds the runtime with Emscripten and serves it with
-Vite. In addition to the native prerequisites, it requires Emscripten, Node.js,
-and npm.
+The playground builds the runtime with Emscripten and serves it with Vite:
 
 ```sh
 meson setup build-wasm --cross-file meson/cross/emscripten.ini
 meson compile -C build-wasm
 npm install
-npm run dev
+npm run dev       # local dev server
+npm run build     # static site in dist/
 ```
 
-Use `npm run build` to produce the static site in `dist/`.
-
-## Development
-
-Useful commands:
-
-```sh
-meson compile -C build
-meson test -C build
-meson test -C build compiler_traits
-meson test -C build --print-errorlogs
-```
-
-Repository layout:
+## Repository Layout
 
 | Path | Contents |
 |---|---|
@@ -326,7 +350,7 @@ Repository layout:
 | `examples/` | Runnable language tour |
 | `wasm/`, `www/` | WebAssembly entry point and playground UI |
 
-The execution pipeline is:
+Execution pipeline:
 
 ```text
 source -> lexer -> parser -> compiler -> bytecode -> VM
