@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <initializer_list>
@@ -350,6 +351,235 @@ public:
   int line() const noexcept { return d_->line; }
   int column() const noexcept { return d_->column; }
   const char* message() const noexcept { return d_->message; }
+};
+
+// ===========================================================================
+// AST — non-owning views over nodes held by ParseResult
+// ===========================================================================
+
+class AstNode;
+
+class AstNodeIterator
+{
+  const oak_ast_node_t* parent_ = null;
+  std::size_t index_ = 0;
+
+public:
+  using difference_type = std::ptrdiff_t;
+  using value_type = AstNode;
+
+  AstNodeIterator() noexcept = default;
+  AstNodeIterator(const oak_ast_node_t* parent, std::size_t index) noexcept
+      : parent_(parent), index_(index)
+  {
+  }
+
+  AstNode operator*() const noexcept;
+
+  AstNodeIterator& operator++() noexcept
+  {
+    ++index_;
+    return *this;
+  }
+
+  AstNodeIterator operator++(int) noexcept
+  {
+    AstNodeIterator old = *this;
+    ++*this;
+    return old;
+  }
+
+  bool operator==(const AstNodeIterator&) const noexcept = default;
+};
+
+class AstNodeChildren
+{
+  const oak_ast_node_t* parent_ = null;
+
+public:
+  explicit AstNodeChildren(const oak_ast_node_t* parent) noexcept
+      : parent_(parent)
+  {
+  }
+
+  AstNodeIterator begin() const noexcept { return {parent_, 0}; }
+  AstNodeIterator end() const noexcept
+  {
+    return {parent_, oak_ast_node_child_count(parent_)};
+  }
+  std::size_t size() const noexcept
+  {
+    return oak_ast_node_child_count(parent_);
+  }
+  bool empty() const noexcept { return size() == 0; }
+};
+
+class AstNode
+{
+  const oak_ast_node_t* node_ = null;
+
+public:
+  AstNode() noexcept = default;
+  explicit AstNode(const oak_ast_node_t* node) noexcept : node_(node) {}
+
+  explicit operator bool() const noexcept { return node_ != null; }
+
+  oak_node_kind_t kind() const noexcept
+  {
+    return node_ ? node_->kind : OAK_NODE_NONE;
+  }
+  const char* kind_name() const noexcept
+  {
+    return oak_ast_node_kind_name(kind());
+  }
+
+  bool is_unary() const noexcept { return oak_node_is_unary_op(kind()) != 0; }
+  bool is_binary() const noexcept
+  {
+    return oak_node_is_binary_op(kind()) != 0;
+  }
+  bool is_terminal() const noexcept
+  {
+    return oak_node_is_token_terminal(kind()) != 0;
+  }
+
+  std::size_t child_count() const noexcept
+  {
+    return oak_ast_node_child_count(node_);
+  }
+  AstNode child(std::size_t index) const noexcept
+  {
+    return AstNode(oak_ast_node_child_at(node_, index));
+  }
+  AstNodeChildren children() const noexcept { return AstNodeChildren(node_); }
+
+  const oak_token_t* token() const noexcept
+  {
+    return is_terminal() ? node_->token : null;
+  }
+  oak_token_kind_t token_kind() const noexcept
+  {
+    const oak_token_t* t = token();
+    return t ? oak_token_kind(t) : OAK_TOKEN_IDENT;
+  }
+  std::string_view text() const noexcept
+  {
+    const oak_token_t* t = token();
+    return t ? std::string_view(oak_token_text(t),
+                                static_cast<std::size_t>(oak_token_size(t)))
+             : std::string_view{};
+  }
+  int line() const noexcept
+  {
+    const oak_token_t* t = token();
+    return t ? oak_token_line(t) : 0;
+  }
+  int column() const noexcept
+  {
+    const oak_token_t* t = token();
+    return t ? oak_token_column(t) : 0;
+  }
+  int offset() const noexcept
+  {
+    const oak_token_t* t = token();
+    return t ? oak_token_offset(t) : 0;
+  }
+
+  const oak_ast_node_t* raw() const noexcept { return node_; }
+};
+
+inline AstNode AstNodeIterator::operator*() const noexcept
+{
+  return AstNode(oak_ast_node_child_at(parent_, index_));
+}
+
+template<typename F>
+void walk(AstNode root, F&& visitor)
+{
+  if (!root)
+    return;
+
+  std::vector<AstNode> pending{root};
+  while (!pending.empty())
+  {
+    AstNode node = pending.back();
+    pending.pop_back();
+    std::invoke(visitor, node);
+
+    for (std::size_t i = node.child_count(); i > 0; --i)
+      pending.push_back(node.child(i - 1));
+  }
+}
+
+// ===========================================================================
+// ParseResult
+// ===========================================================================
+
+class ParseResult
+{
+  oak_lexer_result_t* lexer_ = null;
+  oak_parser_result_t result_{};
+
+  ParseResult(oak_lexer_result_t* lexer, oak_parser_result_t result) noexcept
+      : lexer_(lexer), result_(result)
+  {
+  }
+
+  friend ParseResult parse(const char*, Allocator&, oak_node_kind_t);
+
+public:
+  ParseResult() noexcept = default;
+
+  ~ParseResult()
+  {
+    oak_parser_free(&result_);
+    oak_lexer_free(lexer_);
+  }
+
+  ParseResult(const ParseResult&) = delete;
+  ParseResult& operator=(const ParseResult&) = delete;
+
+  ParseResult(ParseResult&& other) noexcept
+      : lexer_(other.lexer_), result_(other.result_)
+  {
+    other.lexer_ = null;
+    other.result_ = {};
+  }
+
+  ParseResult& operator=(ParseResult&& other) noexcept
+  {
+    if (this != &other)
+    {
+      oak_parser_free(&result_);
+      oak_lexer_free(lexer_);
+      lexer_ = other.lexer_;
+      result_ = other.result_;
+      other.lexer_ = null;
+      other.result_ = {};
+    }
+    return *this;
+  }
+
+  bool ok() const noexcept
+  {
+    return root() && lexer_error_count() == 0 && error_count() == 0;
+  }
+  AstNode root() const noexcept { return AstNode(oak_parser_root(&result_)); }
+  int lexer_error_count() const noexcept
+  {
+    return lexer_ ? oak_lexer_error_count(lexer_) : 0;
+  }
+  int error_count() const noexcept
+  {
+    return oak_parser_error_count(&result_);
+  }
+  Diagnostic error(int i) const
+  {
+    return Diagnostic(&oak_parser_errors(&result_)[i]);
+  }
+
+  const oak_lexer_result_t* raw_lexer() const noexcept { return lexer_; }
+  const oak_parser_result_t* raw() const noexcept { return &result_; }
 };
 
 // ===========================================================================
@@ -800,6 +1030,18 @@ inline void VM::set_module_registry(ModuleRegistry& reg)
 // ===========================================================================
 // Free functions
 // ===========================================================================
+
+inline ParseResult parse(const char* source, Allocator& alloc,
+                         oak_node_kind_t start = OAK_NODE_PROGRAM)
+{
+  oak_lexer_result_t* lexer = oak_lexer_tokenize(source, alloc.get());
+  if (!lexer)
+    return {};
+
+  oak_parser_result_t result{};
+  oak_parse(lexer, start, &result, alloc.get());
+  return ParseResult(lexer, result);
+}
 
 inline CompileResult compile(const char* source, CompileOptions& opts)
 {

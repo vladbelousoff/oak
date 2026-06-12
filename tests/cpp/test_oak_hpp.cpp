@@ -343,6 +343,85 @@ static bool test_compile_result_move()
   return true;
 }
 
+static bool test_parse_and_ast_traversal()
+{
+  oak::Allocator alloc;
+  auto result = oak::parse("let answer = 40 + 2;", alloc);
+
+  CHECK(result.ok());
+  CHECK(result.lexer_error_count() == 0);
+  CHECK(result.error_count() == 0);
+
+  oak::AstNode root = result.root();
+  CHECK(root.kind() == OAK_NODE_PROGRAM);
+  CHECK(std::strcmp(root.kind_name(), "PROGRAM") == 0);
+  CHECK(root.child_count() == 1);
+  CHECK(root.children().size() == 1);
+
+  int direct_children = 0;
+  for (oak::AstNode child : root.children())
+  {
+    CHECK(child.kind() == OAK_NODE_STMT_LET_ASSIGNMENT);
+    direct_children++;
+  }
+  CHECK(direct_children == 1);
+
+  std::vector<oak_node_kind_t> kinds;
+  std::string ident;
+  int terminal_count = 0;
+  oak_token_kind_t ident_token_kind = OAK_TOKEN_AT;
+  int ident_line = 0;
+  int ident_column = 0;
+  int ident_offset = 0;
+  oak::walk(root, [&](oak::AstNode node) {
+    kinds.push_back(node.kind());
+    if (node.is_terminal())
+    {
+      terminal_count++;
+      if (node.kind() == OAK_NODE_IDENT)
+      {
+        ident = node.text();
+        ident_token_kind = node.token_kind();
+        ident_line = node.line();
+        ident_column = node.column();
+        ident_offset = node.offset();
+      }
+    }
+  });
+
+  CHECK(!kinds.empty());
+  CHECK(kinds.front() == OAK_NODE_PROGRAM);
+  CHECK(terminal_count == 3);
+  CHECK(ident == "answer");
+  CHECK(ident_token_kind == OAK_TOKEN_IDENT);
+  CHECK(ident_line == 1);
+  CHECK(ident_column == 5);
+  CHECK(ident_offset == 5);
+
+  return true;
+}
+
+static bool test_parse_error_and_move()
+{
+  oak::Allocator alloc;
+  auto bad = oak::parse("let value = ;", alloc);
+
+  CHECK(!bad.ok());
+  CHECK(!bad.root());
+  CHECK(bad.error_count() > 0);
+  CHECK(std::strlen(bad.error(0).message()) > 0);
+
+  auto parsed = oak::parse("1 + 2", alloc, OAK_NODE_EXPR);
+  CHECK(parsed.ok());
+  CHECK(parsed.root().kind() == OAK_NODE_BINARY_ADD);
+
+  oak::ParseResult moved = std::move(parsed);
+  CHECK(moved.ok());
+  CHECK(!parsed.root());
+
+  return true;
+}
+
 static bool test_many_bindings()
 {
   oak::Allocator alloc;
@@ -423,6 +502,8 @@ int main()
       {"bind_enum", test_bind_enum},
       {"source_name", test_source_name},
       {"compile_result_move", test_compile_result_move},
+      {"parse_and_ast_traversal", test_parse_and_ast_traversal},
+      {"parse_error_and_move", test_parse_error_and_move},
       {"many_bindings", test_many_bindings},
       {"bind_fn_raw", test_bind_fn_raw},
   };

@@ -209,6 +209,80 @@ return vm.run(result) == OAK_VM_OK ? 0 : 1;
 The C++ wrapper owns runtime resources with RAII and supports native bindings
 through `oak::CompileOptions`.
 
+It also exposes parsing and read-only AST traversal for tools such as
+transpilers:
+
+```cpp
+oak::Allocator allocator;
+auto parsed = oak::parse("let answer = 40 + 2;", allocator);
+if (!parsed.ok())
+  return 1;
+
+oak::walk(parsed.root(), [](oak::AstNode node) {
+  if (node.is_terminal())
+    std::printf("%s: %.*s\n", node.kind_name(), (int)node.text().size(),
+                node.text().data());
+});
+```
+
+`oak::ParseResult` owns the parser and lexer storage, so `oak::AstNode` views
+remain valid until their parse result is destroyed. Nodes expose `children()`,
+`child()`, token text and source locations, and the underlying C node via
+`raw()`.
+
+The main C++ API includes:
+
+- `oak::parse()` and `oak::walk()` for parsing and read-only AST traversal.
+- `oak::compile()` and `oak::CompileOptions` for compilation and native
+  bindings.
+- `oak::VM`, `oak::Value`, and `oak::Args` for execution and native calls.
+- `oak::ModuleRegistry` and `oak::load_program()` for multi-module programs.
+
+Most wrappers expose `raw()` when direct access to the underlying C API is
+needed.
+
+### C++ Native Bindings
+
+Register global functions with `CompileOptions::bind_fn()`:
+
+```cpp
+options.bind_fn(
+    "add", 2,
+    [](oak::Context&, oak::Args args) {
+      return oak::Value(args[0].as_i32() + args[1].as_i32());
+    },
+    OAK_BIND_SCALAR(OAK_TYPE_NUMBER));
+```
+
+Records can expose C++ member fields and methods:
+
+```cpp
+struct Vec2 { float x, y; };
+
+auto vec2 = options.bind_type<Vec2>("Vec2");
+vec2.field("x", &Vec2::x)
+    .field("y", &Vec2::y)
+    .method(
+        "length_squared", 0,
+        [](oak::Context&, oak::Args args) {
+          auto* self =
+              static_cast<Vec2*>(oak_native_instance(args.raw(0)));
+          return oak::Value(self->x * self->x + self->y * self->y);
+        },
+        OAK_BIND_SCALAR(OAK_TYPE_NUMBER))
+    .destructor();
+```
+
+`method()` callbacks receive the record instance as argument zero.
+`static_method()` registers methods without an instance. Use `bind_enum()` for
+native enums, or `bind_fn_raw()` and explicit field accessors when the C
+callback API is preferable.
+
+Bindings borrow names and store C++ callbacks inside `CompileOptions`, so the
+options object and borrowed strings must outlive compiled chunks and their VM
+execution. The no-argument `destructor()` uses `delete T*`; provide a custom
+destructor when instances use another allocation strategy.
+
 ## Web Playground
 
 The browser playground builds the runtime with Emscripten and serves it with
