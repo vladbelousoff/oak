@@ -1,7 +1,8 @@
 # Oak Language and Debugger for VS Code
 
-Syntax highlighting and source-level debugging support for the
-[Oak](https://github.com/) programming language.
+Syntax highlighting and source-level debugging support for the Oak
+programming language. See the [repository root](../../README.md) for the
+language itself.
 
 ## Features
 
@@ -14,15 +15,14 @@ Syntax highlighting and source-level debugging support for the
 
 ## Installing / running the extension
 
-From a checkout of this repo:
+The extension is purely declarative — there are no dependencies to install
+and no build step. From a checkout of this repo:
 
 1. Open `editors/vscode` as the workspace root in VS Code
    (`code editors/vscode`).
-2. Run `npm install` if the extension has any dependencies to fetch
-   (currently none are required for syntax highlighting alone).
-3. Press `F5` (or use Run and Debug → "Run Extension") to launch an
-   Extension Development Host with the extension loaded.
-4. Open or create a `.oak` file in that new window — it should be
+2. Press `F5` to launch an Extension Development Host with the extension
+   loaded.
+3. Open or create a `.oak` file in that new window — it should be
    highlighted automatically based on its `.oak` extension.
 
 To package and install it as a regular `.vsix` extension instead:
