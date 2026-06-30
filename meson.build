@@ -15,6 +15,7 @@ python = import('python').find_installation('python3')
 is_msvc = cc.get_id() == 'msvc'
 is_emscripten = cc.get_id() == 'emscripten'
 is_debug = get_option('buildtype') == 'debug'
+install_oak = get_option('install')
 
 warning_args = is_msvc ? ['/wd4200'] : ['-Wno-unused-function']
 debug_defines = is_debug ? ['-DOAK_TRACK_MEMORY', '-DOAK_DEBUG_LOGGING'] : []
@@ -26,8 +27,40 @@ yyjson_dep = dependency('yyjson')
 math_dep = cc.find_library('m', required: false)
 socket_dep = host_machine.system() == 'windows' ? cc.find_library('ws2_32') : declare_dependency()
 
-stdlib_dir_define = '-DOAK_STDLIB_DIR="' + meson.current_source_dir() / 'stdlib' + '"'
-common_c_args += [stdlib_dir_define]
+# Source-tree stdlib path, baked in as a development fallback.
+stdlib_dir_define = '-DOAK_STDLIB_SOURCE_DIR="' + meson.current_source_dir() / 'stdlib' + '"'
+
+# Executable-relative install paths. The CLI is in <prefix>/<bindir>; the stdlib
+# and library are under <prefix>/<datadir> and <prefix>/<libdir>. We resolve them
+# relative to the executable (so the install tree is relocatable), which needs
+# the climb from bindir back to the prefix. bindir may be multi-component (e.g.
+# 'libexec/oak'), so count its segments rather than assuming a single '..'. An
+# absolute bindir has no executable-relative meaning, so reject it when
+# installing.
+if install_oak and get_option('bindir').startswith('/')
+  error('install requires a relative bindir for executable-relative stdlib/library lookup; got "' + get_option('bindir') + '"')
+endif
+# Climb (sequence of '..') from bindir back to the prefix, one per real path
+# segment. Empty when bindir is '.' (the executable sits directly in the prefix).
+bindir_climb = ''
+foreach part : get_option('bindir').split('/')
+  if part != '' and part != '.'
+    bindir_climb = bindir_climb == '' ? '..' : bindir_climb + '/..'
+  endif
+endforeach
+# Prefix used to turn a prefix-relative subdir into an executable-relative one.
+# '' when the executable is already at the prefix root, else '<climb>/'.
+exe_to_prefix = bindir_climb == '' ? '' : bindir_climb + '/'
+
+# Installed stdlib path RELATIVE to the executable's directory, e.g.
+# ../share/oak/stdlib. The loader resolves it against the running executable's
+# location, so an installed tree is relocatable and a build-tree binary (which
+# has no co-located stdlib) never picks up an install prefix. These defines must
+# reach the module loader, which is compiled into the acorn library (not the oak
+# CLI), so they belong in common_c_args rather than on the executable alone.
+stdlib_install_relpath = exe_to_prefix + get_option('datadir') + '/oak/stdlib'
+stdlib_install_define = '-DOAK_STDLIB_INSTALL_RELPATH="' + stdlib_install_relpath + '"'
+common_c_args += [stdlib_dir_define, stdlib_install_define]
 
 src_inc = include_directories(
   'src',
@@ -138,6 +171,7 @@ else
     dependencies: [yyjson_dep, math_dep, socket_dep],
     gnu_symbol_visibility: 'hidden',
     version: meson.project_version(),
+    install: install_oak,
   )
 endif
 
@@ -166,13 +200,35 @@ if is_emscripten
     ],
   )
 else
+  # The installed CLI links the shared acorn library, which installs to
+  # <prefix>/libdir. For a non-system prefix the dynamic loader will not find it
+  # via PATH alone, so bake a relocatable install rpath pointing from the
+  # executable (in <prefix>/bindir) to the library, using the same bindir climb
+  # as the stdlib path so non-default bindir/libdir layouts stay correct. Windows
+  # has no rpath and finds acorn.dll next to oak.exe in bindir, so leave it empty.
+  oak_install_rpath = ''
+  if host_machine.system() == 'darwin'
+    oak_install_rpath = '@loader_path/' + exe_to_prefix + get_option('libdir')
+  elif host_machine.system() != 'windows'
+    oak_install_rpath = '$ORIGIN/' + exe_to_prefix + get_option('libdir')
+  endif
+
   oak = executable(
     'oak',
     files('oak.c', 'oak_cli.c'),
     include_directories: [include_directories('.'), src_inc],
     c_args: common_c_args,
     dependencies: acorn_dep,
+    install: install_oak,
+    install_rpath: oak_install_rpath,
   )
+
+  if install_oak
+    install_subdir(
+      'stdlib',
+      install_dir: get_option('datadir') / 'oak',
+    )
+  endif
 
   cli_parse_test = executable(
     'cli_parse',
@@ -211,6 +267,7 @@ else
     'stdlib_file': 'tests/stdlib/stdlib_file.c',
     'stdlib_file_missing': 'tests/stdlib/stdlib_file_missing.c',
     'vm_language_runtime': 'tests/vm/vm_language_runtime.c',
+    'vm_math_builtins': 'tests/vm/vm_math_builtins.c',
     'vm_cycle_collection': 'tests/vm/vm_cycle_collection.c',
     'vm_map_table': 'tests/vm/vm_map_table.c',
     'vm_runtime_errors': 'tests/vm/vm_runtime_errors.c',

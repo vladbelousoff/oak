@@ -5,8 +5,9 @@
 
 struct oak_compile_options_t;
 
-OAK_API void oak_stdlib_register_math(struct oak_compile_options_t* opts);
-
+/* Math built-ins. These implementations are registered into the global scope by
+ * the compiler (see oak_compiler_builtins.c); there is no separate `math`
+ * module to import. */
 OAK_API enum oak_fn_call_result_t oak_math_sqrt(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
 OAK_API enum oak_fn_call_result_t oak_math_sin(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
 OAK_API enum oak_fn_call_result_t oak_math_cos(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);

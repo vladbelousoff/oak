@@ -1,8 +1,9 @@
 # Oak Language and Debugger for VS Code
 
 Syntax highlighting and source-level debugging support for the Oak
-programming language. See the [repository root](../../README.md) for the
-language itself.
+programming language. See the
+[Oak repository](https://github.com/vladbelousoff/oak) for the language
+itself.
 
 ## Features
 

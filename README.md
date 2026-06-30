@@ -68,6 +68,33 @@ meson test -C build-debug
 The build produces the `oak` CLI executable and the `acorn` runtime library
 (shared on native targets, static under Emscripten).
 
+### Install
+
+`meson install` places `oak`, the `acorn` library, and the stdlib under the
+configured prefix so the CLI works from any directory:
+
+```sh
+meson setup build --prefix="$HOME/.local"
+meson compile -C build
+meson install -C build          # oak + acorn -> <prefix>/bin, stdlib -> <prefix>/share/oak/stdlib
+```
+
+Add `<prefix>/bin` to your `PATH` and the VS Code extension (and `oak` itself)
+will find the executable automatically. Installation is on by default; pass
+`-Dinstall=false` to skip it (e.g. CI that only runs tests).
+
+The installed `oak` locates its stdlib without any configuration, and the
+install tree is relocatable (move `bin` and `share` together and it still
+works). The search order is: `$OAK_STDLIB_DIR` (authoritative override) → the
+stdlib co-located with the executable (`<exe-dir>/../share/oak/stdlib`) → the
+source tree it was built from → a `./stdlib` directory in the current working
+directory (last-resort fallback). Because the install path is resolved relative
+to the executable, an installed binary uses its own installed stdlib and a
+build-tree binary uses the source tree — neither can be contaminated by the
+other. `OAK_STDLIB_DIR`, when set, fully replaces the search: only that
+directory is consulted, and a module missing there is a hard error rather than a
+silent fallback.
+
 ## CLI Reference
 
 ```text
@@ -193,17 +220,25 @@ Core globals and methods are available without an import:
 | `print(value)` | Print a value |
 | `to_int(value)`, `to_float(value)` | Convert a number |
 | `is_int(value)`, `is_float(value)` | Inspect numeric storage |
+| `sqrt`, `sin`, `cos`, `tan`, `abs`, `random` | Math functions (one argument; `random` takes none) |
+| `fmod(a, b)`, `min(a, b)`, `max(a, b)` | Two-argument math functions |
 | `.size()` | Length of an array, map, or string |
 | array `.push(value)` | Append; returns the new size |
 | map `.has(key)`, `.delete(key)` | Query or remove a key |
 | string `.format(values)` | Replace `{}` or `{n}` placeholders |
 
-Math functions live in the `math` module:
+Math functions are global built-ins, so no import is needed:
 
 ```oak
-import { sqrt, min, max } from math;
 print(sqrt(max(16, 9)));
 ```
+
+> **Breaking change (unreleased):** math used to be a `math` module imported with
+> `import { sqrt, ... } from math;`. The functions are now always-available
+> global built-ins and there is no `math` module — drop the import. Embedders
+> should also note that the `oak_stdlib_register_math()` C function was removed;
+> math is registered by the compiler, so no stdlib call is required for it. Oak
+> is still pre-1.0 in spirit, so such changes land without a compatibility shim.
 
 File access lives in the `io` module:
 

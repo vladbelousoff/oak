@@ -1,0 +1,6 @@
+option(
+  'install',
+  type: 'boolean',
+  value: true,
+  description: 'Install the oak CLI (and its runtime library) so it is available on PATH',
+)

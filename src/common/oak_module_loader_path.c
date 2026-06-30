@@ -1,5 +1,16 @@
 #include "internal/oak_module_loader.h"
 
+#if defined(_WIN32)
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <stdint.h>
+#include <sys/stat.h>
+#else
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 char* path_dirname_dup(struct oak_allocator_t* a, const char* path)
 {
   const char* last = null;
@@ -43,6 +54,46 @@ char* path_resolve_dotted(struct oak_allocator_t* a,
   return out;
 }
 
+char* path_join(struct oak_allocator_t* a, const char* base, const char* rel)
+{
+  const usize bl = strlen(base);
+  const usize rl = strlen(rel);
+  char* out = OAK_ALLOC(a, bl + 1u + rl + 1u);
+  usize w = 0;
+  memcpy(out + w, base, bl);
+  w += bl;
+  if (bl != 0u && out[bl - 1u] != '/' && out[bl - 1u] != '\\')
+    out[w++] = OAK_PATH_SEP;
+  memcpy(out + w, rel, rl);
+  w += rl;
+  out[w] = 0;
+  return out;
+}
+
+char* path_executable_dir(struct oak_allocator_t* a)
+{
+  /* Use the OS narrow-char API so the result matches the encoding fopen()
+   * expects elsewhere in this file (path_exists). 4096 covers realistic
+   * install paths; treat truncation as "unknown". */
+  char buf[4096];
+  buf[0] = 0;
+#if defined(_WIN32)
+  const DWORD n = GetModuleFileNameA(null, buf, (DWORD)sizeof(buf));
+  if (n == 0u || n >= (DWORD)sizeof(buf))
+    return null;
+#elif defined(__APPLE__)
+  uint32_t size = (uint32_t)sizeof(buf);
+  if (_NSGetExecutablePath(buf, &size) != 0)
+    return null;
+#else
+  const ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1u);
+  if (n <= 0 || (usize)n >= sizeof(buf))
+    return null;
+  buf[n] = 0;
+#endif
+  return path_dirname_dup(a, buf);
+}
+
 char* path_canonicalize(struct oak_allocator_t* a, const char* path)
 {
 #if defined(_WIN32)
@@ -78,6 +129,18 @@ int path_exists(const char* path)
     return 0;
   fclose(f);
   return 1;
+}
+
+int path_dir_exists(const char* path)
+{
+#if defined(_WIN32)
+  const DWORD attr = GetFileAttributesA(path);
+  return attr != INVALID_FILE_ATTRIBUTES &&
+         (attr & FILE_ATTRIBUTE_DIRECTORY) != 0;
+#else
+  struct stat st;
+  return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+#endif
 }
 
 char* dotted_name_from_path(struct oak_allocator_t* a,

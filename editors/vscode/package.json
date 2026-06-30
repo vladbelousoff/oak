@@ -4,6 +4,10 @@
   "description": "Syntax highlighting and source debugging support for the Oak language",
   "version": "0.1.0",
   "publisher": "oak-lang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vladbelousoff/oak.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },

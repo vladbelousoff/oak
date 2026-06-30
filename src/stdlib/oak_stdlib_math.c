@@ -1,6 +1,5 @@
 #include "oak_stdlib_math.h"
 
-#include "oak_bind.h"
 #include "oak_value.h"
 
 #include <math.h>
@@ -138,34 +137,4 @@ enum oak_fn_call_result_t oak_math_random(struct oak_native_ctx_t* ctx,
   }
   *out = OAK_VALUE_F32((float)rand() / (float)RAND_MAX);
   return OAK_FN_CALL_OK;
-}
-
-static void bind_math_module_fn(struct oak_compile_options_t* opts,
-                                const char* name,
-                                oak_native_fn_t impl,
-                                int arity)
-{
-  oak_bind_fn_global(opts,
-                     &(struct oak_bind_global_fn_t){
-                         .module_name = "math",
-                         .name = name,
-                         .impl = impl,
-                         .arity = arity,
-                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                     });
-}
-
-void oak_stdlib_register_math(struct oak_compile_options_t* opts)
-{
-  if (!opts)
-    return;
-  bind_math_module_fn(opts, "sqrt", oak_math_sqrt, 1);
-  bind_math_module_fn(opts, "sin", oak_math_sin, 1);
-  bind_math_module_fn(opts, "cos", oak_math_cos, 1);
-  bind_math_module_fn(opts, "tan", oak_math_tan, 1);
-  bind_math_module_fn(opts, "abs", oak_math_abs, 1);
-  bind_math_module_fn(opts, "fmod", oak_math_fmod, 2);
-  bind_math_module_fn(opts, "min", oak_math_min, 2);
-  bind_math_module_fn(opts, "max", oak_math_max, 2);
-  bind_math_module_fn(opts, "random", oak_math_random, 0);
 }

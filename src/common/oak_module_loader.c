@@ -9,6 +9,90 @@ struct loader_frame_t
   int next_import_idx;
 };
 
+/* Where stdlib_resolve found (or committed to) a base directory. Anything other
+ * than FALLBACK is authoritative: on a miss the caller must report an error
+ * rather than degrade to a synthetic native module or a different stdlib. */
+enum stdlib_origin_t
+{
+  STDLIB_ORIGIN_FALLBACK = 0, /* baked source dir / CWD; miss may be native */
+  STDLIB_ORIGIN_OVERRIDE,     /* $OAK_STDLIB_DIR */
+  STDLIB_ORIGIN_INSTALL,      /* executable-relative installed layout */
+};
+
+/* Resolve a dotted stdlib module name (e.g. "io") to a file path, searching a
+ * series of candidate base directories in priority order:
+ *
+ *   1. $OAK_STDLIB_DIR              - authoritative override (no fallback)
+ *   2. <exe-dir>/INSTALL_RELPATH    - installed layout; authoritative once found
+ *   3. OAK_STDLIB_SOURCE_DIR        - source tree path baked in at build time
+ *   4. ./stdlib                     - current-directory fallback (last resort)
+ *
+ * The install location is found RELATIVE TO THE EXECUTABLE (e.g.
+ * <prefix>/bin/oak -> <prefix>/share/oak/stdlib), not via a baked absolute path.
+ * This makes an installed tree relocatable and distinguishes the two kinds of
+ * binary without a runtime flag. When the executable-relative stdlib *directory*
+ * exists, the binary is treated as installed and that directory is
+ * authoritative: a missing module is an error rather than a silent fall-through
+ * to the build source tree (which would not exist after packaging, masking a
+ * broken install). A build-tree binary has no such co-located directory, so it
+ * skips to OAK_STDLIB_SOURCE_DIR and never consults any install prefix, so a
+ * stale prior install cannot contaminate development or test runs. The
+ * CWD-relative path is searched LAST so it can never shadow a real stdlib.
+ *
+ * Limitation: build-tree and installed binaries are byte-identical, so an
+ * installed binary can only recognize itself as installed by the presence of its
+ * co-located stdlib directory. If a package omits that directory entirely, the
+ * binary cannot distinguish itself from a build-tree run and falls back. The
+ * common breakage (the directory present but a module missing) is still caught
+ * as an authoritative error below.
+ *
+ * *origin reports the authority of the chosen base (see enum). Returns the first
+ * existing candidate, or the chosen authoritative / last-resort path so the
+ * caller's error reporting stays sensible. The returned string is owned by the
+ * caller. */
+static char* stdlib_resolve(struct oak_allocator_t* a, const char* dotted,
+                            enum stdlib_origin_t* origin)
+{
+  *origin = STDLIB_ORIGIN_FALLBACK;
+
+  const char* env_dir = getenv("OAK_STDLIB_DIR");
+  if (env_dir && env_dir[0])
+  {
+    *origin = STDLIB_ORIGIN_OVERRIDE;
+    return path_resolve_dotted(a, env_dir, dotted);
+  }
+
+#if defined(OAK_STDLIB_INSTALL_RELPATH)
+  {
+    char* exe_dir = path_executable_dir(a);
+    if (exe_dir)
+    {
+      char* base = path_join(a, exe_dir, OAK_STDLIB_INSTALL_RELPATH);
+      OAK_FREE(a, exe_dir);
+      if (path_dir_exists(base))
+      {
+        *origin = STDLIB_ORIGIN_INSTALL;
+        char* p = path_resolve_dotted(a, base, dotted);
+        OAK_FREE(a, base);
+        return p;
+      }
+      OAK_FREE(a, base);
+    }
+  }
+#endif
+
+#if defined(OAK_STDLIB_SOURCE_DIR)
+  {
+    char* p = path_resolve_dotted(a, OAK_STDLIB_SOURCE_DIR, dotted);
+    if (path_exists(p))
+      return p;
+    OAK_FREE(a, p);
+  }
+#endif
+
+  return path_resolve_dotted(a, "stdlib", dotted);
+}
+
 
 int oak_module_loader_load_program(const char* entry_path,
                                    struct oak_compile_options_t* opts,
@@ -101,25 +185,43 @@ int oak_module_loader_load_program(const char* entry_path,
     }
 
     char* dotted = dotted_name_from_path(a, imp->path);
+    const int is_native = opts_has_native_module(opts, dotted);
 
-    char* mod_dir = path_dirname_dup(a, top->mod->canonical_path);
-    char* file_path = path_resolve_dotted(a, mod_dir, dotted);
-    OAK_FREE(a, mod_dir);
-
-    if (!path_exists(file_path) && opts_has_native_module(opts, dotted))
+    char* file_path = null;
+    if (is_native)
     {
-      OAK_FREE(a, file_path);
-      file_path = path_resolve_dotted(a, "stdlib", dotted);
-#if defined(OAK_STDLIB_DIR)
-      if (!path_exists(file_path))
+      /* Native stdlib modules (e.g. io) resolve against the stdlib BEFORE any
+       * module-relative file, so a project-local <dir>/io.oak cannot shadow the
+       * trusted stdlib and an authoritative $OAK_STDLIB_DIR / installed stdlib
+       * really is authoritative. A miss from an authoritative source is a hard
+       * error: report the path rather than degrading to a synthetic native
+       * module (which would silently drop stub-only declarations) or to a
+       * different stdlib. */
+      enum stdlib_origin_t origin = STDLIB_ORIGIN_FALLBACK;
+      file_path = stdlib_resolve(a, dotted, &origin);
+      if (origin != STDLIB_ORIGIN_FALLBACK && !path_exists(file_path))
       {
+        loader_error(out,
+                     "cannot find stdlib module '%s' in %s: %s",
+                     dotted,
+                     origin == STDLIB_ORIGIN_OVERRIDE
+                         ? "OAK_STDLIB_DIR"
+                         : "the installed stdlib",
+                     file_path);
         OAK_FREE(a, file_path);
-        file_path = path_resolve_dotted(a, OAK_STDLIB_DIR, dotted);
+        OAK_FREE(a, dotted);
+        rc = -1;
+        break;
       }
-#endif
+    }
+    else
+    {
+      char* mod_dir = path_dirname_dup(a, top->mod->canonical_path);
+      file_path = path_resolve_dotted(a, mod_dir, dotted);
+      OAK_FREE(a, mod_dir);
     }
 
-    if (!path_exists(file_path) && opts_has_native_module(opts, dotted))
+    if (!path_exists(file_path) && is_native)
     {
       struct oak_module_t* dep =
           create_native_module(out_reg, opts, dotted, out);

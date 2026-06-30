@@ -1,9 +1,0 @@
-fn sqrt(value : number) -> number;
-fn sin(value : number) -> number;
-fn cos(value : number) -> number;
-fn tan(value : number) -> number;
-fn abs(value : number) -> number;
-fn fmod(a : number, b : number) -> number;
-fn min(a : number, b : number) -> number;
-fn max(a : number, b : number) -> number;
-fn random() -> number;
