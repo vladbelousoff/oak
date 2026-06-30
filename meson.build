@@ -30,15 +30,15 @@ socket_dep = host_machine.system() == 'windows' ? cc.find_library('ws2_32') : de
 # Source-tree stdlib path, baked in as a development fallback.
 stdlib_dir_define = '-DOAK_STDLIB_SOURCE_DIR="' + meson.current_source_dir() / 'stdlib' + '"'
 
-# Executable-relative install paths. The CLI is in <prefix>/<bindir>; the stdlib
-# and library are under <prefix>/<datadir> and <prefix>/<libdir>. We resolve them
-# relative to the executable (so the install tree is relocatable), which needs
-# the climb from bindir back to the prefix. bindir may be multi-component (e.g.
+# Executable-relative install paths. The CLI is in <prefix>/<bindir>; the
+# stdlib is installed next to it, and the library is under <prefix>/<libdir>.
+# The library rpath is resolved relative to the executable, which needs the
+# climb from bindir back to the prefix. bindir may be multi-component (e.g.
 # 'libexec/oak'), so count its segments rather than assuming a single '..'. An
 # absolute bindir has no executable-relative meaning, so reject it when
 # installing.
 if install_oak and get_option('bindir').startswith('/')
-  error('install requires a relative bindir for executable-relative stdlib/library lookup; got "' + get_option('bindir') + '"')
+  error('install requires a relative bindir for executable-relative library lookup; got "' + get_option('bindir') + '"')
 endif
 # Climb (sequence of '..') from bindir back to the prefix, one per real path
 # segment. Empty when bindir is '.' (the executable sits directly in the prefix).
@@ -52,13 +52,13 @@ endforeach
 # '' when the executable is already at the prefix root, else '<climb>/'.
 exe_to_prefix = bindir_climb == '' ? '' : bindir_climb + '/'
 
-# Installed stdlib path RELATIVE to the executable's directory, e.g.
-# ../share/oak/stdlib. The loader resolves it against the running executable's
+# Installed stdlib path RELATIVE to the executable's directory. The loader
+# resolves it against the running executable's
 # location, so an installed tree is relocatable and a build-tree binary (which
 # has no co-located stdlib) never picks up an install prefix. These defines must
 # reach the module loader, which is compiled into the acorn library (not the oak
 # CLI), so they belong in common_c_args rather than on the executable alone.
-stdlib_install_relpath = exe_to_prefix + get_option('datadir') + '/oak/stdlib'
+stdlib_install_relpath = 'stdlib'
 stdlib_install_define = '-DOAK_STDLIB_INSTALL_RELPATH="' + stdlib_install_relpath + '"'
 common_c_args += [stdlib_dir_define, stdlib_install_define]
 
@@ -226,7 +226,7 @@ else
   if install_oak
     install_subdir(
       'stdlib',
-      install_dir: get_option('datadir') / 'oak',
+      install_dir: get_option('bindir'),
     )
   endif
 

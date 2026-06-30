@@ -23,15 +23,15 @@ enum stdlib_origin_t
  * series of candidate base directories in priority order:
  *
  *   1. $OAK_STDLIB_DIR              - authoritative override (no fallback)
- *   2. <exe-dir>/INSTALL_RELPATH    - installed layout; authoritative once found
+ *   2. <exe-dir>/stdlib             - installed layout; authoritative once found
  *   3. OAK_STDLIB_SOURCE_DIR        - source tree path baked in at build time
  *   4. ./stdlib                     - current-directory fallback (last resort)
  *
  * The install location is found RELATIVE TO THE EXECUTABLE (e.g.
- * <prefix>/bin/oak -> <prefix>/share/oak/stdlib), not via a baked absolute path.
- * This makes an installed tree relocatable and distinguishes the two kinds of
- * binary without a runtime flag. When the executable-relative stdlib *directory*
- * exists, the binary is treated as installed and that directory is
+ * <prefix>/bin/oak -> <prefix>/bin/stdlib), not via a baked absolute path. This
+ * makes an installed tree relocatable and distinguishes the two kinds of binary
+ * without a runtime flag. When the executable-relative stdlib *directory* exists,
+ * the binary is treated as installed and that directory is
  * authoritative: a missing module is an error rather than a silent fall-through
  * to the build source tree (which would not exist after packaging, masking a
  * broken install). A build-tree binary has no such co-located directory, so it

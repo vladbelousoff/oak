@@ -13,8 +13,8 @@ Language and runtime features:
 - native binding APIs for C and C++ hosts
 - an interactive source debugger and a bytecode disassembler
 
-**Status:** version 1.0.0, source-only. There are no packaged releases and no
-install target; build from this repository.
+**Status:** version 1.0.0, source-only. There are no packaged releases; build
+or install from this repository.
 
 ## Contents
 
@@ -76,7 +76,7 @@ configured prefix so the CLI works from any directory:
 ```sh
 meson setup build --prefix="$HOME/.local"
 meson compile -C build
-meson install -C build          # oak + acorn -> <prefix>/bin, stdlib -> <prefix>/share/oak/stdlib
+meson install -C build          # oak + stdlib -> <prefix>/bin, acorn -> <prefix>/<libdir>
 ```
 
 Add `<prefix>/bin` to your `PATH` and the VS Code extension (and `oak` itself)
@@ -84,16 +84,16 @@ will find the executable automatically. Installation is on by default; pass
 `-Dinstall=false` to skip it (e.g. CI that only runs tests).
 
 The installed `oak` locates its stdlib without any configuration, and the
-install tree is relocatable (move `bin` and `share` together and it still
-works). The search order is: `$OAK_STDLIB_DIR` (authoritative override) → the
-stdlib co-located with the executable (`<exe-dir>/../share/oak/stdlib`) → the
-source tree it was built from → a `./stdlib` directory in the current working
-directory (last-resort fallback). Because the install path is resolved relative
-to the executable, an installed binary uses its own installed stdlib and a
-build-tree binary uses the source tree — neither can be contaminated by the
-other. `OAK_STDLIB_DIR`, when set, fully replaces the search: only that
-directory is consulted, and a module missing there is a hard error rather than a
-silent fallback.
+install tree is relocatable (move `bin` and the installed library directory
+together and it still works). The search order is: `$OAK_STDLIB_DIR`
+(authoritative override) -> the stdlib next to the executable
+(`<exe-dir>/stdlib`) -> the source tree it was built from -> a `./stdlib`
+directory in the current working directory (last-resort fallback). Because the
+install path is resolved relative to the executable, an installed binary uses
+its own installed stdlib and a build-tree binary uses the source tree; neither
+can be contaminated by the other. `OAK_STDLIB_DIR`, when set, fully replaces
+the search: only that directory is consulted, and a module missing there is a
+hard error rather than a silent fallback.
 
 ## CLI Reference
 
