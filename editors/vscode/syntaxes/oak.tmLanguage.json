@@ -1,0 +1,179 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Oak",
+  "scopeName": "source.oak",
+  "fileTypes": ["oak"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#attributes" },
+    { "include": "#function-definition" },
+    { "include": "#type-declaration" },
+    { "include": "#import-statement" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#builtin-types" },
+    { "include": "#types" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.oak",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+    "strings": {
+      "name": "string.quoted.single.oak",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.oak",
+          "match": "\\\\[ntr\\\\'\"]"
+        },
+        {
+          "name": "invalid.illegal.escape.oak",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.oak",
+          "match": "\\b[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?\\b|\\b[0-9]+[eE][+-]?[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.oak",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "attributes": {
+      "name": "entity.other.attribute-name.oak",
+      "match": "@[A-Za-z_][A-Za-z0-9_]*"
+    },
+    "function-definition": {
+      "match": "\\b(fn)\\s+(?:([A-Za-z_][A-Za-z0-9_]*)(\\.))?([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+      "captures": {
+        "1": { "name": "storage.type.function.oak" },
+        "2": { "name": "entity.name.type.oak" },
+        "3": { "name": "punctuation.accessor.oak" },
+        "4": { "name": "entity.name.function.oak" }
+      }
+    },
+    "type-declaration": {
+      "match": "\\b(record|enum|trait)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "storage.type.oak" },
+        "2": { "name": "entity.name.type.oak" }
+      }
+    },
+    "import-statement": {
+      "match": "\\b(import|from)\\b",
+      "name": "keyword.control.import.oak"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.oak",
+          "match": "\\b(if|else|for|while|return|break|continue|in|to)\\b"
+        },
+        {
+          "name": "keyword.operator.new.oak",
+          "match": "\\bnew\\b"
+        },
+        {
+          "name": "keyword.operator.cast.oak",
+          "match": "\\bas\\b"
+        },
+        {
+          "name": "storage.modifier.oak",
+          "match": "\\b(mut|weak|impl)\\b"
+        },
+        {
+          "name": "storage.type.oak",
+          "match": "\\blet\\b"
+        },
+        {
+          "name": "variable.language.self.oak",
+          "match": "\\bself\\b"
+        }
+      ]
+    },
+    "constants": {
+      "name": "constant.language.oak",
+      "match": "\\b(true|false|none)\\b"
+    },
+    "builtin-types": {
+      "name": "support.type.builtin.oak",
+      "match": "\\b(number|string|bool|void)\\b"
+    },
+    "types": {
+      "name": "entity.name.type.oak",
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.oak",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.assignment.compound.oak",
+          "match": "\\+=|-=|\\*=|/=|%="
+        },
+        {
+          "name": "keyword.operator.comparison.oak",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.oak",
+          "match": "&&|\\|\\||!"
+        },
+        {
+          "name": "keyword.operator.assignment.oak",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.oak",
+          "match": "//|\\+|-|\\*|/|%"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.terminator.statement.oak",
+          "match": ";"
+        },
+        {
+          "name": "punctuation.separator.comma.oak",
+          "match": ","
+        },
+        {
+          "name": "punctuation.separator.colon.oak",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.accessor.oak",
+          "match": "\\."
+        },
+        {
+          "name": "punctuation.section.braces.oak",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.section.brackets.oak",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.section.parens.oak",
+          "match": "[()]"
+        }
+      ]
+    }
+  }
+}

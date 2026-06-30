@@ -1,15 +1,15 @@
 {
-  "name": "oak-debug",
+  "name": "vscode-oak",
   "displayName": "Oak Language and Debugger",
-  "description": "Source debugging support for the Oak language",
+  "description": "Syntax highlighting and source debugging support for the Oak language",
   "version": "0.1.0",
   "publisher": "oak-lang",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Debuggers",
-    "Programming Languages"
+    "Programming Languages",
+    "Debuggers"
   ],
   "activationEvents": [],
   "contributes": {
@@ -19,6 +19,13 @@
         "aliases": ["Oak", "oak"],
         "extensions": [".oak"],
         "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "oak",
+        "scopeName": "source.oak",
+        "path": "./syntaxes/oak.tmLanguage.json"
       }
     ],
     "breakpoints": [
