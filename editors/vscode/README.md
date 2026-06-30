@@ -19,8 +19,11 @@ The extension is purely declarative — there are no dependencies to install
 and no build step. From a checkout of this repo:
 
 1. Open `editors/vscode` as the workspace root in VS Code
-   (`code editors/vscode`).
-2. Press `F5` to launch an Extension Development Host with the extension
+   (`code editors/vscode`). The bundled `.vscode/launch.json` defines a
+   **Run Extension** configuration, which only appears when this folder is
+   the workspace root.
+2. Open the Run and Debug panel (`Ctrl+Shift+D`), select **Run Extension**,
+   and press `F5` to launch an Extension Development Host with the extension
    loaded.
 3. Open or create a `.oak` file in that new window — it should be
    highlighted automatically based on its `.oak` extension.
