@@ -37,13 +37,31 @@ static int parse_positive_int(const char* arg, int* out)
 
 /* Source names are borrowed from chunk debug info and are not guaranteed to be
  * interned, so compare by value (with a pointer fast-path). */
+static char source_path_char(const char c)
+{
+#ifdef _WIN32
+  if (c == '\\')
+    return '/';
+  if (c >= 'A' && c <= 'Z')
+    return (char)(c - 'A' + 'a');
+#endif
+  return c;
+}
+
 static int source_eq(const char* a, const char* b)
 {
   if (a == b)
     return 1;
   if (!a || !b)
     return 0;
-  return strcmp(a, b) == 0;
+  while (*a && *b)
+  {
+    if (source_path_char(*a) != source_path_char(*b))
+      return 0;
+    ++a;
+    ++b;
+  }
+  return *a == *b;
 }
 
 void oak_debugger_init(struct oak_debugger_t* dbg,
@@ -140,7 +158,7 @@ static int hit_breakpoint(const struct oak_debugger_t* dbg, const int line,
       continue;
     if (bp->source_name)
     {
-      if (!source_name || strcmp(bp->source_name, source_name) != 0)
+      if (!source_eq(bp->source_name, source_name))
         continue;
     }
     return 1;

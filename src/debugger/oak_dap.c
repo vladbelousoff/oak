@@ -125,9 +125,31 @@ static int obj_bool(yyjson_val* obj, const char* key)
   return yyjson_get_bool(obj_get(obj, key));
 }
 
+static char source_path_char(const char c)
+{
+#ifdef _WIN32
+  if (c == '\\')
+    return '/';
+  if (c >= 'A' && c <= 'Z')
+    return (char)(c - 'A' + 'a');
+#endif
+  return c;
+}
+
 static int source_matches(const char* a, const char* b)
 {
-  return a && b && (a == b || strcmp(a, b) == 0);
+  if (a == b)
+    return 1;
+  if (!a || !b)
+    return 0;
+  while (*a && *b)
+  {
+    if (source_path_char(*a) != source_path_char(*b))
+      return 0;
+    ++a;
+    ++b;
+  }
+  return *a == *b;
 }
 
 static int value_expandable(const struct oak_value_t value)

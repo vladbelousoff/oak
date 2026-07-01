@@ -61,6 +61,11 @@
                 "default": "${fileDirname}",
                 "description": "Working directory for the Oak process"
               },
+              "debugPort": {
+                "type": "number",
+                "default": 4711,
+                "description": "Oak debug server port for launch sessions. Use 0 to choose a free port"
+              },
               "args": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -95,6 +100,7 @@
             "oakExecutable": "oak",
             "program": "${file}",
             "cwd": "${fileDirname}",
+            "debugPort": 4711,
             "args": [],
             "stopOnEntry": false
           }

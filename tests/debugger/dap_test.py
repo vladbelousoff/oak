@@ -28,6 +28,7 @@ def receive(sock):
 
 
 oak, program = map(os.path.abspath, sys.argv[1:3])
+breakpoint_source = program.replace(os.sep, "/")
 process = subprocess.Popen(
     [oak, "--debug", "--debug-port", "0", program],
     stdout=subprocess.PIPE,
@@ -44,7 +45,7 @@ with socket.create_connection(("127.0.0.1", int(ready.split("=")[1]))) as sock:
     send(sock, 2, "launch", {"stopOnEntry": True})
     assert receive(sock)["command"] == "launch"
     send(sock, 3, "setBreakpoints", {
-        "source": {"path": program},
+        "source": {"path": breakpoint_source},
         "breakpoints": [{"line": 2}, {"line": 4}],
     })
     breakpoints = receive(sock)["body"]["breakpoints"]
