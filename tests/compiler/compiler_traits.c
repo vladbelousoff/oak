@@ -219,7 +219,7 @@ OAK_TEST_DECL(MethodCoercionInMethodCallOk)
 
 /* Current behavior: a default method body does NOT auto-satisfy conformance.
  * A record must still explicitly implement every trait method, even ones with
- * a default body. This pins that invariant — see docs/traits.md. If defaults
+ * a default body. This pins that invariant. If defaults
  * are ever auto-filled into vtables, update this test deliberately. */
 OAK_TEST_DECL(TraitDefaultMethodDoesNotSatisfyConformance)
 {

@@ -65,16 +65,41 @@ The `oak` debug type supports:
 - source breakpoints, pause, continue, step in, step over, and step out
 - stack frames, locals, local-name watches, and expandable collection values
 
-For launch sessions, point `oakExecutable` at your built `oak` CLI
-(defaults to `${workspaceFolder}/build/oak`) and `program` at the `.oak`
-file to run. A starter launch configuration is contributed automatically
-(`Debug Oak Program`); add or adjust it in your project's
-`.vscode/launch.json` as needed.
+Launch sessions use the `oak` executable from `PATH` by default. Make sure
+`oak --help` works in the environment used to start VS Code, then open any
+`.oak` file, select **Debug Current Oak File** in the Run and Debug panel, and
+press `F5`.
+
+The contributed starter configuration runs the active file from that file's
+directory, so it works for standalone files as well as workspace files:
+
+```json
+{
+  "type": "oak",
+  "request": "launch",
+  "name": "Debug Current Oak File",
+  "program": "${file}",
+  "cwd": "${fileDirname}",
+  "args": []
+}
+```
+
+Add `oakExecutable` only when you want to override PATH lookup:
+
+```json
+"oakExecutable": "/absolute/path/to/oak"
+```
+
+To run without the debugger, use VS Code's integrated terminal:
+
+```sh
+oak path/to/program.oak
+```
 
 For attach sessions, start Oak first:
 
 ```sh
-./build/oak --debug --debug-port 4711 path/to/program.oak
+oak --debug --debug-port 4711 path/to/program.oak
 ```
 
 then attach with a configuration like:

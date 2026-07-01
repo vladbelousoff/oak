@@ -53,12 +53,13 @@
               },
               "oakExecutable": {
                 "type": "string",
-                "default": "${workspaceFolder}/build/oak",
-                "description": "Path to the Oak CLI executable"
+                "default": "oak",
+                "description": "Oak CLI executable. The default uses the oak command from PATH"
               },
               "cwd": {
                 "type": "string",
-                "default": "${workspaceFolder}"
+                "default": "${fileDirname}",
+                "description": "Working directory for the Oak process"
               },
               "args": {
                 "type": "array",
@@ -90,10 +91,10 @@
           {
             "type": "oak",
             "request": "launch",
-            "name": "Debug Oak Program",
-            "oakExecutable": "${workspaceFolder}/build/oak",
+            "name": "Debug Current Oak File",
+            "oakExecutable": "oak",
             "program": "${file}",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${fileDirname}",
             "args": [],
             "stopOnEntry": false
           }
