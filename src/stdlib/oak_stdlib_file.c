@@ -10,8 +10,23 @@
 
 typedef struct oak_file_handle_t
 {
-  FILE* fp;
+  FILE* fp; /* null after close() */
+  /* Kept so the destructor can free the handle without a native ctx. */
+  struct oak_allocator_t* allocator;
 } oak_file_handle_t;
+
+/* Runs when the File record's refcount hits zero: closes a still-open
+ * stream (file dropped without close()) and frees the handle. close()
+ * only nulls fp so the record can outlive it safely. */
+static void file_destroy(void* instance)
+{
+  oak_file_handle_t* h = instance;
+  if (!h)
+    return;
+  if (h->fp)
+    fclose(h->fp);
+  OAK_FREE(h->allocator, h);
+}
 
 /* FileMode variant integer values. Must match the order/values registered in
  * oak_stdlib_register_file. */
@@ -56,6 +71,7 @@ static enum oak_fn_call_result_t file_open(struct oak_native_ctx_t* ctx,
     return OAK_FN_CALL_RUNTIME_ERROR;
   }
   h->fp = fp;
+  h->allocator = ctx->allocator;
   *out = oak_native_record_new(ctx->allocator, s_file_type, h);
   return OAK_FN_CALL_OK;
 }
@@ -159,12 +175,14 @@ static enum oak_fn_call_result_t file_close(struct oak_native_ctx_t* ctx,
 {
   if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
+  (void)ctx;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
     return OAK_FN_CALL_RUNTIME_ERROR;
   fclose(h->fp);
+  /* The handle stays alive (freed by file_destroy) so that read/write/close
+   * on an already-closed File fail cleanly instead of touching freed memory. */
   h->fp = null;
-  OAK_FREE(ctx->allocator, h);
   *out = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
@@ -177,6 +195,7 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
       oak_bind_type_in_module(opts, "io", OAK_BIND_TYPE_RECORD, "File");
   if (!t)
     return;
+  t->destructor = file_destroy;
   s_file_type = t;
 
   struct oak_bind_enum_t* mode = oak_bind_enum_in_module(opts, "io", "FileMode");

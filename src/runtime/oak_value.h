@@ -572,6 +572,8 @@ OAK_API struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a);
 OAK_API void oak_array_push(struct oak_obj_array_t* arr,
                             struct oak_value_t value);
 
+/* `type_name` and `field_names` are copied into the record; the caller's
+ * strings only need to live for the duration of the call. */
 OAK_API struct oak_obj_record_t* oak_record_new(
     struct oak_allocator_t* a,
     int field_count,

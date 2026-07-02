@@ -247,6 +247,11 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
       return OAK_LEX_UNTERMINATED_STRING;
     }
 
+    /* A raw newline in the source (not the '\n' escape) must advance the
+     * line counter or every diagnostic after the string points at the
+     * wrong line. */
+    const int raw_newline = cp == '\n';
+
     if (cp == '\\')
     {
       p += n;
@@ -291,6 +296,8 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
     const int written = oak_utf8_encode(cp, gb.data + gb.len);
     gb.len += (usize)written;
 
+    if (raw_newline)
+      oak_lexer_new_line(cur);
     p += n;
     oak_lexer_advance_cursor(cur, 1, n);
 

@@ -123,7 +123,9 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
   const u8 vtable_slot = oak_vm_read_u8(vm);
   const u8 arity = oak_vm_read_u8(vm); /* includes self */
   const usize depth = (usize)(vm->sp - vm->stack);
-  if (depth < (usize)arity)
+  /* arity counts the receiver, so 0 is malformed bytecode — and would
+   * underflow n_args below. */
+  if (arity == 0 || depth < (usize)arity)
   {
     oak_vm_runtime_error(vm, "stack underflow in virtual call");
     return OAK_VM_RUNTIME_ERROR;
@@ -231,23 +233,29 @@ enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
   u8* saved_ip = vm->ip;
   struct oak_chunk_t* saved_chunk = vm->chunk;
   usize saved_stack_base = vm->stack_base;
+  struct oak_value_t* const entry_sp = vm->sp;
 
   /* Point IP at the halt trampoline so that when the called function returns,
    * the VM sees HALT and oak_vm_resume returns OAK_VM_OK. */
   vm->ip = halt_trampoline;
 
   enum oak_vm_result_t r = oak_vm_push(vm, fn_val);
-  if (r != OAK_VM_OK)
-    return r;
-  for (int i = 0; i < argc; ++i)
-  {
+  for (int i = 0; r == OAK_VM_OK && i < argc; ++i)
     r = oak_vm_push(vm, args[i]);
-    if (r != OAK_VM_OK)
-      return r;
-  }
-  r = oak_vm_op_call_with_argc(vm, (u8)argc);
+  if (r == OAK_VM_OK)
+    r = oak_vm_op_call_with_argc(vm, (u8)argc);
   if (r != OAK_VM_OK)
+  {
+    /* Call setup failed before any frame was pushed: drop whatever made it
+     * onto the stack and put the VM back exactly as we found it, so the
+     * caller can keep using it. */
+    while (vm->sp > entry_sp)
+      oak_value_decref(*--vm->sp);
+    vm->ip = saved_ip;
+    vm->chunk = saved_chunk;
+    vm->stack_base = saved_stack_base;
     return r;
+  }
 
   r = oak_vm_resume(vm);
 

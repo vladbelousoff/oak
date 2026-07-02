@@ -1,6 +1,7 @@
 #include "internal/oak_vm.h"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 
 const char* oak_vm_value_kind_desc(const struct oak_value_t v)
@@ -36,14 +37,26 @@ void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
-  if (!vm->chunk->debug || !vm->chunk->debug->locations)
+  const struct oak_chunk_t* chunk = vm->chunk;
+  if (!chunk || !chunk->debug || !chunk->debug->locations)
   {
     oak_log(OAK_LOG_ERROR, "error: %s", buf);
     return;
   }
 
-  const usize offset = (usize)(vm->ip - vm->chunk->bytecode - 1);
-  const struct oak_code_loc_t loc = vm->chunk->debug->locations[offset];
+  /* During host calls (oak_vm_call) the ip points at a static halt
+   * trampoline outside this chunk; mapping it to a source location would
+   * index the locations array out of bounds. */
+  const uintptr_t ip = (uintptr_t)vm->ip;
+  const uintptr_t code = (uintptr_t)chunk->bytecode;
+  if (ip <= code || ip > code + chunk->count)
+  {
+    oak_log(OAK_LOG_ERROR, "error: %s", buf);
+    return;
+  }
+
+  const usize offset = (usize)(ip - code) - 1u;
+  const struct oak_code_loc_t loc = chunk->debug->locations[offset];
   int col = loc.column;
   if (col < 1)
     col = 1;

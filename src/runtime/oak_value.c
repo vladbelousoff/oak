@@ -278,33 +278,47 @@ struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
                      (usize)field_count * sizeof(struct oak_value_t);
   struct oak_obj_record_t* s = OAK_ALLOC(a, size);
   oak_obj_init(&s->obj, OAK_OBJ_RECORD, a);
-  s->type_name = type_name;
+  s->type_name = null;
   s->field_count = field_count;
   s->field_name_ptrs = null;
   s->field_name_storage = null;
   for (int i = 0; i < field_count; ++i)
     s->fields[i] = OAK_VALUE_I32(0);
-  if (field_names && field_count > 0)
+
+  /* Copy the type name and field names into one owned blob: records can
+   * outlive their chunk, so borrowing the caller's pointers would dangle. */
+  const int have_fields = field_names && field_count > 0;
+  const usize ptrs_size =
+      have_fields ? (usize)field_count * sizeof(const char*) : 0u;
+  usize strings_total = 0u;
+  if (have_fields)
   {
-    usize strings_total = 0u;
     for (int i = 0; i < field_count; ++i)
-    {
-      const usize n = strlen(field_names[i]);
-      strings_total += n + 1u;
-    }
-    const usize blob = (usize)field_count * sizeof(const char*) + strings_total;
-    char* const raw = OAK_ALLOC(a, blob);
+      strings_total += strlen(field_names[i]) + 1u;
+  }
+  const usize type_name_size = type_name ? strlen(type_name) + 1u : 0u;
+  if (ptrs_size + strings_total + type_name_size > 0u)
+  {
+    char* const raw = OAK_ALLOC(a, ptrs_size + strings_total + type_name_size);
     s->field_name_storage = raw;
-    const char** const ptrs = (const char**)raw;
-    s->field_name_ptrs = (const char* const*)ptrs;
-    char* p = raw + (usize)field_count * (usize)sizeof(const char*);
-    for (int i = 0; i < field_count; ++i)
+    char* p = raw + ptrs_size;
+    if (have_fields)
     {
-      const usize n = strlen(field_names[i]);
-      memcpy(p, field_names[i], n);
-      p[n] = '\0';
-      ptrs[i] = p;
-      p += n + 1u;
+      const char** const ptrs = (const char**)raw;
+      s->field_name_ptrs = (const char* const*)ptrs;
+      for (int i = 0; i < field_count; ++i)
+      {
+        const usize n = strlen(field_names[i]);
+        memcpy(p, field_names[i], n);
+        p[n] = '\0';
+        ptrs[i] = p;
+        p += n + 1u;
+      }
+    }
+    if (type_name)
+    {
+      memcpy(p, type_name, type_name_size);
+      s->type_name = p;
     }
   }
   return s;
@@ -360,9 +374,13 @@ static u32 hash_value(const struct oak_value_t v)
     return (u32)oak_as_i32(v) * 2654435761u;
   if (oak_is_f32(v))
   {
-    /* +0.0 and -0.0 compare equal, so they must hash identically. */
+    /* Values that compare equal must hash identically: integral floats in
+     * i32 range hash as the equal integer (this also unifies +0.0/-0.0),
+     * matching the numeric coercion in oak_value_equal. */
     const float f = oak_as_f32(v);
-    return oak_f32_to_bits(f == 0.0f ? 0.0f : f) * 2654435761u;
+    if (f >= -2147483648.0f && f < 2147483648.0f && (float)(i32)f == f)
+      return (u32)(i32)f * 2654435761u;
+    return oak_f32_to_bits(f) * 2654435761u;
   }
   if (oak_is_none(v))
     return 0x9E3779B9u;
@@ -629,6 +647,18 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
       return strcmp(str_a->chars, str_b->chars) == 0;
     }
     return oak_as_obj(a) == oak_as_obj(b);
+  }
+
+  /* Numbers compare by value across the i32/f32 divide, matching the
+   * ordering operators (< <= > >=). Both types convert to double exactly,
+   * so the mixed comparison is precise even beyond f32's 24-bit mantissa. */
+  if (oak_is_number(a) && oak_is_number(b) && a.tag != b.tag)
+  {
+    const double da = oak_is_i32(a) ? (double)oak_as_i32(a)
+                                    : (double)oak_as_f32(a);
+    const double db = oak_is_i32(b) ? (double)oak_as_i32(b)
+                                    : (double)oak_as_f32(b);
+    return da == db;
   }
 
   if (a.tag != b.tag)
