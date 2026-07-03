@@ -237,6 +237,18 @@ def aggregate(results, skipped, failed, langs_run):
     out_path = os.path.join(RESULTS_DIR, "RESULTS.md")
     with open(out_path, "w") as f:
         f.write("\n".join(lines) + "\n")
+
+    # Machine-readable aggregate for downstream tooling (README injection in
+    # CI); mirrors RESULTS.md without requiring markdown parsing.
+    summary = {
+        "languages": lang_names,
+        "results": results,
+        "skipped": skipped,
+        "failed": {"{}/{}".format(l, b): r for (l, b), r in failed.items()},
+    }
+    with open(os.path.join(RESULTS_DIR, "summary.json"), "w") as f:
+        json.dump(summary, f, indent=2)
+
     return out_path
 
 

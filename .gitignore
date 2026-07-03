@@ -8,3 +8,4 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles/
 !subprojects/packagefiles/**
+summary.json

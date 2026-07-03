@@ -87,9 +87,16 @@ process startup (tens of ms for node/mono) in the noise.
 ## Results
 
 `run.py` writes per-benchmark hyperfine exports (`results/<bench>.json`,
-`results/<bench>.md`) and an aggregated `results/RESULTS.md` with a relative
-summary matrix, environment versions, and any skipped/failed runtimes.
+`results/<bench>.md`), an aggregated `results/RESULTS.md` with a relative
+summary matrix, environment versions, and any skipped/failed runtimes, and a
+machine-readable `results/summary.json`.
 `results/` is gitignored — numbers are machine-specific; regenerate locally.
+
+The `Benchmarks` GitHub Actions workflow (`.github/workflows/benchmark.yml`)
+runs the full suite on every push to `main` that touches interpreter code and
+injects the summary matrix into the top-level `README.md` via
+`update_readme.py` (between the `<!-- benchmark:start/end -->` markers). Full
+hyperfine output lands in the job summary and a `benchmark-results` artifact.
 
 ## Adding a benchmark
 

@@ -166,6 +166,16 @@ npm run dev
 
 Use `npm run build` to create the static site in `dist/`.
 
+## Benchmarks
+
+Cross-language benchmarks run in CI whenever interpreter code changes and the
+table below is updated automatically. Workloads, methodology, and caveats are
+described in [`benchmark/`](benchmark/README.md).
+
+<!-- benchmark:start -->
+_No CI benchmark results yet._
+<!-- benchmark:end -->
+
 ## Layout
 
 | Path | Contents |
