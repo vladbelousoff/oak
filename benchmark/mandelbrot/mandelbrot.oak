@@ -1,0 +1,24 @@
+let width = 256;
+let max_iter = 64;
+let step = 2.0 / 256.0;
+
+let mut inside = 0;
+for py from 0 to width {
+  let cy = -1.0 + to_float(py) * step;
+  for px from 0 to width {
+    let cx = -1.5 + to_float(px) * step;
+    let mut zr = 0.0;
+    let mut zi = 0.0;
+    let mut iter = 0;
+    while iter < max_iter && zr * zr + zi * zi <= 4.0 {
+      let t = zr * zr - zi * zi + cx;
+      zi = 2.0 * zr * zi + cy;
+      zr = t;
+      iter += 1;
+    }
+    if iter == max_iter {
+      inside += 1;
+    }
+  }
+}
+print(inside);

@@ -1,0 +1,21 @@
+let n = 300000;
+let keys = 20011;
+
+let mut counts = new [string:number];
+for i from 0 to n {
+  let key = 'k' + '{}'.format([((i % keys) * 7919) % keys]);
+  if counts.has(key) {
+    counts[key] = counts[key] + 1;
+  } else {
+    counts[key] = 1;
+  }
+}
+
+let mut total = 0;
+for i from 0 to n {
+  let key = 'k' + '{}'.format([((i % keys) * 7919) % keys]);
+  total += counts[key];
+}
+
+print(counts.size());
+print(total);

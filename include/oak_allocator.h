@@ -28,6 +28,10 @@ struct oak_allocator_t
   void* state;
   struct oak_obj_t* cycle_objects;
   int cycle_decrefs;
+  /* Retained-decref count that arms the next automatic cycle collection.
+   * Updated by oak_collect_cycles to the cost of the last scan so collection
+   * work stays amortized O(1) per decref; 0 means "use the default floor". */
+  int cycle_trigger;
   int collecting_cycles;
 };
 

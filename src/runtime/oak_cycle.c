@@ -3,6 +3,8 @@
 #include "oak_allocator.h"
 #include "oak_atomic.h"
 
+#include <limits.h>
+
 /* See internal/oak_cycle.h for the collector model and invariants. */
 
 struct oak_cycle_entry_t
@@ -59,6 +61,21 @@ static void oak_obj_visit_cycle_edges(struct oak_obj_t* obj,
   }
 
 #undef VISIT_VALUE
+}
+
+/* Number of value slots a scan pass iterates for this object. Used to price
+ * a collection so the retrigger threshold can amortize its cost. */
+static usize oak_obj_cycle_edge_slots(const struct oak_obj_t* obj)
+{
+  if (obj->type == OAK_OBJ_ARRAY)
+    return ((const struct oak_obj_array_t*)obj)->length;
+  if (obj->type == OAK_OBJ_MAP)
+    return ((const struct oak_obj_map_t*)obj)->length * 2u;
+  if (obj->type == OAK_OBJ_RECORD)
+    return (usize)((const struct oak_obj_record_t*)obj)->field_count;
+  if (obj->type == OAK_OBJ_TRAIT_OBJECT)
+    return 2u;
+  return 0u;
 }
 
 struct oak_cycle_scan_ctx_t
@@ -121,9 +138,11 @@ usize oak_collect_cycles(struct oak_allocator_t* allocator)
   }
 
   allocator->collecting_cycles = 1;
-  oak_atomic_int_store_relaxed(&allocator->cycle_decrefs, 0);
+  allocator->cycle_decrefs = 0;
 
-  /* Seed each candidate with its true refcount and an index into `entries`. */
+  /* Seed each candidate with its true refcount and an index into `entries`,
+   * tallying how many value slots the scan passes will touch. */
+  usize work = 0;
   usize i = 0;
   for (struct oak_obj_t* obj = allocator->cycle_objects; obj;
        obj = obj->cycle_next)
@@ -131,6 +150,7 @@ usize oak_collect_cycles(struct oak_allocator_t* allocator)
     entries[i].obj = obj;
     entries[i].external_refs = oak_refcount_load(&obj->refcount);
     entries[i].reachable = 0;
+    work += 1u + oak_obj_cycle_edge_slots(obj);
     obj->cycle_index = i++;
   }
 
@@ -192,6 +212,12 @@ usize oak_collect_cycles(struct oak_allocator_t* allocator)
     if (oak_refcount_load(&obj->weak_refcount) == 0)
       OAK_FREE(obj->allocator, obj);
   }
+
+  /* Require at least as many retained decrefs as this scan cost before the
+   * next automatic collection, keeping collector work amortized O(1) per
+   * decref even when a large live structure dominates the heap. */
+  allocator->cycle_trigger =
+      work > (usize)INT_MAX ? INT_MAX : (int)work;
 
   allocator->collecting_cycles = 0;
   OAK_FREE(allocator, queue);

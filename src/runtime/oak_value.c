@@ -2,7 +2,6 @@
 
 #include "internal/oak_cycle.h"
 #include "oak_allocator.h"
-#include "oak_atomic.h"
 #include "oak_bind.h"
 #include "oak_log.h"
 
@@ -13,9 +12,14 @@
 
 #define OAK_CYCLE_TRIGGER 256
 
+/* Plain increment on purpose: cycle_decrefs is only a collection-trigger
+ * heuristic, and the collector itself is single-threaded (guarded by
+ * collecting_cycles, walks cycle_objects unlocked). A racy lost update merely
+ * shifts when the next collection fires; not worth a locked RMW on the hot
+ * decref path. */
 static int oak_cycle_decrefs_inc(struct oak_allocator_t* allocator)
 {
-  return oak_atomic_int_inc_relaxed(&allocator->cycle_decrefs);
+  return ++allocator->cycle_decrefs;
 }
 
 int oak_obj_is_cycle_capable(const struct oak_obj_t* obj)
@@ -138,9 +142,17 @@ void oak_obj_decref(struct oak_obj_t* obj)
     return;
   if (!oak_refcount_dec(&obj->refcount))
   {
-    if (oak_obj_is_cycle_capable(obj) && !obj->allocator->collecting_cycles &&
-        oak_cycle_decrefs_inc(obj->allocator) >= OAK_CYCLE_TRIGGER)
-      oak_collect_cycles(obj->allocator);
+    if (oak_obj_is_cycle_capable(obj) && !obj->allocator->collecting_cycles)
+    {
+      /* The trigger scales with the last scan's cost (see oak_collect_cycles)
+       * so a large live heap is not rescanned every OAK_CYCLE_TRIGGER
+       * decrefs, which would make hot loops over big containers O(n^2). */
+      const int trigger = obj->allocator->cycle_trigger;
+      const int armed = trigger > OAK_CYCLE_TRIGGER ? trigger
+                                                    : OAK_CYCLE_TRIGGER;
+      if (oak_cycle_decrefs_inc(obj->allocator) >= armed)
+        oak_collect_cycles(obj->allocator);
+    }
     return;
   }
 

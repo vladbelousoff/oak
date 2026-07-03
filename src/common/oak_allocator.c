@@ -72,6 +72,7 @@ struct oak_allocator_t oak_system_allocator = {
   .state = null,
   .cycle_objects = null,
   .cycle_decrefs = 0,
+  .cycle_trigger = 0,
   .collecting_cycles = 0,
 };
 
@@ -230,5 +231,6 @@ void oak_tracking_allocator_init(struct oak_allocator_t* a)
   a->state = st;
   a->cycle_objects = null;
   a->cycle_decrefs = 0;
+  a->cycle_trigger = 0;
   a->collecting_cycles = 0;
 }
