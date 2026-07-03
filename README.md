@@ -83,44 +83,23 @@ oak --debug --debug-port 4711 examples/04_functions/04_functions.oak
 ## VS Code
 
 The extension is in `editors/vscode`. It provides `.oak` syntax highlighting
-and source debugging.
-
-The debugger assumes `oak` is on the `PATH` inherited by VS Code. The
-contributed **Debug Current Oak File** configuration runs the active `.oak`
-file from that file's directory:
-
-```json
-{
-  "type": "oak",
-  "request": "launch",
-  "name": "Debug Current Oak File",
-  "program": "${file}",
-  "cwd": "${fileDirname}",
-  "args": []
-}
-```
-
-To run the extension from this checkout:
+and source debugging. The debugger assumes `oak` is on the `PATH` inherited by
+VS Code.
 
 ```sh
 code editors/vscode
 ```
 
-Select **Run Extension** and press `F5`. In the Extension Development Host,
-open a `.oak` file, select **Debug Current Oak File**, and press `F5`.
-
-To attach instead:
+Select **Run Extension** and press `F5`. To attach to a running script:
 
 ```sh
 oak --debug --debug-port 4711 path/to/program.oak
 ```
 
-Then attach to port `4711` with an `oak` attach configuration.
-
 ## Language
 
 Start with [`examples/`](examples/README.md). The numbered examples are the
-language tour and run as smoke tests.
+language tour and run as smoke tests. A compact Oak program looks like this:
 
 ```oak
 fn sum(values : number[]) -> number {
@@ -134,26 +113,177 @@ fn sum(values : number[]) -> number {
 print(sum([3, 5, 8]));
 ```
 
-Rules worth knowing:
+Feature highlights:
 
-- bindings are immutable unless declared with `let mut`
-- strings use single quotes
-- functions and methods can declare parameter and return types
-- records are created with `new Type { ... }`
-- imports resolve relative to the entry script
-- `/` produces a float; `//` is integer division
-- `none` is the empty value
+- typed values: numbers, strings, booleans, arrays, maps, records, enums,
+  traits, functions, and `none`
+- immutable `let` bindings by default; `let mut` for mutation
+- `if`, `while`, counted `for`, collection iteration, `break`, `continue`
+- typed functions, recursion, first-class functions, anonymous functions
+- records with fields and methods declared as `fn Type.method(self, ...)`
+- enum variants such as `Status.Done`, with enum-aware type checking
+- traits with virtual dispatch over implementing record methods
+- relative modules with `import { name } from module.path` and `import *`
+- weak references with `Type weak` to break ownership cycles
+- stdlib builtins for printing, conversion, math, strings, collections, and
+  `io.File`
+- bytecode disassembly, debug symbols, DAP debugging, memory tracking, and
+  cycle collection
 
-Common globals include `print`, numeric conversions, math functions, and
-collection/string methods such as `.size()`. File access is in the `io` module.
+Rules worth remembering: strings use single quotes, `/` produces a float, `//`
+is integer division, and records are created with `new Type { ... }`.
 
 ## Embedding
 
 Link against `acorn`. Public C headers are in [`include/`](include/), and the
 C++20 wrapper is [`include/oak.hpp`](include/oak.hpp).
 
-See [`tests/compiler/`](tests/compiler/) and [`src/stdlib/`](src/stdlib/) for
-native binding examples.
+The embedding API lets a host register native record types, inline value types,
+fields, destructors, global functions, module-scoped functions, instance
+methods, static methods, enums, and attributes before compiling Oak source.
+Native bindings participate in Oak's compile-time type checks.
+
+### C Bindings
+
+The C API is descriptor-based. Register types and functions on
+`oak_compile_options_t` before calling `oak_compile_ex`.
+
+```c
+#include "oak_bind.h"
+
+typedef struct Vec2
+{
+  float x;
+  float y;
+} Vec2;
+
+static struct oak_value_t get_x(struct oak_value_t self, void* user_data);
+static void set_x(struct oak_value_t self, struct oak_value_t value, void* user_data);
+static void free_vec2(void* instance);
+static enum oak_fn_call_result_t make_vec2(
+    struct oak_native_ctx_t* ctx,
+    const struct oak_value_t* args,
+    int argc,
+    struct oak_value_t* out);
+static enum oak_fn_call_result_t vec2_length(
+    struct oak_native_ctx_t* ctx,
+    const struct oak_value_t* args,
+    int argc,
+    struct oak_value_t* out);
+static enum oak_fn_call_result_t vec2_origin(
+    struct oak_native_ctx_t* ctx,
+    const struct oak_value_t* args,
+    int argc,
+    struct oak_value_t* out);
+
+static void register_host_api(struct oak_compile_options_t* opts)
+{
+  struct oak_bind_type_t* vec2 =
+      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "Vec2");
+  vec2->destructor = free_vec2;
+
+  oak_bind_field(vec2,
+                 &(struct oak_bind_field_t){
+                     .name = "x",
+                     .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                     .getter = get_x,
+                     .setter = set_x,
+                 });
+
+  struct oak_bind_type_ref_t make_params[] = {
+      OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+      OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+  };
+  oak_bind_fn_global(opts,
+                     &(struct oak_bind_global_fn_t){
+                         .name = "vec2",
+                         .impl = make_vec2,
+                         .arity = 2,
+                         .return_type = OAK_BIND_NATIVE(vec2),
+                         .param_types = make_params,
+                         .param_count = 2,
+                         .user_data = vec2,
+                     });
+
+  oak_bind_fn(opts, &(struct oak_bind_fn_t){
+      .kind = OAK_BIND_FN_INSTANCE_METHOD,
+      .receiver_type = vec2,
+      .name = "length",
+      .impl = vec2_length,
+      .arity = 0,
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+  });
+
+  oak_bind_fn(opts, &(struct oak_bind_fn_t){
+      .kind = OAK_BIND_FN_STATIC_METHOD,
+      .receiver_type = vec2,
+      .name = "origin",
+      .impl = vec2_origin,
+      .arity = 0,
+      .return_type = OAK_BIND_NATIVE(vec2),
+      .user_data = vec2,
+  });
+
+  struct oak_bind_enum_t* color = oak_bind_enum(opts, "Color");
+  oak_bind_enum_variant(color, "Red", 0);
+  oak_bind_enum_variant(color, "Green", 1);
+  oak_bind_enum_variant(color, "Blue", 2);
+}
+```
+
+Use `oak_bind_type_in_module`, `oak_bind_enum_in_module`, or the
+`module_name` field on function descriptors for module-scoped native APIs.
+Callbacks create records with `oak_native_record_new()` and access instances
+with `oak_native_instance()`.
+
+### C++ Bindings
+
+The C++20 wrapper adds RAII and typed callable binding:
+
+```cpp
+#include "oak.hpp"
+
+#include <cmath>
+
+struct Vec2
+{
+  float x;
+  float y;
+
+  float length() const { return std::sqrt(x * x + y * y); }
+  void scale(float factor)
+  {
+    x *= factor;
+    y *= factor;
+  }
+  float dot(const Vec2& other) const { return x * other.x + y * other.y; }
+};
+
+oak::Allocator alloc;
+oak::CompileOptions opts(alloc);
+
+auto vec2 = opts.bind_type<Vec2>("Vec2");
+vec2.field("x", &Vec2::x)
+    .field("y", &Vec2::y)
+    .method("length", &Vec2::length)
+    .method("scale", &Vec2::scale)
+    .method("dot", &Vec2::dot)
+    .static_method("twice", [](int value) { return value * 2; })
+    .destructor();
+
+opts.bind_fn("add", [](int a, int b) { return a + b; });
+opts.bind_fn("vec_sum", [](const Vec2* v) { return v->x + v->y; });
+opts.bind_enum("Color", {{"Red", 0}, {"Green", 1}, {"Blue", 2}});
+
+auto result = oak::compile(
+    "let n = add(20, 22);\n"
+    "let color = Color.Green;\n",
+    opts);
+```
+
+For complete, compiled examples, see [`tests/compiler/`](tests/compiler/),
+[`tests/cpp/test_oak_hpp.cpp`](tests/cpp/test_oak_hpp.cpp), and
+[`src/stdlib/`](src/stdlib/).
 
 ## Web Playground
 
