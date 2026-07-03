@@ -173,7 +173,17 @@ table below is updated automatically. Workloads, methodology, and caveats are
 described in [`benchmark/`](benchmark/README.md).
 
 <!-- benchmark:start -->
-_No CI benchmark results yet._
+| runtime | fib | nsieve | mandelbrot | hashmap | strcat |
+|---|---|---|---|---|---|
+| **oak** | 14.13× (0.15 s) | 16.85× (0.12 s) | 47.44× (0.37 s) | 5.53× (0.26 s) | 11.93× (0.37 s) |
+| lua5.4 | 5.33× (0.06 s) | 3.59× (0.03 s) | 11.51× (0.09 s) | 3.08× (0.15 s) | 7.73× (0.24 s) |
+| luajit | 1.00× (0.01 s) | 1.00× (0.01 s) | 1.00× (0.01 s) | 1.00× (0.05 s) | 1.00× (0.03 s) |
+| python3 | 11.36× (0.12 s) | 11.69× (0.08 s) | 116.25× (0.92 s) | 6.54× (0.31 s) | 13.52× (0.41 s) |
+| ruby | 15.01× (0.16 s) | 15.77× (0.11 s) | 48.14× (0.38 s) | 5.81× (0.27 s) | 11.20× (0.34 s) |
+| node | 4.18× (0.04 s) | 5.66× (0.04 s) | 5.26× (0.04 s) | 2.21× (0.10 s) | 1.22× (0.04 s) |
+| csharp | 2.03× (0.02 s) | 2.50× (0.02 s) | 4.19× (0.03 s) | 3.41× (0.16 s) | 6.82× (0.21 s) |
+
+_Relative to the fastest runtime per benchmark, lower is better; mean wall time in parentheses. Measured on a GitHub-hosted `ubuntu-latest` runner at `a008d660d` on 2026-07-03. LuaJIT, Node, and mono are JIT-compiled reference points._
 <!-- benchmark:end -->
 
 ## Layout
