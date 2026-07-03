@@ -56,7 +56,7 @@ jobs:
           meson compile -C build-release
 
       - name: Run benchmarks
-        run: ./benchmark/run.py
+        run: ./benchmark/run.py --warmup 5 --min-runs 10
 
       - name: Publish results to job summary
         run: cat benchmark/results/RESULTS.md >> "$GITHUB_STEP_SUMMARY"

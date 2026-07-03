@@ -181,7 +181,7 @@ def run_hyperfine(bench, langs, warmup, min_runs):
 
 
 def aggregate(results, skipped, failed, langs_run):
-    """results: {bench: {lang: mean_seconds}}"""
+    """results: {bench: {lang: median_seconds}}"""
     lines = ["# Benchmark Results", ""]
 
     lines.append("## Environment")
@@ -328,9 +328,12 @@ def main():
         if data is None:
             print("hyperfine failed for {}".format(bench))
             continue
-        # hyperfine reports results in invocation order, matching `runnable`
+        # hyperfine reports results in invocation order, matching `runnable`.
+        # Median, not mean: robust against outlier runs on noisy hosts
+        # (shared CI runners, VMs), which hyperfine warns about but still
+        # folds into the mean.
         results[bench] = {
-            runnable[idx].name: entry["mean"]
+            runnable[idx].name: entry["median"]
             for idx, entry in enumerate(data["results"])
         }
 

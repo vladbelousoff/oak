@@ -20,7 +20,7 @@ END = "<!-- benchmark:end -->"
 
 
 def build_block(summary):
-    results = summary["results"]  # {bench: {lang: mean_seconds}}
+    results = summary["results"]  # {bench: {lang: median_seconds}}
     benches = list(results.keys())
     langs = [l for l in summary["languages"]
              if any(l in results[b] for b in benches)]
@@ -45,7 +45,7 @@ def build_block(summary):
     date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     lines.append(
         "_Relative to the fastest runtime per benchmark, lower is better; "
-        "mean wall time in parentheses. Measured on a GitHub-hosted "
+        "median wall time in parentheses. Measured on a GitHub-hosted "
         "`ubuntu-latest` runner{} on {}. LuaJIT, Node, and mono are "
         "JIT-compiled reference points._".format(at, date))
 
