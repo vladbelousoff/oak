@@ -1,8 +1,8 @@
-# Oak Language and Debugger for VS Code
+# oak Language and Debugger for VS Code
 
-Syntax highlighting and source-level debugging support for the Oak
+Syntax highlighting and source-level debugging support for the oak
 programming language. See the
-[Oak repository](https://github.com/vladbelousoff/oak) for the language
+[oak repository](https://github.com/vladbelousoff/oak) for the language
 itself.
 
 ## Features
@@ -45,9 +45,9 @@ Highlighting is driven by the TextMate grammar at
 No configuration is required — it activates for any file with the `.oak`
 extension.
 
-Notes on Oak's lexical syntax, for anyone editing the grammar:
+Notes on oak's lexical syntax, for anyone editing the grammar:
 
-- Comments are block-only: `/* ... */`. Oak has no `//` line comment —
+- Comments are block-only: `/* ... */`. oak has no `//` line comment —
   `//` is the floor-division operator.
 - Strings are single-quoted only: `'like this'`, with `\n`, `\t`, `\r`,
   `\\`, `\'`, and `\"` escapes. Double-quoted strings are a lexer error.
@@ -67,7 +67,7 @@ The `oak` debug type supports:
 
 Launch sessions use the `oak` executable from `PATH` by default. Make sure
 `oak --help` works in the environment used to start VS Code, then open any
-`.oak` file, select **Debug Current Oak File** in the Run and Debug panel, and
+`.oak` file, select **Debug Current oak File** in the Run and Debug panel, and
 press `F5`.
 
 The contributed starter configuration runs the active file from that file's
@@ -77,7 +77,7 @@ directory, so it works for standalone files as well as workspace files:
 {
   "type": "oak",
   "request": "launch",
-  "name": "Debug Current Oak File",
+  "name": "Debug Current oak File",
   "program": "${file}",
   "cwd": "${fileDirname}",
   "args": []
@@ -96,7 +96,7 @@ To run without the debugger, use VS Code's integrated terminal:
 oak path/to/program.oak
 ```
 
-For attach sessions, start Oak first:
+For attach sessions, start oak first:
 
 ```sh
 oak --debug --debug-port 4711 path/to/program.oak
@@ -108,7 +108,7 @@ then attach with a configuration like:
 {
   "type": "oak",
   "request": "attach",
-  "name": "Attach to Oak",
+  "name": "Attach to oak",
   "port": 4711
 }
 ```

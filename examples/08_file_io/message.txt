@@ -1,1 +1,1 @@
-Oak can read ordinary files.
+oak can read ordinary files.

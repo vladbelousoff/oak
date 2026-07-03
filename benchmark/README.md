@@ -1,10 +1,10 @@
-# Oak Benchmark Suite
+# oak Benchmark Suite
 
-Cross-language benchmarks comparing Oak against peer scripting languages:
+Cross-language benchmarks comparing oak against peer scripting languages:
 
 | runtime | class |
 |---|---|
-| Oak (`build/oak`) | bytecode interpreter |
+| oak (`build/oak`) | bytecode interpreter |
 | Lua 5.4 | bytecode interpreter |
 | Python 3 (CPython) | bytecode interpreter |
 | Ruby 3 | bytecode interpreter |
@@ -19,7 +19,7 @@ Cross-language benchmarks comparing Oak against peer scripting languages:
 ./run.py          # verify checksums, time everything, write results/RESULTS.md
 ```
 
-Oak must be built **optimized** — debug builds (`buildtype=debug`, meson's
+oak must be built **optimized** — debug builds (`buildtype=debug`, meson's
 default) are -O0 with memory tracking compiled in, run 4–8x slower, and are
 refused by the runner:
 
@@ -60,27 +60,27 @@ process startup (tens of ms for node/mono) in the noise.
 
 ## Methodology and caveats
 
-- **Whole-process timing.** Oak has no clock builtin, so hyperfine measures
-  complete process wall time — including interpreter startup and, for Oak,
+- **Whole-process timing.** oak has no clock builtin, so hyperfine measures
+  complete process wall time — including interpreter startup and, for oak,
   the compile-to-bytecode phase. This is the honest number for a scripting
   language but differs from in-process loop timing.
-- **Oak computes in i32/f32.** Other languages use 64-bit ints (or f64
+- **oak computes in i32/f32.** Other languages use 64-bit ints (or f64
   doubles). All integer checksums are constructed to stay below 2³¹.
-  In `mandelbrot`, Oak's f32 can flip a few boundary pixels, so `run.py`
+  In `mandelbrot`, oak's f32 can flip a few boundary pixels, so `run.py`
   allows ±0.5 % relative deviation on that checksum (all other benchmarks
   must match exactly). Grid coordinates are exact binary fractions to keep
   f32/f64 divergence minimal.
 - **Interpreters vs JITs.** LuaJIT, Node, and mono compile hot code to
   machine code; comparing them to interpreters is an upper-bound reference,
   not a like-for-like comparison.
-- **Oak runs with `--no-debug-symbols`** (its release configuration — skips
+- **oak runs with `--no-debug-symbols`** (its release configuration — skips
   debug-info emission during compilation), symmetric to `mcs -optimize+`.
 - **Comparable, not micro-tuned.** Implementations use the same algorithm
   and equivalent data structures in each language (e.g. `while` loops in
   Ruby instead of iterators where that mirrors the other sources), without
   language-specific tricks.
 - `strcat` deliberately builds many short strings instead of one growing
-  accumulator: Oak has no StringBuilder, and naive `s = s + chunk` is O(n²)
+  accumulator: oak has no StringBuilder, and naive `s = s + chunk` is O(n²)
   in some languages but not others, which would make the comparison
   meaningless.
 
