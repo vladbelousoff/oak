@@ -305,15 +305,15 @@ described in [`benchmark/`](benchmark/README.md).
 <!-- benchmark:start -->
 | runtime | fib | nsieve | mandelbrot | hashmap | strcat |
 |---|---|---|---|---|---|
-| **oak** | 14.52× (0.15 s) | 16.74× (0.12 s) | 47.43× (0.37 s) | 5.57× (0.26 s) | 12.25× (0.37 s) |
-| lua5.4 | 5.44× (0.06 s) | 3.51× (0.02 s) | 11.50× (0.09 s) | 3.14× (0.15 s) | 7.86× (0.24 s) |
+| **oak** | 14.95× (0.15 s) | 20.11× (0.12 s) | 53.52× (0.39 s) | 5.47× (0.26 s) | 10.84× (0.35 s) |
+| lua5.4 | 5.50× (0.05 s) | 4.14× (0.03 s) | 12.60× (0.09 s) | 3.26× (0.16 s) | 8.07× (0.26 s) |
 | luajit | 1.00× (0.01 s) | 1.00× (0.01 s) | 1.00× (0.01 s) | 1.00× (0.05 s) | 1.00× (0.03 s) |
-| python3 | 11.63× (0.12 s) | 11.72× (0.08 s) | 112.58× (0.88 s) | 6.66× (0.31 s) | 13.74× (0.42 s) |
-| ruby | 14.93× (0.15 s) | 15.36× (0.11 s) | 36.17× (0.28 s) | 5.90× (0.27 s) | 11.27× (0.34 s) |
-| node | 4.02× (0.04 s) | 5.42× (0.04 s) | 5.05× (0.04 s) | 2.21× (0.10 s) | 1.16× (0.03 s) |
-| csharp | 1.97× (0.02 s) | 2.45× (0.02 s) | 4.16× (0.03 s) | 3.44× (0.16 s) | 6.83× (0.21 s) |
+| python3 | 12.00× (0.12 s) | 11.06× (0.07 s) | 116.72× (0.86 s) | 6.13× (0.29 s) | 11.67× (0.38 s) |
+| ruby | 15.69× (0.15 s) | 18.36× (0.11 s) | 38.01× (0.28 s) | 5.92× (0.28 s) | 11.17× (0.37 s) |
+| node | 4.18× (0.04 s) | 6.25× (0.04 s) | 5.06× (0.04 s) | 2.06× (0.10 s) | 1.02× (0.03 s) |
+| csharp | 2.10× (0.02 s) | 2.83× (0.02 s) | 4.18× (0.03 s) | 3.59× (0.17 s) | 6.32× (0.21 s) |
 
-_Relative to the fastest runtime per benchmark, lower is better; median wall time in parentheses. Measured on a GitHub-hosted `ubuntu-latest` runner at `90bf34475` on 2026-07-03. LuaJIT, Node, and mono are JIT-compiled reference points._
+_Relative to the fastest runtime per benchmark, lower is better; median wall time in parentheses. Measured on a GitHub-hosted `ubuntu-latest` runner at `bbea2d49b` on 2026-07-03. LuaJIT, Node, and mono are JIT-compiled reference points._
 <!-- benchmark:end -->
 
 ## Layout
