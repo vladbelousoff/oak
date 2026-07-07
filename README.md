@@ -157,114 +157,49 @@ typedef struct Vec2
   float y;
 } Vec2;
 
-static struct oak_value_t get_x(struct oak_value_t self, void* user_data);
-static void set_x(struct oak_value_t self,
-                  struct oak_value_t value,
-                  void* user_data);
-static struct oak_value_t get_y(struct oak_value_t self, void* user_data);
-static void set_y(struct oak_value_t self,
-                  struct oak_value_t value,
-                  void* user_data);
-static void free_vec2(void* instance);
+static struct oak_value_t vec2_get_x(struct oak_value_t self, void* user_data);
+static void vec2_free(void* instance);
 static enum oak_fn_call_result_t make_vec2(
     struct oak_native_ctx_t* ctx,
     const struct oak_value_t* args,
     int argc,
     struct oak_value_t* out);
-static enum oak_fn_call_result_t vec2_length(
-    struct oak_native_ctx_t* ctx,
-    const struct oak_value_t* args,
-    int argc,
-    struct oak_value_t* out);
-static enum oak_fn_call_result_t vec2_origin(
-    struct oak_native_ctx_t* ctx,
-    const struct oak_value_t* args,
-    int argc,
-    struct oak_value_t* out);
-
-static void bind_vec2_fields(struct oak_bind_type_t* vec2)
-{
-  const struct oak_bind_field_t x_field = {
-      .name = "x",
-      .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-      .getter = get_x,
-      .setter = set_x,
-  };
-  oak_bind_field(vec2, &x_field);
-
-  const struct oak_bind_field_t y_field = {
-      .name = "y",
-      .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-      .getter = get_y,
-      .setter = set_y,
-  };
-  oak_bind_field(vec2, &y_field);
-}
-
-static void bind_vec2_functions(struct oak_compile_options_t* opts,
-                                struct oak_bind_type_t* vec2)
-{
-  static struct oak_bind_type_ref_t make_vec2_params[2];
-  make_vec2_params[0] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
-  make_vec2_params[1] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
-
-  const struct oak_bind_global_fn_t constructor = {
-      .name = "vec2",
-      .impl = make_vec2,
-      .arity = 2,
-      .return_type = OAK_BIND_NATIVE(vec2),
-      .param_types = make_vec2_params,
-      .param_count = 2,
-      .user_data = vec2,
-  };
-  oak_bind_fn_global(opts, &constructor);
-
-  const struct oak_bind_fn_t length = {
-      .kind = OAK_BIND_FN_INSTANCE_METHOD,
-      .receiver_type = vec2,
-      .name = "length",
-      .impl = vec2_length,
-      .arity = 0,
-      .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-  };
-  oak_bind_fn(opts, &length);
-
-  const struct oak_bind_fn_t origin = {
-      .kind = OAK_BIND_FN_STATIC_METHOD,
-      .receiver_type = vec2,
-      .name = "origin",
-      .impl = vec2_origin,
-      .arity = 0,
-      .return_type = OAK_BIND_NATIVE(vec2),
-      .user_data = vec2,
-  };
-  oak_bind_fn(opts, &origin);
-}
-
-static void bind_color_enum(struct oak_compile_options_t* opts)
-{
-  struct oak_bind_enum_t* color = oak_bind_enum(opts, "Color");
-  oak_bind_enum_variant(color, "Red", 0);
-  oak_bind_enum_variant(color, "Green", 1);
-  oak_bind_enum_variant(color, "Blue", 2);
-}
 
 static void register_host_api(struct oak_compile_options_t* opts)
 {
   struct oak_bind_type_t* vec2 =
       oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "Vec2");
-  vec2->destructor = free_vec2;
+  vec2->destructor = vec2_free;
 
-  bind_vec2_fields(vec2);
-  bind_vec2_functions(opts, vec2);
-  bind_color_enum(opts);
+  oak_bind_field(vec2,
+                 &(struct oak_bind_field_t){
+                     .name = "x",
+                     .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                     .getter = vec2_get_x,
+                 });
+
+  static struct oak_bind_type_ref_t params[2];
+  params[0] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
+  params[1] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
+
+  oak_bind_fn_global(opts,
+                     &(struct oak_bind_global_fn_t){
+                         .name = "vec2",
+                         .impl = make_vec2,
+                         .arity = 2,
+                         .return_type = OAK_BIND_NATIVE(vec2),
+                         .param_types = params,
+                         .param_count = 2,
+                         .user_data = vec2,
+                     });
 }
 ```
 
 Use `oak_bind_type_in_module`, `oak_bind_enum_in_module`, or the
 `module_name` field on function descriptors for module-scoped native APIs.
-Callbacks create records with `oak_native_record_new()` and access instances
-with `oak_native_instance()`.
+Use `oak_bind_fn()` for instance or static methods, and `oak_bind_enum()` for
+native enum bindings. Callbacks create records with `oak_native_record_new()`
+and access instances with `oak_native_instance()`.
 
 ### C++ Bindings
 
