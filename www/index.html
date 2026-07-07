@@ -275,6 +275,29 @@
     </div>
   </div>
 
+  <script>
+    (() => {
+      const originalDecode = TextDecoder.prototype.decode;
+
+      // Older Emscripten glue can pass views backed by resizable wasm memory.
+      function fixedLengthCopy(input) {
+        if (input instanceof ArrayBuffer) {
+          return new Uint8Array(input).slice(0);
+        }
+        if (ArrayBuffer.isView(input)) {
+          return new Uint8Array(input.buffer, input.byteOffset, input.byteLength).slice(0);
+        }
+        return input;
+      }
+
+      TextDecoder.prototype.decode = function decode(input, options) {
+        if (input?.resizable || input?.buffer?.resizable) {
+          return originalDecode.call(this, fixedLengthCopy(input), options);
+        }
+        return originalDecode.call(this, input, options);
+      };
+    })();
+  </script>
   <script src="/build_wasm/oak_wasm.js?v=examples-tree-fs-v2"></script>
   <script type="module" src="./src/main.js"></script>
 </body>
