@@ -8,7 +8,6 @@ Cross-language benchmarks comparing oak against peer scripting languages:
 | Lua 5.4 | bytecode interpreter |
 | Python 3 (CPython) | bytecode interpreter |
 | Ruby 3 | bytecode interpreter |
-| LuaJIT | tracing JIT (reference point) |
 | Node.js (V8) | optimizing JIT (reference point) |
 | C# (mono) | JIT; AOT `mcs` compile excluded from timing |
 
@@ -35,14 +34,14 @@ Missing runtimes are skipped with a note; you can benchmark any subset:
 ```sh
 ./run.py --list                       # show benchmarks and languages
 ./run.py --bench fib,nsieve           # subset of benchmarks
-./run.py --lang oak,python3,luajit    # subset of languages
+./run.py --lang oak,python3,node      # subset of languages
 ./run.py --warmup 5 --min-runs 10     # more stable statistics
 ```
 
 ## Benchmarks
 
-Each benchmark exists once per language (`<bench>/<bench>.<ext>`); the `.lua`
-source is shared by `lua5.4` and `luajit`. Every program prints a small
+Each benchmark exists once per language (`<bench>/<bench>.<ext>`). Every
+program prints a small
 deterministic checksum which `run.py` verifies against `<bench>/expected.txt`
 **before** timing — a runtime that produces a wrong answer is excluded and
 reported, never silently timed.
@@ -70,7 +69,7 @@ process startup (tens of ms for node/mono) in the noise.
   allows ±0.5 % relative deviation on that checksum (all other benchmarks
   must match exactly). Grid coordinates are exact binary fractions to keep
   f32/f64 divergence minimal.
-- **Interpreters vs JITs.** LuaJIT, Node, and mono compile hot code to
+- **Interpreters vs JITs.** Node and mono compile hot code to
   machine code; comparing them to interpreters is an upper-bound reference,
   not a like-for-like comparison.
 - **oak runs with `--no-debug-symbols`** (its release configuration — skips

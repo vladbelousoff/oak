@@ -48,7 +48,7 @@ jobs:
       - name: Install benchmark runtimes
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.4 luajit ruby mono-mcs mono-runtime hyperfine
+          sudo apt-get install -y lua5.4 ruby mono-mcs mono-runtime hyperfine
 
       - name: Build Oak (release)
         run: |

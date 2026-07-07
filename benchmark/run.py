@@ -103,8 +103,6 @@ LANGS = [
          version_cmd=None),
     Lang("lua5.4", "lua", ["lua5.4", "{src}"],
          version_cmd=["lua5.4", "-v"]),
-    Lang("luajit", "lua", ["luajit", "{src}"],
-         version_cmd=["luajit", "-v"]),
     Lang("python3", "py", ["python3", "{src}"],
          version_cmd=["python3", "--version"]),
     Lang("ruby", "rb", ["ruby", "{src}"],
