@@ -73,6 +73,17 @@ static void validate_array_push_args(struct oak_compiler_t* c,
   if (!arg_expr)
     return;
 
+  if (oak_container_store_locked(c, &recv_ty))
+  {
+    oak_compiler_error_at(c,
+                          first_arg_error_token(arg_expr, err_tok),
+                          "cannot push into '%s': its element type lies on a "
+                          "strong reference cycle, so the array is fixed at "
+                          "construction (use weak links to break the cycle)",
+                          oak_type_full_name(c, recv_ty));
+    return;
+  }
+
   /* Trait element arrays accept any concrete type that structurally satisfies
    * the trait; coercion to a trait object is emitted at the call site. */
   const struct oak_registered_trait_t* elem_tr =

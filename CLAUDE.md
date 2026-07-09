@@ -28,6 +28,10 @@ Public headers live in `include/`. Internal compiler headers are in `src/compile
 - `null` macro (not `NULL`), `u8`/`u16`/`u32`/`usize` typedefs from `oakc_defs.h`
 - All heap allocation goes through `oak_allocator_t` (OAK_ALLOC / OAK_FREE macros)
 - Values are reference-counted (`oak_value_t`); weak references use `is_weak` flag
+- There is no runtime cycle collector: the compiler rejects programs that could
+  form strong reference cycles (`src/compiler/oak_compiler_cycles.c`). Native
+  bindings must uphold the same invariant — never create a strong ownership
+  loop from C code (use weak values or restructure ownership).
 
 ## Key Design Notes
 

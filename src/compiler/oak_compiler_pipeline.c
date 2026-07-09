@@ -95,10 +95,12 @@ static void register_type_symbols(struct oak_compiler_t* c,
   oak_register_program_enums(c, program);
   CHECK_ERROR(c);
 
-  oak_register_program_records(c, program);
+  /* Traits before records so record fields naming a local trait lower with
+   * OAK_TYPE_KIND_TRAIT instead of an opaque scalar id. */
+  oak_register_program_traits(c, program);
   CHECK_ERROR(c);
 
-  oak_register_program_traits(c, program);
+  oak_register_program_records(c, program);
 }
 
 static void register_callable_symbols(struct oak_compiler_t* c,
@@ -161,6 +163,9 @@ void oak_compiler_compile_program(struct oak_compiler_t* c,
   CHECK_ERROR(c);
 
   register_type_symbols(c, program);
+  CHECK_ERROR(c);
+
+  oak_compiler_check_cycles(c, program);
   CHECK_ERROR(c);
 
   register_callable_symbols(c, program);

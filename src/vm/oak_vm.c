@@ -32,7 +32,6 @@ void oak_vm_free(struct oak_vm_t* vm)
     --vm->sp;
     oak_value_decref(*vm->sp);
   }
-  oak_collect_cycles(vm->allocator);
 
   vm->chunk = null;
   vm->ip = null;

@@ -60,7 +60,7 @@ static void sys_free(struct oak_allocator_t* self,
 
 static int sys_shutdown(struct oak_allocator_t* self)
 {
-  oak_collect_cycles(self);
+  (void)self;
   return 0;
 }
 
@@ -70,10 +70,6 @@ struct oak_allocator_t oak_system_allocator = {
   .free = sys_free,
   .shutdown = sys_shutdown,
   .state = null,
-  .cycle_objects = null,
-  .cycle_decrefs = 0,
-  .cycle_trigger = 0,
-  .collecting_cycles = 0,
 };
 
 void oak_system_allocator_init(struct oak_allocator_t* a)
@@ -191,7 +187,6 @@ static void track_free(struct oak_allocator_t* self,
 
 static int track_shutdown(struct oak_allocator_t* self)
 {
-  oak_collect_cycles(self);
   struct oak_tracking_state_t* st = self->state;
   int leak_count = 0;
   struct oak_list_entry_t* entry;
@@ -229,8 +224,4 @@ void oak_tracking_allocator_init(struct oak_allocator_t* a)
   a->free = track_free;
   a->shutdown = track_shutdown;
   a->state = st;
-  a->cycle_objects = null;
-  a->cycle_decrefs = 0;
-  a->cycle_trigger = 0;
-  a->collecting_cycles = 0;
 }

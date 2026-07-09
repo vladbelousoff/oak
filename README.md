@@ -125,10 +125,12 @@ Feature highlights:
 - traits with virtual dispatch over implementing record methods
 - relative modules with `import { name } from module.path` and `import *`
 - weak references with `Type weak` to break ownership cycles
+- compile-time cycle checking: reference counting alone reclaims every object,
+  with no runtime cycle collector (fields that could close a strong reference
+  cycle are write-once or must be declared weak)
 - stdlib builtins for printing, conversion, math, strings, collections, and
   `io.File`
-- bytecode disassembly, debug symbols, DAP debugging, memory tracking, and
-  cycle collection
+- bytecode disassembly, debug symbols, DAP debugging, and memory tracking
 
 Rules worth remembering: strings use single quotes, `/` produces a float, `//`
 is integer division, and records are created with `new Type { ... }`.

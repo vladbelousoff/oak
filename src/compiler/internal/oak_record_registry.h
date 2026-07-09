@@ -10,6 +10,10 @@ struct oak_record_field_t
   /* Borrowed pointer into the lexer arena (lives for the compilation). */
   const char* name;
   struct oak_type_t type;
+  /* 1 if the field lies on a strong type-graph cycle and is therefore
+   * write-once: settable only in a record literal, never by assignment.
+   * Computed by oak_compiler_check_cycles. */
+  int cycle_locked;
 };
 
 struct oak_registered_record_t

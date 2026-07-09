@@ -288,6 +288,23 @@ void oak_emit_weak_coerce(struct oak_compiler_t* c,
                            struct oak_type_t want,
                            struct oak_code_loc_t loc);
 
+/* ---------- oak_compiler_cycles.c ---------- */
+
+/* Computes strong-ownership reachability over all registered records, marks
+ * write-once fields (cycle_locked), and rejects records that strongly own
+ * trait objects. Must run after records, traits, imports, and native types
+ * are registered, before any bodies are compiled. */
+void oak_compiler_check_cycles(struct oak_compiler_t* c,
+                               const struct oak_ast_node_t* program);
+
+void oak_compiler_free_cycles(struct oak_compiler_t* c);
+
+/* True if storing into a collection of type `coll` (push or indexed
+ * assignment) could close a strong reference cycle: its element or key type
+ * can reach a record that strongly owns a container of the same type. */
+int oak_container_store_locked(struct oak_compiler_t* c,
+                               const struct oak_type_t* coll);
+
 /* ---------- oak_compiler_record_registry.c ---------- */
 
 int oak_record_field(const struct oak_registered_record_t* s,

@@ -1,6 +1,5 @@
 #include "oak_value.h"
 
-#include "internal/oak_cycle.h"
 #include "oak_allocator.h"
 #include "oak_bind.h"
 #include "oak_log.h"
@@ -10,51 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define OAK_CYCLE_TRIGGER 256
-
-/* Plain increment on purpose: cycle_decrefs is only a collection-trigger
- * heuristic, and the collector itself is single-threaded (guarded by
- * collecting_cycles, walks cycle_objects unlocked). A racy lost update merely
- * shifts when the next collection fires; not worth a locked RMW on the hot
- * decref path. */
-static int oak_cycle_decrefs_inc(struct oak_allocator_t* allocator)
-{
-  return ++allocator->cycle_decrefs;
-}
-
-int oak_obj_is_cycle_capable(const struct oak_obj_t* obj)
-{
-  return obj->type == OAK_OBJ_ARRAY || obj->type == OAK_OBJ_MAP ||
-         obj->type == OAK_OBJ_RECORD || obj->type == OAK_OBJ_TRAIT_OBJECT;
-}
-
-static void oak_obj_register_cycle_capable(struct oak_obj_t* obj)
-{
-  if (!oak_obj_is_cycle_capable(obj))
-    return;
-  struct oak_allocator_t* a = obj->allocator;
-  obj->cycle_next = a->cycle_objects;
-  if (obj->cycle_next)
-    obj->cycle_next->cycle_prev = obj;
-  a->cycle_objects = obj;
-  obj->cycle_flags |= OAK_CYCLE_REGISTERED;
-}
-
-void oak_obj_unregister_cycle_capable(struct oak_obj_t* obj)
-{
-  if (!(obj->cycle_flags & OAK_CYCLE_REGISTERED))
-    return;
-  if (obj->cycle_prev)
-    obj->cycle_prev->cycle_next = obj->cycle_next;
-  else
-    obj->allocator->cycle_objects = obj->cycle_next;
-  if (obj->cycle_next)
-    obj->cycle_next->cycle_prev = obj->cycle_prev;
-  obj->cycle_prev = null;
-  obj->cycle_next = null;
-  obj->cycle_flags &= ~OAK_CYCLE_REGISTERED;
-}
-
 static void oak_obj_init(struct oak_obj_t* obj,
                          const enum oak_obj_type_t type,
                          struct oak_allocator_t* allocator)
@@ -63,11 +17,6 @@ static void oak_obj_init(struct oak_obj_t* obj,
   oak_refcount_init(&obj->refcount, 1);
   oak_refcount_init(&obj->weak_refcount, 0);
   obj->allocator = allocator;
-  obj->cycle_prev = null;
-  obj->cycle_next = null;
-  obj->cycle_index = 0;
-  obj->cycle_flags = 0;
-  oak_obj_register_cycle_capable(obj);
 }
 
 void oak_obj_incref(struct oak_obj_t* obj)
@@ -75,7 +24,9 @@ void oak_obj_incref(struct oak_obj_t* obj)
   oak_refcount_inc(&obj->refcount);
 }
 
-void oak_obj_destroy_payload(struct oak_obj_t* obj)
+/* Release the object's owned references and free any owned buffers, without
+ * freeing the oak_obj_t header itself (kept until weak_refcount drains). */
+static void oak_obj_destroy_payload(struct oak_obj_t* obj)
 {
   struct oak_allocator_t* a = obj->allocator;
 
@@ -138,25 +89,9 @@ void oak_obj_destroy_payload(struct oak_obj_t* obj)
 
 void oak_obj_decref(struct oak_obj_t* obj)
 {
-  if (obj->cycle_flags & OAK_CYCLE_COLLECTING)
-    return;
   if (!oak_refcount_dec(&obj->refcount))
-  {
-    if (oak_obj_is_cycle_capable(obj) && !obj->allocator->collecting_cycles)
-    {
-      /* The trigger scales with the last scan's cost (see oak_collect_cycles)
-       * so a large live heap is not rescanned every OAK_CYCLE_TRIGGER
-       * decrefs, which would make hot loops over big containers O(n^2). */
-      const int trigger = obj->allocator->cycle_trigger;
-      const int armed = trigger > OAK_CYCLE_TRIGGER ? trigger
-                                                    : OAK_CYCLE_TRIGGER;
-      if (oak_cycle_decrefs_inc(obj->allocator) >= armed)
-        oak_collect_cycles(obj->allocator);
-    }
     return;
-  }
 
-  oak_obj_unregister_cycle_capable(obj);
   oak_refcount_inc(&obj->weak_refcount);
   oak_obj_destroy_payload(obj);
   if (!oak_refcount_dec(&obj->weak_refcount))
@@ -168,8 +103,6 @@ void oak_obj_decref(struct oak_obj_t* obj)
 void oak_weak_decref(struct oak_obj_t* obj)
 {
   if (!oak_refcount_dec(&obj->weak_refcount))
-    return;
-  if (obj->cycle_flags & OAK_CYCLE_COLLECTING)
     return;
   if (oak_refcount_load(&obj->refcount) == 0)
     OAK_FREE(obj->allocator, obj);

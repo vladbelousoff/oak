@@ -22,6 +22,18 @@ static int validate_index_assign_target(struct oak_compiler_t* c,
     return 0;
   }
 
+  if (oak_container_store_locked(c, coll_ty))
+  {
+    oak_compiler_error_at(c,
+                          lhs->token,
+                          "cannot store into '%s': its element type lies on a "
+                          "strong reference cycle, so the collection is fixed "
+                          "at construction (use weak links to break the "
+                          "cycle)",
+                          oak_type_full_name(c, *coll_ty));
+    return 0;
+  }
+
   if (coll_ty->kind == OAK_TYPE_KIND_MAP)
   {
     struct oak_type_t key_ty;
@@ -71,6 +83,19 @@ static int validate_field_assign_target(
                           "cannot assign to field '%.*s' of immutable record",
                           oak_token_size((*fname)->token),
                           oak_token_text((*fname)->token));
+    return -1;
+  }
+
+  if ((*sd)->fields[idx].cycle_locked)
+  {
+    oak_compiler_error_at(c,
+                          (*fname)->token,
+                          "field '%s' of record '%s' lies on a strong "
+                          "reference cycle and is write-once: set it in the "
+                          "record literal, or declare it weak for mutable "
+                          "links",
+                          (*sd)->fields[idx].name,
+                          (*sd)->name);
     return -1;
   }
 

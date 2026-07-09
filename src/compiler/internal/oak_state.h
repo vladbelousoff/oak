@@ -101,4 +101,10 @@ struct oak_compiler_t
   int native_types_cursor;
   int native_global_fns_cursor;
   int native_fns_cursor;
+  /* Strong-ownership reachability over record registry entries, computed by
+   * oak_compiler_check_cycles: cycle_reach[i * n + j] != 0 iff record i can
+   * reach record j through strong fields (reflexive; n = cycle_reach_count).
+   */
+  u8* cycle_reach;
+  int cycle_reach_count;
 };

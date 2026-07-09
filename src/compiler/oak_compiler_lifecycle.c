@@ -35,6 +35,8 @@ struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
   c->native_types_cursor = 0;
   c->native_global_fns_cursor = 0;
   c->native_fns_cursor = 0;
+  c->cycle_reach = null;
+  c->cycle_reach_count = 0;
 
   return chunk;
 }
@@ -56,6 +58,7 @@ void oak_compiler_configure(struct oak_compiler_t* c,
 
 void oak_compiler_teardown(struct oak_compiler_t* c)
 {
+  oak_compiler_free_cycles(c);
   oak_htable_free(&c->module_scope_names);
   oak_fn_registry_free(&c->fns);
   oak_record_registry_free(&c->records);
