@@ -4,7 +4,7 @@ static class Bench
 {
     static void Main()
     {
-        const int n = 1000000;
+        const int n = 20000000;
 
         int total = 0;
         for (int i = 0; i < n; i++)

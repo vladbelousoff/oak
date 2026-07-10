@@ -1,4 +1,4 @@
-N = 1000000
+N = 20000000
 
 total = 0
 for i in range(N):

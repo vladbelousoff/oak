@@ -18,6 +18,6 @@ def nsieve(limit):
 
 
 total = 0
-for rep in range(1):
+for rep in range(60):
     total += nsieve(500000)
 print(total)

@@ -256,8 +256,10 @@ def main():
     ap.add_argument("--lang", help="comma-separated languages to run")
     ap.add_argument("--skip-verify", action="store_true",
                     help="skip output verification before timing")
-    ap.add_argument("--warmup", type=int, default=3)
-    ap.add_argument("--min-runs", type=int, default=5)
+    # Workloads run 10-20 s in the slowest runtime, so a handful of runs is
+    # already stable; more warmup/runs would stretch the suite past an hour.
+    ap.add_argument("--warmup", type=int, default=1)
+    ap.add_argument("--min-runs", type=int, default=3)
     ap.add_argument("--list", action="store_true",
                     help="list benchmarks and languages, then exit")
     args = ap.parse_args()

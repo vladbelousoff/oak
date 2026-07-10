@@ -48,21 +48,26 @@ reported, never silently timed.
 
 | benchmark | measures | workload | checksum |
 |---|---|---|---|
-| `fib` | function-call / recursion cost | naive recursive `fib(30)` | `832040` |
-| `nsieve` | loops, int arithmetic, array access | sieve of Eratosthenes to 500 000 | `41538` primes |
-| `mandelbrot` | float arithmetic | 256×256 grid, 64 iterations max | `25726` interior points |
-| `hashmap` | string-keyed map insert/lookup | 300 000 ops over 20 011 keys | size + lookup sum |
-| `strcat` | string building / allocation | 1 000 000 short concat+format strings | total length |
+| `fib` | function-call / recursion cost | 40 × naive recursive `fib(30)` | `33281600` |
+| `nsieve` | loops, int arithmetic, array access | 60 × sieve of Eratosthenes to 500 000 | `2492280` |
+| `mandelbrot` | float arithmetic | 20 × 256×256 grid, 64 iterations max | `514520` interior points |
+| `hashmap` | string-keyed map insert/lookup | 25 × 300 000 ops over 20 011 keys (fresh map per rep) | size + lookup sums |
+| `strcat` | string building / allocation | 20 000 000 short concat+format strings | total length |
 
-Workloads are sized so the slowest runtime takes roughly 1–5 s, which keeps
-process startup (tens of ms for node/mono) in the noise.
+Workloads are **long-running by design**: each benchmark repeats its kernel
+(outer `rep` loop, or a proportionally larger `n`) so the slowest runtime
+takes roughly 10–20 s. Fixed per-process costs — interpreter startup (tens of
+ms for node/mono) and oak's compile-to-bytecode phase — are amortized to well
+under 1 % of every measurement, so the numbers compare execution speed, not
+startup or compilation speed.
 
 ## Methodology and caveats
 
 - **Whole-process timing.** oak has no clock builtin, so hyperfine measures
   complete process wall time — including interpreter startup and, for oak,
-  the compile-to-bytecode phase. This is the honest number for a scripting
-  language but differs from in-process loop timing.
+  the compile-to-bytecode phase. Workloads run long enough (multi-second in
+  every runtime) that these fixed costs are noise; effectively only execution
+  speed is compared.
 - **oak computes in i32/f32.** Other languages use 64-bit ints (or f64
   doubles). All integer checksums are constructed to stay below 2³¹.
   In `mandelbrot`, oak's f32 can flip a few boundary pixels, so `run.py`
@@ -103,5 +108,6 @@ hyperfine output lands in the job summary and a `benchmark-results` artifact.
    `expected.txt` holding the canonical output.
 2. Add `"newbench"` to `BENCHMARKS` in `run.py` (and a tolerance entry in
    `TOLERANCES` if the checksum is float-sensitive).
-3. Size the workload so the slowest runtime lands in 1–5 s and integer
-   results stay below 2³¹.
+3. Size the workload so the slowest runtime lands in 10–20 s (use an outer
+   repetition loop like the existing benchmarks) and integer results stay
+   below 2³¹.

@@ -26,7 +26,7 @@ local function nsieve(limit)
 end
 
 local total = 0
-for rep = 1, 1 do
+for rep = 1, 60 do
   total = total + nsieve(500000)
 end
 print(string.format("%d", total))

@@ -23,7 +23,7 @@ function nsieve(limit) {
 }
 
 let total = 0;
-for (let rep = 0; rep < 1; rep += 1) {
+for (let rep = 0; rep < 60; rep += 1) {
   total += nsieve(500000);
 }
 console.log(total);

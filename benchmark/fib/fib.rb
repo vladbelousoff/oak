@@ -3,4 +3,6 @@ def fib(n)
   fib(n - 1) + fib(n - 2)
 end
 
-puts fib(30)
+total = 0
+40.times { total += fib(30) }
+puts total

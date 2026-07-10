@@ -13,6 +13,11 @@ static class Bench
 
     static void Main()
     {
-        Console.WriteLine(Fib(30));
+        int total = 0;
+        for (int rep = 0; rep < 40; rep++)
+        {
+            total += Fib(30);
+        }
+        Console.WriteLine(total);
     }
 }

@@ -1,4 +1,4 @@
-const N = 1000000;
+const N = 20000000;
 
 let total = 0;
 for (let i = 0; i < N; i += 1) {

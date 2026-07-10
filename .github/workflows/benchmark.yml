@@ -55,8 +55,11 @@ jobs:
           meson setup build-release -Dbuildtype=release
           meson compile -C build-release
 
+      # Workloads are long-running (10-20 s in the slowest runtime) so fixed
+      # startup/compile costs are amortized; a few runs are enough and more
+      # would stretch the job past an hour.
       - name: Run benchmarks
-        run: ./benchmark/run.py --warmup 5 --min-runs 10
+        run: ./benchmark/run.py --warmup 1 --min-runs 3
 
       - name: Publish results to job summary
         run: cat benchmark/results/RESULTS.md >> "$GITHUB_STEP_SUMMARY"

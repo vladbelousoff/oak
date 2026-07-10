@@ -7,27 +7,31 @@ static class Bench
         const int width = 256;
         const int maxIter = 64;
         const double step = 2.0 / 256.0;
+        const int reps = 20;
 
         int inside = 0;
-        for (int py = 0; py < width; py++)
+        for (int rep = 0; rep < reps; rep++)
         {
-            double cy = -1.0 + py * step;
-            for (int px = 0; px < width; px++)
+            for (int py = 0; py < width; py++)
             {
-                double cx = -1.5 + px * step;
-                double zr = 0.0;
-                double zi = 0.0;
-                int iter = 0;
-                while (iter < maxIter && zr * zr + zi * zi <= 4.0)
+                double cy = -1.0 + py * step;
+                for (int px = 0; px < width; px++)
                 {
-                    double t = zr * zr - zi * zi + cx;
-                    zi = 2.0 * zr * zi + cy;
-                    zr = t;
-                    iter += 1;
-                }
-                if (iter == maxIter)
-                {
-                    inside += 1;
+                    double cx = -1.5 + px * step;
+                    double zr = 0.0;
+                    double zi = 0.0;
+                    int iter = 0;
+                    while (iter < maxIter && zr * zr + zi * zi <= 4.0)
+                    {
+                        double t = zr * zr - zi * zi + cx;
+                        zi = 2.0 * zr * zi + cy;
+                        zr = t;
+                        iter += 1;
+                    }
+                    if (iter == maxIter)
+                    {
+                        inside += 1;
+                    }
                 }
             }
         }

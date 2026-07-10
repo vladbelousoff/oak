@@ -39,7 +39,7 @@ static class Bench
     static void Main()
     {
         int total = 0;
-        for (int rep = 0; rep < 1; rep++)
+        for (int rep = 0; rep < 60; rep++)
         {
             total += Nsieve(500000);
         }

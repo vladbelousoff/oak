@@ -23,5 +23,5 @@ def nsieve(limit)
 end
 
 total = 0
-1.times { total += nsieve(500_000) }
+60.times { total += nsieve(500_000) }
 puts total

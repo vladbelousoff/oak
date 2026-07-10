@@ -5,4 +5,8 @@ local function fib(n)
   return fib(n - 1) + fib(n - 2)
 end
 
-print(string.format("%d", fib(30)))
+local total = 0
+for rep = 1, 40 do
+  total = total + fib(30)
+end
+print(string.format("%d", total))

@@ -1,4 +1,4 @@
-let n = 1000000;
+let n = 20000000;
 
 let mut total = 0;
 for i from 0 to n {

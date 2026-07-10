@@ -26,7 +26,7 @@ fn nsieve(limit : number) -> number {
 }
 
 let mut total = 0;
-for rep from 0 to 1 {
+for rep from 0 to 60 {
   total += nsieve(500000);
 }
 print(total);
