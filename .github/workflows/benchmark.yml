@@ -41,14 +41,10 @@ jobs:
       - name: Install Meson
         run: python -m pip install meson ninja
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - name: Install benchmark runtimes
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.4 ruby mono-mcs mono-runtime hyperfine
+          sudo apt-get install -y lua5.4 ruby perl php-cli hyperfine
 
       - name: Build Oak (release)
         run: |

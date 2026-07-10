@@ -54,35 +54,21 @@ TOLERANCES = {
 
 
 class Lang:
-    def __init__(self, name, ext, cmd, compile_cmd=None, version_cmd=None):
+    def __init__(self, name, ext, cmd, version_cmd=None):
         self.name = name
         self.ext = ext
-        self.cmd = cmd  # list with {src}/{exe} placeholders
-        self.compile_cmd = compile_cmd
+        self.cmd = cmd  # list with {src} placeholder
         self.version_cmd = version_cmd
 
     def available(self):
-        probe = self.compile_cmd[0] if self.compile_cmd else self.cmd[0]
+        probe = self.cmd[0]
         if os.path.isabs(probe):
             return os.path.exists(probe)
         return shutil.which(probe) is not None
 
     def command(self, bench):
         src = os.path.join(BENCH_DIR, bench, bench + "." + self.ext)
-        exe = os.path.join(BENCH_DIR, bench, bench + ".exe")
-        return [a.format(src=src, exe=exe) for a in self.cmd]
-
-    def compile(self, bench):
-        """Compile step (C# only). Returns None on success, error text on failure."""
-        if not self.compile_cmd:
-            return None
-        src = os.path.join(BENCH_DIR, bench, bench + "." + self.ext)
-        exe = os.path.join(BENCH_DIR, bench, bench + ".exe")
-        cmd = [a.format(src=src, exe=exe) for a in self.compile_cmd]
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode != 0:
-            return proc.stderr.strip() or proc.stdout.strip()
-        return None
+        return [a.format(src=src) for a in self.cmd]
 
     def version(self):
         if not self.version_cmd:
@@ -107,11 +93,12 @@ LANGS = [
          version_cmd=["python3", "--version"]),
     Lang("ruby", "rb", ["ruby", "{src}"],
          version_cmd=["ruby", "--version"]),
-    Lang("node", "js", ["node", "{src}"],
-         version_cmd=["node", "--version"]),
-    Lang("csharp", "cs", ["mono", "{exe}"],
-         compile_cmd=["mcs", "-optimize+", "-out:{exe}", "{src}"],
-         version_cmd=["mono", "--version"]),
+    Lang("perl", "pl", ["perl", "{src}"],
+         version_cmd=["perl", "--version"]),
+    # opcache JIT is off by default for php-cli; pin it off so a stray ini
+    # can't silently turn this interpreter into a JIT.
+    Lang("php", "php", ["php", "-d", "opcache.enable_cli=0", "{src}"],
+         version_cmd=["php", "--version"]),
 ]
 
 
@@ -307,11 +294,6 @@ def main():
     for bench in benches:
         runnable = []
         for lang in langs:
-            err = lang.compile(bench)
-            if err is not None:
-                skipped[lang.name] = "compile failed: " + err[:200]
-                print("skip {} / {}: compile failed".format(lang.name, bench))
-                continue
             if not args.skip_verify:
                 err = verify(lang, bench)
                 if err is not None:

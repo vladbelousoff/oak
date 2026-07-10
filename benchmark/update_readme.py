@@ -46,8 +46,8 @@ def build_block(summary):
     lines.append(
         "_Relative to the fastest runtime per benchmark, lower is better; "
         "median wall time in parentheses. Measured on a GitHub-hosted "
-        "`ubuntu-latest` runner{} on {}. Node and mono are "
-        "JIT-compiled reference points._".format(at, date))
+        "`ubuntu-latest` runner{} on {}. All runtimes are bytecode "
+        "interpreters (no JIT)._".format(at, date))
 
     notes = ["**{}**: {}".format(k, v) for k, v in summary["skipped"].items()]
     notes += ["**{}**: verification failed — {}".format(k, v)

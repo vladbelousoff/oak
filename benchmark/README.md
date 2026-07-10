@@ -1,20 +1,21 @@
 # oak Benchmark Suite
 
-Cross-language benchmarks comparing oak against peer scripting languages:
+Cross-language benchmarks comparing oak against peer scripting languages.
+The matrix is **bytecode interpreters only** — JIT-compiled runtimes (V8,
+mono, LuaJIT, …) translate hot code to machine code and win by a class
+difference, which says nothing about how good the interpreter loop is:
 
-| runtime | class |
-|---|---|
-| oak (`build/oak`) | bytecode interpreter |
-| Lua 5.4 | bytecode interpreter |
-| Python 3 (CPython) | bytecode interpreter |
-| Ruby 3 | bytecode interpreter |
-| Node.js (V8) | optimizing JIT (reference point) |
-| C# (mono) | JIT; AOT `mcs` compile excluded from timing |
+- oak (`build/oak`)
+- Lua 5.4
+- Python 3 (CPython)
+- Ruby 3
+- Perl 5
+- PHP 8 (CLI; opcache JIT pinned off by the runner)
 
 ## Running
 
 ```sh
-./setup.sh        # sudo apt install lua5.4 ruby mono-mcs mono-runtime hyperfine
+./setup.sh        # sudo apt install lua5.4 ruby perl php-cli hyperfine
 ./run.py          # verify checksums, time everything, write results/RESULTS.md
 ```
 
@@ -34,7 +35,7 @@ Missing runtimes are skipped with a note; you can benchmark any subset:
 ```sh
 ./run.py --list                       # show benchmarks and languages
 ./run.py --bench fib,nsieve           # subset of benchmarks
-./run.py --lang oak,python3,node      # subset of languages
+./run.py --lang oak,python3,perl      # subset of languages
 ./run.py --warmup 5 --min-runs 10     # more stable statistics
 ```
 
@@ -56,10 +57,10 @@ reported, never silently timed.
 
 Workloads are **long-running by design**: each benchmark repeats its kernel
 (outer `rep` loop, or a proportionally larger `n`) so the slowest runtime
-takes roughly 10–20 s. Fixed per-process costs — interpreter startup (tens of
-ms for node/mono) and oak's compile-to-bytecode phase — are amortized to well
-under 1 % of every measurement, so the numbers compare execution speed, not
-startup or compilation speed.
+takes roughly 10–20 s. Fixed per-process costs — interpreter startup and
+oak's compile-to-bytecode phase — are amortized to well under 1 % of every
+measurement, so the numbers compare execution speed, not startup or
+compilation speed.
 
 ## Methodology and caveats
 
@@ -74,11 +75,11 @@ startup or compilation speed.
   allows ±0.5 % relative deviation on that checksum (all other benchmarks
   must match exactly). Grid coordinates are exact binary fractions to keep
   f32/f64 divergence minimal.
-- **Interpreters vs JITs.** Node and mono compile hot code to
-  machine code; comparing them to interpreters is an upper-bound reference,
-  not a like-for-like comparison.
+- **No JITs.** Every runtime in the matrix executes bytecode in an
+  interpreter loop, so results are like-for-like. PHP is run with
+  `-d opcache.enable_cli=0` so a local ini can't silently enable its JIT.
 - **oak runs with `--no-debug-symbols`** (its release configuration — skips
-  debug-info emission during compilation), symmetric to `mcs -optimize+`.
+  debug-info emission during compilation).
 - **Comparable, not micro-tuned.** Implementations use the same algorithm
   and equivalent data structures in each language (e.g. `while` loops in
   Ruby instead of iterators where that mirrors the other sources), without
