@@ -1,11 +1,11 @@
-# oak Benchmark Suite
+# Oak Benchmark Suite
 
-Cross-language benchmarks comparing oak against peer scripting languages.
+Cross-language benchmarks comparing Oak against peer scripting languages.
 The matrix is **bytecode interpreters only** — JIT-compiled runtimes (V8,
 mono, LuaJIT, …) translate hot code to machine code and win by a class
 difference, which says nothing about how good the interpreter loop is:
 
-- oak (`build/oak`)
+- Oak (`build/oak`)
 - Lua 5.4
 - Python 3 (CPython)
 - Ruby 3
@@ -19,7 +19,7 @@ difference, which says nothing about how good the interpreter loop is:
 ./run.py          # verify checksums, time everything, write results/RESULTS.md
 ```
 
-oak must be built **optimized** — debug builds (`buildtype=debug`, meson's
+Oak must be built **optimized** — debug builds (`buildtype=debug`, meson's
 default) are -O0 with memory tracking compiled in, run 4–8x slower, and are
 refused by the runner:
 
@@ -58,34 +58,34 @@ reported, never silently timed.
 Workloads are **long-running by design**: each benchmark repeats its kernel
 (outer `rep` loop, or a proportionally larger `n`) so the slowest runtime
 takes roughly 10–20 s. Fixed per-process costs — interpreter startup and
-oak's compile-to-bytecode phase — are amortized to well under 1 % of every
+Oak's compile-to-bytecode phase — are amortized to well under 1 % of every
 measurement, so the numbers compare execution speed, not startup or
 compilation speed.
 
 ## Methodology and caveats
 
-- **Whole-process timing.** oak has no clock builtin, so hyperfine measures
-  complete process wall time — including interpreter startup and, for oak,
+- **Whole-process timing.** Oak has no clock builtin, so hyperfine measures
+  complete process wall time — including interpreter startup and, for Oak,
   the compile-to-bytecode phase. Workloads run long enough (multi-second in
   every runtime) that these fixed costs are noise; effectively only execution
   speed is compared.
-- **oak computes in i32/f32.** Other languages use 64-bit ints (or f64
+- **Oak computes in i32/f32.** Other languages use 64-bit ints (or f64
   doubles). All integer checksums are constructed to stay below 2³¹.
-  In `mandelbrot`, oak's f32 can flip a few boundary pixels, so `run.py`
+  In `mandelbrot`, Oak's f32 can flip a few boundary pixels, so `run.py`
   allows ±0.5 % relative deviation on that checksum (all other benchmarks
   must match exactly). Grid coordinates are exact binary fractions to keep
   f32/f64 divergence minimal.
 - **No JITs.** Every runtime in the matrix executes bytecode in an
   interpreter loop, so results are like-for-like. PHP is run with
   `-d opcache.enable_cli=0` so a local ini can't silently enable its JIT.
-- **oak runs with `--no-debug-symbols`** (its release configuration — skips
+- **Oak runs with `--no-debug-symbols`** (its release configuration — skips
   debug-info emission during compilation).
 - **Comparable, not micro-tuned.** Implementations use the same algorithm
   and equivalent data structures in each language (e.g. `while` loops in
   Ruby instead of iterators where that mirrors the other sources), without
   language-specific tricks.
 - `strcat` deliberately builds many short strings instead of one growing
-  accumulator: oak has no StringBuilder, and naive `s = s + chunk` is O(n²)
+  accumulator: Oak has no StringBuilder, and naive `s = s + chunk` is O(n²)
   in some languages but not others, which would make the comparison
   meaningless.
 

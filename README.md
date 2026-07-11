@@ -1,6 +1,6 @@
-# oak
+# Oak
 
-oak is a scripting language implemented in C17. It compiles `.oak` source to
+Oak is a scripting language implemented in C17. It compiles `.oak` source to
 bytecode and runs it on a stack-based virtual machine.
 
 The repo includes the `oak` CLI, the `acorn` C/C++ embedding library, a VS Code
@@ -99,7 +99,7 @@ oak --debug --debug-port 4711 path/to/program.oak
 ## Language
 
 Start with [`examples/`](examples/README.md). The numbered examples are the
-language tour and run as smoke tests. A compact oak program looks like this:
+language tour and run as smoke tests. A compact Oak program looks like this:
 
 ```oak
 fn sum(values : number[]) -> number {
@@ -142,8 +142,8 @@ C++20 wrapper is [`include/oak.hpp`](include/oak.hpp).
 
 The embedding API lets a host register native record types, inline value types,
 fields, destructors, global functions, module-scoped functions, instance
-methods, static methods, enums, and attributes before compiling oak source.
-Native bindings participate in oak's compile-time type checks.
+methods, static methods, enums, and attributes before compiling Oak source.
+Native bindings participate in Oak's compile-time type checks.
 
 ### C Bindings
 
@@ -289,7 +289,7 @@ _Relative to the fastest runtime per benchmark, lower is better; median wall tim
 | `oak.c`, `oak_cli.c` | native CLI |
 | `include/` | public C API and C++ wrapper |
 | `src/` | compiler, runtime, VM, and stdlib C code |
-| `stdlib/` | oak stdlib modules |
+| `stdlib/` | Oak stdlib modules |
 | `tests/` | C/C++ tests |
 | `examples/` | runnable language tour |
 | `editors/vscode/` | VS Code extension |

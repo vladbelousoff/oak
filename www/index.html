@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Oak Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -16,7 +19,9 @@
       height: 100dvh;
       background: #1e1e2e;
       color: #cdd6f4;
-      font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+      font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+      font-feature-settings: 'liga' 1, 'calt' 1;
+      font-variant-ligatures: contextual;
       font-size: 14px;
       -webkit-text-size-adjust: 100%;
     }

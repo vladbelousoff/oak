@@ -1,4 +1,4 @@
-# oak Language Tour
+# Oak Language Tour
 
 The examples are ordered as a tour. Start at `01_values/01_values.oak`
 and move down the numbered folders; each one introduces a larger piece of

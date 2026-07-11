@@ -1,4 +1,4 @@
-# oak — Development Guide
+# Oak — Development Guide
 
 ## Build
 
@@ -35,12 +35,12 @@ Public headers live in `include/`. Internal compiler headers are in `src/compile
 
 ## Key Design Notes
 
-- oak strings are **single-quoted** (`'hello'`). Double-quoted strings are not supported and produce a lexer error.
+- Oak strings are **single-quoted** (`'hello'`). Double-quoted strings are not supported and produce a lexer error.
 - The parser grammar is **declarative**: rules are SEQUENCE, CHOICE, BINARY, UNARY, TOKEN, PRATT entries in a table. CHOICE nodes are transparent (they return the matched child directly, not a wrapper).
 
 ## Tests
 
-Test files live under `tests/` as C harnesses using `oak_test_pipeline.h`. Each test compiles and optionally runs an oak snippet, checking for success or expected errors.
+Test files live under `tests/` as C harnesses using `oak_test_pipeline.h`. Each test compiles and optionally runs an Oak snippet, checking for success or expected errors.
 
 ```sh
 meson test -C build                          # all tests

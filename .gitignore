@@ -1,7 +1,10 @@
 .idea/
+.vscode/
 build*/
 node_modules/
 *.vsix
+__pycache__/
+*.pyc
 www/public/
 _site/
 subprojects/*

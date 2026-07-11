@@ -30,9 +30,11 @@ const theme = EditorView.theme({
     color: '#cdd6f4',
   },
   '.cm-scroller': {
-    fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace",
+    fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
     fontSize: '14px',
     lineHeight: '1.6',
+    fontFeatureSettings: "'liga' 1, 'calt' 1",
+    fontVariantLigatures: 'contextual',
     overflow: 'auto',
   },
   '.cm-content': {
