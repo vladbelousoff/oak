@@ -14,7 +14,7 @@
 
 #define OAK_MAX_ARRAY_METHODS          8
 #define OAK_MAX_MAP_METHODS            8
-#define OAK_MAX_STRING_METHODS         8
+#define OAK_MAX_STRING_METHODS         16
 #define OAK_MAX_BOOL_METHODS           4
 #define OAK_MAX_NUMBER_METHODS         4
 #define OAK_MAX_RECORD_BUILTIN_METHODS 4

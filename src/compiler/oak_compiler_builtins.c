@@ -1,5 +1,6 @@
 #include "internal/oak_compiler.h"
 #include "oak_stdlib_math.h"
+#include "oak_stdlib_string.h"
 
 u16 oak_intern_native_const(struct oak_compiler_t* c,
                                         const oak_native_fn_t impl,
@@ -121,6 +122,17 @@ static const struct oak_native_binding_t native_builtins[] = {
   { "min", oak_math_min, 2, OAK_TYPE_NUMBER },
   { "max", oak_math_max, 2, OAK_TYPE_NUMBER },
   { "random", oak_math_random, 0, OAK_TYPE_NUMBER },
+  { "floor", oak_math_floor, 1, OAK_TYPE_NUMBER },
+  { "ceil", oak_math_ceil, 1, OAK_TYPE_NUMBER },
+  { "round", oak_math_round, 1, OAK_TYPE_NUMBER },
+  { "pow", oak_math_pow, 2, OAK_TYPE_NUMBER },
+  { "log", oak_math_log, 1, OAK_TYPE_NUMBER },
+  { "exp", oak_math_exp, 1, OAK_TYPE_NUMBER },
+  { "atan2", oak_math_atan2, 2, OAK_TYPE_NUMBER },
+  { "sign", oak_math_sign, 1, OAK_TYPE_NUMBER },
+  { "ord", oak_str_ord, 1, OAK_TYPE_NUMBER },
+  { "chr", oak_str_chr, 1, OAK_TYPE_STRING },
+  { "parse_number", oak_str_parse_number, 1, OAK_TYPE_NUMBER },
 };
 
 void oak_register_native_builtins(struct oak_compiler_t* c)

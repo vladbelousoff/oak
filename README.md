@@ -128,8 +128,12 @@ Feature highlights:
 - compile-time cycle checking: reference counting alone reclaims every object,
   with no runtime cycle collector (fields that could close a strong reference
   cycle are write-once or must be declared weak)
-- stdlib builtins for printing, conversion, math, strings, collections, and
-  `io.File`
+- stdlib builtins for printing and conversion (`to_int`, `parse_number`,
+  `ord`, `chr`), math (`sqrt`, `pow`, `floor`, `ceil`, `round`,
+  `log`, `exp`, `sign`, `min`/`max`, trig, ...), string methods (`upper`,
+  `lower`, `trim`, `contains`, `starts_with`, `ends_with`, `index_of`,
+  `replace`, `repeat`, `substring`, `to_snake_case`, `to_camel_case`, `format`),
+  collections, and `io.File`
 - bytecode disassembly, debug symbols, DAP debugging, and memory tracking
 
 Rules worth remembering: strings use single quotes, `/` produces a float, `//`

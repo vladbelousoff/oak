@@ -145,6 +145,7 @@ oak_core_sources = files(
   'src/stdlib/oak_stdlib.c',
   'src/stdlib/oak_stdlib_file.c',
   'src/stdlib/oak_stdlib_math.c',
+  'src/stdlib/oak_stdlib_string.c',
   'src/vm/oak_vm.c',
   'src/vm/oak_vm_arith.c',
   'src/vm/oak_vm_call.c',
@@ -269,6 +270,7 @@ else
     'stdlib_file_missing': 'tests/stdlib/stdlib_file_missing.c',
     'vm_language_runtime': 'tests/vm/vm_language_runtime.c',
     'vm_math_builtins': 'tests/vm/vm_math_builtins.c',
+    'vm_string_methods': 'tests/vm/vm_string_methods.c',
     'vm_map_table': 'tests/vm/vm_map_table.c',
     'vm_runtime_errors': 'tests/vm/vm_runtime_errors.c',
     'vm_short_circuit': 'tests/vm/vm_short_circuit.c',
@@ -315,6 +317,7 @@ else
     '08_file_io': 'examples/08_file_io/08_file_io.oak',
     '10_traits': 'examples/10_traits/10_traits.oak',
     '11_weak_refs': 'examples/11_weak_refs/11_weak_refs.oak',
+    '12_strings': 'examples/12_strings/12_strings.oak',
     '13_anonymous_functions': 'examples/13_anonymous_functions/13_anonymous_functions.oak',
   }
 

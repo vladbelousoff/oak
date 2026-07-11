@@ -38,6 +38,37 @@ OAK_TEST_DECL(MathBuiltinsComposeWithUserCode)
   return OAK_TEST_OK;
 }
 
+/* Rounding, power, and logarithm built-ins. floor/ceil/round return integers;
+ * pow/log/exp/atan2 return floats. */
+OAK_TEST_DECL(MathBuiltinsRoundingAndPowers)
+{
+  OAK_CHECK(expect_ok(
+      "if floor(3.7) != 3 { print([1][3]); }\n"
+      "if floor(-2.5) != -3 { print([1][3]); }\n"
+      "if ceil(3.2) != 4 { print([1][3]); }\n"
+      "if ceil(-2.5) != -2 { print([1][3]); }\n"
+      "if round(2.5) != 3 { print([1][3]); }\n"
+      "if round(2.4) != 2 { print([1][3]); }\n"
+      "if floor(5) != 5 { print([1][3]); }\n"
+      "if to_int(pow(2.0, 10.0)) != 1024 { print([1][3]); }\n"
+      "if to_int(exp(0.0)) != 1 { print([1][3]); }\n"
+      "if to_int(log(1.0)) != 0 { print([1][3]); }\n"
+      "if sign(-8.0) != -1 { print([1][3]); }\n"
+      "if sign(8.0) != 1 { print([1][3]); }\n"
+      "if sign(0.0) != 0 { print([1][3]); }\n"
+      "if to_int(atan2(0.0, 1.0)) != 0 { print([1][3]); }\n") == OAK_TEST_OK);
+  return OAK_TEST_OK;
+}
+
+/* log of a non-positive number is undefined and reported as a runtime error
+ * rather than yielding NaN/-inf. */
+OAK_TEST_DECL(MathLogRejectsNonPositive)
+{
+  OAK_CHECK(expect_runtime_error("print(log(0.0));\n") == OAK_TEST_OK);
+  OAK_CHECK(expect_runtime_error("print(log(-1.0));\n") == OAK_TEST_OK);
+  return OAK_TEST_OK;
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -45,6 +76,8 @@ int main(const int argc, char* argv[])
   static struct oak_test_t tests[] = {
     OAK_TEST_ENTRY(MathBuiltinsAreGlobalNoImport),
     OAK_TEST_ENTRY(MathBuiltinsComposeWithUserCode),
+    OAK_TEST_ENTRY(MathBuiltinsRoundingAndPowers),
+    OAK_TEST_ENTRY(MathLogRejectsNonPositive),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
 }

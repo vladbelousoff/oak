@@ -138,3 +138,112 @@ enum oak_fn_call_result_t oak_math_random(struct oak_native_ctx_t* ctx,
   *out = OAK_VALUE_F32((float)rand() / (float)RAND_MAX);
   return OAK_FN_CALL_OK;
 }
+
+enum oak_fn_call_result_t oak_math_floor(struct oak_native_ctx_t* ctx,
+                                         const struct oak_value_t* args,
+                                         int argc,
+                                         struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (oak_is_i32(args[0]))
+    *out = args[0];
+  else
+    *out = OAK_VALUE_I32((int)floorf(oak_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_math_ceil(struct oak_native_ctx_t* ctx,
+                                        const struct oak_value_t* args,
+                                        int argc,
+                                        struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (oak_is_i32(args[0]))
+    *out = args[0];
+  else
+    *out = OAK_VALUE_I32((int)ceilf(oak_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_math_round(struct oak_native_ctx_t* ctx,
+                                         const struct oak_value_t* args,
+                                         int argc,
+                                         struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (oak_is_i32(args[0]))
+    *out = args[0];
+  else
+    *out = OAK_VALUE_I32((int)roundf(oak_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_math_pow(struct oak_native_ctx_t* ctx,
+                                       const struct oak_value_t* args,
+                                       int argc,
+                                       struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_F32(powf(number_as_f32(args[0]), number_as_f32(args[1])));
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_math_log(struct oak_native_ctx_t* ctx,
+                                       const struct oak_value_t* args,
+                                       int argc,
+                                       struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const float value = number_as_f32(args[0]);
+  if (value <= 0.0f)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_F32(logf(value));
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_math_exp(struct oak_native_ctx_t* ctx,
+                                       const struct oak_value_t* args,
+                                       int argc,
+                                       struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_F32(expf(number_as_f32(args[0])));
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_math_atan2(struct oak_native_ctx_t* ctx,
+                                         const struct oak_value_t* args,
+                                         int argc,
+                                         struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_F32(atan2f(number_as_f32(args[0]), number_as_f32(args[1])));
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_math_sign(struct oak_native_ctx_t* ctx,
+                                        const struct oak_value_t* args,
+                                        int argc,
+                                        struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const float value = number_as_f32(args[0]);
+  *out = OAK_VALUE_I32(value > 0.0f ? 1 : (value < 0.0f ? -1 : 0));
+  return OAK_FN_CALL_OK;
+}

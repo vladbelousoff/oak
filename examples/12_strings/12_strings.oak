@@ -1,0 +1,51 @@
+/* The standard library ships string methods and conversion built-ins, so
+   everyday text and number munging needs no imports. */
+
+let greeting = 'Hello, Oak';
+
+/* Case and whitespace. */
+print(greeting.upper());
+print(greeting.lower());
+print('   padded   '.trim());
+
+/* Search and predicates. */
+print(greeting.contains('Oak'));
+print(greeting.starts_with('Hello'));
+print(greeting.ends_with('Oak'));
+print(greeting.index_of('Oak'));
+
+/* Building new strings. */
+print(greeting.replace('Hello', 'Hey'));
+print('='.repeat(12));
+print(greeting.substring(0, 5));
+
+/* Naming-convention conversions. */
+print('HelloWorld'.to_snake_case());
+print('hello_world'.to_camel_case());
+
+/* Character codes: shift every letter of a word (a tiny Caesar cipher). */
+fn shift(text : string, by : number) -> string {
+  let mut out = '';
+  for i from 0 to text.size() {
+    let code = ord(text.substring(i, i + 1));
+    out = out + chr(code + by);
+  }
+  return out;
+}
+
+let secret = shift('oak', 1);
+print(secret);
+print(shift(secret, -1));
+
+/* Parse text into numbers, then reach for the math built-ins. parse_number
+   returns an int for '16' and a float for '2.5'. */
+let width = parse_number('  16 ');
+let ratio = parse_number('2.5');
+print(floor(ratio));
+print(ceil(ratio));
+print(round(ratio));
+print(to_int(pow(2.0, 10.0)));
+print(sign(0 - width));
+
+/* format weaves values into a template. */
+print('{} squared is {}'.format([width, width * width]));

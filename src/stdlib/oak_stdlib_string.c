@@ -1,0 +1,498 @@
+#include "oak_stdlib_string.h"
+
+#include "oak_allocator.h"
+#include "oak_value.h"
+
+#include <ctype.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* ===== Small helpers ===== */
+
+static int number_as_i32(const struct oak_value_t value)
+{
+  return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
+}
+
+/* Naive substring search. Returns the byte index of the first occurrence of
+ * `needle` within `hay`, or -1 if absent. An empty needle matches at 0. */
+static long find_sub(const char* hay,
+                     usize hlen,
+                     const char* needle,
+                     usize nlen)
+{
+  if (nlen == 0)
+    return 0;
+  if (nlen > hlen)
+    return -1;
+  for (usize i = 0; i + nlen <= hlen; ++i)
+  {
+    if (memcmp(hay + i, needle, nlen) == 0)
+      return (long)i;
+  }
+  return -1;
+}
+
+/* Emit `out` as a freshly-allocated Oak string owning `len` bytes of `src`. */
+static void make_string(struct oak_native_ctx_t* ctx,
+                        const char* src,
+                        usize len,
+                        struct oak_value_t* out)
+{
+  struct oak_obj_string_t* s = oak_string_new_len(ctx->allocator, src, len);
+  *out = OAK_VALUE_OBJ(&s->obj);
+}
+
+/* Word separators recognised by the case-style conversions. */
+static int is_word_sep(char c)
+{
+  return c == '-' || c == '_' || isspace((unsigned char)c);
+}
+
+/* True when the non-separator char at index `i` (i > 0) begins a new word.
+ * Besides explicit separators (handled by the caller), word boundaries occur at
+ * intra-identifier case transitions: lower/digit -> upper ("fooBar") and the
+ * tail of an acronym run -> a capitalized word ("HTTPServer" -> http/server). */
+static int starts_word(const char* s, usize len, usize i)
+{
+  const unsigned char c = (unsigned char)s[i];
+  if (!isupper(c))
+    return 0;
+  const unsigned char prev = (unsigned char)s[i - 1];
+  if (islower(prev) || isdigit(prev))
+    return 1;
+  if (isupper(prev) && i + 1 < len && islower((unsigned char)s[i + 1]))
+    return 1;
+  return 0;
+}
+
+/* ===== Case ===== */
+
+static enum oak_fn_call_result_t map_case(struct oak_native_ctx_t* ctx,
+                                          const struct oak_value_t* args,
+                                          int argc,
+                                          struct oak_value_t* out,
+                                          int upper)
+{
+  if (argc != 1 || !oak_is_string(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const usize len = self->length;
+  if (len == 0)
+  {
+    make_string(ctx, "", 0, out);
+    return OAK_FN_CALL_OK;
+  }
+  char* buf = OAK_ALLOC(ctx->allocator, len);
+  for (usize i = 0; i < len; ++i)
+  {
+    const unsigned char c = (unsigned char)self->chars[i];
+    buf[i] = (char)(upper ? toupper(c) : tolower(c));
+  }
+  make_string(ctx, buf, len, out);
+  OAK_FREE(ctx->allocator, buf);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_str_upper(struct oak_native_ctx_t* ctx,
+                                        const struct oak_value_t* args,
+                                        int argc,
+                                        struct oak_value_t* out)
+{
+  return map_case(ctx, args, argc, out, 1);
+}
+
+enum oak_fn_call_result_t oak_str_lower(struct oak_native_ctx_t* ctx,
+                                        const struct oak_value_t* args,
+                                        int argc,
+                                        struct oak_value_t* out)
+{
+  return map_case(ctx, args, argc, out, 0);
+}
+
+enum oak_fn_call_result_t oak_str_trim(struct oak_native_ctx_t* ctx,
+                                       const struct oak_value_t* args,
+                                       int argc,
+                                       struct oak_value_t* out)
+{
+  if (argc != 1 || !oak_is_string(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const char* s = self->chars;
+  usize start = 0;
+  usize end = self->length;
+  while (start < end && isspace((unsigned char)s[start]))
+    ++start;
+  while (end > start && isspace((unsigned char)s[end - 1]))
+    --end;
+  make_string(ctx, s + start, end - start, out);
+  return OAK_FN_CALL_OK;
+}
+
+/* ===== Search / predicates ===== */
+
+enum oak_fn_call_result_t oak_str_contains(struct oak_native_ctx_t* ctx,
+                                           const struct oak_value_t* args,
+                                           int argc,
+                                           struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const struct oak_obj_string_t* sub = oak_as_string(args[1]);
+  const long at = find_sub(self->chars, self->length, sub->chars, sub->length);
+  *out = OAK_VALUE_BOOL(at >= 0);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_str_starts_with(struct oak_native_ctx_t* ctx,
+                                              const struct oak_value_t* args,
+                                              int argc,
+                                              struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const struct oak_obj_string_t* pre = oak_as_string(args[1]);
+  const int ok = pre->length <= self->length &&
+                 memcmp(self->chars, pre->chars, pre->length) == 0;
+  *out = OAK_VALUE_BOOL(ok);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_str_ends_with(struct oak_native_ctx_t* ctx,
+                                            const struct oak_value_t* args,
+                                            int argc,
+                                            struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const struct oak_obj_string_t* suf = oak_as_string(args[1]);
+  const int ok =
+      suf->length <= self->length &&
+      memcmp(self->chars + (self->length - suf->length), suf->chars,
+             suf->length) == 0;
+  *out = OAK_VALUE_BOOL(ok);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_str_index_of(struct oak_native_ctx_t* ctx,
+                                           const struct oak_value_t* args,
+                                           int argc,
+                                           struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const struct oak_obj_string_t* sub = oak_as_string(args[1]);
+  const long at = find_sub(self->chars, self->length, sub->chars, sub->length);
+  *out = OAK_VALUE_I32((int)at);
+  return OAK_FN_CALL_OK;
+}
+
+/* ===== Transforms ===== */
+
+enum oak_fn_call_result_t oak_str_replace(struct oak_native_ctx_t* ctx,
+                                          const struct oak_value_t* args,
+                                          int argc,
+                                          struct oak_value_t* out)
+{
+  if (argc != 3 || !oak_is_string(args[0]) || !oak_is_string(args[1]) ||
+      !oak_is_string(args[2]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const struct oak_obj_string_t* from = oak_as_string(args[1]);
+  const struct oak_obj_string_t* to = oak_as_string(args[2]);
+
+  /* An empty needle would match everywhere; return the string unchanged rather
+   * than loop forever. */
+  if (from->length == 0)
+  {
+    make_string(ctx, self->chars, self->length, out);
+    return OAK_FN_CALL_OK;
+  }
+
+  /* Pass 1: count non-overlapping occurrences. */
+  usize count = 0;
+  for (usize i = 0; i + from->length <= self->length;)
+  {
+    if (memcmp(self->chars + i, from->chars, from->length) == 0)
+    {
+      ++count;
+      i += from->length;
+    }
+    else
+      ++i;
+  }
+  if (count == 0)
+  {
+    make_string(ctx, self->chars, self->length, out);
+    return OAK_FN_CALL_OK;
+  }
+
+  const usize result_len =
+      self->length - count * from->length + count * to->length;
+  char* buf = OAK_ALLOC(ctx->allocator, result_len == 0 ? 1 : result_len);
+
+  /* Pass 2: build the result. */
+  usize w = 0;
+  for (usize i = 0; i < self->length;)
+  {
+    if (i + from->length <= self->length &&
+        memcmp(self->chars + i, from->chars, from->length) == 0)
+    {
+      memcpy(buf + w, to->chars, to->length);
+      w += to->length;
+      i += from->length;
+    }
+    else
+      buf[w++] = self->chars[i++];
+  }
+
+  make_string(ctx, buf, result_len, out);
+  OAK_FREE(ctx->allocator, buf);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_str_repeat(struct oak_native_ctx_t* ctx,
+                                         const struct oak_value_t* args,
+                                         int argc,
+                                         struct oak_value_t* out)
+{
+  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const int n = number_as_i32(args[1]);
+  if (n <= 0 || self->length == 0)
+  {
+    make_string(ctx, "", 0, out);
+    return OAK_FN_CALL_OK;
+  }
+  if ((usize)n > (usize)-1 / self->length)
+    return OAK_FN_CALL_RUNTIME_ERROR; /* overflow guard */
+  const usize total = self->length * (usize)n;
+  char* buf = OAK_ALLOC(ctx->allocator, total);
+  for (int i = 0; i < n; ++i)
+    memcpy(buf + (usize)i * self->length, self->chars, self->length);
+  make_string(ctx, buf, total, out);
+  OAK_FREE(ctx->allocator, buf);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_str_substring(struct oak_native_ctx_t* ctx,
+                                            const struct oak_value_t* args,
+                                            int argc,
+                                            struct oak_value_t* out)
+{
+  if (argc != 3 || !oak_is_string(args[0]) || !oak_is_number(args[1]) ||
+      !oak_is_number(args[2]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const long len = (long)self->length;
+  long start = number_as_i32(args[1]);
+  long end = number_as_i32(args[2]);
+  if (start < 0)
+    start = 0;
+  if (start > len)
+    start = len;
+  if (end < start)
+    end = start;
+  if (end > len)
+    end = len;
+  make_string(ctx, self->chars + start, (usize)(end - start), out);
+  return OAK_FN_CALL_OK;
+}
+
+/* ===== Case-style conversions ===== */
+
+/* Convert to snake_case: word boundaries (separators and case transitions)
+ * become a single underscore and every letter is lowercased.
+ * "HelloWorld" / "hello world" / "hello-world" -> "hello_world". */
+enum oak_fn_call_result_t oak_str_to_snake_case(struct oak_native_ctx_t* ctx,
+                                               const struct oak_value_t* args,
+                                               int argc,
+                                               struct oak_value_t* out)
+{
+  if (argc != 1 || !oak_is_string(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const char* s = self->chars;
+  const usize len = self->length;
+  if (len == 0)
+  {
+    make_string(ctx, "", 0, out);
+    return OAK_FN_CALL_OK;
+  }
+
+  /* At most one underscore per source char, plus the char itself. */
+  char* buf = OAK_ALLOC(ctx->allocator, len * 2);
+  usize w = 0;
+  int pending = 0; /* a separator boundary awaits the next word char */
+  for (usize i = 0; i < len; ++i)
+  {
+    const char c = s[i];
+    if (is_word_sep(c))
+    {
+      if (w > 0)
+        pending = 1;
+      continue;
+    }
+    int underscore = 0;
+    if (w > 0)
+      underscore = pending || starts_word(s, len, i);
+    if (underscore)
+      buf[w++] = '_';
+    pending = 0;
+    buf[w++] = (char)tolower((unsigned char)c);
+  }
+
+  make_string(ctx, buf, w, out);
+  OAK_FREE(ctx->allocator, buf);
+  return OAK_FN_CALL_OK;
+}
+
+/* Convert to (lower) camelCase: separators are dropped, the first letter of
+ * each following word is uppercased, and the very first letter is lowercased.
+ * "hello_world" / "hello world" / "HelloWorld" -> "helloWorld". */
+enum oak_fn_call_result_t oak_str_to_camel_case(struct oak_native_ctx_t* ctx,
+                                               const struct oak_value_t* args,
+                                               int argc,
+                                               struct oak_value_t* out)
+{
+  if (argc != 1 || !oak_is_string(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const char* s = self->chars;
+  const usize len = self->length;
+  if (len == 0)
+  {
+    make_string(ctx, "", 0, out);
+    return OAK_FN_CALL_OK;
+  }
+
+  /* Separators are removed, so the result never grows past the input. */
+  char* buf = OAK_ALLOC(ctx->allocator, len);
+  usize w = 0;
+  int cap_next = 0; /* uppercase the next word char (after a separator) */
+  int started = 0;  /* has the first word char been emitted yet */
+  for (usize i = 0; i < len; ++i)
+  {
+    const char c = s[i];
+    if (is_word_sep(c))
+    {
+      if (started)
+        cap_next = 1;
+      continue;
+    }
+    if (!started)
+    {
+      buf[w++] = (char)tolower((unsigned char)c);
+      started = 1;
+      cap_next = 0;
+    }
+    else if (cap_next || starts_word(s, len, i))
+    {
+      buf[w++] = (char)toupper((unsigned char)c);
+      cap_next = 0;
+    }
+    else
+      buf[w++] = (char)tolower((unsigned char)c);
+  }
+
+  make_string(ctx, buf, w, out);
+  OAK_FREE(ctx->allocator, buf);
+  return OAK_FN_CALL_OK;
+}
+
+/* ===== Global char / parse builtins ===== */
+
+enum oak_fn_call_result_t oak_str_ord(struct oak_native_ctx_t* ctx,
+                                      const struct oak_value_t* args,
+                                      int argc,
+                                      struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_string(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  if (self->length == 0)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_I32((int)(unsigned char)self->chars[0]);
+  return OAK_FN_CALL_OK;
+}
+
+enum oak_fn_call_result_t oak_str_chr(struct oak_native_ctx_t* ctx,
+                                      const struct oak_value_t* args,
+                                      int argc,
+                                      struct oak_value_t* out)
+{
+  if (argc != 1 || !oak_is_number(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const int code = number_as_i32(args[0]);
+  if (code < 0 || code > 255)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const char c = (char)(unsigned char)code;
+  make_string(ctx, &c, 1, out);
+  return OAK_FN_CALL_OK;
+}
+
+/* Advance past any trailing whitespace; true iff the string then ends. Used to
+ * reject tokens with trailing garbage (e.g. "12x"). */
+static int only_trailing_space(const char* endp)
+{
+  while (*endp && isspace((unsigned char)*endp))
+    ++endp;
+  return *endp == '\0';
+}
+
+/* Parse a string into a number. A token containing '.', 'e', or 'E' is read as
+ * a float; otherwise it is read as a base-10 integer. Surrounding whitespace is
+ * ignored; anything left over (or an out-of-range integer) is a runtime error. */
+enum oak_fn_call_result_t oak_str_parse_number(struct oak_native_ctx_t* ctx,
+                                               const struct oak_value_t* args,
+                                               int argc,
+                                               struct oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 1 || !oak_is_string(args[0]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const char* s = oak_as_cstring(args[0]);
+
+  const char* p = s;
+  while (*p && isspace((unsigned char)*p))
+    ++p;
+  int is_float = 0;
+  for (const char* q = p; *q && !isspace((unsigned char)*q); ++q)
+  {
+    if (*q == '.' || *q == 'e' || *q == 'E')
+    {
+      is_float = 1;
+      break;
+    }
+  }
+
+  errno = 0;
+  char* endp = null;
+  if (is_float)
+  {
+    const float v = strtof(s, &endp);
+    if (endp == s || !only_trailing_space(endp))
+      return OAK_FN_CALL_RUNTIME_ERROR;
+    *out = OAK_VALUE_F32(v);
+    return OAK_FN_CALL_OK;
+  }
+
+  const long v = strtol(s, &endp, 10);
+  if (endp == s || errno == ERANGE || !only_trailing_space(endp))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (v < (long)(-2147483647 - 1) || v > (long)2147483647)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_I32((int)v);
+  return OAK_FN_CALL_OK;
+}
