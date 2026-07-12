@@ -1,105 +1,10 @@
 # Oak
 
-Oak is a scripting language implemented in C17. It compiles `.oak` source to
-bytecode and runs it on a stack-based virtual machine.
-
-The repo includes the `oak` CLI, the `acorn` C/C++ embedding library, a VS Code
-extension, examples, tests, and a WebAssembly playground.
-
-## Requirements
-
-Required:
-
-- Meson and Ninja
-- a C17 compiler
-- Python 3
-- Git, for the wrapped `yyjson` dependency
-
-Optional:
-
-- a C++20 compiler for C++ wrapper tests and C++ embedding
-- Emscripten, Node.js, and npm for the web playground
-
-GCC, Clang, and MSVC are supported.
-
-## Build and Test
-
-```sh
-meson setup build
-meson compile -C build
-./build/oak examples/01_values/01_values.oak
-```
-
-On Windows, run `.\build\oak.exe` instead of `./build/oak`.
-
-```sh
-meson test -C build
-meson test -C build --print-errorlogs
-```
-
-For a debug build:
-
-```sh
-meson setup build-debug --buildtype=debug
-meson compile -C build-debug
-meson test -C build-debug
-```
-
-## Install
-
-```sh
-meson setup build --prefix="$HOME/.local"
-meson compile -C build
-meson install -C build
-```
-
-Add `<prefix>/bin` to `PATH`. Installed builds find the stdlib relative to the
-`oak` executable. Set `OAK_STDLIB_DIR` only to override that lookup.
-
-## Run
-
-```text
-oak [options] <script> [script args...]
-```
-
-Options come before the script path. Everything after the script path is passed
-to the script unchanged.
-
-| Option | Effect |
-|---|---|
-| `--debug` | Start the localhost VS Code/DAP debugger server |
-| `--debug-port <port>` | Debug server port; use `0` to choose a free port |
-| `--disassemble` | Print compiled bytecode instead of running |
-| `--no-debug-symbols` | Compile without source debug metadata |
-| `--track-memory` | Fail if tracked runtime allocations leak |
-| `--help` | Print usage |
-
-```sh
-oak examples/01_values/01_values.oak
-oak --disassemble examples/06_modules/06_modules.oak
-oak --debug --debug-port 4711 examples/04_functions/04_functions.oak
-```
-
-## VS Code
-
-The extension is in `editors/vscode`. It provides `.oak` syntax highlighting
-and source debugging. The debugger assumes `oak` is on the `PATH` inherited by
-VS Code.
-
-```sh
-code editors/vscode
-```
-
-Select **Run Extension** and press `F5`. To attach to a running script:
-
-```sh
-oak --debug --debug-port 4711 path/to/program.oak
-```
-
-## Language
-
-Start with [`examples/`](examples/README.md). The numbered examples are the
-language tour and run as smoke tests. A compact Oak program looks like this:
+Oak is a statically typed scripting language implemented in C17. It compiles
+`.oak` source to bytecode and runs it on a stack-based virtual machine. Memory
+is fully deterministic: values are reference-counted and the **compiler
+rejects programs that could form strong reference cycles**, so there is no
+garbage collector and no runtime cycle detection.
 
 ```oak
 fn sum(values : number[]) -> number {
@@ -113,165 +18,317 @@ fn sum(values : number[]) -> number {
 print(sum([3, 5, 8]));
 ```
 
-Feature highlights:
+The repo includes the `oak` CLI, the `acorn` C/C++ embedding library, a VS
+Code extension, examples, tests, and a WebAssembly playground.
 
-- typed values: numbers, strings, booleans, arrays, maps, records, enums,
-  traits, functions, and `none`
-- immutable `let` bindings by default; `let mut` for mutation
-- `if`, `while`, counted `for`, collection iteration, `break`, `continue`
-- typed functions, recursion, first-class functions, anonymous functions
-- records with fields and methods declared as `fn Type.method(self, ...)`
-- enum variants such as `Status.Done`, with enum-aware type checking
-- traits with virtual dispatch over implementing record methods
-- relative modules with `import { name } from module.path` and `import *`
-- weak references with `Type weak` to break ownership cycles
-- compile-time cycle checking: reference counting alone reclaims every object,
-  with no runtime cycle collector (fields that could close a strong reference
-  cycle are write-once or must be declared weak)
-- stdlib builtins for printing and conversion (`to_int`, `parse_number`,
-  `ord`, `chr`), math (`sqrt`, `pow`, `floor`, `ceil`, `round`,
-  `log`, `exp`, `sign`, `min`/`max`, trig, ...), string methods (`upper`,
-  `lower`, `trim`, `contains`, `starts_with`, `ends_with`, `index_of`,
-  `replace`, `repeat`, `substring`, `to_snake_case`, `to_camel_case`, `format`),
-  collections, and `io.File`
-- bytecode disassembly, debug symbols, DAP debugging, and memory tracking
+## Quick Start
 
-Rules worth remembering: strings use single quotes, `/` produces a float, `//`
-is integer division, and records are created with `new Type { ... }`.
+```sh
+meson setup build
+meson compile -C build
+./build/oak examples/01_values/01_values.oak
+```
 
-## Embedding
+On Windows, run `.\build\oak.exe` instead of `./build/oak`. See
+[Building and Installing](docs/building.md) for requirements, tests, install,
+and the web playground, and [CLI and Debugging](docs/cli.md) for the `oak`
+command-line options.
 
-Link against `acorn`. Public C headers are in [`include/`](include/), and the
-C++20 wrapper is [`include/oak.hpp`](include/oak.hpp).
+## The Language
 
-The embedding API lets a host register native record types, inline value types,
-fields, destructors, global functions, module-scoped functions, instance
-methods, static methods, enums, and attributes before compiling Oak source.
-Native bindings participate in Oak's compile-time type checks.
+The snippets below cover the core of Oak; every one is a complete program.
+The numbered examples in [`examples/`](examples/README.md) are the full
+language tour and run as smoke tests in CI.
 
-### C Bindings
+### Values and Bindings
 
-The C API is descriptor-based. Register types and functions on
-`oak_compile_options_t` before calling `oak_compile_ex`.
+Bindings are immutable by default; `let mut` opts into mutation. Strings are
+**single-quoted** — double quotes are a lexer error. `/` always produces a
+float, `//` is integer division. Comments are `/* ... */` blocks.
 
-```c
-#include "oak_bind.h"
+```oak
+let answer = 40 + 2;
+let ready = answer == 42;
 
-typedef struct Vec2
-{
-  float x;
-  float y;
-} Vec2;
+let mut stock = 10;
+stock += 5;
+stock *= 2;
 
-static struct oak_value_t vec2_get_x(struct oak_value_t self, void* user_data);
-static void vec2_free(void* instance);
-static enum oak_fn_call_result_t make_vec2(
-    struct oak_native_ctx_t* ctx,
-    const struct oak_value_t* args,
-    int argc,
-    struct oak_value_t* out);
+let ratio = 9 / 2;   /* 4.5  — `/` is float division */
+let half = 9 // 2;   /* 4    — `//` is integer division */
 
-static void register_host_api(struct oak_compile_options_t* opts)
-{
-  struct oak_bind_type_t* vec2 =
-      oak_bind_type(opts, OAK_BIND_TYPE_RECORD, "Vec2");
-  vec2->destructor = vec2_free;
+let words = ['Oak', 'scripts'];
+print('{} {}'.format(words));
+print('{0}+{1}={2}'.format([2, 3, 5]));
+```
 
-  oak_bind_field(vec2,
-                 &(struct oak_bind_field_t){
-                     .name = "x",
-                     .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                     .getter = vec2_get_x,
-                 });
+### Control Flow
 
-  static struct oak_bind_type_ref_t params[2];
-  params[0] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
-  params[1] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
+`if`/`else`, `while`, counted `for ... from ... to` (exclusive upper bound),
+collection iteration, `break`, and `continue`:
 
-  oak_bind_fn_global(opts,
-                     &(struct oak_bind_global_fn_t){
-                         .name = "vec2",
-                         .impl = make_vec2,
-                         .arity = 2,
-                         .return_type = OAK_BIND_NATIVE(vec2),
-                         .param_types = params,
-                         .param_count = 2,
-                         .user_data = vec2,
-                     });
+```oak
+for i from 1 to 20 {
+  if i % 2 == 0 {
+    continue;
+  }
+  if i > 9 {
+    break;
+  }
+  print(i);
+}
+
+let mut n = 13;
+let mut steps = 0;
+while n != 1 {
+  if n % 2 == 0 {
+    n = n // 2;
+  } else {
+    n = n * 3 + 1;
+  }
+  steps += 1;
+}
+print(steps);
+```
+
+### Collections
+
+Typed arrays and maps, with index/key iteration:
+
+```oak
+let mut scores = new number[];
+scores.push(10);
+scores.push(20);
+scores[1] = 25;
+
+for i, score in scores {
+  print('{}: {}'.format([i, score]));
+}
+
+let mut inventory = new [string:number];
+inventory['apples'] = 4;
+inventory['pears'] = 6;
+print(inventory.has('apples'));
+print(inventory.size());
+
+for name, count in inventory {
+  print(name);
 }
 ```
 
-Use `oak_bind_type_in_module`, `oak_bind_enum_in_module`, or the
-`module_name` field on function descriptors for module-scoped native APIs.
-Use `oak_bind_fn()` for instance or static methods, and `oak_bind_enum()` for
-native enum bindings. Callbacks create records with `oak_native_record_new()`
-and access instances with `oak_native_instance()`.
+### Functions
 
-### C++ Bindings
+Functions are typed, first-class values; anonymous functions use the same
+`fn` syntax as function types:
 
-The C++20 wrapper adds RAII and typed callable binding:
+```oak
+fn fib(n : number) -> number {
+  if n < 2 {
+    return n;
+  }
+  return fib(n - 1) + fib(n - 2);
+}
+
+let double = fn(x : number) -> number { return x * 2; };
+
+fn apply(f : fn(number) -> number, x : number) -> number {
+  return f(x);
+}
+
+print(apply(double, fib(10)));
+```
+
+### Records and Enums
+
+Records are created with `new Type { ... }`; methods are declared as
+`fn Type.method(self, ...)`, with `mut self` for mutation. Enum variants get
+enum-aware type checking:
+
+```oak
+enum Status { Planned, Active, Done }
+
+record Point {
+  x : number;
+  y : number;
+}
+
+fn Point.move_by(mut self, dx : number, dy : number) {
+  self.x = self.x + dx;
+  self.y = self.y + dy;
+}
+
+record Job {
+  title : string;
+  status : Status;
+  location : Point;
+}
+
+fn Job.label(self) -> string {
+  return self.title;
+}
+
+let mut p = new Point { x : 3, y : 4 };
+p.move_by(10, -2);
+print(p.x);
+
+let job = new Job { title : 'release', status : Status.Planned, location : p };
+print(job.label());
+print(job.status == Status.Planned);
+```
+
+### Traits
+
+Traits declare method signatures and dispatch virtually over the record
+methods that implement them:
+
+```oak
+trait Shape {
+  fn area(self) -> number;
+}
+
+record Circle {
+  radius : number;
+}
+fn Circle.area(self) -> number {
+  return 3.14159 * self.radius * self.radius;
+}
+
+record Rect {
+  w : number;
+  h : number;
+}
+fn Rect.area(self) -> number {
+  return self.w * self.h;
+}
+
+let mut c = new Circle { radius : 5 };
+let mut r = new Rect { w : 3, h : 4 };
+
+let mut shapes = new Shape[];
+shapes.push(c);
+shapes.push(r);
+
+let mut total = 0;
+for s in shapes {
+  total += s.area();
+}
+print(total);
+```
+
+### Modules
+
+Modules are resolved relative to the entry script; import selected names or
+everything a module exports:
+
+```oak
+import { sum, average } from analytics.stats;
+import * from domain.project;
+
+print(sum([3, 5, 8, 13]));
+```
+
+See [`examples/06_modules/`](examples/06_modules/) for a complete multi-file
+program.
+
+### Memory: Reference Counting Without Cycles
+
+Oak has no garbage collector and no runtime cycle detector. Reference
+counting alone reclaims every object because the compiler **rejects programs
+that could form strong reference cycles**: fields that could close a cycle
+must be write-once or declared `weak`. A weak reference does not keep its
+target alive and can be compared against `none`:
+
+```oak
+record Node {
+  name : string;
+  links : Edge[];
+}
+
+record Edge {
+  label : string;
+  target : Node weak;  /* weak: does not keep the target alive */
+}
+
+let mut a = new Node { name : 'a', links : new Edge[] };
+let mut b = new Node { name : 'b', links : new Edge[] };
+
+a.links.push(new Edge { label : 'a->b', target : b });
+b.links.push(new Edge { label : 'b->a', target : a });
+
+print(a.links[0].target.name);
+```
+
+The same invariant applies to native bindings — host code must never create a
+strong ownership loop from C or C++.
+
+### Strings and the Stdlib
+
+Everyday text and number work needs no imports:
+
+```oak
+let greeting = 'Hello, Oak';
+print(greeting.upper());
+print(greeting.contains('Oak'));
+print(greeting.replace('Hello', 'Hey'));
+print('HelloWorld'.to_snake_case());
+
+let width = parse_number('  16 ');
+print(to_int(pow(2.0, 10.0)));
+print('{} squared is {}'.format([width, width * width]));
+```
+
+The stdlib ships printing and conversion builtins (`to_int`, `parse_number`,
+`ord`, `chr`), math (`sqrt`, `pow`, `floor`, `ceil`, `round`, `log`, `exp`,
+`sign`, `min`/`max`, trig, ...), string methods (`upper`, `lower`, `trim`,
+`contains`, `starts_with`, `ends_with`, `index_of`, `replace`, `repeat`,
+`substring`, `to_snake_case`, `to_camel_case`, `format`), collection methods,
+and file I/O via `io.File` (see
+[`examples/08_file_io/`](examples/08_file_io/)).
+
+## Documentation
+
+| Topic | Where |
+|---|---|
+| Language tour — runnable, numbered examples | [`examples/`](examples/README.md) |
+| Building, installing, web playground | [`docs/building.md`](docs/building.md) |
+| CLI options and debugging | [`docs/cli.md`](docs/cli.md) |
+| Embedding: C API | [`docs/embedding-c.md`](docs/embedding-c.md) |
+| Embedding: C++ API | [`docs/embedding-cpp.md`](docs/embedding-cpp.md) |
+| VS Code extension | [`editors/vscode/`](editors/vscode/README.md) |
+| Benchmark suite and methodology | [`benchmark/`](benchmark/README.md) |
+
+## Embedding
+
+Link against `acorn` and register native types, functions, enums, and
+attributes before compiling; bindings participate in Oak's compile-time type
+checks. The C API is descriptor-based, and the C++20 wrapper
+([`include/oak.hpp`](include/oak.hpp)) adds RAII and typed callable binding:
 
 ```cpp
-#include "oak.hpp"
-
-#include <cmath>
-
-struct Vec2
-{
-  float x;
-  float y;
-
-  float length() const { return std::sqrt(x * x + y * y); }
-  void scale(float factor)
-  {
-    x *= factor;
-    y *= factor;
-  }
-  float dot(const Vec2& other) const { return x * other.x + y * other.y; }
-};
-
 oak::Allocator alloc;
 oak::CompileOptions opts(alloc);
 
-auto vec2 = opts.bind_type<Vec2>("Vec2");
-vec2.field("x", &Vec2::x)
-    .field("y", &Vec2::y)
-    .method("length", &Vec2::length)
-    .method("scale", &Vec2::scale)
-    .method("dot", &Vec2::dot)
-    .static_method("twice", [](int value) { return value * 2; })
-    .destructor();
-
 opts.bind_fn("add", [](int a, int b) { return a + b; });
-opts.bind_fn("vec_sum", [](const Vec2* v) { return v->x + v->y; });
 opts.bind_enum("Color", {{"Red", 0}, {"Green", 1}, {"Blue", 2}});
 
 auto result = oak::compile(
     "let n = add(20, 22);\n"
     "let color = Color.Green;\n",
     opts);
+
+oak::VM vm(alloc);
+vm.run(result);
 ```
 
-For complete, compiled examples, see [`tests/compiler/`](tests/compiler/),
-[`tests/cpp/test_oak_hpp.cpp`](tests/cpp/test_oak_hpp.cpp), and
-[`src/stdlib/`](src/stdlib/).
-
-## Web Playground
-
-```sh
-meson setup build-wasm --cross-file meson/cross/emscripten.ini
-meson compile -C build-wasm
-npm install
-npm run dev
-```
-
-Use `npm run build` to create the static site in `dist/`.
+See the [C embedding guide](docs/embedding-c.md) and the
+[C++ embedding guide](docs/embedding-cpp.md).
 
 ## Benchmarks
 
-Cross-language benchmarks run in CI whenever interpreter code changes and the
-table below is updated automatically. Workloads, methodology, and caveats are
-described in [`benchmark/`](benchmark/README.md).
+Cross-language benchmarks against peer bytecode interpreters (no JITs) run in
+CI whenever interpreter code changes and the table below is updated
+automatically. Workloads, methodology, and caveats are described in
+[`benchmark/`](benchmark/README.md).
 
 <!-- benchmark:start -->
 | runtime | fib | nsieve | mandelbrot | hashmap | strcat |
@@ -294,6 +351,7 @@ _Relative to the fastest runtime per benchmark, lower is better; median wall tim
 | `include/` | public C API and C++ wrapper |
 | `src/` | compiler, runtime, VM, and stdlib C code |
 | `stdlib/` | Oak stdlib modules |
+| `docs/` | build, CLI, and embedding guides |
 | `tests/` | C/C++ tests |
 | `examples/` | runnable language tour |
 | `editors/vscode/` | VS Code extension |
