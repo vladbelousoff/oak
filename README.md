@@ -189,6 +189,7 @@ trait Shape {
 record Circle {
   radius : number;
 }
+
 fn Circle.area(self) -> number {
   return 3.14159 * self.radius * self.radius;
 }
@@ -197,6 +198,7 @@ record Rect {
   w : number;
   h : number;
 }
+
 fn Rect.area(self) -> number {
   return self.w * self.h;
 }
@@ -212,6 +214,7 @@ let mut total = 0;
 for s in shapes {
   total += s.area();
 }
+
 print(total);
 ```
 
