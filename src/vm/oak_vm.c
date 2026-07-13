@@ -11,6 +11,7 @@ void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator)
   vm->allocator = allocator;
   vm->user_data = null;
   vm->debug_hook = null;
+  vm->object_table = oak_obj_table_acquire();
 }
 
 void oak_vm_set_debug_hook(struct oak_vm_t* vm,
@@ -35,6 +36,12 @@ void oak_vm_free(struct oak_vm_t* vm)
 
   vm->chunk = null;
   vm->ip = null;
+
+  /* Objects created by this VM may outlive it (results handed to the
+   * embedder, values stored into other tables' objects); the table is
+   * recycled once the last of them dies. */
+  oak_obj_table_detach(vm->object_table);
+  vm->object_table = 0;
 }
 
 static void cached_sync_to_vm(struct oak_vm_t* vm,
@@ -238,7 +245,7 @@ enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm, struct oak_chunk_t* chunk)
   return oak_vm_resume(vm);
 }
 
-enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
+static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
 {
   if (!vm->chunk || !vm->ip)
   {
@@ -828,4 +835,14 @@ enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
         return OAK_VM_RUNTIME_ERROR;
     }
   }
+}
+
+enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
+{
+  /* Objects created while this VM executes (including inside native
+   * callbacks) land in its table; save/restore supports nested VMs. */
+  const u32 prev_table = oak_obj_table_set_current(vm->object_table);
+  const enum oak_vm_result_t result = oak_vm_resume_loop(vm);
+  oak_obj_table_set_current(prev_table);
+  return result;
 }

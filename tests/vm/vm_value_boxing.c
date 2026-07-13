@@ -132,6 +132,74 @@ OAK_TEST_DECL(WeakStaysExpiredAfterSlotReuse)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(PerVmTableIsolationAndRecycle)
+{
+  struct oak_allocator_t allocator;
+  oak_system_allocator_init(&allocator);
+
+  const u32 table = oak_obj_table_acquire();
+  OAK_CHECK(table != 0);
+
+  const u32 prev = oak_obj_table_set_current(table);
+  struct oak_obj_string_t* scoped = oak_string_new(&allocator, "scoped");
+  oak_obj_table_set_current(prev);
+
+  struct oak_obj_string_t* shared = oak_string_new(&allocator, "shared");
+  OAK_CHECK(scoped->obj.table_id == table);
+  OAK_CHECK(shared->obj.table_id == 0);
+
+  const struct oak_value_t v = OAK_VALUE_OBJ(scoped);
+  OAK_CHECK(oak_value_obj_table(v) == table);
+  OAK_CHECK(oak_is_string(v));
+
+  const struct oak_value_t weak = oak_value_weaken(v);
+  oak_obj_decref((struct oak_obj_t*)scoped);
+  OAK_CHECK(oak_is_expired_weak(weak));
+
+  /* Last object already died, so detaching recycles the entry at once. */
+  oak_obj_table_detach(table);
+  OAK_CHECK(oak_obj_tables[table].state == OAK_OBJ_TABLE_FREE);
+  OAK_CHECK(oak_obj_tables[table].slots == null);
+
+  /* A stale weak into the recycled table must still read as expired... */
+  OAK_CHECK(oak_is_expired_weak(weak));
+
+  /* ...even after the entry is reacquired and repopulated: fresh slots
+   * start above the nonce floor left by the previous incarnation. */
+  const u32 again = oak_obj_table_acquire();
+  OAK_CHECK(again == table);
+  const u32 prev2 = oak_obj_table_set_current(again);
+  struct oak_obj_string_t* reborn = oak_string_new(&allocator, "reborn");
+  oak_obj_table_set_current(prev2);
+  OAK_CHECK(oak_is_expired_weak(weak));
+  OAK_CHECK(oak_is_obj(OAK_VALUE_OBJ(reborn)));
+
+  oak_obj_decref((struct oak_obj_t*)reborn);
+  oak_obj_table_detach(again);
+  oak_obj_decref((struct oak_obj_t*)shared);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(TableRegistryRecyclesUnderChurn)
+{
+  struct oak_allocator_t allocator;
+  oak_system_allocator_init(&allocator);
+
+  /* More cycles than registry entries (256): only recycling can keep
+   * acquire from exhausting the registry and falling back to table 0. */
+  for (int i = 0; i < 300; ++i)
+  {
+    const u32 table = oak_obj_table_acquire();
+    OAK_CHECK(table != 0);
+    const u32 prev = oak_obj_table_set_current(table);
+    struct oak_obj_string_t* str = oak_string_new(&allocator, "churn");
+    oak_obj_table_set_current(prev);
+    oak_obj_decref((struct oak_obj_t*)str);
+    oak_obj_table_detach(table);
+  }
+  return OAK_TEST_OK;
+}
+
 OAK_TEST_DECL(HandleRoundTrip61Bits)
 {
   const u64 values[] = { 0u, 1u, 0xDEADBEEFu, (1ull << 61) - 1u };
@@ -172,6 +240,8 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(WeakPointerRoundTrip),
     OAK_TEST_ENTRY(WeakExpiresWhenObjectDies),
     OAK_TEST_ENTRY(WeakStaysExpiredAfterSlotReuse),
+    OAK_TEST_ENTRY(PerVmTableIsolationAndRecycle),
+    OAK_TEST_ENTRY(TableRegistryRecyclesUnderChurn),
     OAK_TEST_ENTRY(HandleRoundTrip61Bits),
     OAK_TEST_ENTRY(TagsAreDistinct),
   };

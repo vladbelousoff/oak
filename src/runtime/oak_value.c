@@ -9,50 +9,126 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* The global object table (see oak_value.h).  Its slot array is allocated
- * with plain realloc rather than an oak_allocator_t: the table is process-
- * wide and outlives every allocator (including leak-tracking ones, which
- * would otherwise report it), and it is never freed. */
-struct oak_obj_table_t oak_obj_table = { null, 0u, OAK_OBJ_SLOT_NONE };
+/* The object-table registry (see oak_value.h).  Slot arrays are allocated
+ * with plain realloc rather than an oak_allocator_t: tables outlive every
+ * allocator (including leak-tracking ones, which would otherwise report
+ * them).  Zero-initialization leaves every entry FREE with no slots; the
+ * shared table 0 is special-cased below and never handed out or recycled. */
+struct oak_obj_table_t oak_obj_tables[OAK_OBJ_TABLE_COUNT];
 
-static u32 oak_obj_table_insert(struct oak_obj_t* obj)
+/* Objects created on this thread land in this table.  Defaults to the
+ * shared table 0; the VM run entry points scope it to the running VM. */
+static _Thread_local u32 oak_current_obj_table = 0u;
+
+u32 oak_obj_table_set_current(const u32 table_id)
 {
-  if (oak_obj_table.free_head == OAK_OBJ_SLOT_NONE)
+  oak_assert(table_id < OAK_OBJ_TABLE_COUNT);
+  const u32 prev = oak_current_obj_table;
+  oak_current_obj_table = table_id;
+  return prev;
+}
+
+u32 oak_obj_table_acquire(void)
+{
+  for (u32 id = 1u; id < OAK_OBJ_TABLE_COUNT; ++id)
   {
-    const u32 old_cap = oak_obj_table.capacity;
+    if (oak_obj_tables[id].state == OAK_OBJ_TABLE_FREE)
+    {
+      oak_obj_tables[id].state = OAK_OBJ_TABLE_ACTIVE;
+      return id;
+    }
+  }
+  /* Every entry is taken: fall back to the shared table, which is never
+   * recycled.  Isolation degrades but correctness does not. */
+  oak_log(OAK_LOG_WARN, "oak: object-table registry exhausted; sharing table 0");
+  return 0u;
+}
+
+static void oak_obj_table_try_recycle(struct oak_obj_table_t* table)
+{
+  if (table->state != OAK_OBJ_TABLE_DETACHED || table->live_count != 0u)
+    return;
+
+  /* Raise the nonce floor above everything this incarnation issued so a
+   * stale weak reference can never match a slot of the next incarnation. */
+  u32 max_nonce = table->nonce_floor;
+  for (u32 i = 0; i < table->capacity; ++i)
+  {
+    if (table->slots[i].nonce > max_nonce)
+      max_nonce = table->slots[i].nonce;
+  }
+  table->nonce_floor = (max_nonce + 1u) & OAK_OBJ_NONCE_MASK;
+
+  free(table->slots);
+  table->slots = null;
+  table->capacity = 0u;
+  table->free_head = OAK_OBJ_SLOT_NONE;
+  table->state = OAK_OBJ_TABLE_FREE;
+}
+
+void oak_obj_table_detach(const u32 table_id)
+{
+  if (table_id == 0u || table_id >= OAK_OBJ_TABLE_COUNT)
+    return;
+  struct oak_obj_table_t* table = &oak_obj_tables[table_id];
+  oak_assert(table->state == OAK_OBJ_TABLE_ACTIVE);
+  table->state = OAK_OBJ_TABLE_DETACHED;
+  oak_obj_table_try_recycle(table);
+}
+
+static u32 oak_obj_table_insert(const u32 table_id, struct oak_obj_t* obj)
+{
+  struct oak_obj_table_t* table = &oak_obj_tables[table_id];
+  oak_assert(table_id == 0u || table->state == OAK_OBJ_TABLE_ACTIVE);
+
+  /* A zero-initialized registry entry has free_head == 0 with no slots, so
+   * an empty capacity must be normalized before the freelist check. */
+  if (table->capacity == 0u)
+    table->free_head = OAK_OBJ_SLOT_NONE;
+
+  if (table->free_head == OAK_OBJ_SLOT_NONE)
+  {
+    const u32 old_cap = table->capacity;
     const u32 new_cap = old_cap == 0u ? 256u : old_cap * 2u;
+    if (new_cap > OAK_OBJ_INDEX_MASK + 1u)
+      oak_panic("oak: object table full");
     struct oak_obj_slot_t* slots =
-        realloc(oak_obj_table.slots, (usize)new_cap * sizeof(*slots));
+        realloc(table->slots, (usize)new_cap * sizeof(*slots));
     if (!slots)
       oak_panic("oak: object table allocation failed");
     /* Push the fresh slots in reverse so the lowest index is handed out
-     * first.  Nonces start at 0 and only move when an object dies. */
+     * first.  Nonces start at the table's floor and only move when an
+     * object dies. */
     for (u32 i = new_cap; i-- > old_cap;)
     {
       slots[i].obj = null;
-      slots[i].nonce = 0u;
-      slots[i].next_free = oak_obj_table.free_head;
-      oak_obj_table.free_head = i;
+      slots[i].nonce = table->nonce_floor;
+      slots[i].next_free = table->free_head;
+      table->free_head = i;
     }
-    oak_obj_table.slots = slots;
-    oak_obj_table.capacity = new_cap;
+    table->slots = slots;
+    table->capacity = new_cap;
   }
 
-  const u32 index = oak_obj_table.free_head;
-  struct oak_obj_slot_t* slot = &oak_obj_table.slots[index];
-  oak_obj_table.free_head = slot->next_free;
+  const u32 index = table->free_head;
+  struct oak_obj_slot_t* slot = &table->slots[index];
+  table->free_head = slot->next_free;
   slot->obj = obj;
+  table->live_count++;
   return index;
 }
 
-static void oak_obj_table_release(const u32 index)
+static void oak_obj_table_release(const struct oak_obj_t* obj)
 {
-  struct oak_obj_slot_t* slot = &oak_obj_table.slots[index];
+  struct oak_obj_table_t* table = &oak_obj_tables[obj->table_id];
+  struct oak_obj_slot_t* slot = &table->slots[obj->slot_index];
   slot->obj = null;
   /* Expire every outstanding weak reference to this slot's object. */
   slot->nonce = (slot->nonce + 1u) & OAK_OBJ_NONCE_MASK;
-  slot->next_free = oak_obj_table.free_head;
-  oak_obj_table.free_head = index;
+  slot->next_free = table->free_head;
+  table->free_head = obj->slot_index;
+  table->live_count--;
+  oak_obj_table_try_recycle(table);
 }
 
 static void oak_obj_init(struct oak_obj_t* obj,
@@ -62,7 +138,8 @@ static void oak_obj_init(struct oak_obj_t* obj,
   obj->type = type;
   oak_refcount_init(&obj->refcount, 1);
   obj->allocator = allocator;
-  obj->slot_index = oak_obj_table_insert(obj);
+  obj->table_id = oak_current_obj_table;
+  obj->slot_index = oak_obj_table_insert(obj->table_id, obj);
 }
 
 void oak_obj_incref(struct oak_obj_t* obj)
@@ -141,7 +218,7 @@ void oak_obj_decref(struct oak_obj_t* obj)
   /* Release the slot before running destructors so any weak reference
    * touched during teardown (including ones to this object) already reads
    * as expired. */
-  oak_obj_table_release(obj->slot_index);
+  oak_obj_table_release(obj);
   oak_obj_destroy_payload(obj);
   OAK_FREE(obj->allocator, obj);
 }

@@ -218,11 +218,11 @@ enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
 
 static u8 halt_trampoline[] = { 0 /* OAK_OP_HALT */ };
 
-enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
-                                 struct oak_value_t fn_val,
-                                 const struct oak_value_t* args,
-                                 int argc,
-                                 struct oak_value_t* out_result)
+static enum oak_vm_result_t oak_vm_call_impl(struct oak_vm_t* vm,
+                                             struct oak_value_t fn_val,
+                                             const struct oak_value_t* args,
+                                             int argc,
+                                             struct oak_value_t* out_result)
 {
   if (!vm->chunk)
   {
@@ -271,6 +271,21 @@ enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
   vm->chunk = saved_chunk;
   vm->stack_base = saved_stack_base;
   return r;
+}
+
+enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
+                                 struct oak_value_t fn_val,
+                                 const struct oak_value_t* args,
+                                 int argc,
+                                 struct oak_value_t* out_result)
+{
+  /* Native functions can run during call setup, before oak_vm_resume takes
+   * over, so the whole call is scoped to this VM's object table. */
+  const u32 prev_table = oak_obj_table_set_current(vm->object_table);
+  const enum oak_vm_result_t result =
+      oak_vm_call_impl(vm, fn_val, args, argc, out_result);
+  oak_obj_table_set_current(prev_table);
+  return result;
 }
 
 enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)

@@ -43,16 +43,16 @@
         <DisplayString Condition="(bits &amp; 7) == 2">bool {(bits >> 32) != 0}</DisplayString>
         <DisplayString Condition="(bits &amp; 7) == 3">none</DisplayString>
         <DisplayString Condition="(bits &amp; 7) == 4">handle {bits >> 3}</DisplayString>
-        <DisplayString Condition="(bits &amp; 7) == 5">obj slot={(unsigned int)(bits >> 3)} nonce={(unsigned int)(bits >> 35)}</DisplayString>
-        <DisplayString Condition="(bits &amp; 7) == 6">weak slot={(unsigned int)(bits >> 3)} nonce={(unsigned int)(bits >> 35)}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 5">obj table={(unsigned int)((bits >> 32) &amp; 0xFF)} slot={(unsigned int)((bits >> 3) &amp; 0x1FFFFFFF)} nonce={(unsigned int)(bits >> 40)}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 6">weak table={(unsigned int)((bits >> 32) &amp; 0xFF)} slot={(unsigned int)((bits >> 3) &amp; 0x1FFFFFFF)} nonce={(unsigned int)(bits >> 40)}</DisplayString>
         <DisplayString Condition="(bits &amp; 7) == 7">native {(void*)(bits >> 3)}</DisplayString>
         <Expand>
             <Item Name="tag">(oak_value_tag_t)(bits &amp; 7)</Item>
             <Item Name="obj" Condition="(bits &amp; 7) == 5 || (bits &amp; 7) == 6">
-                oak_obj_table.slots[(unsigned int)(bits >> 3)].obj
+                oak_obj_tables[(unsigned int)((bits >> 32) &amp; 0xFF)].slots[(unsigned int)((bits >> 3) &amp; 0x1FFFFFFF)].obj
             </Item>
             <Item Name="live" Condition="(bits &amp; 7) == 6">
-                oak_obj_table.slots[(unsigned int)(bits >> 3)].nonce == (unsigned int)(bits >> 35)
+                (unsigned int)((bits >> 3) &amp; 0x1FFFFFFF) &lt; oak_obj_tables[(unsigned int)((bits >> 32) &amp; 0xFF)].capacity &amp;&amp; oak_obj_tables[(unsigned int)((bits >> 32) &amp; 0xFF)].slots[(unsigned int)((bits >> 3) &amp; 0x1FFFFFFF)].nonce == (unsigned int)(bits >> 40)
             </Item>
         </Expand>
     </Type>

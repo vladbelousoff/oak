@@ -13,14 +13,15 @@
  * Every Oak value is a single 64-bit word: a 3-bit tag in the low bits plus
  * a payload.  Immediates (i32, f32, bool) keep their payload in the high 32
  * bits; handles and inline native values carry a 61-bit payload; object
- * references carry a slot index into the global object table plus a nonce
- * that detects stale weak references.
+ * references carry an object-table id, a slot index into that table, and a
+ * nonce that detects stale weak references.
  *
  * Word layout (bit 0 = least significant):
  *   [2:0]          tag (oak_value_tag_t)
  *   I32/F32/BOOL:  payload in [63:32]
  *   HANDLE/NATIVE: payload in [63:3]
- *   OBJ/WEAK:      object-table slot index in [34:3], nonce in [63:35]
+ *   OBJ/WEAK:      slot index in [31:3], table id in [39:32],
+ *                  nonce in [63:40]
  */
 
 /* Runtime tag for the payload of an oak_value_t.
@@ -80,43 +81,78 @@ struct oak_obj_t
 {
   enum oak_obj_type_t type;
   struct oak_refcount_t refcount;
-  /* This object's slot in the global object table (oak_obj_table). */
+  /* This object's slot in its object table (oak_obj_tables[table_id]). */
   u32 slot_index;
+  u32 table_id;
   struct oak_allocator_t* allocator;
 };
 
-/* ===== Global object table =====
+/* ===== Object tables =====
  *
- * Object values do not carry the oak_obj_t pointer; they carry a slot index
- * into this table plus the slot's nonce at the time the reference was made.
- * A slot's nonce is bumped when its object dies, so an outstanding weak
- * reference resolves to null (nonce mismatch) instead of dangling — even if
- * the slot has since been reused by a new object.  Strong references pin
- * the object alive, so their nonce always matches and they resolve with a
- * plain index load.
+ * Object values do not carry the oak_obj_t pointer; they carry a table id,
+ * a slot index into that table, and the slot's nonce at the time the
+ * reference was made.  A slot's nonce is bumped when its object dies, so an
+ * outstanding weak reference resolves to null (nonce mismatch) instead of
+ * dangling — even if the slot has since been reused by a new object.
+ * Strong references pin the object alive, so their nonce always matches and
+ * they resolve with a plain index load.
  *
- * The table is deliberately process-global: value accessors take no context
- * parameter, and objects are created without a VM (e.g. chunk constants
- * built by the compiler).  Like the refcounts it is not synchronized;
- * multi-threaded object creation/destruction requires external locking. */
+ * Tables live in a fixed process-wide registry so that value accessors can
+ * resolve any object without a context parameter.  Table 0 is the shared
+ * table: it holds objects created outside a VM (chunk constants built by
+ * the compiler, embedder-created values) and is never recycled.  Every VM
+ * acquires its own table in oak_vm_init and detaches it in oak_vm_free;
+ * objects created while that VM executes land in its table (routed through
+ * a thread-local current-table id scoped by the VM entry points).  A
+ * detached table is recycled — its slot array freed and its registry entry
+ * reusable — once the last object in it dies; fresh slots then start at a
+ * nonce floor above every nonce the previous incarnation issued, so stale
+ * weak references cannot alias across recycles.
+ *
+ * Like the refcounts, the registry is not synchronized; multi-threaded
+ * object creation/destruction requires external locking. */
 
 struct oak_obj_slot_t
 {
   struct oak_obj_t* obj; /* null while the slot is free */
-  u32 nonce;             /* wraps at 29 bits; bumped when the object dies */
+  u32 nonce;             /* wraps at 24 bits; bumped when the object dies */
   u32 next_free;         /* freelist link, meaningful only while free */
+};
+
+enum oak_obj_table_state_t
+{
+  OAK_OBJ_TABLE_FREE,
+  OAK_OBJ_TABLE_ACTIVE,   /* owned by a VM (or table 0, owned by the process) */
+  OAK_OBJ_TABLE_DETACHED, /* owner gone; recycled once live_count reaches 0 */
 };
 
 struct oak_obj_table_t
 {
   struct oak_obj_slot_t* slots;
   u32 capacity;
-  u32 free_head; /* OAK_OBJ_SLOT_NONE when the freelist is empty */
+  u32 free_head;   /* OAK_OBJ_SLOT_NONE when the freelist is empty */
+  u32 live_count;  /* occupied slots; gates recycling of detached tables */
+  u32 nonce_floor; /* starting nonce for slots of the next incarnation */
+  u8 state;        /* enum oak_obj_table_state_t */
 };
 
-#define OAK_OBJ_SLOT_NONE 0xFFFFFFFFu
+#define OAK_OBJ_SLOT_NONE   0xFFFFFFFFu
+#define OAK_OBJ_TABLE_COUNT 256u
 
-OAK_API extern struct oak_obj_table_t oak_obj_table;
+OAK_API extern struct oak_obj_table_t oak_obj_tables[/*OAK_OBJ_TABLE_COUNT*/];
+
+/* Reserve a table for a new owner (a VM).  Returns 0 — the shared,
+ * never-recycled table — when all entries are taken. */
+OAK_API u32 oak_obj_table_acquire(void);
+
+/* Declare the owner gone.  The table is recycled as soon as no object in it
+ * remains alive.  No-op for table 0. */
+OAK_API void oak_obj_table_detach(u32 table_id);
+
+/* Route objects created on this thread into `table_id`; returns the
+ * previous current table so callers can scope and restore it.  The VM run
+ * entry points wrap execution with this. */
+OAK_API u32 oak_obj_table_set_current(u32 table_id);
 
 struct oak_value_t
 {
@@ -126,8 +162,11 @@ struct oak_value_t
 };
 
 #define OAK_VALUE_TAG_MASK  ((u64)0x7u)
-#define OAK_OBJ_NONCE_SHIFT 35u
-#define OAK_OBJ_NONCE_MASK  0x1FFFFFFFu /* 29 bits */
+#define OAK_OBJ_INDEX_MASK  0x1FFFFFFFu /* 29 bits */
+#define OAK_OBJ_TABLE_SHIFT 32u
+#define OAK_OBJ_TABLE_MASK  0xFFu /* 8 bits */
+#define OAK_OBJ_NONCE_SHIFT 40u
+#define OAK_OBJ_NONCE_MASK  0xFFFFFFu /* 24 bits */
 
 /* ===== Utilities ===== */
 
@@ -193,9 +232,10 @@ oak_value_obj_encode(const struct oak_obj_t* obj,
                      const enum oak_value_tag_t tag)
 {
   struct oak_value_t value;
-  const u32 index = obj->slot_index;
-  value.bits = ((u64)oak_obj_table.slots[index].nonce << OAK_OBJ_NONCE_SHIFT) |
-               ((u64)index << 3u) | tag;
+  const u32 nonce = oak_obj_tables[obj->table_id].slots[obj->slot_index].nonce;
+  value.bits = ((u64)nonce << OAK_OBJ_NONCE_SHIFT) |
+               ((u64)obj->table_id << OAK_OBJ_TABLE_SHIFT) |
+               ((u64)obj->slot_index << 3u) | tag;
   return value;
 }
 
@@ -283,7 +323,12 @@ static inline void* oak_as_native_value(const struct oak_value_t value)
 
 static inline u32 oak_value_obj_index(const struct oak_value_t value)
 {
-  return (u32)(value.bits >> 3u);
+  return (u32)(value.bits >> 3u) & OAK_OBJ_INDEX_MASK;
+}
+
+static inline u32 oak_value_obj_table(const struct oak_value_t value)
+{
+  return (u32)(value.bits >> OAK_OBJ_TABLE_SHIFT) & OAK_OBJ_TABLE_MASK;
 }
 
 static inline u32 oak_value_obj_nonce(const struct oak_value_t value)
@@ -292,21 +337,29 @@ static inline u32 oak_value_obj_nonce(const struct oak_value_t value)
 }
 
 /* Resolve an object value to its oak_obj_t without a nonce check.  Strong
- * references pin the object, so their slot cannot have been recycled; for
- * weak references the caller must have verified liveness (oak_is_obj), or
- * use oak_value_obj_resolve instead. */
+ * references pin the object, so their slot (and table) cannot have been
+ * recycled; for weak references the caller must have verified liveness
+ * (oak_is_obj), or use oak_value_obj_resolve instead. */
 static inline struct oak_obj_t* oak_val_obj_ptr(const struct oak_value_t value)
 {
-  return oak_obj_table.slots[oak_value_obj_index(value)].obj;
+  return oak_obj_tables[oak_value_obj_table(value)]
+      .slots[oak_value_obj_index(value)]
+      .obj;
 }
 
 /* Nonce-checked resolution: null when the referenced object has died (the
- * slot's nonce moved on), even if the slot has since been reused. */
+ * slot's nonce moved on), even if the slot — or the whole table — has since
+ * been reused.  The capacity check guards weak references into a recycled
+ * table, whose slot array has been freed or reallocated smaller. */
 static inline struct oak_obj_t*
 oak_value_obj_resolve(const struct oak_value_t value)
 {
-  const struct oak_obj_slot_t* slot =
-      &oak_obj_table.slots[oak_value_obj_index(value)];
+  const struct oak_obj_table_t* table =
+      &oak_obj_tables[oak_value_obj_table(value)];
+  const u32 index = oak_value_obj_index(value);
+  if (index >= table->capacity)
+    return null;
+  const struct oak_obj_slot_t* slot = &table->slots[index];
   return slot->nonce == oak_value_obj_nonce(value) ? slot->obj : null;
 }
 

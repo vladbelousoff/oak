@@ -62,12 +62,16 @@ struct oak_vm_t
   /* Optional embedder context. Borrowed, never freed by the VM. Native
    * callbacks can recover their owning embedder via ctx->vm->user_data,
    * which lets multiple independent VMs coexist without sharing embedder
-   * state.  (The runtime itself keeps one process-wide global: the object
-   * table that backs oak_value_t object handles — see oak_value.h.) */
+   * state. */
   void* user_data;
   /* Opaque debug hook; null when no debugger is attached.  Installed via
    * oak_vm_set_debug_hook.  Borrowed, never freed by the VM. */
   struct oak_vm_debug_hook_t* debug_hook;
+  /* This VM's object table: objects created while the VM executes live in
+   * oak_obj_tables[object_table].  Acquired by oak_vm_init, detached by
+   * oak_vm_free (and recycled once its last object dies) — see the object
+   * table registry in oak_value.h. */
+  u32 object_table;
 };
 
 /* Zero-initialize a VM and wire it to an allocator.  The allocator pointer
