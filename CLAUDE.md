@@ -17,7 +17,7 @@ source → lexer → parser → compiler → bytecode → VM
 - **Lexer** (`src/lexer/`): tokenizes source into `oak_token_t` stream
 - **Parser** (`src/parser/`): declarative table-driven grammar producing an AST of `oak_ast_node_t`
 - **Compiler** (`src/compiler/`): walks the AST, performs type checking, emits bytecode into `oak_chunk_t`
-- **VM** (`src/vm/`): stack-based bytecode interpreter operating on 16-byte `oak_value_t` tagged unions
+- **VM** (`src/vm/`): stack-based bytecode interpreter operating on 8-byte packed `oak_value_t` words (3-bit tag; objects are referenced by slot index + nonce into a global object table)
 
 Public headers live in `include/`. Internal compiler headers are in `src/compiler/internal/`.
 

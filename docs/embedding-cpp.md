@@ -149,7 +149,7 @@ Oak code uses `Color.Green` with enum-aware type checking.
 
 ## Values
 
-`oak::Value` wraps the 16-byte `oak_value_t` with refcount-correct copy and
+`oak::Value` wraps the 8-byte `oak_value_t` with refcount-correct copy and
 move semantics:
 
 ```cpp

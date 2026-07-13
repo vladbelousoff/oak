@@ -8,35 +8,48 @@
 
 #include <string.h>
 
-/* ===== Tagged-union value representation =====
+/* ===== Packed 8-byte value representation =====
  *
- * Every Oak value is a 16-byte tag + payload.  Immediates (i32, f32, bool,
- * none) are stored inline; object values carry a full native pointer.
+ * Every Oak value is a single 64-bit word: a 3-bit tag in the low bits plus
+ * a payload.  Immediates (i32, f32, bool) keep their payload in the high 32
+ * bits; handles and inline native values carry a 61-bit payload; object
+ * references carry a slot index into the global object table plus a nonce
+ * that detects stale weak references.
+ *
+ * Word layout (bit 0 = least significant):
+ *   [2:0]          tag (oak_value_tag_t)
+ *   I32/F32/BOOL:  payload in [63:32]
+ *   HANDLE/NATIVE: payload in [63:3]
+ *   OBJ/WEAK:      object-table slot index in [34:3], nonce in [63:35]
  */
 
 /* Runtime tag for the payload of an oak_value_t.
  *
- * OAK_TAG_WEAK is a non-owning reference to an oak_obj_t: it bumps the
- * object's weak_refcount but not its strong refcount, and on dereference
- * the VM upgrades it to a strong reference (or to NONE if the target has
- * already been freed).  Weak references exist to break ownership cycles
- * — see the `weak` type modifier in the language tour. */
+ * OAK_TAG_WEAK is a non-owning reference to an oak_obj_t: it carries the
+ * same slot index + nonce as a strong reference but never touches the
+ * refcount.  When the object dies its table slot's nonce is bumped, so a
+ * stale weak reference is detected by a nonce mismatch and reads as none;
+ * on dereference the VM upgrades a live weak to a strong reference.  Weak
+ * references exist to break ownership cycles — see the `weak` type
+ * modifier in the language tour. */
 enum oak_value_tag_t
 {
   OAK_TAG_I32,
   OAK_TAG_F32,
   OAK_TAG_BOOL,
   OAK_TAG_NONE,
-  /* Inline 64-bit opaque handle for native value types (e.g. an ECS entity id).
-   * Stored by value in the payload — never heap-allocated and never refcounted.
-   * Must stay ordered before OAK_TAG_OBJ: the VM treats every tag < OAK_TAG_OBJ
-   * as a trivially-copyable immediate (no incref/decref). */
+  /* Inline opaque handle for native value types (e.g. an ECS entity id).
+   * Stored by value in the payload — never heap-allocated and never
+   * refcounted.  Only 61 payload bits fit next to the tag: constructing a
+   * handle with any of the top 3 bits set asserts in debug builds. */
   OAK_TAG_HANDLE,
+  /* The only refcounted tag: incref/decref act exclusively on OAK_TAG_OBJ
+   * values; every other tag is a trivially-copyable immediate. */
   OAK_TAG_OBJ,
   OAK_TAG_WEAK,
-  /* Inline native value type (OAK_BIND_TYPE_VALUE): an opaque pointer/handle
-   * payload stored directly in `as.obj`.  Not an oak_obj_t — it is never
-   * dereferenced, refcounted, or freed by the runtime.  Copies are bitwise. */
+  /* Inline native value type (OAK_BIND_TYPE_VALUE): an opaque pointer
+   * payload.  Not an oak_obj_t — it is never dereferenced, refcounted, or
+   * freed by the runtime.  Copies are bitwise. */
   OAK_TAG_NATIVE,
 };
 
@@ -67,22 +80,54 @@ struct oak_obj_t
 {
   enum oak_obj_type_t type;
   struct oak_refcount_t refcount;
-  struct oak_refcount_t weak_refcount;
+  /* This object's slot in the global object table (oak_obj_table). */
+  u32 slot_index;
   struct oak_allocator_t* allocator;
 };
 
+/* ===== Global object table =====
+ *
+ * Object values do not carry the oak_obj_t pointer; they carry a slot index
+ * into this table plus the slot's nonce at the time the reference was made.
+ * A slot's nonce is bumped when its object dies, so an outstanding weak
+ * reference resolves to null (nonce mismatch) instead of dangling — even if
+ * the slot has since been reused by a new object.  Strong references pin
+ * the object alive, so their nonce always matches and they resolve with a
+ * plain index load.
+ *
+ * The table is deliberately process-global: value accessors take no context
+ * parameter, and objects are created without a VM (e.g. chunk constants
+ * built by the compiler).  Like the refcounts it is not synchronized;
+ * multi-threaded object creation/destruction requires external locking. */
+
+struct oak_obj_slot_t
+{
+  struct oak_obj_t* obj; /* null while the slot is free */
+  u32 nonce;             /* wraps at 29 bits; bumped when the object dies */
+  u32 next_free;         /* freelist link, meaningful only while free */
+};
+
+struct oak_obj_table_t
+{
+  struct oak_obj_slot_t* slots;
+  u32 capacity;
+  u32 free_head; /* OAK_OBJ_SLOT_NONE when the freelist is empty */
+};
+
+#define OAK_OBJ_SLOT_NONE 0xFFFFFFFFu
+
+OAK_API extern struct oak_obj_table_t oak_obj_table;
+
 struct oak_value_t
 {
-  enum oak_value_tag_t tag;
-  union
-  {
-    i32 i;
-    float f;
-    int b;
-    u64 h; /* OAK_TAG_HANDLE payload (inline native value type) */
-    struct oak_obj_t* obj;
-  } as;
+  /* Packed tag + payload — see the layout comment at the top of the file.
+   * Access only through the constructors/predicates/extractors below. */
+  u64 bits;
 };
+
+#define OAK_VALUE_TAG_MASK  ((u64)0x7u)
+#define OAK_OBJ_NONCE_SHIFT 35u
+#define OAK_OBJ_NONCE_MASK  0x1FFFFFFFu /* 29 bits */
 
 /* ===== Utilities ===== */
 
@@ -93,68 +138,83 @@ static inline u32 oak_f32_to_bits(const float f)
   return b;
 }
 
+static inline float oak_f32_from_bits(const u32 b)
+{
+  float f;
+  memcpy(&f, &b, sizeof(f));
+  return f;
+}
+
+static inline enum oak_value_tag_t oak_value_tag(const struct oak_value_t value)
+{
+  return (enum oak_value_tag_t)(value.bits & OAK_VALUE_TAG_MASK);
+}
+
 /* ===== Value constructors ===== */
 
 static inline struct oak_value_t oak_value_i32(const i32 i)
 {
   struct oak_value_t value;
-  value.tag = OAK_TAG_I32;
-  value.as.i = i;
+  value.bits = ((u64)(u32)i << 32u) | OAK_TAG_I32;
   return value;
 }
 
 static inline struct oak_value_t oak_value_f32(const float f)
 {
   struct oak_value_t value;
-  value.tag = OAK_TAG_F32;
-  value.as.f = f;
+  value.bits = ((u64)oak_f32_to_bits(f) << 32u) | OAK_TAG_F32;
   return value;
 }
 
 static inline struct oak_value_t oak_value_bool(const int b)
 {
   struct oak_value_t value;
-  value.tag = OAK_TAG_BOOL;
-  value.as.b = b ? 1 : 0;
+  value.bits = ((u64)(b ? 1u : 0u) << 32u) | OAK_TAG_BOOL;
   return value;
 }
 
 static inline struct oak_value_t oak_value_none(void)
 {
   struct oak_value_t value;
-  value.tag = OAK_TAG_NONE;
+  value.bits = OAK_TAG_NONE;
   return value;
 }
 
 static inline struct oak_value_t oak_value_handle(const u64 h)
 {
   struct oak_value_t value;
-  value.tag = OAK_TAG_HANDLE;
-  value.as.h = h;
+  oak_assert((h >> 61u) == 0u); /* only 61 payload bits fit next to the tag */
+  value.bits = (h << 3u) | OAK_TAG_HANDLE;
+  return value;
+}
+
+static inline struct oak_value_t
+oak_value_obj_encode(const struct oak_obj_t* obj,
+                     const enum oak_value_tag_t tag)
+{
+  struct oak_value_t value;
+  const u32 index = obj->slot_index;
+  value.bits = ((u64)oak_obj_table.slots[index].nonce << OAK_OBJ_NONCE_SHIFT) |
+               ((u64)index << 3u) | tag;
   return value;
 }
 
 static inline struct oak_value_t oak_value_obj(struct oak_obj_t* obj)
 {
-  struct oak_value_t value;
-  value.tag = OAK_TAG_OBJ;
-  value.as.obj = obj;
-  return value;
+  return oak_value_obj_encode(obj, OAK_TAG_OBJ);
 }
 
 static inline struct oak_value_t oak_value_weak_obj(struct oak_obj_t* obj)
 {
-  struct oak_value_t value;
-  value.tag = OAK_TAG_WEAK;
-  value.as.obj = obj;
-  return value;
+  return oak_value_obj_encode(obj, OAK_TAG_WEAK);
 }
 
 static inline struct oak_value_t oak_value_native(void* payload)
 {
   struct oak_value_t value;
-  value.tag = OAK_TAG_NATIVE;
-  value.as.obj = (struct oak_obj_t*)payload;
+  const u64 p = (u64)(usize)payload;
+  oak_assert((p >> 61u) == 0u); /* only 61 payload bits fit next to the tag */
+  value.bits = (p << 3u) | OAK_TAG_NATIVE;
   return value;
 }
 
@@ -170,74 +230,99 @@ static inline struct oak_value_t oak_value_native(void* payload)
 
 static inline int oak_is_bool(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_BOOL;
+  return oak_value_tag(value) == OAK_TAG_BOOL;
 }
 
 static inline int oak_is_number(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_I32 || value.tag == OAK_TAG_F32;
+  return oak_value_tag(value) == OAK_TAG_I32 ||
+         oak_value_tag(value) == OAK_TAG_F32;
 }
 
 static inline int oak_is_i32(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_I32;
+  return oak_value_tag(value) == OAK_TAG_I32;
 }
 
 static inline int oak_is_f32(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_F32;
+  return oak_value_tag(value) == OAK_TAG_F32;
 }
 
 static inline int oak_is_none(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_NONE;
+  return oak_value_tag(value) == OAK_TAG_NONE;
 }
 
 static inline int oak_is_handle(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_HANDLE;
+  return oak_value_tag(value) == OAK_TAG_HANDLE;
 }
 
 static inline u64 oak_value_as_handle(const struct oak_value_t value)
 {
   oak_assert(oak_is_handle(value));
-  return value.as.h;
+  return value.bits >> 3u;
 }
 
 static inline int oak_is_weak_obj(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_WEAK;
+  return oak_value_tag(value) == OAK_TAG_WEAK;
 }
 
 static inline int oak_is_native_value(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_NATIVE;
+  return oak_value_tag(value) == OAK_TAG_NATIVE;
 }
 
 static inline void* oak_as_native_value(const struct oak_value_t value)
 {
   oak_assert(oak_is_native_value(value));
-  return (void*)value.as.obj;
+  return (void*)(usize)(value.bits >> 3u);
 }
 
+static inline u32 oak_value_obj_index(const struct oak_value_t value)
+{
+  return (u32)(value.bits >> 3u);
+}
+
+static inline u32 oak_value_obj_nonce(const struct oak_value_t value)
+{
+  return (u32)(value.bits >> OAK_OBJ_NONCE_SHIFT);
+}
+
+/* Resolve an object value to its oak_obj_t without a nonce check.  Strong
+ * references pin the object, so their slot cannot have been recycled; for
+ * weak references the caller must have verified liveness (oak_is_obj), or
+ * use oak_value_obj_resolve instead. */
 static inline struct oak_obj_t* oak_val_obj_ptr(const struct oak_value_t value)
 {
-  return value.as.obj;
+  return oak_obj_table.slots[oak_value_obj_index(value)].obj;
+}
+
+/* Nonce-checked resolution: null when the referenced object has died (the
+ * slot's nonce moved on), even if the slot has since been reused. */
+static inline struct oak_obj_t*
+oak_value_obj_resolve(const struct oak_value_t value)
+{
+  const struct oak_obj_slot_t* slot =
+      &oak_obj_table.slots[oak_value_obj_index(value)];
+  return slot->nonce == oak_value_obj_nonce(value) ? slot->obj : null;
 }
 
 static inline int oak_is_obj(const struct oak_value_t value)
 {
-  if (value.tag == OAK_TAG_OBJ)
+  if (oak_value_tag(value) == OAK_TAG_OBJ)
     return 1;
-  if (value.tag == OAK_TAG_WEAK)
-    return oak_refcount_load(&value.as.obj->refcount) != 0;
+  if (oak_value_tag(value) == OAK_TAG_WEAK)
+    return oak_value_obj_resolve(value) != null;
   return 0;
 }
 
 static inline int oak_is_expired_weak(const struct oak_value_t value)
 {
-  return value.tag == OAK_TAG_WEAK &&
-         oak_refcount_load(&value.as.obj->refcount) == 0;
+  return oak_value_tag(value) == OAK_TAG_WEAK &&
+         oak_value_obj_resolve(value) == null;
 }
 
 static inline int oak_is_none_like(const struct oak_value_t value)
@@ -293,25 +378,25 @@ static inline int oak_is_trait_object(const struct oak_value_t value)
 static inline int oak_as_bool(const struct oak_value_t value)
 {
   oak_assert(oak_is_bool(value));
-  return value.as.b;
+  return (int)(value.bits >> 32u);
 }
 
 static inline int oak_as_i32(const struct oak_value_t value)
 {
   oak_assert(oak_is_i32(value));
-  return (int)value.as.i;
+  return (int)(i32)(u32)(value.bits >> 32u);
 }
 
 static inline float oak_as_f32(const struct oak_value_t value)
 {
   oak_assert(oak_is_f32(value));
-  return value.as.f;
+  return oak_f32_from_bits((u32)(value.bits >> 32u));
 }
 
 static inline struct oak_obj_t* oak_as_obj(const struct oak_value_t value)
 {
   oak_assert(oak_is_obj(value));
-  return value.as.obj;
+  return oak_val_obj_ptr(value);
 }
 
 struct oak_obj_string_t
@@ -505,29 +590,30 @@ static inline char* oak_as_cstring(const struct oak_value_t value)
 
 OAK_API void oak_obj_incref(struct oak_obj_t* obj);
 OAK_API void oak_obj_decref(struct oak_obj_t* obj);
-OAK_API void oak_weak_decref(struct oak_obj_t* obj);
 
 static inline void oak_value_incref(const struct oak_value_t value)
 {
-  if (value.tag == OAK_TAG_OBJ)
-    oak_obj_incref(value.as.obj);
-  else if (value.tag == OAK_TAG_WEAK)
-    oak_refcount_inc(&value.as.obj->weak_refcount);
+  if (oak_value_tag(value) == OAK_TAG_OBJ)
+    oak_obj_incref(oak_val_obj_ptr(value));
 }
 
 static inline void oak_value_decref(const struct oak_value_t value)
 {
-  if (value.tag == OAK_TAG_OBJ)
-    oak_obj_decref(value.as.obj);
-  else if (value.tag == OAK_TAG_WEAK)
-    oak_weak_decref(value.as.obj);
+  if (oak_value_tag(value) == OAK_TAG_OBJ)
+    oak_obj_decref(oak_val_obj_ptr(value));
 }
 
+/* Weak references share the strong reference's index + nonce, so weakening
+ * is a tag swap; no refcount is touched (weaks are trivially copyable). */
 static inline struct oak_value_t
 oak_value_weaken(const struct oak_value_t value)
 {
   if (oak_is_obj(value))
-    return OAK_VALUE_WEAK_OBJ(value.as.obj);
+  {
+    struct oak_value_t weak;
+    weak.bits = (value.bits & ~OAK_VALUE_TAG_MASK) | OAK_TAG_WEAK;
+    return weak;
+  }
   return value;
 }
 

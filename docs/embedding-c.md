@@ -221,7 +221,8 @@ time the callback receives `self` as `args[0]` (so `argc == arity + 1`), and
 ## Inline value types
 
 `OAK_BIND_TYPE_VALUE` registers a type whose instances live directly inside
-the 16-byte `oak_value_t` — no heap wrapper, no refcount, no destructor.
+the 8-byte `oak_value_t` — no heap wrapper, no refcount, no destructor.
+The payload must fit in 61 bits (pointers do; arbitrary u64 ids may not).
 Value types expose data through methods only (they cannot declare fields).
 Wrap and unwrap the opaque payload with `oak_native_value_new()` /
 `oak_native_value()`. See

@@ -327,7 +327,7 @@ enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
         if (!cached_local_is_valid(vm, chunk, ip, sp, idx))
           return OAK_VM_RUNTIME_ERROR;
         const struct oak_value_t v = vm->stack[idx];
-        if (v.tag < OAK_TAG_OBJ)
+        if (oak_value_tag(v) != OAK_TAG_OBJ)
         {
           if (cached_push_owned(vm, chunk, ip, &sp, v) != OAK_VM_OK)
             return OAK_VM_RUNTIME_ERROR;
@@ -377,8 +377,9 @@ enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
               oak_vm_value_kind_desc(value));
           return OAK_VM_RUNTIME_ERROR;
         }
+        /* The weak copy carries no refcount; dropping the strong reference
+         * may free the object here, leaving an already-expired weak. */
         sp[-1] = oak_value_weaken(value);
-        oak_refcount_inc(&oak_val_obj_ptr(value)->weak_refcount);
         oak_value_decref(value);
         break;
       }
@@ -720,10 +721,11 @@ enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
         const usize fn_slot = depth - (usize)argc - 1u;
         const struct oak_value_t fn_val = vm->stack[fn_slot];
 
-        if (fn_val.tag == OAK_TAG_OBJ &&
-            fn_val.as.obj->type == OAK_OBJ_FN)
+        if (oak_value_tag(fn_val) == OAK_TAG_OBJ &&
+            oak_val_obj_ptr(fn_val)->type == OAK_OBJ_FN)
         {
-          struct oak_obj_fn_t* fn = (struct oak_obj_fn_t*)fn_val.as.obj;
+          struct oak_obj_fn_t* fn =
+              (struct oak_obj_fn_t*)oak_val_obj_ptr(fn_val);
           if (fn->arity == (int)argc &&
               fn->attr_hook_count == 0 &&
               vm->frame_count < OAK_FRAMES_MAX &&
@@ -776,10 +778,8 @@ enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
         for (usize i = fn_slot; i < depth_before - 1u; ++i)
         {
           const struct oak_value_t v = vm->stack[i];
-          if (v.tag == OAK_TAG_OBJ)
-            oak_obj_decref(v.as.obj);
-          else if (v.tag == OAK_TAG_WEAK)
-            oak_weak_decref(v.as.obj);
+          if (oak_value_tag(v) == OAK_TAG_OBJ)
+            oak_obj_decref(oak_val_obj_ptr(v));
         }
 
         vm->stack[fn_slot] = result;

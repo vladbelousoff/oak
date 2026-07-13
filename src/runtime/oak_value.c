@@ -9,14 +9,60 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* The global object table (see oak_value.h).  Its slot array is allocated
+ * with plain realloc rather than an oak_allocator_t: the table is process-
+ * wide and outlives every allocator (including leak-tracking ones, which
+ * would otherwise report it), and it is never freed. */
+struct oak_obj_table_t oak_obj_table = { null, 0u, OAK_OBJ_SLOT_NONE };
+
+static u32 oak_obj_table_insert(struct oak_obj_t* obj)
+{
+  if (oak_obj_table.free_head == OAK_OBJ_SLOT_NONE)
+  {
+    const u32 old_cap = oak_obj_table.capacity;
+    const u32 new_cap = old_cap == 0u ? 256u : old_cap * 2u;
+    struct oak_obj_slot_t* slots =
+        realloc(oak_obj_table.slots, (usize)new_cap * sizeof(*slots));
+    if (!slots)
+      oak_panic("oak: object table allocation failed");
+    /* Push the fresh slots in reverse so the lowest index is handed out
+     * first.  Nonces start at 0 and only move when an object dies. */
+    for (u32 i = new_cap; i-- > old_cap;)
+    {
+      slots[i].obj = null;
+      slots[i].nonce = 0u;
+      slots[i].next_free = oak_obj_table.free_head;
+      oak_obj_table.free_head = i;
+    }
+    oak_obj_table.slots = slots;
+    oak_obj_table.capacity = new_cap;
+  }
+
+  const u32 index = oak_obj_table.free_head;
+  struct oak_obj_slot_t* slot = &oak_obj_table.slots[index];
+  oak_obj_table.free_head = slot->next_free;
+  slot->obj = obj;
+  return index;
+}
+
+static void oak_obj_table_release(const u32 index)
+{
+  struct oak_obj_slot_t* slot = &oak_obj_table.slots[index];
+  slot->obj = null;
+  /* Expire every outstanding weak reference to this slot's object. */
+  slot->nonce = (slot->nonce + 1u) & OAK_OBJ_NONCE_MASK;
+  slot->next_free = oak_obj_table.free_head;
+  oak_obj_table.free_head = index;
+}
+
 static void oak_obj_init(struct oak_obj_t* obj,
                          const enum oak_obj_type_t type,
                          struct oak_allocator_t* allocator)
 {
   obj->type = type;
   oak_refcount_init(&obj->refcount, 1);
-  oak_refcount_init(&obj->weak_refcount, 0);
   obj->allocator = allocator;
+  obj->slot_index = oak_obj_table_insert(obj);
 }
 
 void oak_obj_incref(struct oak_obj_t* obj)
@@ -25,7 +71,7 @@ void oak_obj_incref(struct oak_obj_t* obj)
 }
 
 /* Release the object's owned references and free any owned buffers, without
- * freeing the oak_obj_t header itself (kept until weak_refcount drains). */
+ * freeing the oak_obj_t header itself. */
 static void oak_obj_destroy_payload(struct oak_obj_t* obj)
 {
   struct oak_allocator_t* a = obj->allocator;
@@ -92,20 +138,12 @@ void oak_obj_decref(struct oak_obj_t* obj)
   if (!oak_refcount_dec(&obj->refcount))
     return;
 
-  oak_refcount_inc(&obj->weak_refcount);
+  /* Release the slot before running destructors so any weak reference
+   * touched during teardown (including ones to this object) already reads
+   * as expired. */
+  oak_obj_table_release(obj->slot_index);
   oak_obj_destroy_payload(obj);
-  if (!oak_refcount_dec(&obj->weak_refcount))
-    return;
-
   OAK_FREE(obj->allocator, obj);
-}
-
-void oak_weak_decref(struct oak_obj_t* obj)
-{
-  if (!oak_refcount_dec(&obj->weak_refcount))
-    return;
-  if (oak_refcount_load(&obj->refcount) == 0)
-    OAK_FREE(obj->allocator, obj);
 }
 
 static u32 hash_string(const char* chars, const usize length)
@@ -597,7 +635,8 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
   /* Numbers compare by value across the i32/f32 divide, matching the
    * ordering operators (< <= > >=). Both types convert to double exactly,
    * so the mixed comparison is precise even beyond f32's 24-bit mantissa. */
-  if (oak_is_number(a) && oak_is_number(b) && a.tag != b.tag)
+  if (oak_is_number(a) && oak_is_number(b) &&
+      oak_value_tag(a) != oak_value_tag(b))
   {
     const double da = oak_is_i32(a) ? (double)oak_as_i32(a)
                                     : (double)oak_as_f32(a);
@@ -606,17 +645,18 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
     return da == db;
   }
 
-  if (a.tag != b.tag)
+  if (oak_value_tag(a) != oak_value_tag(b))
     return 0;
 
-  switch (a.tag)
+  switch (oak_value_tag(a))
   {
     case OAK_TAG_BOOL:   return oak_as_bool(a) == oak_as_bool(b);
     case OAK_TAG_I32:    return oak_as_i32(a) == oak_as_i32(b);
     case OAK_TAG_F32:    return oak_as_f32(a) == oak_as_f32(b);
     case OAK_TAG_NONE:   return 1;
-    case OAK_TAG_NATIVE: return a.as.obj == b.as.obj;
-    case OAK_TAG_HANDLE: return a.as.h == b.as.h;
+    /* Same tag, so identity is payload equality on the packed word. */
+    case OAK_TAG_NATIVE: return a.bits == b.bits;
+    case OAK_TAG_HANDLE: return a.bits == b.bits;
     default:             return 0;
   }
 }

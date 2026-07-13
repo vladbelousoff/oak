@@ -37,6 +37,26 @@
         </Expand>
     </Type>
 
+    <Type Name="oak_value_t">
+        <DisplayString Condition="(bits &amp; 7) == 0">i32 {*(int*)((char*)&amp;bits + 4)}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 1">f32 {*(float*)((char*)&amp;bits + 4)}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 2">bool {(bits >> 32) != 0}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 3">none</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 4">handle {bits >> 3}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 5">obj slot={(unsigned int)(bits >> 3)} nonce={(unsigned int)(bits >> 35)}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 6">weak slot={(unsigned int)(bits >> 3)} nonce={(unsigned int)(bits >> 35)}</DisplayString>
+        <DisplayString Condition="(bits &amp; 7) == 7">native {(void*)(bits >> 3)}</DisplayString>
+        <Expand>
+            <Item Name="tag">(oak_value_tag_t)(bits &amp; 7)</Item>
+            <Item Name="obj" Condition="(bits &amp; 7) == 5 || (bits &amp; 7) == 6">
+                oak_obj_table.slots[(unsigned int)(bits >> 3)].obj
+            </Item>
+            <Item Name="live" Condition="(bits &amp; 7) == 6">
+                oak_obj_table.slots[(unsigned int)(bits >> 3)].nonce == (unsigned int)(bits >> 35)
+            </Item>
+        </Expand>
+    </Type>
+
     <Type Name="_oak_ast_node_t">
         <Intrinsic Name="op_token" Expression="oak_grammar[kind].op == OAK_GRAMMAR_TOKEN">
             <Parameter Name="kind" Type="oak_node_kind_t"/>

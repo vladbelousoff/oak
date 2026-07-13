@@ -18,10 +18,11 @@ struct oak_bind_type_t;
 enum oak_bind_type_kind_t
 {
   OAK_BIND_TYPE_RECORD,
-  /* An inline value type: instances live directly in the 16-byte oak_value_t
-   * (an opaque pointer/handle payload) with no heap wrapper, no refcount, and
-   * no destructor.  Value types expose data through methods only — they cannot
-   * declare data fields (oak_bind_field rejects them). */
+  /* An inline value type: instances live directly in the 8-byte oak_value_t
+   * (an opaque pointer/handle payload of at most 61 bits) with no heap
+   * wrapper, no refcount, and no destructor.  Value types expose data through
+   * methods only — they cannot declare data fields (oak_bind_field rejects
+   * them). */
   OAK_BIND_TYPE_VALUE,
 };
 

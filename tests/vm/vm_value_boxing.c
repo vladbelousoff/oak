@@ -4,9 +4,9 @@
 #include "oak_value.h"
 #include "oak_allocator.h"
 
-OAK_TEST_DECL(ValueSizeIs16Bytes)
+OAK_TEST_DECL(ValueSizeIs8Bytes)
 {
-  OAK_CHECK(sizeof(struct oak_value_t) == 16);
+  OAK_CHECK(sizeof(struct oak_value_t) == 8);
   return OAK_TEST_OK;
 }
 
@@ -93,6 +93,57 @@ OAK_TEST_DECL(WeakPointerRoundTrip)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(WeakExpiresWhenObjectDies)
+{
+  struct oak_allocator_t allocator;
+  oak_system_allocator_init(&allocator);
+  struct oak_obj_string_t* str = oak_string_new(&allocator, "gone");
+
+  const struct oak_value_t weak = oak_value_weaken(OAK_VALUE_OBJ(str));
+  OAK_CHECK(oak_is_obj(weak));
+  OAK_CHECK(!oak_is_expired_weak(weak));
+
+  oak_obj_decref((struct oak_obj_t*)str);
+
+  OAK_CHECK(!oak_is_obj(weak));
+  OAK_CHECK(oak_is_expired_weak(weak));
+  OAK_CHECK(oak_is_none_like(weak));
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(WeakStaysExpiredAfterSlotReuse)
+{
+  struct oak_allocator_t allocator;
+  oak_system_allocator_init(&allocator);
+  struct oak_obj_string_t* first = oak_string_new(&allocator, "first");
+  const u32 first_slot = first->obj.slot_index;
+
+  const struct oak_value_t weak = oak_value_weaken(OAK_VALUE_OBJ(first));
+  oak_obj_decref((struct oak_obj_t*)first);
+
+  /* The freed slot is at the head of the freelist, so the next allocation
+   * reuses it; the bumped nonce must keep the old weak expired. */
+  struct oak_obj_string_t* second = oak_string_new(&allocator, "second");
+  OAK_CHECK(second->obj.slot_index == first_slot);
+  OAK_CHECK(oak_is_expired_weak(weak));
+  OAK_CHECK(oak_is_obj(OAK_VALUE_OBJ(second)));
+
+  oak_obj_decref((struct oak_obj_t*)second);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(HandleRoundTrip61Bits)
+{
+  const u64 values[] = { 0u, 1u, 0xDEADBEEFu, (1ull << 61) - 1u };
+  for (int i = 0; i < (int)oak_count_of(values); ++i)
+  {
+    const struct oak_value_t v = oak_value_handle(values[i]);
+    OAK_CHECK(oak_is_handle(v));
+    OAK_CHECK(oak_value_as_handle(v) == values[i]);
+  }
+  return OAK_TEST_OK;
+}
+
 OAK_TEST_DECL(TagsAreDistinct)
 {
   const struct oak_value_t i = OAK_VALUE_I32(42);
@@ -112,13 +163,16 @@ int main(const int argc, char* argv[])
   (void)argc;
   (void)argv;
   static struct oak_test_t tests[] = {
-    OAK_TEST_ENTRY(ValueSizeIs16Bytes),
+    OAK_TEST_ENTRY(ValueSizeIs8Bytes),
     OAK_TEST_ENTRY(IntegerRoundTrip),
     OAK_TEST_ENTRY(FloatRoundTrip),
     OAK_TEST_ENTRY(BoolRoundTrip),
     OAK_TEST_ENTRY(NoneValue),
     OAK_TEST_ENTRY(ObjectPointerRoundTrip),
     OAK_TEST_ENTRY(WeakPointerRoundTrip),
+    OAK_TEST_ENTRY(WeakExpiresWhenObjectDies),
+    OAK_TEST_ENTRY(WeakStaysExpiredAfterSlotReuse),
+    OAK_TEST_ENTRY(HandleRoundTrip61Bits),
     OAK_TEST_ENTRY(TagsAreDistinct),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));
