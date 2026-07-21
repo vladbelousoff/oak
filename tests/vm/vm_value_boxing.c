@@ -200,6 +200,37 @@ OAK_TEST_DECL(TableRegistryRecyclesUnderChurn)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(ObjectRefcopyCompatibilityRejectsOtherVmTables)
+{
+  struct oak_allocator_t allocator;
+  oak_system_allocator_init(&allocator);
+
+  const u32 table_a = oak_obj_table_acquire();
+  const u32 table_b = oak_obj_table_acquire();
+  OAK_CHECK(table_a != 0);
+  OAK_CHECK(table_b != 0);
+  OAK_CHECK(table_a != table_b);
+
+  const u32 prev = oak_obj_table_set_current(table_a);
+  struct oak_obj_string_t* vm_owned = oak_string_new(&allocator, "vm");
+  oak_obj_table_set_current(prev);
+
+  struct oak_obj_string_t* shared = oak_string_new(&allocator, "shared");
+
+  const struct oak_value_t vm_value = OAK_VALUE_OBJ(vm_owned);
+  const struct oak_value_t shared_value = OAK_VALUE_OBJ(shared);
+  OAK_CHECK(oak_value_can_refcopy_to_table(vm_value, table_a));
+  OAK_CHECK(!oak_value_can_refcopy_to_table(vm_value, table_b));
+  OAK_CHECK(oak_value_can_refcopy_to_table(shared_value, table_a));
+  OAK_CHECK(oak_value_can_refcopy_to_table(oak_value_weaken(vm_value), table_b));
+
+  oak_obj_decref((struct oak_obj_t*)vm_owned);
+  oak_obj_decref((struct oak_obj_t*)shared);
+  oak_obj_table_detach(table_a);
+  oak_obj_table_detach(table_b);
+  return OAK_TEST_OK;
+}
+
 OAK_TEST_DECL(HandleRoundTrip61Bits)
 {
   const u64 values[] = { 0u, 1u, 0xDEADBEEFu, (1ull << 61) - 1u };
@@ -242,6 +273,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(WeakStaysExpiredAfterSlotReuse),
     OAK_TEST_ENTRY(PerVmTableIsolationAndRecycle),
     OAK_TEST_ENTRY(TableRegistryRecyclesUnderChurn),
+    OAK_TEST_ENTRY(ObjectRefcopyCompatibilityRejectsOtherVmTables),
     OAK_TEST_ENTRY(HandleRoundTrip61Bits),
     OAK_TEST_ENTRY(TagsAreDistinct),
   };

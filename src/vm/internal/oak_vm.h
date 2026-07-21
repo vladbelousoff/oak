@@ -16,6 +16,7 @@ static inline enum oak_vm_result_t oak_vm_push(struct oak_vm_t* vm,
     oak_vm_report_stack_overflow(vm);
     return OAK_VM_RUNTIME_ERROR;
   }
+  oak_value_assert_can_refcopy_to_table(value, vm->object_table);
   oak_value_incref(value);
   *vm->sp++ = value;
   return OAK_VM_OK;

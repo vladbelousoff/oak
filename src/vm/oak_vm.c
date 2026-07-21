@@ -80,6 +80,8 @@ static enum oak_vm_result_t cached_push(struct oak_vm_t* vm,
     return OAK_VM_RUNTIME_ERROR;
   }
   if (!owned)
+    oak_value_assert_can_refcopy_to_table(value, vm->object_table);
+  if (!owned)
     oak_value_incref(value);
   *(*sp)++ = value;
   return OAK_VM_OK;
@@ -193,7 +195,7 @@ static int compare_numeric_values(struct oak_value_t a,
       case OAK_BINOP_LESS_EQUAL:    *result = left <= right; return 1;
       case OAK_BINOP_GREATER:       *result = left > right;  return 1;
       case OAK_BINOP_GREATER_EQUAL: *result = left >= right; return 1;
-      default: oak_panic("invalid integer comparison binop");
+      default: oak_panic();
     }
   }
 
@@ -207,7 +209,7 @@ static int compare_numeric_values(struct oak_value_t a,
     case OAK_BINOP_LESS_EQUAL:    *result = left <= right; return 1;
     case OAK_BINOP_GREATER:       *result = left > right;  return 1;
     case OAK_BINOP_GREATER_EQUAL: *result = left >= right; return 1;
-    default: oak_panic("invalid numeric comparison binop");
+    default: oak_panic();
   }
 }
 
@@ -228,7 +230,7 @@ static enum oak_binop_t comparison_binop(u8 instruction)
     case OAK_OP_GREATER_EQUAL_JUMP_IF_FALSE:
       return OAK_BINOP_GREATER_EQUAL;
     default:
-      oak_panic("invalid comparison opcode");
+      oak_panic();
   }
 }
 

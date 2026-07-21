@@ -35,7 +35,7 @@
 #endif
 
 OAK_API const char* oak_path_basename(const char* path);
-OAK_NORETURN OAK_API void oak_panic(const char* message);
+OAK_NORETURN OAK_API void oak_panic(void);
 
 enum oak_log_level_t
 {

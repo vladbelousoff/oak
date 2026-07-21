@@ -336,6 +336,26 @@ static inline u32 oak_value_obj_nonce(const struct oak_value_t value)
   return (u32)(value.bits >> OAK_OBJ_NONCE_SHIFT);
 }
 
+/* Refcopying a VM-owned object into another VM would make the destination
+ * hold a strong reference into the wrong object table.  Table 0 is shared for
+ * constants and native definitions and may be copied into any VM. */
+static inline int
+oak_value_can_refcopy_to_table(const struct oak_value_t value,
+                               const u32 dest_table)
+{
+  if (oak_value_tag(value) != OAK_TAG_OBJ)
+    return 1;
+  const u32 src_table = oak_value_obj_table(value);
+  return src_table == 0u || src_table == dest_table;
+}
+
+static inline void
+oak_value_assert_can_refcopy_to_table(const struct oak_value_t value,
+                                      const u32 dest_table)
+{
+  oak_assert(oak_value_can_refcopy_to_table(value, dest_table));
+}
+
 /* Resolve an object value to its oak_obj_t without a nonce check.  Strong
  * references pin the object, so their slot (and table) cannot have been
  * recycled; for weak references the caller must have verified liveness

@@ -91,11 +91,11 @@ static u32 oak_obj_table_insert(const u32 table_id, struct oak_obj_t* obj)
     const u32 old_cap = table->capacity;
     const u32 new_cap = old_cap == 0u ? 256u : old_cap * 2u;
     if (new_cap > OAK_OBJ_INDEX_MASK + 1u)
-      oak_panic("oak: object table full");
+      oak_panic();
     struct oak_obj_slot_t* slots =
         realloc(table->slots, (usize)new_cap * sizeof(*slots));
     if (!slots)
-      oak_panic("oak: object table allocation failed");
+      oak_panic();
     /* Push the fresh slots in reverse so the lowest index is handed out
      * first.  Nonces start at the table's floor and only move when an
      * object dies. */
@@ -317,6 +317,7 @@ struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a)
 
 void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
 {
+  oak_value_assert_can_refcopy_to_table(value, arr->obj.table_id);
   if (arr->length >= arr->capacity)
   {
     const usize new_cap = arr->capacity == 0 ? 8u : arr->capacity * 2u;
@@ -405,6 +406,9 @@ oak_trait_object_new(struct oak_allocator_t* a,
   struct oak_obj_trait_object_t* to =
       OAK_ALLOC(a, sizeof(struct oak_obj_trait_object_t));
   oak_obj_init(&to->obj, OAK_OBJ_TRAIT_OBJECT, a);
+  oak_value_assert_can_refcopy_to_table(value, to->obj.table_id);
+  oak_assert(vtable->obj.table_id == 0u ||
+             vtable->obj.table_id == to->obj.table_id);
   oak_value_incref(value);
   to->value = value;
   oak_obj_incref((struct oak_obj_t*)vtable);
@@ -627,6 +631,7 @@ int oak_map_set(struct oak_obj_map_t* map,
 
   if (entry_idx != MAP_HT_EMPTY)
   {
+    oak_value_assert_can_refcopy_to_table(value, map->obj.table_id);
     oak_value_incref(value);
     oak_value_decref(map->entries[entry_idx].value);
     map->entries[entry_idx].value = value;
@@ -641,6 +646,8 @@ int oak_map_set(struct oak_obj_map_t* map,
     map->capacity = new_cap;
   }
 
+  oak_value_assert_can_refcopy_to_table(key, map->obj.table_id);
+  oak_value_assert_can_refcopy_to_table(value, map->obj.table_id);
   oak_value_incref(key);
   oak_value_incref(value);
   map->entries[map->length].key = key;

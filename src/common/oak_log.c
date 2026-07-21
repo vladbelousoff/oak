@@ -9,15 +9,14 @@
 #include <string.h>
 #include <time.h>
 
-OAK_NORETURN void oak_panic(const char* message)
+OAK_NORETURN void oak_panic(void)
 {
   _oak_log_printf(OAK_LOG_ERROR,
 #ifdef OAK_DEBUG_LOGGING
                   __FILE__,
                   __LINE__,
 #endif
-                  "panic: %s",
-                  message);
+                  "panic");
   abort();
 }
 

@@ -257,6 +257,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
           vm->allocator, (int)count, type_name, (const char* const*)lay->name);
       for (int i = 0; i < (int)count; ++i)
       {
+        oak_value_assert_can_refcopy_to_table(base[i], s->obj.table_id);
         oak_value_incref(base[i]);
         s->fields[i] = base[i];
       }

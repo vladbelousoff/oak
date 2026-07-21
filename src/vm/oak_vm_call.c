@@ -172,6 +172,8 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
   vm->sp++;
 
   /* Incref fn and concrete; decref the trait object (we replaced it). */
+  oak_value_assert_can_refcopy_to_table(fn_val, vm->object_table);
+  oak_value_assert_can_refcopy_to_table(concrete_val, vm->object_table);
   oak_value_incref(fn_val);
   oak_value_incref(concrete_val);
   oak_value_decref(trait_obj_val);
