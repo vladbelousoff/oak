@@ -49,6 +49,15 @@ static struct oak_type_t* translate_param_types(struct oak_compiler_t* c,
   return dst;
 }
 
+static u8* copy_mut_flags(struct oak_compiler_t* c, const u8* src, int count)
+{
+  if (!src || count <= 0)
+    return null;
+  u8* dst = OAK_ALLOC(c->allocator, sizeof(u8) * (usize)count);
+  memcpy(dst, src, sizeof(u8) * (usize)count);
+  return dst;
+}
+
 static void import_trait_from_dep(struct oak_compiler_t* c,
                                   const struct oak_module_t* dep,
                                   const struct oak_module_export_trait_t* exp)
@@ -240,7 +249,7 @@ static void import_record_from_dep(struct oak_compiler_t* c,
     mfn.is_static = me->is_static;
     mfn.decl = null;
     mfn.param_types = translate_param_types(c, dep, me->param_types, me->arity);
-    mfn.param_mut_flags = me->param_mut_flags;
+    mfn.param_mut_flags = copy_mut_flags(c, me->param_mut_flags, me->arity);
     mfn.source_module_id = dep->module_id;
     mfn.source_const_idx = me->const_idx;
     mfn.attrs = null;
@@ -385,7 +394,7 @@ static void import_fn_from_dep(struct oak_compiler_t* c,
     .return_type = import_type_ref(c, dep, exp->return_type),
     .decl = null,
     .param_types = translate_param_types(c, dep, exp->param_types, exp->arity),
-    .param_mut_flags = exp->param_mut_flags,
+    .param_mut_flags = copy_mut_flags(c, exp->param_mut_flags, exp->arity),
     .source_module_id = dep->module_id,
     .source_const_idx = exp->const_idx,
   };
@@ -520,7 +529,8 @@ void oak_resolve_new_style_imports(struct oak_compiler_t* c,
     const struct oak_ast_node_t* item =
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (item->kind != OAK_NODE_IMPORT_SELECTIVE &&
-        item->kind != OAK_NODE_IMPORT_WILDCARD)
+        item->kind != OAK_NODE_IMPORT_WILDCARD &&
+        item->kind != OAK_NODE_IMPORT_DECL)
       continue;
 
     const struct oak_module_t* dep = resolve_dep_for_import(c, import_idx);
@@ -528,7 +538,9 @@ void oak_resolve_new_style_imports(struct oak_compiler_t* c,
     if (!dep)
       continue;
 
-    if (item->kind == OAK_NODE_IMPORT_WILDCARD)
+    if (item->kind == OAK_NODE_IMPORT_DECL)
+      continue;
+    else if (item->kind == OAK_NODE_IMPORT_WILDCARD)
       import_all_from_dep(c, dep);
     else
       import_selective_from_dep(c, dep, item->lhs);
@@ -639,6 +651,8 @@ static void export_record_methods(struct oak_compiler_t* c,
   for (int mi = 0; mi < oak_dynarr_count(r->methods); ++mi)
   {
     const struct oak_registered_fn_t* m = &r->methods[mi];
+    if (!m->is_exported)
+      continue;
     struct oak_module_export_record_method_t mexp = { 0 };
     mexp.name = m->name;
     mexp.const_idx = m->const_idx;

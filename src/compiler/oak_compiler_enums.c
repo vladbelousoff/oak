@@ -244,6 +244,8 @@ void oak_register_program_enums(struct oak_compiler_t* c,
               c, name_node->token, re.name, OAK_SYMBOL_ENUM,
               oak_dynarr_count(c->enums.enums), owner_module_id, 0))
         return;
+      if (oak_decl_is_exported(raw_item))
+        oak_compiler_mark_symbol_exported(c, re.name);
       oak_assert(oak_dynarr_push(&c->enums.enums, &re));
     }
 

@@ -178,11 +178,13 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> ATTR_DECL | IMPORT_SELECTIVE | IMPORT_WILDCARD | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
+  // PROGRAM_ITEM -> ATTR_DECL | EXPORT_DECL | IMPORT_DECL | IMPORT_SELECTIVE | IMPORT_WILDCARD | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_ATTR_DECL,
+      OAK_NODE_EXPORT_DECL,
+      OAK_NODE_IMPORT_DECL,
       OAK_NODE_IMPORT_SELECTIVE,
       OAK_NODE_IMPORT_WILDCARD,
       OAK_NODE_METHOD_DECL,
@@ -194,15 +196,15 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_STMT,
     },
   },
-  // IMPORT_DECL -> 'import' IMPORT_PATH ('as' IDENT)? ';'
+  // IMPORT_DECL -> 'import' IMPORT_PATH 'as' IDENT ';'
   //   (binary: lhs = IMPORT_PATH, rhs = alias IDENT or null)
   [OAK_NODE_IMPORT_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_IMPORT | OAK_RULE_TOKEN,
       OAK_NODE_IMPORT_PATH,
-      OAK_TOKEN_AS     | OAK_RULE_TOKEN    | OAK_RULE_OPTIONAL,
-      OAK_NODE_IDENT   | OAK_RULE_OPTIONAL,
+      OAK_TOKEN_AS     | OAK_RULE_TOKEN,
+      OAK_NODE_IDENT,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
@@ -872,7 +874,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // ATTR_DECL -> ATTR ATTR* (METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL)
+  // ATTR_DECL -> ATTR ATTR* (EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL)
   //   Sequence node; children: one or more ATTR nodes followed by the declaration node.
   //   The required first ATTR ensures ATTR_DECL fails immediately if no '@' is present,
   //   preventing it from accidentally consuming plain declarations.
@@ -883,9 +885,33 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_ATTR_DECL_BODY,          /* the actual declaration */
     },
   },
-  // ATTR_DECL_BODY -> METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL
+  // ATTR_DECL_BODY -> EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL
   //   Transparent choice — returns the matched declaration node directly.
   [OAK_NODE_ATTR_DECL_BODY] = {
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_EXPORT_DECL,
+      OAK_NODE_METHOD_DECL,
+      OAK_NODE_FN_DECL,
+      OAK_NODE_RECORD_DECL_EMPTY,
+      OAK_NODE_RECORD_DECL,
+      OAK_NODE_ENUM_DECL,
+      OAK_NODE_TRAIT_DECL,
+    },
+  },
+  // EXPORT_DECL -> 'export' (METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL)
+  //   Unary: child = exported declaration. Attributes go before export:
+  //   @Attr export fn ...
+  [OAK_NODE_EXPORT_DECL] = {
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_EXPORT | OAK_RULE_TOKEN,
+      OAK_NODE_EXPORT_DECL_BODY,
+    },
+  },
+  // EXPORT_DECL_BODY -> METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL
+  //   Transparent choice — returns the matched declaration node directly.
+  [OAK_NODE_EXPORT_DECL_BODY] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_METHOD_DECL,
@@ -893,6 +919,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
+      OAK_NODE_TRAIT_DECL,
     },
   },
   // IMPORT_SELECTIVE -> 'import' '{' IMPORT_NAMES '}' 'from' IMPORT_PATH ';'

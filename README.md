@@ -220,14 +220,17 @@ print(total);
 
 ### Modules
 
-Modules are resolved relative to the entry script; import selected names or
-everything a module exports:
+Modules are resolved relative to the entry script. A module only exposes
+declarations marked with `export`; import selected names, everything exported,
+or a namespace alias:
 
 ```oak
 import { sum, average } from analytics.stats;
 import * from domain.project;
+import domain.project as project;
 
 print(sum([3, 5, 8, 13]));
+print(project.summary(project.make_task('ship', 8, project.Priority.High)));
 ```
 
 See [`examples/06_modules/`](examples/06_modules/) for a complete multi-file

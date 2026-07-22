@@ -231,12 +231,16 @@ void apply_native_module_function_exports(
   }
 }
 
-/* Strips an OAK_NODE_ATTR_DECL wrapper, returning the inner declaration node.
- * Returns the node unchanged if it is not an attribute declaration. */
+/* Strips attribute/export wrappers, returning the inner declaration node.
+ * Returns the node unchanged if it has no wrapper. */
 const struct oak_ast_node_t*
 loader_unwrap_decl(const struct oak_ast_node_t* item)
 {
-  if (!item || item->kind != OAK_NODE_ATTR_DECL)
+  if (!item)
+    return item;
+  if (item->kind == OAK_NODE_EXPORT_DECL)
+    return loader_unwrap_decl(item->child);
+  if (item->kind != OAK_NODE_ATTR_DECL)
     return item;
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &item->children)
@@ -244,7 +248,7 @@ loader_unwrap_decl(const struct oak_ast_node_t* item)
     const struct oak_ast_node_t* child =
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
-      return child;
+      return loader_unwrap_decl(child);
   }
   return null;
 }

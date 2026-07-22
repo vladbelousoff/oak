@@ -37,7 +37,7 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX(
       "let mut if else while for in break continue return true false "
-      "fn record enum import as from to new self weak");
+      "fn record enum import export as from to new self weak");
 
   static struct oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_LET, .line = 1, .column = 1, .offset = 1 },
@@ -56,12 +56,13 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
     { .kind = OAK_TOKEN_RECORD, .line = 1, .column = 66, .offset = 66 },
     { .kind = OAK_TOKEN_ENUM, .line = 1, .column = 73, .offset = 73 },
     { .kind = OAK_TOKEN_IMPORT, .line = 1, .column = 78, .offset = 78 },
-    { .kind = OAK_TOKEN_AS, .line = 1, .column = 85, .offset = 85 },
-    { .kind = OAK_TOKEN_FROM, .line = 1, .column = 88, .offset = 88 },
-    { .kind = OAK_TOKEN_TO, .line = 1, .column = 93, .offset = 93 },
-    { .kind = OAK_TOKEN_NEW, .line = 1, .column = 96, .offset = 96 },
-    { .kind = OAK_TOKEN_SELF, .line = 1, .column = 100, .offset = 100 },
-    { .kind = OAK_TOKEN_WEAK, .line = 1, .column = 105, .offset = 105 },
+    { .kind = OAK_TOKEN_EXPORT, .line = 1, .column = 85, .offset = 85 },
+    { .kind = OAK_TOKEN_AS, .line = 1, .column = 92, .offset = 92 },
+    { .kind = OAK_TOKEN_FROM, .line = 1, .column = 95, .offset = 95 },
+    { .kind = OAK_TOKEN_TO, .line = 1, .column = 100, .offset = 100 },
+    { .kind = OAK_TOKEN_NEW, .line = 1, .column = 103, .offset = 103 },
+    { .kind = OAK_TOKEN_SELF, .line = 1, .column = 107, .offset = 107 },
+    { .kind = OAK_TOKEN_WEAK, .line = 1, .column = 112, .offset = 112 },
   };
 
   const enum oak_test_status_t result =

@@ -163,6 +163,8 @@ static const char* oak_parser_token_kind_display(
       return "'self'";
     case OAK_TOKEN_IMPORT:
       return "'import'";
+    case OAK_TOKEN_EXPORT:
+      return "'export'";
     case OAK_TOKEN_TRAIT:
       return "'trait'";
     case OAK_TOKEN_IMPL:
@@ -314,6 +316,9 @@ static const char* oak_parser_node_display(const enum oak_node_kind_t kind)
       return "an attribute";
     case OAK_NODE_ATTR_DECL:
       return "an attributed declaration";
+    case OAK_NODE_EXPORT_DECL:
+    case OAK_NODE_EXPORT_DECL_BODY:
+      return "an exported declaration";
     case OAK_NODE_EXPR_FN:
       return "an anonymous function";
     case OAK_NODE_TYPE_FN:

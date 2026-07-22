@@ -251,12 +251,12 @@ work together:
    ([`stdlib/io.oak`](../stdlib/io.oak)):
 
    ```oak
-   enum FileMode { Read, Write, Append }
+   export enum FileMode { Read, Write, Append }
 
-   record File;
+   export record File;
 
-   fn File.open(path : string, mode : FileMode) -> File;
-   fn File.read(self) -> string;
+   export fn File.open(path : string, mode : FileMode) -> File;
+   export fn File.read(self) -> string;
    ```
 
    Bodyless signatures compile only when `allow_bodyless_fns` is set on the

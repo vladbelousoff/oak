@@ -196,6 +196,18 @@ static void compile_typed_call_args(struct oak_compiler_t* c,
   }
 }
 
+static void check_exported_fn_args(struct oak_compiler_t* c,
+                                   const struct oak_ast_node_t* call,
+                                   const struct oak_module_export_fn_t* exp)
+{
+  struct oak_registered_fn_t tmp = { 0 };
+  tmp.arity = exp->arity;
+  tmp.receiver_type_id = OAK_TYPE_VOID;
+  tmp.param_types = exp->param_types;
+  tmp.param_mut_flags = exp->param_mut_flags;
+  oak_check_fn_args(c, call, &tmp);
+}
+
 static void compile_static_method_call(struct oak_compiler_t* c,
                                        const struct oak_ast_node_t* node,
                                        const struct oak_ast_node_t* method,
@@ -321,6 +333,9 @@ void oak_compile_method_call(struct oak_compiler_t* c,
                               user_argc);
         return;
       }
+      check_exported_fn_args(c, node, exp);
+      if (c->has_error)
+        return;
       oak_compiler_emit_op(c,
                            OAK_OP_GET_MODULE_FN,
                            call_loc,

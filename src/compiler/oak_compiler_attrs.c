@@ -2,7 +2,13 @@
 
 const struct oak_ast_node_t* oak_unwrap_decl(const struct oak_ast_node_t* item)
 {
-  if (!item || item->kind != OAK_NODE_ATTR_DECL)
+  if (!item)
+    return item;
+
+  if (item->kind == OAK_NODE_EXPORT_DECL)
+    return oak_unwrap_decl(item->child);
+
+  if (item->kind != OAK_NODE_ATTR_DECL)
     return item;
 
   /* ATTR_DECL is a sequence node whose children are:
@@ -15,12 +21,28 @@ const struct oak_ast_node_t* oak_unwrap_decl(const struct oak_ast_node_t* item)
     const struct oak_ast_node_t* child =
         oak_container_of(pos, struct oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
-    {
-      decl = child;
-      break;
-    }
+      return oak_unwrap_decl(child);
   }
   return decl;
+}
+
+int oak_decl_is_exported(const struct oak_ast_node_t* item)
+{
+  if (!item)
+    return 0;
+  if (item->kind == OAK_NODE_EXPORT_DECL)
+    return 1;
+  if (item->kind != OAK_NODE_ATTR_DECL)
+    return 0;
+  struct oak_list_entry_t* pos;
+  oak_list_for_each(pos, &item->children)
+  {
+    const struct oak_ast_node_t* child =
+        oak_container_of(pos, struct oak_ast_node_t, link);
+    if (child->kind != OAK_NODE_ATTR)
+      return oak_decl_is_exported(child);
+  }
+  return 0;
 }
 
 const char** oak_extract_attrs(struct oak_allocator_t* allocator,
@@ -28,6 +50,8 @@ const char** oak_extract_attrs(struct oak_allocator_t* allocator,
                                 int* out_count)
 {
   *out_count = 0;
+  if (item && item->kind == OAK_NODE_EXPORT_DECL)
+    return null;
   if (!item || item->kind != OAK_NODE_ATTR_DECL)
     return null;
 

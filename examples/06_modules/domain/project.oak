@@ -1,13 +1,13 @@
-enum Priority { Low, Normal, High }
+export enum Priority { Low, Normal, High }
 
-record Task {
+export record Task {
   title : string;
   points : number;
   priority : Priority;
   done : bool;
 }
 
-fn make_task(title : string, points : number, priority : Priority) -> Task {
+export fn make_task(title : string, points : number, priority : Priority) -> Task {
   return new Task {
     title : title,
     points : points,
@@ -16,7 +16,7 @@ fn make_task(title : string, points : number, priority : Priority) -> Task {
   };
 }
 
-fn priority_name(priority : Priority) -> string {
+export fn priority_name(priority : Priority) -> string {
   if priority == Priority.Low {
     return 'low';
   }
@@ -26,25 +26,25 @@ fn priority_name(priority : Priority) -> string {
   return 'high';
 }
 
-fn finish(mut task : Task) {
+export fn finish(mut task : Task) {
   task.done = true;
 }
 
-fn summary(task : Task) -> string {
+export fn summary(task : Task) -> string {
   if task.done {
     return task.title + ' done';
   }
   return task.title + ' open';
 }
 
-fn Task.describe(self) -> string {
+export fn Task.describe(self) -> string {
   if self.done {
     return self.title + ' [done]';
   }
   return self.title + ' [open]';
 }
 
-fn Task.mark_done(mut self) {
+export fn Task.mark_done(mut self) {
   self.done = true;
 }
 

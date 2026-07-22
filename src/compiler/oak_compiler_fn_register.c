@@ -18,6 +18,8 @@ void oak_fn_registry_free(struct oak_fn_registry_t* r)
       OAK_FREE(r->allocator, r->entries[i].attrs);
     if (r->entries[i].param_types)
       OAK_FREE(r->allocator, r->entries[i].param_types);
+    if (r->entries[i].param_mut_flags)
+      OAK_FREE(r->allocator, r->entries[i].param_mut_flags);
   }
   oak_htable_free(&r->by_name);
   oak_dynarr_free(&r->entries);
@@ -146,6 +148,7 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
     .name = name,
     .const_idx = idx,
     .arity = explicit_arity,
+    .is_exported = oak_decl_is_exported(raw_item),
     .decl = item,
     .attrs = attrs,
     .attr_count = attr_count,
@@ -157,6 +160,8 @@ static void register_regular_fn_decl(struct oak_compiler_t* c,
                                    mid, 0))
     return;
   oak_fn_registry_insert(&c->fns, &entry);
+  if (entry.is_exported)
+    oak_compiler_mark_symbol_exported(c, name);
 }
 
 void oak_register_method_on_record(struct oak_compiler_t* c,
@@ -195,6 +200,7 @@ void oak_register_method_on_record(struct oak_compiler_t* c,
   slot.receiver_type_id = sd->type_id;
   oak_type_clear(&slot.return_type);
   slot.is_static = (self_param == null);
+  slot.is_exported = oak_decl_is_exported(raw_item);
   slot.decl = item;
   slot.attrs = attrs;
   slot.attr_count = attr_count;

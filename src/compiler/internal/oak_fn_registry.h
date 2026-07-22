@@ -23,6 +23,7 @@ struct oak_registered_fn_t
   oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
   struct oak_type_t return_type; /* void when inferred from decl */
   int is_static;   /* 1 = static method, 0 = instance/global */
+  int is_exported;
   const struct oak_ast_node_t* decl; /* null for native and imported fns */
   /* Per-parameter resolved types and mutability for imported functions (decl is
    * null).  NULL when the function has no parameters or is locally declared. */

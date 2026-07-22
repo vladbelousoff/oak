@@ -1,4 +1,4 @@
-fn sum(values : number[]) -> number {
+export fn sum(values : number[]) -> number {
   let mut total = 0;
   for value in values {
     total += value;
@@ -6,7 +6,7 @@ fn sum(values : number[]) -> number {
   return total;
 }
 
-fn average(values : number[]) -> number {
+export fn average(values : number[]) -> number {
   if values.size() == 0 {
     return 0;
   }

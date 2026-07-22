@@ -64,6 +64,11 @@ int collect_imports(const struct oak_module_t* mod,
       imp.path = item->child;
       imp.alias_node = null;
     }
+    else if (item->kind == OAK_NODE_IMPORT_DECL)
+    {
+      imp.path = item->lhs;
+      imp.alias_node = item->rhs;
+    }
     else
     {
       continue;
@@ -90,6 +95,7 @@ static int validate_imported_module_body(
     {
       case OAK_NODE_IMPORT_SELECTIVE:
       case OAK_NODE_IMPORT_WILDCARD:
+      case OAK_NODE_IMPORT_DECL:
       case OAK_NODE_FN_DECL:
       case OAK_NODE_METHOD_DECL:
       case OAK_NODE_RECORD_DECL:

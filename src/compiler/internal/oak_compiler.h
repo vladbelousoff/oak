@@ -62,6 +62,9 @@ int oak_compiler_declare_symbol(struct oak_compiler_t* c,
                                 u16 owner_module_id,
                                 int is_imported);
 
+void oak_compiler_mark_symbol_exported(struct oak_compiler_t* c,
+                                       const char* name);
+
 /* ---------- oak_compiler_pipeline.c ---------- */
 
 int oak_compiler_register_native_options(struct oak_compiler_t* c,
@@ -209,6 +212,10 @@ const struct oak_method_binding_t* oak_find_record_builtin_method(
  * Otherwise returns item unchanged. */
 const struct oak_ast_node_t* oak_unwrap_decl(
     const struct oak_ast_node_t* item);
+
+/* True when the declaration has an `export` wrapper, possibly inside an
+ * attribute wrapper such as `@Native export fn ...`. */
+int oak_decl_is_exported(const struct oak_ast_node_t* item);
 
 /* Allocate and fill an array of attribute name strings from an ATTR_DECL
  * node's ATTR children.  *out_count is set to the number of attributes.

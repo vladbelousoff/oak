@@ -1,5 +1,5 @@
 import * from a;
 
-fn value() -> number {
+export fn value() -> number {
   return value();
 }

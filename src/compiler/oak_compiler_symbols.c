@@ -20,11 +20,22 @@ int oak_compiler_declare_symbol(struct oak_compiler_t* c,
     .kind = kind,
     .owner_module_id = owner_module_id,
     .payload_index = payload_index,
-    .is_exported = !is_imported && owner_module_id != OAK_MODULE_ID_NONE &&
-                   kind != OAK_SYMBOL_GLOBAL &&
-                   kind != OAK_SYMBOL_MODULE_ALIAS,
+    .is_exported = 0,
     .is_imported = is_imported,
   };
   oak_assert(oak_symbol_registry_insert(&c->symbols, &symbol));
   return 1;
+}
+
+void oak_compiler_mark_symbol_exported(struct oak_compiler_t* c,
+                                       const char* name)
+{
+  struct oak_symbol_t* symbol =
+      (struct oak_symbol_t*)oak_symbol_registry_find(&c->symbols, name);
+  if (!symbol || symbol->is_imported ||
+      symbol->owner_module_id == OAK_MODULE_ID_NONE ||
+      symbol->kind == OAK_SYMBOL_GLOBAL ||
+      symbol->kind == OAK_SYMBOL_MODULE_ALIAS)
+    return;
+  symbol->is_exported = 1;
 }

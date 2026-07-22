@@ -40,9 +40,11 @@ static int item_emits_top_level_code(const struct oak_ast_node_t* item)
   case OAK_NODE_ENUM_DECL:
   case OAK_NODE_IMPORT_SELECTIVE:
   case OAK_NODE_IMPORT_WILDCARD:
+  case OAK_NODE_IMPORT_DECL:
   case OAK_NODE_TRAIT_DECL:
   case OAK_NODE_METHOD_DECL:
   case OAK_NODE_ATTR_DECL:
+  case OAK_NODE_EXPORT_DECL:
     return 0;
   default:
     return 1;

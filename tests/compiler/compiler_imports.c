@@ -113,7 +113,7 @@ OAK_TEST_DECL(ImportLoadRunsAndIsRepeatable)
   snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
   snprintf(lib_path, sizeof(lib_path), "%s/lib/math.oak", dir);
 
-  write_file(lib_path, "fn triple(n : number) -> number {\n"
+  write_file(lib_path, "export fn triple(n : number) -> number {\n"
                        "  return n * 3;\n"
                        "}\n");
   write_file(main_path, "import { triple } from lib.math;\n"
@@ -142,8 +142,8 @@ OAK_TEST_DECL(ImportCollisionIsRejected)
   snprintf(b_path, sizeof(b_path), "%s/lib/b.oak", dir);
 
   /* Two different modules each export a record named Shared. */
-  write_file(a_path, "record Shared {\n  x : number;\n}\n");
-  write_file(b_path, "record Shared {\n  y : number;\n}\n");
+  write_file(a_path, "export record Shared {\n  x : number;\n}\n");
+  write_file(b_path, "export record Shared {\n  y : number;\n}\n");
   write_file(main_path, "import * from lib.a;\n"
                         "import * from lib.b;\n");
 
@@ -168,7 +168,7 @@ OAK_TEST_DECL(CrossModuleTraitDispatch)
 
   /* The trait is defined in one module and the concrete impl + dynamic
    * dispatch (direct call and through a Shape[] array) live in another. */
-  write_file(trait_path, "trait Shape {\n"
+  write_file(trait_path, "export trait Shape {\n"
                          "  fn area(self) -> number;\n"
                          "}\n");
   write_file(main_path,
@@ -202,11 +202,11 @@ OAK_TEST_DECL(SameNamedTypesInDifferentModulesStayDistinct)
   snprintf(b_path, sizeof(b_path), "%s/lib/b.oak", dir);
 
   write_file(a_path,
-             "record Shared { x : number; }\n"
-             "fn take_a(v : Shared) -> number { return v.x; }\n");
+             "export record Shared { x : number; }\n"
+             "export fn take_a(v : Shared) -> number { return v.x; }\n");
   write_file(b_path,
-             "record Shared { x : number; }\n"
-             "fn make_b() -> Shared { return new Shared { x : 1 }; }\n");
+             "export record Shared { x : number; }\n"
+             "export fn make_b() -> Shared { return new Shared { x : 1 }; }\n");
   write_file(main_path,
              "import { take_a } from lib.a;\n"
              "import { make_b } from lib.b;\n"
@@ -220,6 +220,162 @@ OAK_TEST_DECL(SameNamedTypesInDifferentModulesStayDistinct)
   return OAK_TEST_OK;
 }
 
+OAK_TEST_DECL(PrivateDeclsAreNotImportableOrNamespaceReachable)
+{
+  char dir[256];
+  OAK_CHECK(make_module_dir(dir, sizeof(dir)) == 0);
+
+  char main_path[512];
+  char lib_path[512];
+  snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
+  snprintf(lib_path, sizeof(lib_path), "%s/lib/m.oak", dir);
+
+  write_file(lib_path, "fn hidden() -> number { return 1; }\n"
+                       "export fn visible() -> number { return 2; }\n");
+
+  write_file(main_path, "import { hidden } from lib.m;\n"
+                        "let x = hidden();\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import lib.m as m;\n"
+                        "let x = m.hidden();\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import lib.m as m;\n"
+                        "let x = m.visible();\n");
+  OAK_CHECK(load_and_run(main_path) == 0);
+
+  remove(lib_path);
+  remove(main_path);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(ImportedMutParamMetadataMatchesAcrossImportForms)
+{
+  char dir[256];
+  OAK_CHECK(make_module_dir(dir, sizeof(dir)) == 0);
+
+  char main_path[512];
+  char lib_path[512];
+  snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
+  snprintf(lib_path, sizeof(lib_path), "%s/lib/m.oak", dir);
+
+  write_file(lib_path, "export record R { v : number; }\n"
+                       "export fn takes(mut r : R) { r.v = r.v + 1; }\n");
+
+  write_file(main_path, "import { R, takes } from lib.m;\n"
+                        "let r = new R { v : 1 };\n"
+                        "takes(r);\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import * from lib.m;\n"
+                        "let r = new R { v : 1 };\n"
+                        "takes(r);\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import { R } from lib.m;\n"
+                        "import lib.m as m;\n"
+                        "let r = new R { v : 1 };\n"
+                        "m.takes(r);\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import { R, takes } from lib.m;\n"
+                        "let mut r = new R { v : 1 };\n"
+                        "takes(r);\n");
+  OAK_CHECK(load_and_run(main_path) == 0);
+
+  remove(lib_path);
+  remove(main_path);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(ImportedMutSelfMetadataIsPreserved)
+{
+  char dir[256];
+  OAK_CHECK(make_module_dir(dir, sizeof(dir)) == 0);
+
+  char main_path[512];
+  char lib_path[512];
+  snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
+  snprintf(lib_path, sizeof(lib_path), "%s/lib/m.oak", dir);
+
+  write_file(lib_path, "export record R { v : number; }\n"
+                       "export fn R.bump(mut self) { self.v = self.v + 1; }\n");
+
+  write_file(main_path, "import { R } from lib.m;\n"
+                        "let r = new R { v : 1 };\n"
+                        "r.bump();\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import * from lib.m;\n"
+                        "let r = new R { v : 1 };\n"
+                        "r.bump();\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import { R } from lib.m;\n"
+                        "let mut r = new R { v : 1 };\n"
+                        "r.bump();\n");
+  OAK_CHECK(load_and_run(main_path) == 0);
+
+  remove(lib_path);
+  remove(main_path);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(ImportedSymbolsAreNotReexported)
+{
+  char dir[256];
+  OAK_CHECK(make_module_dir(dir, sizeof(dir)) == 0);
+
+  char main_path[512];
+  char a_path[512];
+  char b_path[512];
+  snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
+  snprintf(a_path, sizeof(a_path), "%s/lib/a.oak", dir);
+  snprintf(b_path, sizeof(b_path), "%s/lib/b.oak", dir);
+
+  write_file(a_path, "export fn value() -> number { return 1; }\n");
+  write_file(b_path, "import { value } from a;\n"
+                     "export fn own() -> number { return value(); }\n");
+  write_file(main_path, "import { value } from lib.b;\n"
+                        "let x = value();\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import { own } from lib.b;\n"
+                        "let x = own();\n");
+  OAK_CHECK(load_and_run(main_path) == 0);
+
+  remove(a_path);
+  remove(b_path);
+  remove(main_path);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(NamespaceAliasCollisionsAreRejected)
+{
+  char dir[256];
+  OAK_CHECK(make_module_dir(dir, sizeof(dir)) == 0);
+
+  char main_path[512];
+  char lib_path[512];
+  snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
+  snprintf(lib_path, sizeof(lib_path), "%s/lib/m.oak", dir);
+
+  write_file(lib_path, "export fn value() -> number { return 1; }\n");
+
+  write_file(main_path, "import lib.m as m;\n"
+                        "import lib.m as m;\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  write_file(main_path, "import lib.m as m;\n"
+                        "fn m() -> number { return 0; }\n");
+  OAK_CHECK(load_and_run(main_path) != 0);
+
+  remove(lib_path);
+  remove(main_path);
+  return OAK_TEST_OK;
+}
+
 int main(const int argc, char* argv[])
 {
   (void)argc;
@@ -229,6 +385,11 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(ImportCollisionIsRejected),
     OAK_TEST_ENTRY(CrossModuleTraitDispatch),
     OAK_TEST_ENTRY(SameNamedTypesInDifferentModulesStayDistinct),
+    OAK_TEST_ENTRY(PrivateDeclsAreNotImportableOrNamespaceReachable),
+    OAK_TEST_ENTRY(ImportedMutParamMetadataMatchesAcrossImportForms),
+    OAK_TEST_ENTRY(ImportedMutSelfMetadataIsPreserved),
+    OAK_TEST_ENTRY(ImportedSymbolsAreNotReexported),
+    OAK_TEST_ENTRY(NamespaceAliasCollisionsAreRejected),
   };
   return oak_test_run(tests, sizeof(tests) / sizeof(tests[0]));
 }

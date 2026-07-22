@@ -90,6 +90,11 @@ OAK_TEST_DECL(ParseStatementsAndControlFlow)
 OAK_TEST_DECL(ParseFunctionsRecordsEnumsAndModules)
 {
   OAK_CHECK(parse_ok("import * from util.math;\n"
+                     "import util.math as math;\n"
+                     "export enum ExportedStatus { Planned, Active, Done, }\n"
+                     "export record ExportedTask;\n"
+                     "@Native export fn attributed() -> number;\n"
+                     "export trait Described { fn describe(self) -> string; }\n"
                      "enum Status { Planned, Active, Done, }\n"
                      "record Task {\n"
                      "  title : string;\n"
@@ -97,6 +102,7 @@ OAK_TEST_DECL(ParseFunctionsRecordsEnumsAndModules)
                      "  parent : Task weak;\n"
                      "}\n"
                      "fn Task.finish(mut self) { self.points = 0; }\n"
+                     "export fn Task.exported_finish(mut self) { self.points = 0; }\n"
                      "fn Task.label(self) -> string { return self.title; }\n"
                      "fn make(title : string, mut points : number) -> Task {\n"
                      "  return new Task { title, points };\n"
@@ -126,6 +132,9 @@ OAK_TEST_DECL(ParseSyntaxErrors)
   OAK_CHECK(parse_error("fn f() -> number { return 1;") == OAK_TEST_OK);
   OAK_CHECK(parse_error("record Point") == OAK_TEST_OK);
   OAK_CHECK(parse_error("record Point {") == OAK_TEST_OK);
+  OAK_CHECK(parse_error("export let x = 1;") == OAK_TEST_OK);
+  OAK_CHECK(parse_error("import util.math;") == OAK_TEST_OK);
+  OAK_CHECK(parse_error("export @Native fn f();") == OAK_TEST_OK);
   OAK_CHECK(parse_error("1 + ;") == OAK_TEST_OK);
   OAK_CHECK(parse_error_contains("let x = ;", "expected an expression") ==
             OAK_TEST_OK);

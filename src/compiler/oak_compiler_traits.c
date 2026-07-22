@@ -167,6 +167,8 @@ void oak_register_program_traits(struct oak_compiler_t* c,
             c, item->lhs->token, tname, OAK_SYMBOL_TRAIT,
             oak_dynarr_count(c->traits.traits), owner_module_id, 0))
       return;
+    if (oak_decl_is_exported(raw_item))
+      oak_compiler_mark_symbol_exported(c, tname);
     oak_assert(oak_dynarr_push(&c->traits.traits, &proto));
     struct oak_registered_trait_t* tr =
         &c->traits.traits[oak_dynarr_count(c->traits.traits) - 1];

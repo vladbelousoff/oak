@@ -158,6 +158,15 @@ int oak_module_loader_load_program(const char* entry_path,
       const int _al = oak_token_size(_atk);                                \
       if (oak_htable_get(&(_parent_mod)->imports, _a, _al) < 0)                \
         oak_htable_insert(&(_parent_mod)->imports, _a, _al, (int)(_dep_id));   \
+      else                                                                     \
+      {                                                                        \
+        loader_error(out,                                                      \
+                     "%s: duplicate import alias '%.*s'",                      \
+                     (_parent_mod)->dotted_name,                               \
+                     (int)_al,                                                 \
+                     _a);                                                      \
+        rc = -1;                                                               \
+      }                                                                        \
     }                                                                          \
   } while (0)
 
@@ -296,6 +305,13 @@ int oak_module_loader_load_program(const char* entry_path,
         visited[found->module_id])
     {
       RECORD_ALIAS(top->mod, imp, found->module_id);
+      if (rc != 0)
+      {
+        OAK_FREE(a, dotted);
+        OAK_FREE(a, file_path);
+        OAK_FREE(a, canonical);
+        break;
+      }
       oak_assert(oak_dynarr_push(&top->mod->import_modules, &found->module_id));
       OAK_FREE(a, dotted);
       OAK_FREE(a, file_path);

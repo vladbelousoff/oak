@@ -283,6 +283,8 @@ void oak_register_program_records(struct oak_compiler_t* c,
             c, name_ident->token, name, OAK_SYMBOL_RECORD,
             oak_dynarr_count(c->records.entries), owner_module_id, 0))
       return;
+    if (oak_decl_is_exported(raw_item))
+      oak_compiler_mark_symbol_exported(c, name);
     struct oak_registered_record_t* slot =
         oak_record_registry_insert(&c->records, &proto);
 

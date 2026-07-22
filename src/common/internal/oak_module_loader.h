@@ -61,8 +61,8 @@ const struct oak_ast_node_t* dotted_path_last_segment(
 
 /* ---------- AST helpers shared across loader translation units ---------- */
 
-/* Strips an OAK_NODE_ATTR_DECL wrapper and returns the inner declaration.
- * Returns the node unchanged when it is not an attribute declaration. */
+/* Strips OAK_NODE_ATTR_DECL / OAK_NODE_EXPORT_DECL wrappers and returns the
+ * inner declaration. Returns the node unchanged when it has no wrapper. */
 const struct oak_ast_node_t* loader_unwrap_decl(
     const struct oak_ast_node_t* item);
 
