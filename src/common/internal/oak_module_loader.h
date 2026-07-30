@@ -24,7 +24,6 @@
 #define OAK_PATH_SEP '/'
 #endif
 
-/* ---------- Per-import descriptor ---------- */
 
 struct loader_import_t
 {
@@ -33,7 +32,6 @@ struct loader_import_t
 };
 
 
-/* ---------- Diagnostics (oak_module_loader_compile.c) ---------- */
 
 void loader_error(struct oak_module_loader_result_t* out,
                   const char* fmt,
@@ -44,7 +42,6 @@ void loader_propagate_diagnostics(struct oak_module_loader_result_t* out,
                                   const struct oak_diagnostic_t* src,
                                   int src_count);
 
-/* ---------- Path helpers (oak_module_loader_path.c) ---------- */
 
 char* path_dirname_dup(struct oak_allocator_t* a, const char* path);
 char* path_resolve_dotted(struct oak_allocator_t* a, const char* base_dir, const char* dotted);
@@ -59,14 +56,12 @@ char* dotted_name_from_path(struct oak_allocator_t* a, const struct oak_ast_node
 const struct oak_ast_node_t* dotted_path_last_segment(
     const struct oak_ast_node_t* path_node);
 
-/* ---------- AST helpers shared across loader translation units ---------- */
 
 /* Strips OAK_NODE_ATTR_DECL / OAK_NODE_EXPORT_DECL wrappers and returns the
  * inner declaration. Returns the node unchanged when it has no wrapper. */
 const struct oak_ast_node_t* loader_unwrap_decl(
     const struct oak_ast_node_t* item);
 
-/* ---------- Native module helpers (oak_module_loader_native.c) ---------- */
 
 int opts_has_native_module(const struct oak_compile_options_t* opts,
                            const char* dotted);
@@ -95,7 +90,6 @@ struct oak_module_t* create_native_module(
     const char* dotted,
     struct oak_module_loader_result_t* out);
 
-/* ---------- Compile helpers (oak_module_loader_compile.c) ---------- */
 
 const struct oak_token_t* loader_import_alias_token(
     const struct loader_import_t* imp);

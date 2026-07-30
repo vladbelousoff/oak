@@ -60,7 +60,7 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident)
     { "mut", OAK_TOKEN_MUT },       { "new", OAK_TOKEN_NEW },
     { "return", OAK_TOKEN_RETURN }, { "self", OAK_TOKEN_SELF },
     { "record", OAK_TOKEN_RECORD }, { "to", OAK_TOKEN_TO },
-    { "trait", OAK_TOKEN_TRAIT },   { "impl", OAK_TOKEN_IMPL },
+    { "interface", OAK_TOKEN_INTERFACE },   { "impl", OAK_TOKEN_IMPL },
     { "none", OAK_TOKEN_NONE },      { "weak", OAK_TOKEN_WEAK },
     { "true", OAK_TOKEN_TRUE },     { "while", OAK_TOKEN_WHILE },
   };
@@ -197,8 +197,8 @@ const char* oak_token_name(const enum oak_token_kind_t token_kind)
       return "IMPORT";
     case OAK_TOKEN_EXPORT:
       return "EXPORT";
-    case OAK_TOKEN_TRAIT:
-      return "TRAIT";
+    case OAK_TOKEN_INTERFACE:
+      return "INTERFACE";
     case OAK_TOKEN_IMPL:
       return "IMPL";
     case OAK_TOKEN_WEAK:

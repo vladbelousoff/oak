@@ -43,7 +43,6 @@ static void lower_bind_ref(const struct oak_bind_type_ref_t* r,
     out->key_id = r->key_type ? r->key_type->resolved_type_id : r->key_id;
 }
 
-/* ---------- Native type registration ---------- */
 
 void oak_register_native_types(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
@@ -122,7 +121,6 @@ void oak_register_native_types(
   c->native_types_cursor = oak_dynarr_count(opts->native_types);
 }
 
-/* ---------- Native function registration ---------- */
 
 static void record_append_method(struct oak_registered_record_t* sd,
                                  const struct oak_registered_fn_t* m)

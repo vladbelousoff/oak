@@ -134,8 +134,8 @@ const struct oak_module_export_enum_t* oak_module_find_export_enum(
   return oak_symbol_registry_find_enum(&mod->exports, name);
 }
 
-const struct oak_module_export_trait_t* oak_module_find_export_trait(
+const struct oak_module_export_interface_t* oak_module_find_export_interface(
     const struct oak_module_t* mod, const char* name)
 {
-  return oak_symbol_registry_find_trait(&mod->exports, name);
+  return oak_symbol_registry_find_interface(&mod->exports, name);
 }

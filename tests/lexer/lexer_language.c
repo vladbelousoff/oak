@@ -37,7 +37,7 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
 {
   struct oak_lexer_result_t* lexer = OAK_LEX(
       "let mut if else while for in break continue return true false "
-      "fn record enum import export as from to new self weak");
+      "fn record enum import export as from to new self weak interface");
 
   static struct oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_LET, .line = 1, .column = 1, .offset = 1 },
@@ -63,6 +63,7 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
     { .kind = OAK_TOKEN_NEW, .line = 1, .column = 103, .offset = 103 },
     { .kind = OAK_TOKEN_SELF, .line = 1, .column = 107, .offset = 107 },
     { .kind = OAK_TOKEN_WEAK, .line = 1, .column = 112, .offset = 112 },
+    { .kind = OAK_TOKEN_INTERFACE, .line = 1, .column = 117, .offset = 117 },
   };
 
   const enum oak_test_status_t result =
@@ -100,6 +101,24 @@ OAK_TEST_DECL(LexOperatorsAndPunctuation)
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LESS, 51),
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_DOT, 53),
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_ARROW, 55),
+  };
+
+  const enum oak_test_status_t result =
+      oak_test_tokens(lexer, expected, oak_count_of(expected));
+  oak_lexer_free(lexer);
+  return result;
+}
+
+OAK_TEST_DECL(LexTraitIsIdentifier)
+{
+  struct oak_lexer_result_t* lexer = OAK_LEX("trait");
+
+  static struct oak_expected_token_t expected[] = {
+    { .kind = OAK_TOKEN_IDENT,
+      .line = 1,
+      .column = 1,
+      .offset = 1,
+      .string = "trait" },
   };
 
   const enum oak_test_status_t result =
@@ -205,6 +224,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(LexNumbersIdentifiersAndOperators),
     OAK_TEST_ENTRY(LexKeywordsAndPunctuation),
     OAK_TEST_ENTRY(LexOperatorsAndPunctuation),
+    OAK_TEST_ENTRY(LexTraitIsIdentifier),
     OAK_TEST_ENTRY(LexBlockComments),
     OAK_TEST_ENTRY(LexStringsEscapesUnicodeAndGrowth),
     OAK_TEST_ENTRY(LexWhitespaceNewlinesAndErrors),

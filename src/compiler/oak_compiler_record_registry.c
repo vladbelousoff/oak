@@ -1,6 +1,5 @@
 #include "internal/oak_compiler.h"
 
-/* ---------- oak_record_registry_t lifecycle ---------- */
 
 void oak_record_registry_init(struct oak_record_registry_t* r,
                               struct oak_allocator_t* allocator)
@@ -69,7 +68,6 @@ oak_records_find_by_id(const struct oak_record_registry_t* r,
   return null;
 }
 
-/* ---------- Field and method lookups ---------- */
 
 int oak_record_field(const struct oak_registered_record_t* s,
                                    const char* name)

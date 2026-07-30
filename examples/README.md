@@ -25,6 +25,6 @@ Each runnable example lives in a folder with the same name as its entry file.
 7. `07_algorithms/07_algorithms.oak` - a compact algorithm built from the earlier pieces
 8. `08_file_io/08_file_io.oak` - native `File` bindings
 9. `09_diagnostics/09_diagnostics.oak` - module-cycle diagnostics
-10. `10_traits/10_traits.oak` - traits and virtual dispatch
+10. `10_interfaces/10_interfaces.oak` - interfaces and virtual dispatch
 11. `11_weak_refs/11_weak_refs.oak` - weak references in records and function parameters
 12. `12_strings/12_strings.oak` - string methods and conversion built-ins

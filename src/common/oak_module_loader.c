@@ -1,6 +1,5 @@
 #include "internal/oak_module_loader.h"
 
-/* ---------- DFS work structures ---------- */
 
 struct loader_frame_t
 {

@@ -83,11 +83,11 @@ void oak_lower_type_node(struct oak_compiler_t* c,
   if (type_node->kind == OAK_NODE_IDENT)
   {
     const char* name = oak_token_text(type_node->token);
-    const struct oak_registered_trait_t* tr = oak_trait_find(&c->traits, name);
+    const struct oak_registered_interface_t* tr = oak_interface_find(&c->interfaces, name);
     if (tr)
     {
-      out->id = tr->trait_id;
-      out->kind = OAK_TYPE_KIND_TRAIT;
+      out->id = tr->interface_id;
+      out->kind = OAK_TYPE_KIND_INTERFACE;
       return;
     }
     out->id = oak_intern_type_tok(c, type_node->token);

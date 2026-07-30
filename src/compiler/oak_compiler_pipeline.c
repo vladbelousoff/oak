@@ -41,7 +41,7 @@ static int item_emits_top_level_code(const struct oak_ast_node_t* item)
   case OAK_NODE_IMPORT_SELECTIVE:
   case OAK_NODE_IMPORT_WILDCARD:
   case OAK_NODE_IMPORT_DECL:
-  case OAK_NODE_TRAIT_DECL:
+  case OAK_NODE_INTERFACE_DECL:
   case OAK_NODE_METHOD_DECL:
   case OAK_NODE_ATTR_DECL:
   case OAK_NODE_EXPORT_DECL:
@@ -97,9 +97,9 @@ static void register_type_symbols(struct oak_compiler_t* c,
   oak_register_program_enums(c, program);
   CHECK_ERROR(c);
 
-  /* Traits before records so record fields naming a local trait lower with
-   * OAK_TYPE_KIND_TRAIT instead of an opaque scalar id. */
-  oak_register_program_traits(c, program);
+  /* Interfaces before records so record fields naming a local interface lower with
+   * OAK_TYPE_KIND_INTERFACE instead of an opaque scalar id. */
+  oak_register_program_interfaces(c, program);
   CHECK_ERROR(c);
 
   oak_register_program_records(c, program);

@@ -131,17 +131,17 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
     return OAK_VM_RUNTIME_ERROR;
   }
 
-  /* The trait object is at the receiver position (sp - arity). */
+  /* The interface object is at the receiver position (sp - arity). */
   const usize recv_pos = depth - (usize)arity;
-  const struct oak_value_t trait_obj_val = vm->stack[recv_pos];
-  if (!oak_is_trait_object(trait_obj_val))
+  const struct oak_value_t interface_obj_val = vm->stack[recv_pos];
+  if (!oak_is_interface_object(interface_obj_val))
   {
     oak_vm_runtime_error(vm,
-                         "CALL_VIRTUAL: receiver is not a trait object, got %s",
-                         oak_vm_value_kind_desc(trait_obj_val));
+                         "CALL_VIRTUAL: receiver is not an interface object, got %s",
+                         oak_vm_value_kind_desc(interface_obj_val));
     return OAK_VM_RUNTIME_ERROR;
   }
-  const struct oak_obj_trait_object_t* to = oak_as_trait_object(trait_obj_val);
+  const struct oak_obj_interface_object_t* to = oak_as_interface_object(interface_obj_val);
   if ((usize)vtable_slot >= to->vtable->length)
   {
     oak_vm_runtime_error(
@@ -171,12 +171,12 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
     vm->stack[recv_pos + 1u + i] = vm->stack[recv_pos + i];
   vm->sp++;
 
-  /* Incref fn and concrete; decref the trait object (we replaced it). */
+  /* Incref fn and concrete; decref the interface object (we replaced it). */
   oak_value_assert_can_refcopy_to_table(fn_val, vm->object_table);
   oak_value_assert_can_refcopy_to_table(concrete_val, vm->object_table);
   oak_value_incref(fn_val);
   oak_value_incref(concrete_val);
-  oak_value_decref(trait_obj_val);
+  oak_value_decref(interface_obj_val);
 
   vm->stack[recv_pos] = fn_val;
   vm->stack[recv_pos + 1u] = concrete_val;

@@ -44,7 +44,7 @@ Test files live under `tests/` as C harnesses using `oak_test_pipeline.h`. Each 
 
 ```sh
 meson test -C build                          # all tests
-meson test -C build compiler_traits          # single suite
+meson test -C build compiler_interfaces          # single suite
 ```
 
 ## Native Bindings

@@ -154,16 +154,16 @@ static void infer_method_call_type(struct oak_compiler_t* c,
     }
     return;
   }
-  if (recv_ty.kind == OAK_TYPE_KIND_TRAIT)
+  if (recv_ty.kind == OAK_TYPE_KIND_INTERFACE)
   {
-    const struct oak_registered_trait_t* tr =
-        oak_trait_find_by_id(&c->traits, recv_ty.id);
+    const struct oak_registered_interface_t* tr =
+        oak_interface_find_by_id(&c->interfaces, recv_ty.id);
     if (tr)
     {
-      const int slot = oak_trait_method_slot(tr, mn);
+      const int slot = oak_interface_method_slot(tr, mn);
       if (slot >= 0)
       {
-        const struct oak_trait_method_t* tm = &tr->methods[slot];
+        const struct oak_interface_method_t* tm = &tr->methods[slot];
         if (tm->sig_decl)
         {
           const struct oak_ast_node_t* retn =

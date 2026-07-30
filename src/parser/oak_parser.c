@@ -165,8 +165,8 @@ static const char* oak_parser_token_kind_display(
       return "'import'";
     case OAK_TOKEN_EXPORT:
       return "'export'";
-    case OAK_TOKEN_TRAIT:
-      return "'trait'";
+    case OAK_TOKEN_INTERFACE:
+      return "'interface'";
     case OAK_TOKEN_IMPL:
       return "'impl'";
     case OAK_TOKEN_WEAK:
@@ -303,10 +303,10 @@ static const char* oak_parser_node_display(const enum oak_node_kind_t kind)
       return "an import name";
     case OAK_NODE_IMPORT_ALIAS:
       return "an import alias";
-    case OAK_NODE_TRAIT_DECL:
-      return "a trait declaration";
-    case OAK_NODE_TRAIT_MEMBERS:
-      return "trait members";
+    case OAK_NODE_INTERFACE_DECL:
+      return "an interface declaration";
+    case OAK_NODE_INTERFACE_MEMBERS:
+      return "interface members";
     case OAK_NODE_METHOD_DECL:
     case OAK_NODE_METHOD_PROTO:
       return "a method declaration";

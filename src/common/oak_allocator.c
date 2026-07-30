@@ -20,7 +20,6 @@ static void oom_abort(const usize size, const char* file, const int line)
   abort();
 }
 
-/* --- System allocator (thin malloc wrapper, no tracking) --- */
 
 static void* sys_alloc(struct oak_allocator_t* self,
                        usize size,
@@ -77,7 +76,6 @@ void oak_system_allocator_init(struct oak_allocator_t* a)
   *a = oak_system_allocator;
 }
 
-/* --- Tracking allocator (leak detection) --- */
 
 #define TRACK_SIG 0xdeadbeef
 #define TRACK_SMB 0x77

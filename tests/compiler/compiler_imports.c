@@ -156,35 +156,35 @@ OAK_TEST_DECL(ImportCollisionIsRejected)
   return OAK_TEST_OK;
 }
 
-OAK_TEST_DECL(CrossModuleTraitDispatch)
+OAK_TEST_DECL(CrossModuleInterfaceDispatch)
 {
   char dir[256];
   OAK_CHECK(make_module_dir(dir, sizeof(dir)) == 0);
 
   char main_path[512];
-  char trait_path[512];
+  char interface_path[512];
   snprintf(main_path, sizeof(main_path), "%s/main.oak", dir);
-  snprintf(trait_path, sizeof(trait_path), "%s/lib/shape.oak", dir);
+  snprintf(interface_path, sizeof(interface_path), "%s/lib/shape.oak", dir);
 
-  /* The trait is defined in one module and the concrete impl + dynamic
-   * dispatch (direct call and through a Shape[] array) live in another. */
-  write_file(trait_path, "export trait Shape {\n"
+  /* The interface is defined in one module and the concrete impl + dynamic
+   * dispatch (direct call and through a IShape[] array) live in another. */
+  write_file(interface_path, "export interface IShape {\n"
                          "  fn area(self) -> number;\n"
                          "}\n");
   write_file(main_path,
-             "import { Shape } from lib.shape;\n"
+             "import { IShape } from lib.shape;\n"
              "record Circle { radius : number; }\n"
              "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
-             "fn use_shape(s : Shape) -> number { return s.area(); }\n"
+             "fn use_shape(s : IShape) -> number { return s.area(); }\n"
              "let mut c = new Circle { radius : 4 };\n"
              "print(use_shape(c));\n"
-             "let mut shapes = new Shape[];\n"
+             "let mut shapes = new IShape[];\n"
              "shapes.push(c);\n"
              "print(shapes[0].area());\n");
 
   OAK_CHECK(load_and_run(main_path) == 0);
 
-  remove(trait_path);
+  remove(interface_path);
   remove(main_path);
   return OAK_TEST_OK;
 }
@@ -383,7 +383,7 @@ int main(const int argc, char* argv[])
   static struct oak_test_t tests[] = {
     OAK_TEST_ENTRY(ImportLoadRunsAndIsRepeatable),
     OAK_TEST_ENTRY(ImportCollisionIsRejected),
-    OAK_TEST_ENTRY(CrossModuleTraitDispatch),
+    OAK_TEST_ENTRY(CrossModuleInterfaceDispatch),
     OAK_TEST_ENTRY(SameNamedTypesInDifferentModulesStayDistinct),
     OAK_TEST_ENTRY(PrivateDeclsAreNotImportableOrNamespaceReachable),
     OAK_TEST_ENTRY(ImportedMutParamMetadataMatchesAcrossImportForms),

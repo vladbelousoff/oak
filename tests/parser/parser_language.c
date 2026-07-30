@@ -94,7 +94,7 @@ OAK_TEST_DECL(ParseFunctionsRecordsEnumsAndModules)
                      "export enum ExportedStatus { Planned, Active, Done, }\n"
                      "export record ExportedTask;\n"
                      "@Native export fn attributed() -> number;\n"
-                     "export trait Described { fn describe(self) -> string; }\n"
+                     "export interface IDescribed { fn describe(self) -> string; }\n"
                      "enum Status { Planned, Active, Done, }\n"
                      "record Task {\n"
                      "  title : string;\n"

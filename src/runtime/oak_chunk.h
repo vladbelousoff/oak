@@ -59,14 +59,14 @@ enum oak_opcode_t
   /* Cross-module: pushes the function value at constants[const_idx] of the
    * module identified by module_id. */
   OAK_OP_GET_MODULE_FN,
-  /* Wraps the top-of-stack concrete value in a trait-object fat pointer.
+  /* Wraps the top-of-stack concrete value in an interface-object fat pointer.
    * Operand: 16-bit (big-endian) vtable constant index (an OAK_OBJ_ARRAY of
-   * function values in trait-method declaration order).
-   * Stack: [..., value] -> [..., trait_object]. */
-  OAK_OP_MAKE_TRAIT_OBJECT,
-  /* Virtual dispatch through a trait object.
+   * function values in interface-method declaration order).
+   * Stack: [..., value] -> [..., interface_object]. */
+  OAK_OP_MAKE_INTERFACE_OBJECT,
+  /* Virtual dispatch through an interface object.
    * Operands: vtable_slot (u8), total_arity (u8, including self).
-   * Stack: [..., trait_obj, arg1..argN] -> [..., return_value]. */
+   * Stack: [..., interface_obj, arg1..argN] -> [..., return_value]. */
   OAK_OP_CALL_VIRTUAL,
 
   /* Fused comparison + conditional branch (avoids intermediate bool push/pop).

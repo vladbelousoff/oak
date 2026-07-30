@@ -30,7 +30,7 @@ struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
   oak_record_registry_init(&c->records, allocator);
   oak_enum_registry_init(&c->enums, allocator);
   oak_htable_init(&c->module_scope_names, allocator);
-  oak_trait_registry_init(&c->traits, allocator);
+  oak_interface_registry_init(&c->interfaces, allocator);
   oak_symbol_registry_init(&c->symbols, allocator);
   c->native_types_cursor = 0;
   c->native_global_fns_cursor = 0;
@@ -63,7 +63,7 @@ void oak_compiler_teardown(struct oak_compiler_t* c)
   oak_fn_registry_free(&c->fns);
   oak_record_registry_free(&c->records);
   oak_enum_registry_free(&c->enums);
-  oak_trait_registry_free(&c->traits);
+  oak_interface_registry_free(&c->interfaces);
   oak_symbol_registry_free(&c->symbols);
   oak_type_registry_free(&c->types);
 }

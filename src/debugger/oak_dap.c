@@ -155,7 +155,7 @@ static int source_matches(const char* a, const char* b)
 static int value_expandable(const struct oak_value_t value)
 {
   return oak_is_array(value) || oak_is_map(value) || oak_is_record(value) ||
-         oak_is_trait_object(value);
+         oak_is_interface_object(value);
 }
 
 static const char* value_type(const struct oak_value_t value)
@@ -430,8 +430,8 @@ static void handle_variables(struct oak_dap_t* dap,
                      rec->fields[i]);
       }
     }
-    else if (oak_is_trait_object(value))
-      add_variable(dap, doc, vars, "value", oak_as_trait_object(value)->value);
+    else if (oak_is_interface_object(value))
+      add_variable(dap, doc, vars, "value", oak_as_interface_object(value)->value);
   }
   send_response(dap, seq, command, body, doc, root);
 }

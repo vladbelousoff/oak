@@ -1,6 +1,5 @@
 #include "internal/oak_compiler.h"
 
-/* ---------- oak_fn_registry_t lifecycle ---------- */
 
 void oak_fn_registry_init(struct oak_fn_registry_t* r,
                           struct oak_allocator_t* allocator)
@@ -47,7 +46,6 @@ const struct oak_registered_fn_t* oak_fn_registry_find(
   return &r->entries[idx];
 }
 
-/* ---------- Registration helpers ---------- */
 
 static const struct oak_ast_node_t*
 record_decl_type_ident(const struct oak_ast_node_t* record_decl)

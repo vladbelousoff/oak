@@ -47,13 +47,11 @@ struct oak_enum_registry_t
   struct oak_registered_enum_t* enums; /* one entry per enum type */
 };
 
-/* ---------- Lifecycle ---------- */
 
 void oak_enum_registry_init(struct oak_enum_registry_t* r,
                             struct oak_allocator_t* allocator);
 void oak_enum_registry_free(struct oak_enum_registry_t* r);
 
-/* ---------- Operations ---------- */
 
 /* Appends variant and indexes it by name and enum name. */
 struct oak_enum_variant_t*

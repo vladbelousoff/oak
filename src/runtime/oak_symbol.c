@@ -17,7 +17,7 @@ void oak_symbol_registry_init(struct oak_symbol_registry_t* registry,
   registry->fns = null;
   registry->records = null;
   registry->enums = null;
-  registry->traits = null;
+  registry->interfaces = null;
 }
 
 static void free_fn_entry(struct oak_allocator_t* a,
@@ -52,8 +52,8 @@ static void free_enum_entry(struct oak_module_export_enum_t* en)
   oak_dynarr_free(&en->variants);
 }
 
-static void free_trait_entry(struct oak_allocator_t* a,
-                             struct oak_module_export_trait_t* tr)
+static void free_interface_entry(struct oak_allocator_t* a,
+                             struct oak_module_export_interface_t* tr)
 {
   for (int mi = 0; mi < oak_dynarr_count(tr->methods); ++mi)
   {
@@ -84,11 +84,11 @@ void oak_symbol_registry_free(struct oak_symbol_registry_t* registry)
       free_enum_entry(&registry->enums[i]);
     oak_dynarr_free(&registry->enums);
   }
-  if (registry->traits)
+  if (registry->interfaces)
   {
-    for (int i = 0; i < oak_dynarr_count(registry->traits); ++i)
-      free_trait_entry(a, &registry->traits[i]);
-    oak_dynarr_free(&registry->traits);
+    for (int i = 0; i < oak_dynarr_count(registry->interfaces); ++i)
+      free_interface_entry(a, &registry->interfaces[i]);
+    oak_dynarr_free(&registry->interfaces);
   }
   oak_htable_free(&registry->by_name);
   oak_dynarr_free(&registry->symbols);
@@ -116,7 +116,6 @@ const struct oak_symbol_t* oak_symbol_registry_find(
   return &registry->symbols[index];
 }
 
-/* --- Typed insert helpers --- */
 
 static void ensure_fns_init(struct oak_symbol_registry_t* r)
 {
@@ -136,10 +135,10 @@ static void ensure_enums_init(struct oak_symbol_registry_t* r)
     oak_assert(oak_dynarr_init(r->allocator, &r->enums, sizeof *r->enums));
 }
 
-static void ensure_traits_init(struct oak_symbol_registry_t* r)
+static void ensure_interfaces_init(struct oak_symbol_registry_t* r)
 {
-  if (!r->traits)
-    oak_assert(oak_dynarr_init(r->allocator, &r->traits, sizeof *r->traits));
+  if (!r->interfaces)
+    oak_assert(oak_dynarr_init(r->allocator, &r->interfaces, sizeof *r->interfaces));
 }
 
 struct oak_module_export_fn_t*
@@ -205,28 +204,27 @@ oak_symbol_registry_insert_enum(struct oak_symbol_registry_t* registry,
   return &registry->enums[idx];
 }
 
-struct oak_module_export_trait_t*
-oak_symbol_registry_insert_trait(struct oak_symbol_registry_t* registry,
+struct oak_module_export_interface_t*
+oak_symbol_registry_insert_interface(struct oak_symbol_registry_t* registry,
                                  const char* name,
                                  u16 owner_module_id,
-                                 const struct oak_module_export_trait_t* tr)
+                                 const struct oak_module_export_interface_t* tr)
 {
-  ensure_traits_init(registry);
-  const int idx = oak_dynarr_count(registry->traits);
-  oak_assert(oak_dynarr_push(&registry->traits, tr));
+  ensure_interfaces_init(registry);
+  const int idx = oak_dynarr_count(registry->interfaces);
+  oak_assert(oak_dynarr_push(&registry->interfaces, tr));
   struct oak_symbol_t symbol = {
     .name = name,
-    .kind = OAK_SYMBOL_TRAIT,
+    .kind = OAK_SYMBOL_INTERFACE,
     .owner_module_id = owner_module_id,
     .payload_index = idx,
     .is_exported = 1,
   };
   if (!oak_symbol_registry_insert(registry, &symbol))
     return null;
-  return &registry->traits[idx];
+  return &registry->interfaces[idx];
 }
 
-/* --- Typed find helpers --- */
 
 const struct oak_module_export_fn_t*
 oak_symbol_registry_find_fn(const struct oak_symbol_registry_t* registry,
@@ -258,12 +256,12 @@ oak_symbol_registry_find_enum(const struct oak_symbol_registry_t* registry,
   return &registry->enums[s->payload_index];
 }
 
-const struct oak_module_export_trait_t*
-oak_symbol_registry_find_trait(const struct oak_symbol_registry_t* registry,
+const struct oak_module_export_interface_t*
+oak_symbol_registry_find_interface(const struct oak_symbol_registry_t* registry,
                                const char* name)
 {
   const struct oak_symbol_t* s = oak_symbol_registry_find(registry, name);
-  if (!s || s->kind != OAK_SYMBOL_TRAIT)
+  if (!s || s->kind != OAK_SYMBOL_INTERFACE)
     return null;
-  return &registry->traits[s->payload_index];
+  return &registry->interfaces[s->payload_index];
 }

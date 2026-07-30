@@ -819,7 +819,7 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
       case OAK_OP_GET_FIELD:
       case OAK_OP_SET_FIELD:
       case OAK_OP_GET_MODULE_FN:
-      case OAK_OP_MAKE_TRAIT_OBJECT:
+      case OAK_OP_MAKE_INTERFACE_OBJECT:
       {
         cached_sync_to_vm(vm, chunk, ip, sp);
         const enum oak_vm_result_t result =

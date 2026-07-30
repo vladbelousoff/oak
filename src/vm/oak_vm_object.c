@@ -414,25 +414,25 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
         return result;
       break;
     }
-    case OAK_OP_MAKE_TRAIT_OBJECT:
+    case OAK_OP_MAKE_INTERFACE_OBJECT:
     {
       const u16 vtable_idx = oak_vm_read_u16(vm);
       if ((usize)vtable_idx >= chunk->const_count)
       {
         oak_vm_runtime_error(vm,
-                             "MAKE_TRAIT_OBJECT: vtable index out of range");
+                             "MAKE_INTERFACE_OBJECT: vtable index out of range");
         return OAK_VM_RUNTIME_ERROR;
       }
       const struct oak_value_t vtable_val = chunk->constants[vtable_idx];
       if (!oak_is_array(vtable_val))
       {
         oak_vm_runtime_error(vm,
-                             "MAKE_TRAIT_OBJECT: vtable is not an array");
+                             "MAKE_INTERFACE_OBJECT: vtable is not an array");
         return OAK_VM_RUNTIME_ERROR;
       }
       struct oak_obj_array_t* vtable = oak_as_array(vtable_val);
       const struct oak_value_t concrete = oak_vm_pop(vm);
-      struct oak_obj_trait_object_t* to = oak_trait_object_new(vm->allocator, concrete, vtable);
+      struct oak_obj_interface_object_t* to = oak_interface_object_new(vm->allocator, concrete, vtable);
       oak_value_decref(concrete);
       const enum oak_vm_result_t result =
           oak_vm_push_owned(vm, OAK_VALUE_OBJ(&to->obj));

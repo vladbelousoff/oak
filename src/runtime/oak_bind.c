@@ -9,7 +9,6 @@
 
 #include <string.h>
 
-/* ---------- Compile-options lifecycle ---------- */
 
 void oak_compile_options_init(struct oak_compile_options_t* opts,
                              struct oak_allocator_t* allocator)
@@ -51,7 +50,6 @@ void oak_compile_options_free(struct oak_compile_options_t* opts)
   oak_dynarr_free(&opts->native_attrs);
 }
 
-/* ---------- Binding API ---------- */
 
 struct oak_bind_type_t* oak_bind_type(struct oak_compile_options_t* opts,
                                       const enum oak_bind_type_kind_t kind,
@@ -199,7 +197,6 @@ int oak_bind_enum_variant(struct oak_bind_enum_t* e,
   return 0;
 }
 
-/* ---------- Runtime helpers ---------- */
 
 struct oak_value_t oak_native_record_new(struct oak_allocator_t* allocator,
                                          const struct oak_bind_type_t* type,

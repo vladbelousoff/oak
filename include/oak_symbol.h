@@ -7,14 +7,14 @@ struct oak_allocator_t;
 struct oak_module_export_fn_t;
 struct oak_module_export_record_t;
 struct oak_module_export_enum_t;
-struct oak_module_export_trait_t;
+struct oak_module_export_interface_t;
 
 enum oak_symbol_kind_t
 {
   OAK_SYMBOL_FUNCTION,
   OAK_SYMBOL_RECORD,
   OAK_SYMBOL_ENUM,
-  OAK_SYMBOL_TRAIT,
+  OAK_SYMBOL_INTERFACE,
   OAK_SYMBOL_GLOBAL,
   OAK_SYMBOL_MODULE_ALIAS,
 };
@@ -38,7 +38,7 @@ struct oak_symbol_registry_t
   struct oak_module_export_fn_t* fns;
   struct oak_module_export_record_t* records;
   struct oak_module_export_enum_t* enums;
-  struct oak_module_export_trait_t* traits;
+  struct oak_module_export_interface_t* interfaces;
 };
 
 void oak_symbol_registry_init(struct oak_symbol_registry_t* registry,
@@ -73,11 +73,11 @@ oak_symbol_registry_insert_enum(struct oak_symbol_registry_t* registry,
                                 u16 owner_module_id,
                                 const struct oak_module_export_enum_t* en);
 
-struct oak_module_export_trait_t*
-oak_symbol_registry_insert_trait(struct oak_symbol_registry_t* registry,
+struct oak_module_export_interface_t*
+oak_symbol_registry_insert_interface(struct oak_symbol_registry_t* registry,
                                  const char* name,
                                  u16 owner_module_id,
-                                 const struct oak_module_export_trait_t* tr);
+                                 const struct oak_module_export_interface_t* tr);
 
 /* Typed find: name lookup + kind check + payload dereference. */
 const struct oak_module_export_fn_t*
@@ -92,6 +92,6 @@ const struct oak_module_export_enum_t*
 oak_symbol_registry_find_enum(const struct oak_symbol_registry_t* registry,
                               const char* name);
 
-const struct oak_module_export_trait_t*
-oak_symbol_registry_find_trait(const struct oak_symbol_registry_t* registry,
+const struct oak_module_export_interface_t*
+oak_symbol_registry_find_interface(const struct oak_symbol_registry_t* registry,
                                const char* name);

@@ -188,9 +188,9 @@ static void oak_obj_destroy_payload(struct oak_obj_t* obj)
     if (ns->instance && ns->type && ns->type->destructor)
       ns->type->destructor(ns->instance);
   }
-  else if (obj->type == OAK_OBJ_TRAIT_OBJECT)
+  else if (obj->type == OAK_OBJ_INTERFACE_OBJECT)
   {
-    struct oak_obj_trait_object_t* to = (struct oak_obj_trait_object_t*)obj;
+    struct oak_obj_interface_object_t* to = (struct oak_obj_interface_object_t*)obj;
     oak_value_decref(to->value);
     oak_obj_decref((struct oak_obj_t*)to->vtable);
   }
@@ -398,14 +398,14 @@ oak_obj_native_record_new(struct oak_allocator_t* a,
   return ns;
 }
 
-struct oak_obj_trait_object_t*
-oak_trait_object_new(struct oak_allocator_t* a,
+struct oak_obj_interface_object_t*
+oak_interface_object_new(struct oak_allocator_t* a,
                      struct oak_value_t value,
                      struct oak_obj_array_t* vtable)
 {
-  struct oak_obj_trait_object_t* to =
-      OAK_ALLOC(a, sizeof(struct oak_obj_trait_object_t));
-  oak_obj_init(&to->obj, OAK_OBJ_TRAIT_OBJECT, a);
+  struct oak_obj_interface_object_t* to =
+      OAK_ALLOC(a, sizeof(struct oak_obj_interface_object_t));
+  oak_obj_init(&to->obj, OAK_OBJ_INTERFACE_OBJECT, a);
   oak_value_assert_can_refcopy_to_table(value, to->obj.table_id);
   oak_assert(vtable->obj.table_id == 0u ||
              vtable->obj.table_id == to->obj.table_id);

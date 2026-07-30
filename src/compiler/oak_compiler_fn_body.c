@@ -47,7 +47,7 @@ void oak_compile_return(struct oak_compiler_t* c,
     oak_compiler_compile_node(c, expr);
     if (c->has_error)
       return;
-    oak_emit_trait_coerce(c,
+    oak_emit_interface_coerce(c,
                            expr,
                            c->scope.declared_return_type,
                            OAK_LOC_SYNTHETIC);

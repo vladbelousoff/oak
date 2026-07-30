@@ -68,7 +68,6 @@ void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
   oak_list_add_tail(&lexer->tokens, &token->link);
 }
 
-/* ---------- Scanners ---------- */
 
 static enum oak_lex_status_t scan_ws(const struct oak_lexer_ctx_t* ctx,
                                      const char* input)
@@ -475,7 +474,6 @@ static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
   return OAK_LEX_OK;
 }
 
-/* ---------- Dispatch ---------- */
 
 typedef enum oak_lex_status_t (*scan_fn_t)(const struct oak_lexer_ctx_t* ctx,
                                            const char* input);

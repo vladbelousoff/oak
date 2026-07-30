@@ -99,10 +99,10 @@ enum oak_node_kind_t
   OAK_NODE_BLOCK,
   OAK_NODE_IMPORT_DECL,
   OAK_NODE_IMPORT_PATH,
-  /* trait Name { fn_decl* }
-   * Binary: lhs = IDENT (trait name), rhs = TRAIT_MEMBERS */
-  OAK_NODE_TRAIT_DECL,
-  OAK_NODE_TRAIT_MEMBERS,
+  /* interface IName { fn_decl* }
+   * Binary: lhs = IDENT (interface name), rhs = INTERFACE_MEMBERS */
+  OAK_NODE_INTERFACE_DECL,
+  OAK_NODE_INTERFACE_MEMBERS,
   /* impl TypeName { fn_decl* } — kept for enum stability but no longer parsed */
   OAK_NODE_IMPL_DECL,
   OAK_NODE_IMPL_MEMBERS,

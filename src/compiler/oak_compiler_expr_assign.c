@@ -188,7 +188,7 @@ void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
 
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, rhs);
-    oak_emit_trait_coerce(c,
+    oak_emit_interface_coerce(c,
                            rhs,
                            sd->fields[idx].type,
                            oak_compiler_loc_from_token(fname->token));
@@ -288,7 +288,7 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
     oak_compiler_emit_op(c,
                          oak_binop_for_node(node->kind),
                          oak_compiler_loc_from_token(lhs->token));
-    oak_emit_trait_coerce(c,
+    oak_emit_interface_coerce(c,
                            node->rhs,
                            sd->fields[idx].type,
                            oak_compiler_loc_from_token(fname->token));

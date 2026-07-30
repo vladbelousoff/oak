@@ -14,20 +14,20 @@
  *     element (or key) type can reach a strong owner of that container type
  *     are rejected for the same reason (see oak_container_store_locked).
  *
- *  2. Records may not strongly own trait objects (scalar trait fields,
- *     trait-element arrays, trait-typed map keys/values): traits are open, so
- *     a later module can implement the trait with a record that closes a
+ *  2. Records may not strongly own interface objects (scalar interface fields,
+ *     interface-element arrays, interface-typed map keys/values): interfaces are open, so
+ *     a later module can implement the interface with a record that closes a
  *     cycle this compilation cannot see. Such fields must be weak. With that
- *     rule, trait objects and trait containers are only ever owned by roots
- *     (locals, globals, the stack), never by heap objects, so root-held trait
+ *     rule, interface objects and interface containers are only ever owned by roots
+ *     (locals, globals, the stack), never by heap objects, so root-held interface
  *     containers stay freely mutable.
  *
- * The analysis runs once per compilation, after all records and traits
+ * The analysis runs once per compilation, after all records and interfaces
  * (including imports and native bindings) are registered. Reachability is
  * closed-world over record types, which is sound across modules: a record's
  * field types must be visible at its declaration, so a later module can only
  * point *at* existing records, never extend what they reach — except through
- * traits, which rule 2 removes from the strong graph entirely.
+ * interfaces, which rule 2 removes from the strong graph entirely.
  */
 
 static int record_index_by_id(const struct oak_record_registry_t* r,
@@ -43,22 +43,22 @@ static int record_index_by_id(const struct oak_record_registry_t* r,
   return -1;
 }
 
-static int type_is_trait_id(const struct oak_compiler_t* c, oak_type_id_t id)
+static int type_is_interface_id(const struct oak_compiler_t* c, oak_type_id_t id)
 {
-  return oak_trait_find_by_id(&c->traits, id) != null;
+  return oak_interface_find_by_id(&c->interfaces, id) != null;
 }
 
-/* True if a strong slot of this type holds a trait object, directly or as a
- * container element/key. Covers fields declared before their (local) trait
- * was registered, which lower as SCALAR with the trait's interned id. */
-static int type_holds_trait(const struct oak_compiler_t* c,
+/* True if a strong slot of this type holds an interface object, directly or as a
+ * container element/key. Covers fields declared before their (local) interface
+ * was registered, which lower as SCALAR with the interface's interned id. */
+static int type_holds_interface(const struct oak_compiler_t* c,
                             const struct oak_type_t* t)
 {
   if (t->kind == OAK_TYPE_KIND_FN)
     return 0;
-  if (type_is_trait_id(c, t->id))
+  if (type_is_interface_id(c, t->id))
     return 1;
-  if (t->kind == OAK_TYPE_KIND_MAP && type_is_trait_id(c, t->key_id))
+  if (t->kind == OAK_TYPE_KIND_MAP && type_is_interface_id(c, t->key_id))
     return 1;
   return 0;
 }
@@ -66,13 +66,13 @@ static int type_holds_trait(const struct oak_compiler_t* c,
 /* Collects the record-registry indices a strong slot of type `t` can own:
  * the scalar/element/value type, plus the key type for maps. Returns the
  * count (0, 1, or 2). Leaves (numbers, strings, enums, fns, value types)
- * and traits contribute nothing. */
+ * and interfaces contribute nothing. */
 static int type_record_targets(const struct oak_compiler_t* c,
                                const struct oak_type_t* t,
                                int out[2])
 {
   int n = 0;
-  if (t->kind == OAK_TYPE_KIND_FN || t->kind == OAK_TYPE_KIND_TRAIT)
+  if (t->kind == OAK_TYPE_KIND_FN || t->kind == OAK_TYPE_KIND_INTERFACE)
     return 0;
   const int j = record_index_by_id(&c->records, t->id);
   if (j >= 0)
@@ -145,7 +145,7 @@ void oak_compiler_check_cycles(struct oak_compiler_t* c,
   memset(reach, 0, (usize)n * (usize)n);
   c->cycle_reach = reach;
 
-  /* Direct strong edges, plus the trait-ownership rule. */
+  /* Direct strong edges, plus the interface-ownership rule. */
   for (int i = 0; i < n; ++i)
   {
     const struct oak_registered_record_t* sd = &c->records.entries[i];
@@ -158,13 +158,13 @@ void oak_compiler_check_cycles(struct oak_compiler_t* c,
       if (f->type.is_weak)
         continue;
 
-      if (type_holds_trait(c, &f->type))
+      if (type_holds_interface(c, &f->type))
       {
         oak_compiler_error_at(
             c,
             field_decl_token(program, sd->name, f->name),
-            "field '%s' of record '%s' strongly owns a trait object; a later "
-            "trait impl could close a reference cycle — declare the field "
+            "field '%s' of record '%s' strongly owns an interface object; a later "
+            "interface impl could close a reference cycle — declare the field "
             "weak ('%s weak')",
             f->name,
             sd->name,
@@ -248,8 +248,8 @@ int oak_container_store_locked(struct oak_compiler_t* c,
   if (!c->cycle_reach || n == 0)
     return 0;
 
-  /* Trait elements never lock a store: records cannot strongly own trait
-   * objects or trait containers, so the stored value can never reach this
+  /* Interface elements never lock a store: records cannot strongly own interface
+   * objects or interface containers, so the stored value can never reach this
    * container through the heap. Record elements lock the store when they can
    * reach a record that strongly owns a container of this exact type. */
   int targets[2];

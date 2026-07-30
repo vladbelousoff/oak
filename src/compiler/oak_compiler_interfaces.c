@@ -2,26 +2,26 @@
 
 #include <string.h>
 
-void oak_trait_registry_init(struct oak_trait_registry_t* r,
+void oak_interface_registry_init(struct oak_interface_registry_t* r,
                              struct oak_allocator_t* allocator)
 {
   r->allocator = allocator;
-  oak_assert(oak_dynarr_init(r->allocator, &r->traits, sizeof *r->traits));
+  oak_assert(oak_dynarr_init(r->allocator, &r->interfaces, sizeof *r->interfaces));
   oak_assert(oak_dynarr_init(r->allocator, &r->impls, sizeof *r->impls));
 }
 
-void oak_trait_registry_free(struct oak_trait_registry_t* r)
+void oak_interface_registry_free(struct oak_interface_registry_t* r)
 {
-  for (int i = 0; i < oak_dynarr_count(r->traits); ++i)
+  for (int i = 0; i < oak_dynarr_count(r->interfaces); ++i)
   {
-    for (int mi = 0; mi < oak_dynarr_count(r->traits[i].methods); ++mi)
+    for (int mi = 0; mi < oak_dynarr_count(r->interfaces[i].methods); ++mi)
     {
-      if (r->traits[i].methods[mi].param_types)
-        OAK_FREE(r->allocator, r->traits[i].methods[mi].param_types);
+      if (r->interfaces[i].methods[mi].param_types)
+        OAK_FREE(r->allocator, r->interfaces[i].methods[mi].param_types);
     }
-    oak_dynarr_free(&r->traits[i].methods);
+    oak_dynarr_free(&r->interfaces[i].methods);
   }
-  oak_dynarr_free(&r->traits);
+  oak_dynarr_free(&r->interfaces);
 
   for (int i = 0; i < oak_dynarr_count(r->impls); ++i)
   {
@@ -33,18 +33,17 @@ void oak_trait_registry_free(struct oak_trait_registry_t* r)
   oak_dynarr_free(&r->impls);
 }
 
-/* ---------- Trait coercion emission ---------- */
 
-void oak_emit_trait_coerce(struct oak_compiler_t* c,
+void oak_emit_interface_coerce(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* arg_expr,
                             struct oak_type_t want,
                             struct oak_code_loc_t loc)
 {
-  if (want.kind != OAK_TYPE_KIND_TRAIT || want.is_weak)
+  if (want.kind != OAK_TYPE_KIND_INTERFACE || want.is_weak)
     return;
 
-  const struct oak_registered_trait_t* tr =
-      oak_trait_find_by_id(&c->traits, want.id);
+  const struct oak_registered_interface_t* tr =
+      oak_interface_find_by_id(&c->interfaces, want.id);
   if (!tr)
     return;
 
@@ -53,7 +52,7 @@ void oak_emit_trait_coerce(struct oak_compiler_t* c,
   if (!oak_type_is_known(&got))
     return;
 
-  /* Trait-to-same-trait: already a trait object; no coercion needed. */
+  /* Interface-to-same-interface: already an interface object; no coercion needed. */
   if (oak_type_equal(&want, &got))
     return;
 
@@ -66,18 +65,18 @@ void oak_emit_trait_coerce(struct oak_compiler_t* c,
     oak_compiler_error_at(
         c,
         arg_expr ? arg_expr->token : null,
-        "cannot coerce type '%s' to trait '%s': not a record type",
+        "cannot coerce type '%s' to interface '%s': not a record type",
         oak_type_full_name(c, got),
         tr->name);
     return;
   }
 
-  if (!oak_record_satisfies_trait(c, sd, tr))
+  if (!oak_record_satisfies_interface(c, sd, tr))
   {
     oak_compiler_error_at(
         c,
         arg_expr ? arg_expr->token : null,
-        "type '%s' does not implement trait '%s'",
+        "type '%s' does not implement interface '%s'",
         sd->name,
         tr->name);
     return;
@@ -86,7 +85,7 @@ void oak_emit_trait_coerce(struct oak_compiler_t* c,
   const u16 vtable_idx = oak_get_or_build_vtable(c, sd, tr);
   if (c->has_error)
     return;
-  oak_compiler_emit_op(c, OAK_OP_MAKE_TRAIT_OBJECT, loc,
+  oak_compiler_emit_op(c, OAK_OP_MAKE_INTERFACE_OBJECT, loc,
                        OAK_ARG_U16(vtable_idx));
 }
 
@@ -118,9 +117,8 @@ void oak_emit_weak_coerce(struct oak_compiler_t* c,
   oak_compiler_emit_op(c, OAK_OP_WEAKEN, loc);
 }
 
-/* ---------- Trait registration ---------- */
 
-void oak_register_program_traits(struct oak_compiler_t* c,
+void oak_register_program_interfaces(struct oak_compiler_t* c,
                                   const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
@@ -129,33 +127,39 @@ void oak_register_program_traits(struct oak_compiler_t* c,
     const struct oak_ast_node_t* raw_item =
         oak_container_of(pos, struct oak_ast_node_t, link);
     const struct oak_ast_node_t* item = oak_unwrap_decl(raw_item);
-    if (!item || item->kind != OAK_NODE_TRAIT_DECL)
+    if (!item || item->kind != OAK_NODE_INTERFACE_DECL)
       continue;
 
     if (!item->lhs || item->lhs->kind != OAK_NODE_IDENT || !item->rhs)
     {
-      oak_compiler_error_at(c, item->token, "malformed trait declaration");
+      oak_compiler_error_at(c, item->token, "malformed interface declaration");
       return;
     }
 
     const char* tname = oak_token_text(item->lhs->token);
-
-    if (oak_trait_find(&c->traits, tname))
+    if (!tname || tname[0] != 'I')
     {
       oak_compiler_error_at(
-          c, item->lhs->token, "duplicate trait '%s'", tname);
+          c, item->lhs->token, "interface names must start with 'I'");
       return;
     }
 
-    struct oak_registered_trait_t proto = {
+    if (oak_interface_find(&c->interfaces, tname))
+    {
+      oak_compiler_error_at(
+          c, item->lhs->token, "duplicate interface '%s'", tname);
+      return;
+    }
+
+    struct oak_registered_interface_t proto = {
       .name = tname,
-      .trait_id = oak_type_registry_intern(&c->types, tname),
+      .interface_id = oak_type_registry_intern(&c->types, tname),
       .methods = null,
     };
 
     oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
 
-    if (proto.trait_id < 0)
+    if (proto.interface_id < 0)
     {
       oak_compiler_error_at(c, item->lhs->token, "type registry full");
       return;
@@ -164,16 +168,16 @@ void oak_register_program_traits(struct oak_compiler_t* c,
     const u16 owner_module_id =
         c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
     if (!oak_compiler_declare_symbol(
-            c, item->lhs->token, tname, OAK_SYMBOL_TRAIT,
-            oak_dynarr_count(c->traits.traits), owner_module_id, 0))
+            c, item->lhs->token, tname, OAK_SYMBOL_INTERFACE,
+            oak_dynarr_count(c->interfaces.interfaces), owner_module_id, 0))
       return;
     if (oak_decl_is_exported(raw_item))
       oak_compiler_mark_symbol_exported(c, tname);
-    oak_assert(oak_dynarr_push(&c->traits.traits, &proto));
-    struct oak_registered_trait_t* tr =
-        &c->traits.traits[oak_dynarr_count(c->traits.traits) - 1];
+    oak_assert(oak_dynarr_push(&c->interfaces.interfaces, &proto));
+    struct oak_registered_interface_t* tr =
+        &c->interfaces.interfaces[oak_dynarr_count(c->interfaces.interfaces) - 1];
 
-    /* Walk trait members — each must be a FN_DECL. */
+    /* Walk interface members — each must be a FN_DECL. */
     const struct oak_ast_node_t* members = item->rhs;
     for (struct oak_list_entry_t* mp = members->children.next;
          mp != &members->children;
@@ -187,7 +191,7 @@ void oak_register_program_traits(struct oak_compiler_t* c,
       const struct oak_ast_node_t* name_node = oak_fn_name_node(mdecl);
       if (!name_node)
       {
-        oak_compiler_error_at(c, mdecl->token, "malformed trait method");
+        oak_compiler_error_at(c, mdecl->token, "malformed interface method");
         return;
       }
 
@@ -199,7 +203,7 @@ void oak_register_program_traits(struct oak_compiler_t* c,
       /* If the body is a real BLOCK (not just ';'), record the decl for
        * later compilation as a default implementation. */
       const struct oak_ast_node_t* body = oak_fn_block(mdecl);
-      struct oak_trait_method_t tm = {
+      struct oak_interface_method_t tm = {
         .name = mname,
         .arity = total_arity,
         .sig_decl = mdecl,
@@ -213,7 +217,6 @@ void oak_register_program_traits(struct oak_compiler_t* c,
   }
 }
 
-/* ---------- fn TypeName.method_name registration ---------- */
 
 const struct oak_ast_node_t* oak_method_decl_type_ident(
     const struct oak_ast_node_t* decl)
@@ -266,7 +269,6 @@ void oak_register_method_decls(struct oak_compiler_t* c,
   }
 }
 
-/* ---------- fn TypeName.method_name body compilation ---------- */
 
 void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* program)
@@ -321,17 +323,16 @@ void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
   }
 }
 
-/* ---------- Structural conformance check ---------- */
 
-/* Returns 1 if concrete record type `sd` structurally satisfies trait `tr`
+/* Returns 1 if concrete record type `sd` structurally satisfies interface `tr`
  * (i.e. has all required methods with compatible arity). */
-int oak_record_satisfies_trait(struct oak_compiler_t* c,
+int oak_record_satisfies_interface(struct oak_compiler_t* c,
                                 const struct oak_registered_record_t* sd,
-                                const struct oak_registered_trait_t* tr)
+                                const struct oak_registered_interface_t* tr)
 {
   for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
   {
-    const struct oak_trait_method_t* tm = &tr->methods[i];
+    const struct oak_interface_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =
         oak_find_record_method(sd, tm->name, 0);
     if (!sm)
@@ -340,7 +341,7 @@ int oak_record_satisfies_trait(struct oak_compiler_t* c,
       return 0;
 
     /* Compare parameter and return types. When both sides have AST decls
-     * (local trait), lower from the AST. When the trait is imported
+     * (local interface), lower from the AST. When the interface is imported
      * (sig_decl == null), use the pre-lowered param_types/return_type. */
     {
       struct oak_type_t tr_ret;
@@ -415,22 +416,21 @@ int oak_record_satisfies_trait(struct oak_compiler_t* c,
   return 1;
 }
 
-/* ---------- Vtable construction ---------- */
 
 /* Build (or return cached) vtable array const_idx for (sd, tr).
- * The vtable is an OAK_OBJ_ARRAY of function values, one per trait method.
+ * The vtable is an OAK_OBJ_ARRAY of function values, one per interface method.
  * Must be called after all fn bodies have been compiled (const_idx stable). */
 u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
                              const struct oak_registered_record_t* sd,
-                             const struct oak_registered_trait_t* tr)
+                             const struct oak_registered_interface_t* tr)
 {
-  struct oak_trait_impl_t* impl =
-      oak_trait_impl_find(&c->traits, sd->type_id, tr->trait_id);
+  struct oak_interface_impl_t* impl =
+      oak_interface_impl_find(&c->interfaces, sd->type_id, tr->interface_id);
 
   if (!impl)
   {
-    struct oak_trait_impl_t proto = {
-      .trait_id = tr->trait_id,
+    struct oak_interface_impl_t proto = {
+      .interface_id = tr->interface_id,
       .record_type_id = sd->type_id,
       .vtable = OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(tr->methods) * sizeof(u16)),
       .vtable_count = oak_dynarr_count(tr->methods),
@@ -440,13 +440,13 @@ u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
 
     for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
     {
-      const struct oak_trait_method_t* tm = &tr->methods[i];
+      const struct oak_interface_method_t* tm = &tr->methods[i];
       const struct oak_registered_fn_t* sm =
           oak_find_record_method(sd, tm->name, 0);
       proto.vtable[i] = sm ? sm->const_idx : 0;
     }
-    oak_assert(oak_dynarr_push(&c->traits.impls, &proto));
-    impl = &c->traits.impls[oak_dynarr_count(c->traits.impls) - 1];
+    oak_assert(oak_dynarr_push(&c->interfaces.impls, &proto));
+    impl = &c->interfaces.impls[oak_dynarr_count(c->interfaces.impls) - 1];
   }
 
   if (impl->vtable_built)
@@ -457,7 +457,7 @@ u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
   struct oak_obj_array_t* arr = oak_array_new(c->allocator);
   for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
   {
-    const struct oak_trait_method_t* tm = &tr->methods[i];
+    const struct oak_interface_method_t* tm = &tr->methods[i];
     const struct oak_registered_fn_t* sm =
         oak_find_record_method(sd, tm->name, 0);
     struct oak_value_t fn_val;

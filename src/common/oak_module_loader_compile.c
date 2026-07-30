@@ -101,12 +101,12 @@ static int validate_imported_module_body(
       case OAK_NODE_RECORD_DECL:
       case OAK_NODE_RECORD_DECL_EMPTY:
       case OAK_NODE_ENUM_DECL:
-      case OAK_NODE_TRAIT_DECL:
+      case OAK_NODE_INTERFACE_DECL:
         continue;
       default:
         loader_error(out,
                      "%s: top-level statement not allowed in imported module "
-                     "(only fn, record, enum, trait, and import are permitted)",
+                     "(only fn, record, enum, interface, and import are permitted)",
                      mod->dotted_name ? mod->dotted_name : mod->canonical_path);
         ok = 0;
         break;

@@ -22,8 +22,8 @@ const char* oak_vm_value_kind_desc(const struct oak_value_t v)
     return "array";
   if (oak_is_map(v))
     return "map";
-  if (oak_is_trait_object(v))
-    return "trait object";
+  if (oak_is_interface_object(v))
+    return "interface object";
   if (oak_is_obj(v))
     return "object";
   return "value";

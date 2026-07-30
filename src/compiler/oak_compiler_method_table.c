@@ -85,17 +85,17 @@ static void validate_array_push_args(struct oak_compiler_t* c,
     return;
   }
 
-  /* Trait element arrays accept any concrete type that structurally satisfies
-   * the trait; coercion to a trait object is emitted at the call site. */
-  const struct oak_registered_trait_t* elem_tr =
-      oak_trait_find_by_id(&c->traits, recv_ty.id);
+  /* Interface element arrays accept any concrete type that structurally satisfies
+   * the interface; coercion to an interface object is emitted at the call site. */
+  const struct oak_registered_interface_t* elem_tr =
+      oak_interface_find_by_id(&c->interfaces, recv_ty.id);
   if (elem_tr)
   {
     struct oak_type_t got;
     oak_infer_type(c, arg_expr, &got);
     if (!oak_type_is_known(&got))
       return;
-    if (got.kind == OAK_TYPE_KIND_TRAIT && got.id == elem_tr->trait_id)
+    if (got.kind == OAK_TYPE_KIND_INTERFACE && got.id == elem_tr->interface_id)
     {
       oak_reject_immutable_ref_for_mutable_storage(
           c,
@@ -103,12 +103,12 @@ static void validate_array_push_args(struct oak_compiler_t* c,
           got,
           first_arg_error_token(arg_expr, err_tok),
           "array element");
-      return; /* already a matching trait object */
+      return; /* already a matching interface object */
     }
     const struct oak_registered_record_t* sd = null;
     if (got.kind == OAK_TYPE_KIND_SCALAR)
       sd = oak_records_find_by_id(&c->records, got.id);
-    if (sd && oak_record_satisfies_trait(c, sd, elem_tr))
+    if (sd && oak_record_satisfies_interface(c, sd, elem_tr))
     {
       oak_reject_immutable_ref_for_mutable_storage(
           c,
@@ -123,7 +123,7 @@ static void validate_array_push_args(struct oak_compiler_t* c,
       oak_compiler_error_at(c,
                             t,
                             "cannot push value of type '%s' to array of '%s': "
-                            "type does not implement trait '%s'",
+                            "type does not implement interface '%s'",
                             sd->name,
                             elem_tr->name,
                             elem_tr->name);

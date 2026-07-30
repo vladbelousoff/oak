@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "internal/oak_trait_registry.h"
+#include "internal/oak_interface_registry.h"
 
 #include <string.h>
 
@@ -58,12 +58,12 @@ static u8* copy_mut_flags(struct oak_compiler_t* c, const u8* src, int count)
   return dst;
 }
 
-static void import_trait_from_dep(struct oak_compiler_t* c,
+static void import_interface_from_dep(struct oak_compiler_t* c,
                                   const struct oak_module_t* dep,
-                                  const struct oak_module_export_trait_t* exp)
+                                  const struct oak_module_export_interface_t* exp)
 {
-  const struct oak_registered_trait_t* existing =
-      oak_trait_find(&c->traits, exp->name);
+  const struct oak_registered_interface_t* existing =
+      oak_interface_find(&c->interfaces, exp->name);
   if (existing)
   {
     if (existing->source_module_id != dep->module_id)
@@ -76,28 +76,28 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
   oak_type_registry_intern_with_id(&c->types, exp->name, tid);
 
   if (!oak_compiler_declare_symbol(
-          c, null, exp->name, OAK_SYMBOL_TRAIT,
-          oak_dynarr_count(c->traits.traits), dep->module_id, 1))
+          c, null, exp->name, OAK_SYMBOL_INTERFACE,
+          oak_dynarr_count(c->interfaces.interfaces), dep->module_id, 1))
     return;
 
   /* Insert a provisional (empty) entry so self-referential or mutually
-     recursive traits short-circuit through the oak_trait_find check above
+     recursive interfaces short-circuit through the oak_interface_find check above
      instead of recursing infinitely via ensure_sig_types_imported.  We store
      the index (not a pointer) because ensure_sig_types_imported may trigger
-     further imports that reallocate the traits array. */
+     further imports that reallocate the interfaces array. */
   {
-    struct oak_registered_trait_t provisional = { 0 };
+    struct oak_registered_interface_t provisional = { 0 };
     oak_assert(oak_dynarr_init(c->allocator, &provisional.methods, sizeof *provisional.methods));
     provisional.name = exp->name;
-    provisional.trait_id = tid;
+    provisional.interface_id = tid;
     provisional.source_module_id = dep->module_id;
-    oak_assert(oak_dynarr_push(&c->traits.traits, &provisional));
+    oak_assert(oak_dynarr_push(&c->interfaces.interfaces, &provisional));
   }
-  const int trait_idx = oak_dynarr_count(c->traits.traits) - 1;
+  const int interface_idx = oak_dynarr_count(c->interfaces.interfaces) - 1;
 
   for (int mi = 0; mi < oak_dynarr_count(exp->methods); ++mi)
   {
-    const struct oak_module_export_trait_method_t* src = &exp->methods[mi];
+    const struct oak_module_export_interface_method_t* src = &exp->methods[mi];
     if (ensure_sig_types_imported(c, dep, &src->return_type,
                                   src->param_types, src->arity) < 0)
       return;
@@ -105,8 +105,8 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
 
   for (int mi = 0; mi < oak_dynarr_count(exp->methods); ++mi)
   {
-    const struct oak_module_export_trait_method_t* src = &exp->methods[mi];
-    struct oak_trait_method_t tm = {
+    const struct oak_module_export_interface_method_t* src = &exp->methods[mi];
+    struct oak_interface_method_t tm = {
       .name = src->name,
       .arity = src->arity,
       .sig_decl = null,
@@ -115,7 +115,7 @@ static void import_trait_from_dep(struct oak_compiler_t* c,
       .param_types = translate_param_types(c, dep, src->param_types, src->arity),
       .return_type = import_type_ref(c, dep, src->return_type),
     };
-    struct oak_registered_trait_t* entry = &c->traits.traits[trait_idx];
+    struct oak_registered_interface_t* entry = &c->interfaces.interfaces[interface_idx];
     oak_assert(oak_dynarr_push(&entry->methods, &tm));
   }
 }
@@ -295,15 +295,15 @@ static int import_named_type_from_dep(struct oak_compiler_t* c,
     return 1;
   }
 
-  const struct oak_module_export_trait_t* trt =
-      oak_module_find_export_trait(dep, name);
+  const struct oak_module_export_interface_t* trt =
+      oak_module_find_export_interface(dep, name);
   if (trt)
   {
     if (alias_token)
       oak_compiler_error_at(
-          c, alias_token, "'as' aliases are not supported for trait imports");
+          c, alias_token, "'as' aliases are not supported for interface imports");
     else
-      import_trait_from_dep(c, dep, trt);
+      import_interface_from_dep(c, dep, trt);
     return 1;
   }
 
@@ -436,9 +436,9 @@ static void import_all_from_dep(struct oak_compiler_t* c,
       import_enum_from_dep(
           c, dep, &dep->exports.enums[symbol->payload_index]);
       break;
-    case OAK_SYMBOL_TRAIT:
-      import_trait_from_dep(
-          c, dep, &dep->exports.traits[symbol->payload_index]);
+    case OAK_SYMBOL_INTERFACE:
+      import_interface_from_dep(
+          c, dep, &dep->exports.interfaces[symbol->payload_index]);
       break;
     case OAK_SYMBOL_FUNCTION:
     {
@@ -732,29 +732,29 @@ static void export_user_enums(struct oak_compiler_t* c,
   }
 }
 
-static void export_user_traits(struct oak_compiler_t* c,
+static void export_user_interfaces(struct oak_compiler_t* c,
                                struct oak_module_t* mod)
 {
   for (int i = 0; i < oak_dynarr_count(c->symbols.symbols); ++i)
   {
     const struct oak_symbol_t* source_symbol = &c->symbols.symbols[i];
-    if (!source_symbol->is_exported || source_symbol->kind != OAK_SYMBOL_TRAIT)
+    if (!source_symbol->is_exported || source_symbol->kind != OAK_SYMBOL_INTERFACE)
       continue;
-    const struct oak_registered_trait_t* tr =
-        &c->traits.traits[source_symbol->payload_index];
-    struct oak_module_export_trait_t exp = { 0 };
+    const struct oak_registered_interface_t* tr =
+        &c->interfaces.interfaces[source_symbol->payload_index];
+    struct oak_module_export_interface_t exp = { 0 };
     exp.name = tr->name;
     oak_assert(oak_dynarr_init(c->allocator, &exp.methods, sizeof *exp.methods));
     for (int mi = 0; mi < oak_dynarr_count(tr->methods); ++mi)
     {
-      const struct oak_trait_method_t* src = &tr->methods[mi];
+      const struct oak_interface_method_t* src = &tr->methods[mi];
       struct oak_type_t* ptypes = null;
       u8* pmuts = null;
       if (src->sig_decl)
         lower_params_from_decl(c, src->sig_decl, src->arity, 0, &ptypes, &pmuts);
       if (pmuts)
         OAK_FREE(c->allocator, pmuts);
-      struct oak_module_export_trait_method_t tm = {
+      struct oak_module_export_interface_method_t tm = {
         .name = src->name,
         .arity = src->arity,
         .self_is_mut = src->self_is_mut,
@@ -764,7 +764,7 @@ static void export_user_traits(struct oak_compiler_t* c,
       };
       oak_assert(oak_dynarr_push(&exp.methods, &tm));
     }
-    oak_symbol_registry_insert_trait(
+    oak_symbol_registry_insert_interface(
         &mod->exports, exp.name, mod->module_id, &exp);
   }
 }
@@ -780,5 +780,5 @@ void oak_populate_module_exports(struct oak_compiler_t* c)
   export_user_fns(c, mod);
   export_user_records(c, mod);
   export_user_enums(c, mod);
-  export_user_traits(c, mod);
+  export_user_interfaces(c, mod);
 }

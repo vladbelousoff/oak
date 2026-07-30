@@ -3,7 +3,7 @@ import { StreamLanguage } from '@codemirror/language';
 const KEYWORDS = new Set([
   'let', 'mut', 'fn', 'return', 'if', 'else', 'for', 'while',
   'break', 'continue', 'record', 'enum', 'import', 'new', 'from', 'to', 'in', 'as',
-  'self', 'trait', 'weak',
+  'self', 'interface', 'weak',
 ]);
 const TYPES    = new Set(['number', 'string', 'bool']);
 const BUILTINS = new Set(['print']);

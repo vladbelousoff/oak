@@ -5,7 +5,7 @@
  *  - strong fields on a type-graph cycle are write-once (record literal only)
  *  - stores into containers whose element type can own the container back are
  *    rejected
- *  - records may not strongly own trait objects
+ *  - records may not strongly own interface objects
  * See src/compiler/oak_compiler_cycles.c. */
 
 /* =========================================================================
@@ -152,11 +152,11 @@ OAK_TEST_DECL(CyclicValueMapStoreRejected)
 }
 
 /* =========================================================================
- * Records may not strongly own trait objects
+ * Records may not strongly own interface objects
  * ========================================================================= */
 
-#define TRAIT_SHAPE \
-  "trait Shape {\n" \
+#define INTERFACE_SHAPE \
+  "interface IShape {\n" \
   "  fn area(self) -> number;\n" \
   "}\n"
 
@@ -164,26 +164,26 @@ OAK_TEST_DECL(CyclicValueMapStoreRejected)
   "record Circle { radius : number; }\n" \
   "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
 
-OAK_TEST_DECL(StrongTraitFieldRejected)
+OAK_TEST_DECL(StrongInterfaceFieldRejected)
 {
-  return expect_compile_error(TRAIT_SHAPE
+  return expect_compile_error(INTERFACE_SHAPE
                               RECORD_CIRCLE
-                              "record Holder { s : Shape; }\n");
+                              "record Holder { s : IShape; }\n");
 }
 
-OAK_TEST_DECL(StrongTraitArrayFieldRejected)
+OAK_TEST_DECL(StrongInterfaceArrayFieldRejected)
 {
-  return expect_compile_error(TRAIT_SHAPE
+  return expect_compile_error(INTERFACE_SHAPE
                               RECORD_CIRCLE
-                              "record Holder { shapes : Shape[]; }\n");
+                              "record Holder { shapes : IShape[]; }\n");
 }
 
-OAK_TEST_DECL(WeakTraitFieldOk)
+OAK_TEST_DECL(WeakInterfaceFieldOk)
 {
-  return expect_ok(TRAIT_SHAPE
+  return expect_ok(INTERFACE_SHAPE
                    RECORD_CIRCLE
-                   "record Holder { s : Shape weak; }\n"
-                   "fn hold(s: Shape) -> Holder {\n"
+                   "record Holder { s : IShape weak; }\n"
+                   "fn hold(s: IShape) -> Holder {\n"
                    "  return new Holder { s: s };\n"
                    "}\n"
                    "let mut c = new Circle { radius: 2 };\n"
@@ -191,14 +191,14 @@ OAK_TEST_DECL(WeakTraitFieldOk)
                    "print(1);\n");
 }
 
-OAK_TEST_DECL(RootHeldTraitArrayPushStillOk)
+OAK_TEST_DECL(RootHeldInterfaceArrayPushStillOk)
 {
-  /* Trait containers can only be owned by roots, so they stay mutable. */
-  return expect_ok(TRAIT_SHAPE
+  /* Interface containers can only be owned by roots, so they stay mutable. */
+  return expect_ok(INTERFACE_SHAPE
                    RECORD_CIRCLE
                    "record Rect { w : number; h : number; }\n"
                    "fn Rect.area(self) -> number { return self.w * self.h; }\n"
-                   "let mut shapes = new Shape[];\n"
+                   "let mut shapes = new IShape[];\n"
                    "shapes.push(new Circle { radius: 3 });\n"
                    "shapes.push(new Rect { w: 2, h: 5 });\n"
                    "let mut total = 0;\n"
@@ -237,10 +237,10 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(AcyclicElementArrayPushOk),
     OAK_TEST_ENTRY(UnownedContainerOfCyclicRecordStaysMutable),
     OAK_TEST_ENTRY(CyclicValueMapStoreRejected),
-    OAK_TEST_ENTRY(StrongTraitFieldRejected),
-    OAK_TEST_ENTRY(StrongTraitArrayFieldRejected),
-    OAK_TEST_ENTRY(WeakTraitFieldOk),
-    OAK_TEST_ENTRY(RootHeldTraitArrayPushStillOk),
+    OAK_TEST_ENTRY(StrongInterfaceFieldRejected),
+    OAK_TEST_ENTRY(StrongInterfaceArrayFieldRejected),
+    OAK_TEST_ENTRY(WeakInterfaceFieldOk),
+    OAK_TEST_ENTRY(RootHeldInterfaceArrayPushStillOk),
     OAK_TEST_ENTRY(FormerRuntimeCycleProgramRejected),
   };
   return oak_test_run(tests, (int)oak_count_of(tests));

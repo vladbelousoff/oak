@@ -3,7 +3,6 @@
 #include "oak_state.h"
 #include "oak_chunk.h"
 
-/* ---------- oak_compiler_emit.c ---------- */
 
 void oak_compiler_emit_byte(const struct oak_compiler_t* c,
                             u8 byte,

@@ -3,7 +3,6 @@
 
 #include <string.h>
 
-/* ---------- oak_enum_registry_t lifecycle ---------- */
 
 void oak_enum_registry_init(struct oak_enum_registry_t* r,
                             struct oak_allocator_t* allocator)

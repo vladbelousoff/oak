@@ -33,12 +33,10 @@ class TypeBuilder;
 
 namespace detail {
 
-// ---------------------------------------------------------------------------
 // Closure storage: C++ callables are heap-allocated and handed to the C API
 // through the binding user_data pointers, so any number of bindings works.
 // CompileOptions owns the closures and must outlive every chunk/VM compiled
 // with it — the same lifetime the C API already requires of bind descriptors.
-// ---------------------------------------------------------------------------
 
 using native_fn_closure =
     std::function<oak_fn_call_result_t(oak_native_ctx_t*, const oak_value_t*,
@@ -69,9 +67,7 @@ inline void field_setter_bridge(oak_value_t self, oak_value_t value,
   static_cast<field_closure*>(user_data)->set(self, value);
 }
 
-// ---------------------------------------------------------------------------
 // Type trait helpers
-// ---------------------------------------------------------------------------
 
 template<typename T>
 inline constexpr oak_type_id_t oak_type_for = OAK_TYPE_VOID;
@@ -926,8 +922,6 @@ public:
     return *this;
   }
 
-  // --- Native function binding ---
-
   // Typed callable overload: arity, parameter types, conversions, and return
   // type are inferred from a callable using int, float, bool, and/or void.
   template<typename F>
@@ -1015,8 +1009,6 @@ public:
     return *this;
   }
 
-  // --- Native type binding ---
-
   template<typename T>
   TypeBuilder<T> bind_type(const char* name,
                            oak_bind_type_kind_t kind = OAK_BIND_TYPE_RECORD)
@@ -1035,8 +1027,6 @@ public:
     return TypeBuilder<T>(*this, t);
   }
 
-  // --- Enum binding ---
-
   CompileOptions& bind_enum(
       const char* name,
       std::initializer_list<std::pair<const char*, int>> variants)
@@ -1050,8 +1040,6 @@ public:
   {
     return bind_enum_impl(module, name, variants);
   }
-
-  // --- Attribute binding ---
 
   CompileOptions& bind_attr(const oak_bind_attr_t* params)
   {

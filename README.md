@@ -176,13 +176,13 @@ print(job.label());
 print(job.status == Status.Planned);
 ```
 
-### Traits
+### Interfaces
 
-Traits declare method signatures and dispatch virtually over the record
-methods that implement them:
+Interfaces declare method signatures and dispatch virtually over the record
+methods that implement them. Interface names must start with `I`:
 
 ```oak
-trait Shape {
+interface IShape {
   fn area(self) -> number;
 }
 
@@ -206,7 +206,7 @@ fn Rect.area(self) -> number {
 let mut c = new Circle { radius : 5 };
 let mut r = new Rect { w : 3, h : 4 };
 
-let mut shapes = new Shape[];
+let mut shapes = new IShape[];
 shapes.push(c);
 shapes.push(r);
 

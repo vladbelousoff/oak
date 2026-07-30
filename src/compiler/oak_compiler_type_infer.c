@@ -153,8 +153,8 @@ void oak_infer_type(struct oak_compiler_t* c,
       {
         out->id = coll_ty.id;
         if (coll_ty.kind == OAK_TYPE_KIND_ARRAY &&
-            oak_trait_find_by_id(&c->traits, coll_ty.id))
-          out->kind = OAK_TYPE_KIND_TRAIT;
+            oak_interface_find_by_id(&c->interfaces, coll_ty.id))
+          out->kind = OAK_TYPE_KIND_INTERFACE;
       }
       return;
     }

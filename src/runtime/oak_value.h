@@ -72,7 +72,7 @@ enum oak_obj_type_t
   OAK_OBJ_NATIVE_FN,
   OAK_OBJ_RECORD,
   OAK_OBJ_NATIVE_RECORD,
-  OAK_OBJ_TRAIT_OBJECT,
+  OAK_OBJ_INTERFACE_OBJECT,
 };
 
 struct oak_allocator_t;
@@ -440,10 +440,10 @@ static inline int oak_is_native_record(const struct oak_value_t value)
          oak_val_obj_ptr(value)->type == OAK_OBJ_NATIVE_RECORD;
 }
 
-static inline int oak_is_trait_object(const struct oak_value_t value)
+static inline int oak_is_interface_object(const struct oak_value_t value)
 {
   return oak_is_obj(value) &&
-         oak_val_obj_ptr(value)->type == OAK_OBJ_TRAIT_OBJECT;
+         oak_val_obj_ptr(value)->type == OAK_OBJ_INTERFACE_OBJECT;
 }
 
 /* ===== Value extractors ===== */
@@ -580,7 +580,7 @@ struct oak_obj_native_record_t
   const struct oak_bind_type_t* type;
 };
 
-struct oak_obj_trait_object_t
+struct oak_obj_interface_object_t
 {
   struct oak_obj_t obj;
   struct oak_value_t value;
@@ -647,11 +647,11 @@ oak_as_native_record(const struct oak_value_t value)
   return (struct oak_obj_native_record_t*)oak_val_obj_ptr(value);
 }
 
-static inline struct oak_obj_trait_object_t*
-oak_as_trait_object(const struct oak_value_t value)
+static inline struct oak_obj_interface_object_t*
+oak_as_interface_object(const struct oak_value_t value)
 {
-  oak_assert(oak_is_trait_object(value));
-  return (struct oak_obj_trait_object_t*)oak_val_obj_ptr(value);
+  oak_assert(oak_is_interface_object(value));
+  return (struct oak_obj_interface_object_t*)oak_val_obj_ptr(value);
 }
 
 static inline char* oak_as_cstring(const struct oak_value_t value)
@@ -736,8 +736,8 @@ oak_obj_native_record_new(struct oak_allocator_t* a,
                           const struct oak_bind_type_t* type,
                           void* instance);
 
-OAK_API struct oak_obj_trait_object_t*
-oak_trait_object_new(struct oak_allocator_t* a,
+OAK_API struct oak_obj_interface_object_t*
+oak_interface_object_new(struct oak_allocator_t* a,
                      struct oak_value_t value,
                      struct oak_obj_array_t* vtable);
 

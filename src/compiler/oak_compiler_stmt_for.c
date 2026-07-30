@@ -189,8 +189,8 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
                          loc);
     struct oak_type_t val_ty = { .id = coll_ty->id };
     if (coll_ty->kind == OAK_TYPE_KIND_ARRAY &&
-        oak_trait_find_by_id(&c->traits, coll_ty->id))
-      val_ty.kind = OAK_TYPE_KIND_TRAIT;
+        oak_interface_find_by_id(&c->interfaces, coll_ty->id))
+      val_ty.kind = OAK_TYPE_KIND_INTERFACE;
     oak_compiler_add_local(c,
                            oak_token_text(v_ident->token),
                            c->scope.stack_depth - 1,

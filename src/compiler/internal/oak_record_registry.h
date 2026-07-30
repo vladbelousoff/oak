@@ -45,13 +45,11 @@ struct oak_record_registry_t
   struct oak_registered_record_t* entries;
 };
 
-/* ---------- Lifecycle ---------- */
 
 void oak_record_registry_init(struct oak_record_registry_t* r,
                               struct oak_allocator_t* allocator);
 void oak_record_registry_free(struct oak_record_registry_t* r);
 
-/* ---------- Operations ---------- */
 
 /* Appends record and indexes it by name. Returns pointer to the stored entry.
  */

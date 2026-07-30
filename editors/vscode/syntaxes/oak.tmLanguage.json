@@ -65,7 +65,7 @@
       }
     },
     "type-declaration": {
-      "match": "\\b(record|enum|trait)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "match": "\\b(record|enum|interface)\\s+([A-Za-z_][A-Za-z0-9_]*)",
       "captures": {
         "1": { "name": "storage.type.oak" },
         "2": { "name": "entity.name.type.oak" }

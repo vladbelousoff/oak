@@ -178,7 +178,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> ATTR_DECL | EXPORT_DECL | IMPORT_DECL | IMPORT_SELECTIVE | IMPORT_WILDCARD | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL | STMT
+  // PROGRAM_ITEM -> ATTR_DECL | EXPORT_DECL | IMPORT_DECL | IMPORT_SELECTIVE | IMPORT_WILDCARD | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
@@ -192,7 +192,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
-      OAK_NODE_TRAIT_DECL,
+      OAK_NODE_INTERFACE_DECL,
       OAK_NODE_STMT,
     },
   },
@@ -800,20 +800,20 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // TRAIT_DECL -> 'trait' IDENT '{' TRAIT_MEMBERS '}'
-  //   (binary: lhs = IDENT (name), rhs = TRAIT_MEMBERS)
-  [OAK_NODE_TRAIT_DECL] = {
+  // INTERFACE_DECL -> 'interface' IDENT '{' INTERFACE_MEMBERS '}'
+  //   (binary: lhs = IDENT (name), rhs = INTERFACE_MEMBERS)
+  [OAK_NODE_INTERFACE_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_TOKEN_TRAIT | OAK_RULE_TOKEN,
+      OAK_TOKEN_INTERFACE | OAK_RULE_TOKEN,
       OAK_NODE_IDENT,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_TRAIT_MEMBERS,
+      OAK_NODE_INTERFACE_MEMBERS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // TRAIT_MEMBERS -> FN_DECL*  (body may be ';' for abstract or BLOCK for default)
-  [OAK_NODE_TRAIT_MEMBERS] = {
+  // INTERFACE_MEMBERS -> FN_DECL*  (body may be ';' for abstract or BLOCK for default)
+  [OAK_NODE_INTERFACE_MEMBERS] = {
     .rules = {
       OAK_NODE_FN_DECL | OAK_RULE_REPEAT,
     },
@@ -874,7 +874,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // ATTR_DECL -> ATTR ATTR* (EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL)
+  // ATTR_DECL -> ATTR ATTR* (EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL)
   //   Sequence node; children: one or more ATTR nodes followed by the declaration node.
   //   The required first ATTR ensures ATTR_DECL fails immediately if no '@' is present,
   //   preventing it from accidentally consuming plain declarations.
@@ -885,7 +885,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_ATTR_DECL_BODY,          /* the actual declaration */
     },
   },
-  // ATTR_DECL_BODY -> EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL
+  // ATTR_DECL_BODY -> EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL
   //   Transparent choice — returns the matched declaration node directly.
   [OAK_NODE_ATTR_DECL_BODY] = {
     .op = OAK_GRAMMAR_CHOICE,
@@ -896,10 +896,10 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
-      OAK_NODE_TRAIT_DECL,
+      OAK_NODE_INTERFACE_DECL,
     },
   },
-  // EXPORT_DECL -> 'export' (METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL)
+  // EXPORT_DECL -> 'export' (METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL)
   //   Unary: child = exported declaration. Attributes go before export:
   //   @Attr export fn ...
   [OAK_NODE_EXPORT_DECL] = {
@@ -909,7 +909,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_EXPORT_DECL_BODY,
     },
   },
-  // EXPORT_DECL_BODY -> METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | TRAIT_DECL
+  // EXPORT_DECL_BODY -> METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL
   //   Transparent choice — returns the matched declaration node directly.
   [OAK_NODE_EXPORT_DECL_BODY] = {
     .op = OAK_GRAMMAR_CHOICE,
@@ -919,7 +919,7 @@ struct oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
       OAK_NODE_ENUM_DECL,
-      OAK_NODE_TRAIT_DECL,
+      OAK_NODE_INTERFACE_DECL,
     },
   },
   // IMPORT_SELECTIVE -> 'import' '{' IMPORT_NAMES '}' 'from' IMPORT_PATH ';'

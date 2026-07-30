@@ -67,9 +67,9 @@ static void compile_builtin_call_args(struct oak_compiler_t* c,
                                       const struct oak_type_t* recv_ty,
                                       struct oak_code_loc_t call_loc)
 {
-  const struct oak_registered_trait_t* elem_tr =
+  const struct oak_registered_interface_t* elem_tr =
       recv_ty && recv_ty->kind == OAK_TYPE_KIND_ARRAY
-          ? oak_trait_find_by_id(&c->traits, recv_ty->id)
+          ? oak_interface_find_by_id(&c->interfaces, recv_ty->id)
           : null;
   if (!elem_tr)
   {
@@ -77,8 +77,8 @@ static void compile_builtin_call_args(struct oak_compiler_t* c,
     return;
   }
 
-  const struct oak_type_t want = { .id = elem_tr->trait_id,
-                                   .kind = OAK_TYPE_KIND_TRAIT };
+  const struct oak_type_t want = { .id = elem_tr->interface_id,
+                                   .kind = OAK_TYPE_KIND_INTERFACE };
   const struct oak_list_entry_t* first = node->children.next;
   for (struct oak_list_entry_t* p = first->next;
        p != &node->children;
@@ -89,7 +89,7 @@ static void compile_builtin_call_args(struct oak_compiler_t* c,
     oak_compile_call_arg(c, arg);
     const struct oak_ast_node_t* expr =
         arg->kind == OAK_NODE_FN_CALL_ARG ? arg->child : arg;
-    oak_emit_trait_coerce(c, expr, want, call_loc);
+    oak_emit_interface_coerce(c, expr, want, call_loc);
     if (c->has_error)
       return;
   }
@@ -145,7 +145,7 @@ static int try_compile_builtin_method_call(
 
 /* Compile call arguments with type coercion. Tries AST decl first, then
  * falls back to lowered param_types.
- * self_offset: 0 for static methods, 1 for instance/trait methods. */
+ * self_offset: 0 for static methods, 1 for instance/interface methods. */
 static void compile_typed_call_args(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* call,
                                     const struct oak_ast_node_t* decl,
@@ -375,23 +375,23 @@ void oak_compile_method_call(struct oak_compiler_t* c,
   struct oak_type_t recv_ty;
   oak_infer_type(c, receiver, &recv_ty);
 
-  /* Virtual dispatch through a trait object. */
-  if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_TRAIT)
+  /* Virtual dispatch through an interface object. */
+  if (oak_type_is_known(&recv_ty) && recv_ty.kind == OAK_TYPE_KIND_INTERFACE)
   {
-    const struct oak_registered_trait_t* tr =
-        oak_trait_find_by_id(&c->traits, recv_ty.id);
+    const struct oak_registered_interface_t* tr =
+        oak_interface_find_by_id(&c->interfaces, recv_ty.id);
     if (!tr)
     {
       oak_compiler_error_at(
-          c, method->token, "unknown trait type for receiver");
+          c, method->token, "unknown interface type for receiver");
       return;
     }
-    const int slot = oak_trait_method_slot(tr, mname);
+    const int slot = oak_interface_method_slot(tr, mname);
     if (slot < 0)
     {
       oak_compiler_error_at(c,
                             method->token,
-                            "trait '%s' has no method '%s'",
+                            "interface '%s' has no method '%s'",
                             tr->name,
                             mname);
       return;
@@ -399,11 +399,11 @@ void oak_compile_method_call(struct oak_compiler_t* c,
     const int expected_user = tr->methods[slot].arity - 1;
     if (reject_method_arity(c, method, mname, expected_user, user_argc))
       return;
-    const struct oak_trait_method_t* tm = &tr->methods[slot];
+    const struct oak_interface_method_t* tm = &tr->methods[slot];
     if (reject_immutable_method_receiver(
             c, receiver, method_self_is_mut(tm->sig_decl, tm->self_is_mut)))
       return;
-    oak_check_trait_method_args(c, node, tm);
+    oak_check_interface_method_args(c, node, tm);
     if (c->has_error)
       return;
     const u8 total_arity = (u8)tm->arity;

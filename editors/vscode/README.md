@@ -52,7 +52,7 @@ Notes on Oak's lexical syntax, for anyone editing the grammar:
 - Strings are single-quoted only: `'like this'`, with `\n`, `\t`, `\r`,
   `\\`, `\'`, and `\"` escapes. Double-quoted strings are a lexer error.
 - Built-in types are `number`, `string`, `bool`, `void`, and `fn`.
-  Capitalized identifiers (records, enums, traits) are highlighted as
+  Capitalized identifiers (records, enums, interfaces) are highlighted as
   types heuristically.
 - Attributes use `@Name` syntax, e.g. `@Native`, placed before a
   declaration.

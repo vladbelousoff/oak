@@ -13,7 +13,6 @@ struct oak_module_registry_t;
 struct oak_module_t;
 struct oak_bind_type_t;
 
-/* ---------- Kind discriminants ---------- */
 
 enum oak_bind_type_kind_t
 {
@@ -33,7 +32,6 @@ enum oak_bind_fn_kind_t
   OAK_BIND_FN_STATIC_METHOD,
 };
 
-/* ---------- Type reference ---------- */
 
 /* A compile-time type slot used for native fields, function parameters, and
  * return types.  Mirrors the internal oak_type_t and reuses oak_type_kind_t so
@@ -92,7 +90,6 @@ static inline struct oak_bind_type_ref_t oak_bind_type_ref_native_make(
 #define OAK_BIND_NATIVE_MAP(k, v)                                              \
   oak_bind_type_ref_native_make((v), (k), OAK_TYPE_KIND_MAP)
 
-/* ---------- Getter / setter / destructor callbacks ---------- */
 
 /* Returns the field value for the native record instance `self`.
  * The returned value is owned by the caller (the VM): for object values the
@@ -115,7 +112,6 @@ typedef void (*oak_bind_field_setter_t)(struct oak_value_t self,
  * refcount reaches zero. If NULL, only the wrapper object is freed (legacy). */
 typedef void (*oak_bind_destructor_t)(void* instance);
 
-/* ---------- Native field descriptor ---------- */
 
 struct oak_bind_field_t
 {
@@ -130,7 +126,6 @@ struct oak_bind_field_t
   void* user_data;
 };
 
-/* ---------- Native type descriptor ---------- */
 
 struct oak_bind_type_t
 {
@@ -148,7 +143,6 @@ struct oak_bind_type_t
   struct oak_allocator_t* allocator;
 };
 
-/* ---------- Native global function descriptor ---------- */
 
 /* Use oak_bind_fn_global() to register a free function or module-scoped
  * function (e.g. math.sqrt).  Global functions are not attached to any type. */
@@ -171,7 +165,6 @@ struct oak_bind_global_fn_t
   void* user_data;
 };
 
-/* ---------- Native method binding descriptor ---------- */
 
 /* Use oak_bind_fn() to register instance or static methods on a native type.
  * For global or module-scoped functions use oak_bind_fn_global() instead. */
@@ -198,7 +191,6 @@ struct oak_bind_fn_t
   void* user_data;
 };
 
-/* ---------- Native enum descriptor ---------- */
 
 /* A single variant of a native-bound enum: a name plus an integer value.
  * Variants are exposed to Oak source as `EnumName.Variant`, lowering to the
@@ -219,7 +211,6 @@ struct oak_bind_enum_t
   struct oak_allocator_t* allocator;
 };
 
-/* ---------- Attribute callbacks ---------- */
 
 /* Target kind of a declaration bearing an attribute. */
 enum oak_attr_target_t
@@ -284,7 +275,6 @@ struct oak_bind_attr_t
   void* user_data;               /* forwarded to both callbacks */
 };
 
-/* ---------- Compilation options ---------- */
 
 struct oak_compile_options_t
 {
@@ -328,13 +318,11 @@ struct oak_compile_options_t
   int allow_bodyless_fns;
 };
 
-/* ---------- Compile-options lifecycle ---------- */
 
 OAK_API void oak_compile_options_init(struct oak_compile_options_t* opts,
                                      struct oak_allocator_t* allocator);
 OAK_API void oak_compile_options_free(struct oak_compile_options_t* opts);
 
-/* ---------- Binding API ---------- */
 
 /* Allocate a native type descriptor, register it in opts, and return a pointer
  * for subsequent field/method/signature bindings. The descriptor is owned by
@@ -428,7 +416,6 @@ OAK_API void oak_apply_attr_hooks(const struct oak_compile_options_t* opts,
 OAK_API int oak_bind_attr(struct oak_compile_options_t* opts,
                           const struct oak_bind_attr_t* params);
 
-/* ---------- Runtime helpers ---------- */
 
 /* Wrap a C instance pointer in an Oak value typed as the given native type.
  * The resulting Oak value participates in normal refcounting. When its
@@ -459,7 +446,6 @@ OAK_API struct oak_value_t oak_native_value_new(void* payload);
  * bound on an OAK_BIND_TYPE_VALUE type:  MyHandle h = oak_native_value(args[0]); */
 OAK_API void* oak_native_value(struct oak_value_t value);
 
-/* ---------- Extended compilation ---------- */
 
 /* Like oak_compile() but registers native types and functions from `opts`
  * into the compiler before the first pass so that Oak source code can refer

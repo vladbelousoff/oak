@@ -17,7 +17,7 @@ void oak_compile_call_arg_for_type(struct oak_compiler_t* c,
   oak_compile_call_arg(c, arg);
   const struct oak_ast_node_t* expr =
       arg->kind == OAK_NODE_FN_CALL_ARG ? arg->child : arg;
-  oak_emit_trait_coerce(c, expr, want, loc);
+  oak_emit_interface_coerce(c, expr, want, loc);
   if (c->has_error)
     return;
   oak_emit_weak_coerce(c, expr, want, loc);

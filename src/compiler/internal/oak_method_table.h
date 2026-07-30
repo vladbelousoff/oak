@@ -50,7 +50,6 @@ struct oak_builtin_methods_t
   int record_count;
 };
 
-/* ---------- Static table row for a built-in receiver method ---------- */
 
 struct oak_builtin_method_def_t
 {

@@ -61,9 +61,9 @@ const struct oak_op_info_t oak_op_info[] = {
    */
   [OAK_OP_SET_FIELD] = { "OP_SET_FIELD", OAK_OP_FMT_SLOT, -2 },
   [OAK_OP_GET_MODULE_FN] = { "OP_GET_MODULE_FN", OAK_OP_FMT_U16_U16, 1 },
-  /* Pops concrete value, pushes trait object; stack effect = 0 (net). */
-  [OAK_OP_MAKE_TRAIT_OBJECT] = { "OP_MAKE_TRAIT_OBJECT", OAK_OP_FMT_CONSTANT, 0 },
-  /* Virtual call through trait object: variadic stack effect. */
+  /* Pops concrete value, pushes interface object; stack effect = 0 (net). */
+  [OAK_OP_MAKE_INTERFACE_OBJECT] = { "OP_MAKE_INTERFACE_OBJECT", OAK_OP_FMT_CONSTANT, 0 },
+  /* Virtual call through interface object: variadic stack effect. */
   [OAK_OP_CALL_VIRTUAL] = { "OP_CALL_VIRTUAL", OAK_OP_FMT_U8_U8, 0 },
   /* Fused compare + branch. */
   [OAK_OP_LESS_JUMP_IF_FALSE] = { "OP_LESS_JUMP_IF_FALSE", OAK_OP_FMT_JUMP_FWD, -2 },

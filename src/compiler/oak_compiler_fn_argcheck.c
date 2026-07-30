@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "internal/oak_trait_registry.h"
+#include "internal/oak_interface_registry.h"
 
 static const struct oak_token_t*
 arg_expr_error_token(const struct oak_ast_node_t* arg_expr,
@@ -12,18 +12,18 @@ arg_expr_error_token(const struct oak_ast_node_t* arg_expr,
   return err_tok;
 }
 
-/* Check if `got` is acceptable for a trait-typed `want`. Returns:
- *  1 = accepted (trait coercion ok), 0 = not a trait check, -1 = rejected. */
-static int check_trait_coercion(struct oak_compiler_t* c,
+/* Check if `got` is acceptable for an interface-typed `want`. Returns:
+ *  1 = accepted (interface coercion ok), 0 = not an interface check, -1 = rejected. */
+static int check_interface_coercion(struct oak_compiler_t* c,
                                 const struct oak_type_t* want,
                                 const struct oak_type_t* got,
                                 const struct oak_token_t* err_tok,
                                 int arg_num)
 {
-  if (want->kind != OAK_TYPE_KIND_TRAIT || want->is_weak)
+  if (want->kind != OAK_TYPE_KIND_INTERFACE || want->is_weak)
     return 0;
-  const struct oak_registered_trait_t* tr =
-      oak_trait_find_by_id(&c->traits, want->id);
+  const struct oak_registered_interface_t* tr =
+      oak_interface_find_by_id(&c->interfaces, want->id);
   if (!tr)
     return 0;
   if (oak_type_equal(want, got))
@@ -31,15 +31,15 @@ static int check_trait_coercion(struct oak_compiler_t* c,
   const struct oak_registered_record_t* sd = null;
   if (got->kind == OAK_TYPE_KIND_SCALAR)
     sd = oak_records_find_by_id(&c->records, got->id);
-  if (sd && oak_record_satisfies_trait(c, sd, tr))
+  if (sd && oak_record_satisfies_interface(c, sd, tr))
     return 1;
   if (sd)
     oak_compiler_error_at(c, err_tok,
-                          "argument %d: type '%s' does not implement trait '%s'",
+                          "argument %d: type '%s' does not implement interface '%s'",
                           arg_num, sd->name, tr->name);
   else
     oak_compiler_error_at(c, err_tok,
-                          "argument %d: cannot coerce '%s' to trait '%s'",
+                          "argument %d: cannot coerce '%s' to interface '%s'",
                           arg_num,
                           oak_type_full_name(c, *got),
                           tr->name);
@@ -103,7 +103,7 @@ static void validate_call_arg_types_for_decl(struct oak_compiler_t* c,
     {
       const struct oak_token_t* err_tok =
           arg_expr_error_token(arg_expr, arg_wrap);
-      const int tc = check_trait_coercion(
+      const int tc = check_interface_coercion(
           c, &want, &got, err_tok, (int)(i + 1u));
       if (tc > 0)
         continue;
@@ -176,7 +176,7 @@ static void validate_call_arg_types_for_imported(
     {
       const struct oak_token_t* err_tok =
           arg_expr_error_token(arg_expr, arg_wrap);
-      const int tc = check_trait_coercion(c, &want, &got, err_tok, i + 1);
+      const int tc = check_interface_coercion(c, &want, &got, err_tok, i + 1);
       if (tc > 0)
         continue;
       if (tc < 0)
@@ -243,10 +243,10 @@ void oak_check_args_against_decl(struct oak_compiler_t* c,
   validate_call_arg_types_for_decl(c, call, decl);
 }
 
-void oak_check_trait_method_args(
+void oak_check_interface_method_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
-    const struct oak_trait_method_t* tm)
+    const struct oak_interface_method_t* tm)
 {
   if (tm->sig_decl)
   {

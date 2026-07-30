@@ -27,7 +27,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/* ---------- oak_compiler_diagnostics.c ---------- */
 
 struct oak_code_loc_t oak_compiler_loc_from_token(const struct oak_token_t* t);
 
@@ -39,7 +38,6 @@ void oak_compiler_error_at(struct oak_compiler_t* c,
                            const char* fmt,
                            ...);
 
-/* ---------- oak_compiler_lifecycle.c ---------- */
 
 struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
                                        struct oak_compile_result_t* out,
@@ -52,7 +50,6 @@ void oak_compiler_teardown(struct oak_compiler_t* c);
 
 void oak_compiler_move_types_to_module(struct oak_compiler_t* c);
 
-/* ---------- oak_compiler_symbols.c ---------- */
 
 int oak_compiler_declare_symbol(struct oak_compiler_t* c,
                                 const struct oak_token_t* token,
@@ -65,7 +62,6 @@ int oak_compiler_declare_symbol(struct oak_compiler_t* c,
 void oak_compiler_mark_symbol_exported(struct oak_compiler_t* c,
                                        const char* name);
 
-/* ---------- oak_compiler_pipeline.c ---------- */
 
 int oak_compiler_register_native_options(struct oak_compiler_t* c,
                                  const struct oak_compile_options_t* opts);
@@ -73,14 +69,12 @@ int oak_compiler_register_native_options(struct oak_compiler_t* c,
 void oak_compiler_compile_program(struct oak_compiler_t* c,
                           const struct oak_ast_node_t* program);
 
-/* ---------- oak_compiler_imports.c ---------- */
 
 void oak_resolve_new_style_imports(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* program);
 
 void oak_populate_module_exports(struct oak_compiler_t* c);
 
-/* ---------- oak_compiler_scope.c ---------- */
 
 int oak_compiler_find_local(const struct oak_compiler_t* c,
                             const char* name,
@@ -131,7 +125,6 @@ int oak_place_root_local(const struct oak_compiler_t* c,
 int oak_expr_is_reference_place(const struct oak_compiler_t* c,
                                  const struct oak_ast_node_t* expr);
 
-/* ---------- oak_compiler_types.c ---------- */
 
 void oak_lower_type_node(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* type_node,
@@ -169,7 +162,6 @@ const char* oak_type_kind_name(struct oak_compiler_t* c,
 const char* oak_type_full_name(struct oak_compiler_t* c,
                                         struct oak_type_t t);
 
-/* ---------- oak_compiler_builtins.c ---------- */
 
 u16 oak_intern_native_const(struct oak_compiler_t* c,
                                         oak_native_fn_t impl,
@@ -206,7 +198,6 @@ const struct oak_method_binding_t* oak_find_number_method(
 const struct oak_method_binding_t* oak_find_record_builtin_method(
     struct oak_compiler_t* c, const char* name);
 
-/* ---------- oak_compiler_attrs.c ---------- */
 
 /* If item is OAK_NODE_ATTR_DECL, returns the actual declaration node.
  * Otherwise returns item unchanged. */
@@ -253,14 +244,12 @@ void oak_apply_runtime_attr_hook(struct oak_compiler_t* c,
                                   const char** attrs,
                                   int attr_count);
 
-/* ---------- oak_compiler_enums.c ---------- */
 
 void oak_register_program_enums(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* prog);
 
-/* ---------- oak_compiler_traits.c ---------- */
 
-void oak_register_program_traits(struct oak_compiler_t* c,
+void oak_register_program_interfaces(struct oak_compiler_t* c,
                                   const struct oak_ast_node_t* program);
 
 void oak_register_method_decls(struct oak_compiler_t* c,
@@ -274,18 +263,18 @@ void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
 const struct oak_ast_node_t* oak_method_decl_type_ident(
     const struct oak_ast_node_t* decl);
 
-int oak_record_satisfies_trait(struct oak_compiler_t* c,
+int oak_record_satisfies_interface(struct oak_compiler_t* c,
                                 const struct oak_registered_record_t* sd,
-                                const struct oak_registered_trait_t* tr);
+                                const struct oak_registered_interface_t* tr);
 
 u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
                              const struct oak_registered_record_t* sd,
-                             const struct oak_registered_trait_t* tr);
+                             const struct oak_registered_interface_t* tr);
 
-/* If `want` is a trait type and `arg_expr`'s concrete type satisfies it,
- * emit OAK_OP_MAKE_TRAIT_OBJECT to wrap the top-of-stack value in a trait
- * object.  No-op when `want` is not a trait type. */
-void oak_emit_trait_coerce(struct oak_compiler_t* c,
+/* If `want` is an interface type and `arg_expr`'s concrete type satisfies it,
+ * emit OAK_OP_MAKE_INTERFACE_OBJECT to wrap the top-of-stack value in an interface
+ * object.  No-op when `want` is not an interface type. */
+void oak_emit_interface_coerce(struct oak_compiler_t* c,
                             const struct oak_ast_node_t* arg_expr,
                             struct oak_type_t want,
                             struct oak_code_loc_t loc);
@@ -295,11 +284,10 @@ void oak_emit_weak_coerce(struct oak_compiler_t* c,
                            struct oak_type_t want,
                            struct oak_code_loc_t loc);
 
-/* ---------- oak_compiler_cycles.c ---------- */
 
 /* Computes strong-ownership reachability over all registered records, marks
  * write-once fields (cycle_locked), and rejects records that strongly own
- * trait objects. Must run after records, traits, imports, and native types
+ * interface objects. Must run after records, interfaces, imports, and native types
  * are registered, before any bodies are compiled. */
 void oak_compiler_check_cycles(struct oak_compiler_t* c,
                                const struct oak_ast_node_t* program);
@@ -312,7 +300,6 @@ void oak_compiler_free_cycles(struct oak_compiler_t* c);
 int oak_container_store_locked(struct oak_compiler_t* c,
                                const struct oak_type_t* coll);
 
-/* ---------- oak_compiler_record_registry.c ---------- */
 
 int oak_record_field(const struct oak_registered_record_t* s,
                                    const char* name);
@@ -366,7 +353,6 @@ void oak_register_native_fns(struct oak_compiler_t* c,
 void oak_register_native_enums(
     struct oak_compiler_t* c, const struct oak_compile_options_t* opts);
 
-/* ---------- oak_compiler_fn_decl.c / oak_compiler_fn_register.c / oak_compiler_fn_body.c / oak_compiler_fn_argcheck.c ---------- */
 
 const struct oak_ast_node_t*
 oak_fn_param_list(const struct oak_ast_node_t* decl);
@@ -406,7 +392,7 @@ void oak_register_program_methods(struct oak_compiler_t* c,
 
 /* Register a single FN_DECL or METHOD_DECL as an instance/static method on
  * `sd`.  raw_item may be an ATTR_DECL wrapping `item`; pass null if no
- * attributes are available (native registrations, trait methods). */
+ * attributes are available (native registrations, interface methods). */
 void oak_register_method_on_record(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* raw_item,
                                     const struct oak_ast_node_t* item,
@@ -444,15 +430,14 @@ void oak_check_args_against_decl(struct oak_compiler_t* c,
                                    const struct oak_ast_node_t* call,
                                    const struct oak_ast_node_t* decl);
 
-/* Validate argument types for a trait method call.  Uses sig_decl when
- * available (local trait), falls back to param_types (imported trait). */
-struct oak_trait_method_t;
-void oak_check_trait_method_args(
+/* Validate argument types for an interface method call.  Uses sig_decl when
+ * available (local interface), falls back to param_types (imported interface). */
+struct oak_interface_method_t;
+void oak_check_interface_method_args(
     struct oak_compiler_t* c,
     const struct oak_ast_node_t* call,
-    const struct oak_trait_method_t* tm);
+    const struct oak_interface_method_t* tm);
 
-/* ---------- oak_compiler_stmt.c ---------- */
 
 void oak_compiler_compile_block(struct oak_compiler_t* c,
                                 const struct oak_ast_node_t* block);
@@ -469,7 +454,6 @@ void oak_compile_for_from(struct oak_compiler_t* c,
 void oak_compile_for_in(struct oak_compiler_t* c,
                                       const struct oak_ast_node_t* node);
 
-/* ---------- oak_compiler_call_arg.c / oak_compiler_call_method.c / oak_compiler_calls.c ---------- */
 
 const struct oak_ast_node_t*
 oak_compiler_fn_call_arg_expr_at(const struct oak_ast_node_t* call,
@@ -493,12 +477,10 @@ void oak_compile_call_arg_for_type(struct oak_compiler_t* c,
 void oak_compiler_compile_call_args_after_callee(struct oak_compiler_t* c,
                                                  const struct oak_ast_node_t* call);
 
-/* ---------- oak_compiler_expr_fn.c ---------- */
 
 void oak_compile_expr_fn(struct oak_compiler_t* c,
                           const struct oak_ast_node_t* node);
 
-/* ---------- oak_compiler_expr.c ---------- */
 
 usize oak_child_count(const struct oak_ast_node_t* node);
 
@@ -511,7 +493,6 @@ u8 oak_binop_for_node(enum oak_node_kind_t kind);
 void oak_compiler_compile_node(struct oak_compiler_t* c,
                                const struct oak_ast_node_t* node);
 
-/* ---------- oak_compiler_expr_binary.c ---------- */
 
 void oak_compiler_reject_binary_void(struct oak_compiler_t* c,
                                      const struct oak_ast_node_t* node);
@@ -528,7 +509,6 @@ void oak_compiler_compile_binary_and(struct oak_compiler_t* c,
 void oak_compiler_compile_binary_or(struct oak_compiler_t* c,
                                     const struct oak_ast_node_t* node);
 
-/* ---------- oak_compiler_expr_assign.c ---------- */
 
 void oak_compiler_compile_stmt_assignment(struct oak_compiler_t* c,
                                           const struct oak_ast_node_t* node);
@@ -539,12 +519,10 @@ void oak_compiler_compile_compound_assign(struct oak_compiler_t* c,
 void oak_compiler_compile_let_assignment(struct oak_compiler_t* c,
                                          const struct oak_ast_node_t* node);
 
-/* ---------- oak_compiler_expr_member.c ---------- */
 
 void oak_compiler_compile_member_access(struct oak_compiler_t* c,
                                         const struct oak_ast_node_t* node);
 
-/* ---------- oak_compiler_expr_collection.c ---------- */
 
 void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
                                         const struct oak_ast_node_t* node);

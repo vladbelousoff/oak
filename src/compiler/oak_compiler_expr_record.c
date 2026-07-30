@@ -173,7 +173,7 @@ void oak_compiler_compile_record_literal(struct oak_compiler_t* c,
       oak_compiler_compile_node(c, exprs[i]);
       if (c->has_error)
         goto cleanup_exprs;
-      oak_emit_trait_coerce(c,
+      oak_emit_interface_coerce(c,
                              exprs[i],
                              sd->fields[i].type,
                              OAK_LOC_SYNTHETIC);

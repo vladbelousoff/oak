@@ -8,13 +8,12 @@ struct oak_compile_options_t; /* defined in oak_bind.h */
 #include "oak_fn_registry.h"
 #include "oak_method_table.h"
 #include "oak_record_registry.h"
-#include "oak_trait_registry.h"
+#include "oak_interface_registry.h"
 #include "oak_htable.h"
 #include "oak_module.h"
 #include "oak_symbol.h"
 #include "oak_type.h"
 
-/* ---------- Per-fn ephemeral compilation state ---------- */
 
 struct oak_local_t
 {
@@ -57,7 +56,7 @@ struct oak_scope_ctx_t
  *   1. Native bindings from `opts` (records → `records`, enums → `enums`,
  *      free fns / methods → `fns` and `records.*.methods`).
  *   2. Imports from other modules (resolve_new_style_imports), which extend
- *      `records`, `enums`, `traits`, and `fns` with translated entries.
+ *      `records`, `enums`, `interfaces`, and `fns` with translated entries.
  *   3. The program's own declarations are marked as exported symbols.
  *
  * `types` catalogs type names and module-qualified IDs shared by all
@@ -77,7 +76,7 @@ struct oak_compiler_t
   struct oak_builtin_methods_t builtin_methods;
   struct oak_record_registry_t records;
   struct oak_enum_registry_t enums;
-  struct oak_trait_registry_t traits;
+  struct oak_interface_registry_t interfaces;
   /* Authoritative namespace for all top-level declarations visible while
    * compiling this module. Typed registries own declaration metadata. */
   struct oak_symbol_registry_t symbols;

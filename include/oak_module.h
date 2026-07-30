@@ -14,7 +14,6 @@
  * registry exists. */
 #define OAK_MODULE_ID_NONE ((u16)0xFFFF)
 
-/* ----- Per-module exports populated at end of compile ----- */
 
 struct oak_module_export_fn_t
 {
@@ -80,8 +79,8 @@ struct oak_module_export_enum_t
   struct oak_module_export_enum_variant_t* variants;
 };
 
-/* Per-method metadata for an exported trait. */
-struct oak_module_export_trait_method_t
+/* Per-method metadata for an exported interface. */
+struct oak_module_export_interface_method_t
 {
   const char* name;
   int arity;
@@ -90,15 +89,14 @@ struct oak_module_export_trait_method_t
   struct oak_type_t return_type;
 };
 
-/* One exported trait declaration. */
-struct oak_module_export_trait_t
+/* One exported interface declaration. */
+struct oak_module_export_interface_t
 {
   const char* name;
-  struct oak_module_export_trait_method_t* methods;
+  struct oak_module_export_interface_method_t* methods;
 };
 
 
-/* ----- Module ----- */
 
 struct oak_module_t
 {
@@ -137,7 +135,6 @@ struct oak_module_t
   } state;
 };
 
-/* ----- Registry ----- */
 
 struct oak_module_registry_t
 {
@@ -146,7 +143,6 @@ struct oak_module_registry_t
   struct oak_htable_t by_canonical_path; /* path -> module_id */
 };
 
-/* ----- Lifecycle ----- */
 
 OAK_API void oak_module_registry_init(struct oak_module_registry_t* reg,
                                      struct oak_allocator_t* allocator);
@@ -184,6 +180,6 @@ OAK_API const struct oak_module_export_record_t* oak_module_find_export_record(
 OAK_API const struct oak_module_export_enum_t* oak_module_find_export_enum(
     const struct oak_module_t* mod, const char* name);
 
-/* Look up a trait export. Returns null if not found. */
-OAK_API const struct oak_module_export_trait_t* oak_module_find_export_trait(
+/* Look up an interface export. Returns null if not found. */
+OAK_API const struct oak_module_export_interface_t* oak_module_find_export_interface(
     const struct oak_module_t* mod, const char* name);

@@ -48,13 +48,11 @@ struct oak_fn_registry_t
   struct oak_registered_fn_t* entries;
 };
 
-/* ---------- Lifecycle ---------- */
 
 void oak_fn_registry_init(struct oak_fn_registry_t* r,
                           struct oak_allocator_t* allocator);
 void oak_fn_registry_free(struct oak_fn_registry_t* r);
 
-/* ---------- Operations ---------- */
 
 /* Appends fn and indexes it by name. Returns pointer to the stored entry. */
 struct oak_registered_fn_t*
