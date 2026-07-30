@@ -339,14 +339,14 @@ automatically. Workloads, methodology, and caveats are described in
 <!-- benchmark:start -->
 | runtime | fib | nsieve | mandelbrot | hashmap | strcat |
 |---|---|---|---|---|---|
-| **oak** | 2.63× (5.53 s) | 4.51× (6.08 s) | 4.43× (8.08 s) | 3.22× (7.37 s) | 4.63× (8.05 s) |
-| lua5.4 | 1.00× (2.10 s) | 1.00× (1.35 s) | 1.00× (1.83 s) | 1.83× (4.18 s) | 2.90× (5.05 s) |
-| python3 | 2.02× (4.24 s) | 2.53× (3.41 s) | 9.34× (17.06 s) | 3.22× (7.37 s) | 4.30× (7.49 s) |
-| ruby | 1.77× (3.71 s) | 2.24× (3.02 s) | 2.39× (4.36 s) | 2.38× (5.44 s) | 3.38× (5.89 s) |
-| perl | 8.15× (17.08 s) | 4.17× (5.61 s) | 4.64× (8.47 s) | 1.29× (2.95 s) | 1.00× (1.74 s) |
-| php | 8.77× (18.39 s) | 3.38× (4.55 s) | 3.12× (5.70 s) | 1.00× (2.29 s) | 1.50× (2.60 s) |
+| **oak** | 2.49× (5.47 s) | 4.50× (6.08 s) | 4.29× (8.09 s) | 3.16× (7.20 s) | 4.47× (7.82 s) |
+| lua5.4 | 1.00× (2.20 s) | 1.00× (1.35 s) | 1.00× (1.88 s) | 1.82× (4.15 s) | 2.92× (5.10 s) |
+| python3 | 1.95× (4.29 s) | 2.51× (3.39 s) | 9.70× (18.29 s) | 3.12× (7.12 s) | 4.22× (7.38 s) |
+| ruby | 1.67× (3.67 s) | 2.21× (2.99 s) | 2.31× (4.36 s) | 2.39× (5.45 s) | 3.38× (5.90 s) |
+| perl | 7.84× (17.23 s) | 4.24× (5.73 s) | 4.49× (8.45 s) | 1.30× (2.98 s) | 1.00× (1.75 s) |
+| php | 8.24× (18.09 s) | 3.36× (4.54 s) | 3.04× (5.73 s) | 1.00× (2.28 s) | 1.46× (2.54 s) |
 
-_Relative to the fastest runtime per benchmark, lower is better; median wall time in parentheses. Measured on a GitHub-hosted `ubuntu-latest` runner at `9c678ca2b` on 2026-07-22. All runtimes are bytecode interpreters (no JIT)._
+_Relative to the fastest runtime per benchmark, lower is better; median wall time in parentheses. Measured on a GitHub-hosted `ubuntu-latest` runner at `220b16539` on 2026-07-30. All runtimes are bytecode interpreters (no JIT)._
 <!-- benchmark:end -->
 
 ## Layout
