@@ -1,8 +1,9 @@
+#include "oak_allocator.h"
 #include "oak_count_of.h"
 #include "oak_test.h"
 #include "oak_test_run.h"
 #include "oak_value.h"
-#include "oak_allocator.h"
+#include "oak_vm.h"
 
 OAK_TEST_DECL(ValueSizeIs8Bytes)
 {
@@ -222,12 +223,65 @@ OAK_TEST_DECL(ObjectRefcopyCompatibilityRejectsOtherVmTables)
   OAK_CHECK(oak_value_can_refcopy_to_table(vm_value, table_a));
   OAK_CHECK(!oak_value_can_refcopy_to_table(vm_value, table_b));
   OAK_CHECK(oak_value_can_refcopy_to_table(shared_value, table_a));
-  OAK_CHECK(oak_value_can_refcopy_to_table(oak_value_weaken(vm_value), table_b));
+  OAK_CHECK(
+      !oak_value_can_refcopy_to_table(oak_value_weaken(vm_value), table_b));
 
+  const u32 prev_b = oak_obj_table_set_current(table_b);
+  struct oak_obj_array_t* array_b = oak_array_new(&allocator);
+  struct oak_obj_map_t* map_b = oak_map_new(&allocator);
+  oak_obj_table_set_current(prev_b);
+
+  OAK_CHECK(!oak_array_push(array_b, vm_value));
+  OAK_CHECK(array_b->length == 0u);
+  OAK_CHECK(!oak_array_push(array_b, oak_value_weaken(vm_value)));
+  OAK_CHECK(array_b->length == 0u);
+  OAK_CHECK(oak_array_push(array_b, shared_value));
+  OAK_CHECK(array_b->length == 1u);
+
+  OAK_CHECK(!oak_map_set(map_b, OAK_VALUE_I32(1), vm_value));
+  OAK_CHECK(!oak_map_set(map_b, vm_value, OAK_VALUE_I32(1)));
+  OAK_CHECK(map_b->length == 0u);
+  OAK_CHECK(oak_map_set(map_b, OAK_VALUE_I32(1), shared_value));
+  OAK_CHECK(map_b->length == 1u);
+
+  oak_obj_decref((struct oak_obj_t*)array_b);
+  oak_obj_decref((struct oak_obj_t*)map_b);
   oak_obj_decref((struct oak_obj_t*)vm_owned);
   oak_obj_decref((struct oak_obj_t*)shared);
   oak_obj_table_detach(table_a);
   oak_obj_table_detach(table_b);
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(VmCallRejectsValuesFromAnotherVm)
+{
+  struct oak_allocator_t allocator;
+  oak_system_allocator_init(&allocator);
+
+  struct oak_vm_t vm_a;
+  struct oak_vm_t vm_b;
+  oak_vm_init(&vm_a, &allocator);
+  oak_vm_init(&vm_b, &allocator);
+  OAK_CHECK(vm_a.object_table != vm_b.object_table);
+
+  const u32 prev = oak_obj_table_set_current(vm_a.object_table);
+  struct oak_obj_string_t* owned_by_a = oak_string_new(&allocator, "vm-a");
+  oak_obj_table_set_current(prev);
+  const struct oak_value_t a_value = OAK_VALUE_OBJ(owned_by_a);
+
+  /* A dummy chunk is enough to reach oak_vm_call's argument-transfer
+   * boundary; the foreign value must be rejected before call dispatch. */
+  struct oak_chunk_t dummy_chunk = { 0 };
+  vm_b.chunk = &dummy_chunk;
+  OAK_CHECK(oak_vm_call(&vm_b, a_value, null, 0, null) == OAK_VM_RUNTIME_ERROR);
+  OAK_CHECK(vm_b.sp == vm_b.stack);
+  OAK_CHECK(oak_vm_call(&vm_b, oak_value_weaken(a_value), null, 0, null) ==
+            OAK_VM_RUNTIME_ERROR);
+  OAK_CHECK(vm_b.sp == vm_b.stack);
+
+  oak_obj_decref((struct oak_obj_t*)owned_by_a);
+  oak_vm_free(&vm_a);
+  oak_vm_free(&vm_b);
   return OAK_TEST_OK;
 }
 
@@ -250,10 +304,14 @@ OAK_TEST_DECL(TagsAreDistinct)
   const struct oak_value_t b = OAK_VALUE_BOOL(1);
   const struct oak_value_t n = OAK_VALUE_NONE;
 
-  OAK_CHECK(oak_is_i32(i) && !oak_is_f32(i) && !oak_is_bool(i) && !oak_is_none(i));
-  OAK_CHECK(!oak_is_i32(f) && oak_is_f32(f) && !oak_is_bool(f) && !oak_is_none(f));
-  OAK_CHECK(!oak_is_i32(b) && !oak_is_f32(b) && oak_is_bool(b) && !oak_is_none(b));
-  OAK_CHECK(!oak_is_i32(n) && !oak_is_f32(n) && !oak_is_bool(n) && oak_is_none(n));
+  OAK_CHECK(oak_is_i32(i) && !oak_is_f32(i) && !oak_is_bool(i) &&
+            !oak_is_none(i));
+  OAK_CHECK(!oak_is_i32(f) && oak_is_f32(f) && !oak_is_bool(f) &&
+            !oak_is_none(f));
+  OAK_CHECK(!oak_is_i32(b) && !oak_is_f32(b) && oak_is_bool(b) &&
+            !oak_is_none(b));
+  OAK_CHECK(!oak_is_i32(n) && !oak_is_f32(n) && !oak_is_bool(n) &&
+            oak_is_none(n));
   return OAK_TEST_OK;
 }
 
@@ -274,6 +332,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(PerVmTableIsolationAndRecycle),
     OAK_TEST_ENTRY(TableRegistryRecyclesUnderChurn),
     OAK_TEST_ENTRY(ObjectRefcopyCompatibilityRejectsOtherVmTables),
+    OAK_TEST_ENTRY(VmCallRejectsValuesFromAnotherVm),
     OAK_TEST_ENTRY(HandleRoundTrip61Bits),
     OAK_TEST_ENTRY(TagsAreDistinct),
   };

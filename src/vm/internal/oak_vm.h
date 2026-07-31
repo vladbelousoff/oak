@@ -7,6 +7,24 @@
 #include <oak_vm.h>
 
 void oak_vm_report_stack_overflow(const struct oak_vm_t* vm);
+const char* oak_vm_value_kind_desc(struct oak_value_t v);
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 2, 3)))
+#endif
+void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...);
+
+static inline int oak_vm_value_can_enter(const struct oak_vm_t* vm,
+                                         const struct oak_value_t value)
+{
+  if (oak_value_can_refcopy_to_table(value, vm->object_table))
+    return 1;
+  oak_vm_runtime_error(vm,
+                       "cannot transfer object from VM table %u to VM table %u",
+                       (unsigned)oak_value_obj_table(value),
+                       (unsigned)vm->object_table);
+  return 0;
+}
 
 static inline enum oak_vm_result_t oak_vm_push(struct oak_vm_t* vm,
                                                const struct oak_value_t value)
@@ -16,7 +34,8 @@ static inline enum oak_vm_result_t oak_vm_push(struct oak_vm_t* vm,
     oak_vm_report_stack_overflow(vm);
     return OAK_VM_RUNTIME_ERROR;
   }
-  oak_value_assert_can_refcopy_to_table(value, vm->object_table);
+  if (!oak_vm_value_can_enter(vm, value))
+    return OAK_VM_RUNTIME_ERROR;
   oak_value_incref(value);
   *vm->sp++ = value;
   return OAK_VM_OK;
@@ -25,15 +44,20 @@ static inline enum oak_vm_result_t oak_vm_push(struct oak_vm_t* vm,
 /* Push a value whose reference count already accounts for the new stack
  * ownership (i.e. take ownership without an extra incref). Use for values
  * just produced by oak_*_new / native fn return / similar fresh allocations
- * whose only outstanding reference is being transferred to the stack. On
- * overflow the caller is responsible for releasing `value` (see TRY_PUSH_OWNED
- * below; otherwise the fresh reference would leak). */
+ * whose only outstanding reference is being transferred to the stack.  This
+ * function releases `value` if the transfer fails. */
 static inline enum oak_vm_result_t
 oak_vm_push_owned(struct oak_vm_t* vm, const struct oak_value_t value)
 {
   if (vm->sp >= vm->stack + OAK_STACK_MAX)
   {
+    oak_value_decref(value);
     oak_vm_report_stack_overflow(vm);
+    return OAK_VM_RUNTIME_ERROR;
+  }
+  if (!oak_vm_value_can_enter(vm, value))
+  {
+    oak_value_decref(value);
     return OAK_VM_RUNTIME_ERROR;
   }
   *vm->sp++ = value;
@@ -85,13 +109,6 @@ static inline int oak_i32_wrap_neg(const int a)
 {
   return (int)(0u - (u32)a);
 }
-
-const char* oak_vm_value_kind_desc(struct oak_value_t v);
-
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((format(printf, 2, 3)))
-#endif
-void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...);
 
 enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
                                            u8 binop,

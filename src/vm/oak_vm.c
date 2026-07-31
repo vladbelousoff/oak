@@ -79,8 +79,14 @@ static enum oak_vm_result_t cached_push(struct oak_vm_t* vm,
     oak_vm_report_stack_overflow(vm);
     return OAK_VM_RUNTIME_ERROR;
   }
-  if (!owned)
-    oak_value_assert_can_refcopy_to_table(value, vm->object_table);
+  if (!oak_value_can_refcopy_to_table(value, vm->object_table))
+  {
+    cached_sync_to_vm(vm, chunk, ip, *sp);
+    (void)oak_vm_value_can_enter(vm, value);
+    if (owned)
+      oak_value_decref(value);
+    return OAK_VM_RUNTIME_ERROR;
+  }
   if (!owned)
     oak_value_incref(value);
   *(*sp)++ = value;
@@ -118,14 +124,13 @@ static int cached_local_is_valid(struct oak_vm_t* vm,
   return 0;
 }
 
-static enum oak_vm_result_t numeric_slow_path(
-    struct oak_vm_t* vm,
-    struct oak_chunk_t** chunk,
-    u8** ip,
-    struct oak_value_t** sp,
-    enum oak_binop_t binop,
-    struct oak_value_t a,
-    struct oak_value_t b)
+static enum oak_vm_result_t numeric_slow_path(struct oak_vm_t* vm,
+                                              struct oak_chunk_t** chunk,
+                                              u8** ip,
+                                              struct oak_value_t** sp,
+                                              enum oak_binop_t binop,
+                                              struct oak_value_t a,
+                                              struct oak_value_t b)
 {
   cached_sync_to_vm(vm, *chunk, *ip, *sp);
   const enum oak_vm_result_t result = oak_vm_numeric_binary(vm, binop, a, b);
@@ -135,9 +140,8 @@ static enum oak_vm_result_t numeric_slow_path(
   return result;
 }
 
-static struct oak_value_t equality_result(struct oak_value_t a,
-                                          struct oak_value_t b,
-                                          int negate)
+static struct oak_value_t
+equality_result(struct oak_value_t a, struct oak_value_t b, int negate)
 {
   const int equal = oak_value_equal(a, b);
   oak_value_decref(a);
@@ -191,25 +195,41 @@ static int compare_numeric_values(struct oak_value_t a,
     const int right = oak_as_i32(b);
     switch (binop)
     {
-      case OAK_BINOP_LESS:          *result = left < right;  return 1;
-      case OAK_BINOP_LESS_EQUAL:    *result = left <= right; return 1;
-      case OAK_BINOP_GREATER:       *result = left > right;  return 1;
-      case OAK_BINOP_GREATER_EQUAL: *result = left >= right; return 1;
-      default: oak_panic();
+      case OAK_BINOP_LESS:
+        *result = left < right;
+        return 1;
+      case OAK_BINOP_LESS_EQUAL:
+        *result = left <= right;
+        return 1;
+      case OAK_BINOP_GREATER:
+        *result = left > right;
+        return 1;
+      case OAK_BINOP_GREATER_EQUAL:
+        *result = left >= right;
+        return 1;
+      default:
+        oak_panic();
     }
   }
 
-  const float left =
-      oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
-  const float right =
-      oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
+  const float left = oak_is_f32(a) ? oak_as_f32(a) : (float)oak_as_i32(a);
+  const float right = oak_is_f32(b) ? oak_as_f32(b) : (float)oak_as_i32(b);
   switch (binop)
   {
-    case OAK_BINOP_LESS:          *result = left < right;  return 1;
-    case OAK_BINOP_LESS_EQUAL:    *result = left <= right; return 1;
-    case OAK_BINOP_GREATER:       *result = left > right;  return 1;
-    case OAK_BINOP_GREATER_EQUAL: *result = left >= right; return 1;
-    default: oak_panic();
+    case OAK_BINOP_LESS:
+      *result = left < right;
+      return 1;
+    case OAK_BINOP_LESS_EQUAL:
+      *result = left <= right;
+      return 1;
+    case OAK_BINOP_GREATER:
+      *result = left > right;
+      return 1;
+    case OAK_BINOP_GREATER_EQUAL:
+      *result = left >= right;
+      return 1;
+    default:
+      oak_panic();
   }
 }
 
@@ -381,9 +401,9 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         if (!oak_is_obj(value))
         {
           cached_sync_to_vm(vm, chunk, ip, sp);
-          oak_vm_runtime_error(
-              vm, "weak reference requires an object, got %s",
-              oak_vm_value_kind_desc(value));
+          oak_vm_runtime_error(vm,
+                               "weak reference requires an object, got %s",
+                               oak_vm_value_kind_desc(value));
           return OAK_VM_RUNTIME_ERROR;
         }
         /* The weak copy carries no refcount; dropping the strong reference
@@ -400,12 +420,12 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         const struct oak_value_t a = cached_pop(&sp);
         if (oak_is_string(a) && oak_is_string(b))
         {
-          struct oak_obj_string_t* result =
-              oak_string_concat(vm->allocator, oak_as_string(a), oak_as_string(b));
+          struct oak_obj_string_t* result = oak_string_concat(
+              vm->allocator, oak_as_string(a), oak_as_string(b));
           oak_value_decref(a);
           oak_value_decref(b);
-          if (cached_push_owned(
-                  vm, chunk, ip, &sp, OAK_VALUE_OBJ(result)) != OAK_VM_OK)
+          if (cached_push_owned(vm, chunk, ip, &sp, OAK_VALUE_OBJ(result)) !=
+              OAK_VM_OK)
             return OAK_VM_RUNTIME_ERROR;
           break;
         }
@@ -413,13 +433,12 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         {
           oak_value_decref(a);
           oak_value_decref(b);
-          if (cached_push_owned(
-                  vm,
-                  chunk,
-                  ip,
-                  &sp,
-                  OAK_VALUE_I32(
-                      oak_i32_wrap_add(oak_as_i32(a), oak_as_i32(b)))) !=
+          if (cached_push_owned(vm,
+                                chunk,
+                                ip,
+                                &sp,
+                                OAK_VALUE_I32(oak_i32_wrap_add(
+                                    oak_as_i32(a), oak_as_i32(b)))) !=
               OAK_VM_OK)
             return OAK_VM_RUNTIME_ERROR;
           break;
@@ -438,13 +457,12 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         {
           oak_value_decref(a);
           oak_value_decref(b);
-          if (cached_push_owned(
-                  vm,
-                  chunk,
-                  ip,
-                  &sp,
-                  OAK_VALUE_I32(
-                      oak_i32_wrap_sub(oak_as_i32(a), oak_as_i32(b)))) !=
+          if (cached_push_owned(vm,
+                                chunk,
+                                ip,
+                                &sp,
+                                OAK_VALUE_I32(oak_i32_wrap_sub(
+                                    oak_as_i32(a), oak_as_i32(b)))) !=
               OAK_VM_OK)
             return OAK_VM_RUNTIME_ERROR;
           break;
@@ -463,13 +481,12 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         {
           oak_value_decref(a);
           oak_value_decref(b);
-          if (cached_push_owned(
-                  vm,
-                  chunk,
-                  ip,
-                  &sp,
-                  OAK_VALUE_I32(
-                      oak_i32_wrap_mul(oak_as_i32(a), oak_as_i32(b)))) !=
+          if (cached_push_owned(vm,
+                                chunk,
+                                ip,
+                                &sp,
+                                OAK_VALUE_I32(oak_i32_wrap_mul(
+                                    oak_as_i32(a), oak_as_i32(b)))) !=
               OAK_VM_OK)
             return OAK_VM_RUNTIME_ERROR;
           break;
@@ -494,8 +511,8 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
       {
         const struct oak_value_t b = cached_pop(&sp);
         const struct oak_value_t a = cached_pop(&sp);
-        const enum oak_vm_result_t r = numeric_slow_path(
-            vm, &chunk, &ip, &sp, OAK_BINOP_INT_DIVIDE, a, b);
+        const enum oak_vm_result_t r =
+            numeric_slow_path(vm, &chunk, &ip, &sp, OAK_BINOP_INT_DIVIDE, a, b);
         if (r != OAK_VM_OK)
           return r;
         break;
@@ -511,8 +528,8 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
             oak_value_decref(a);
             oak_value_decref(b);
             cached_sync_to_vm(vm, chunk, ip, sp);
-            oak_vm_runtime_error(
-                vm, "integer remainder by zero (modulo by zero)");
+            oak_vm_runtime_error(vm,
+                                 "integer remainder by zero (modulo by zero)");
             return OAK_VM_RUNTIME_ERROR;
           }
           oak_value_decref(a);
@@ -536,8 +553,8 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
       {
         const struct oak_value_t b = cached_pop(&sp);
         const struct oak_value_t a = cached_pop(&sp);
-        if (cached_push_owned(
-                vm, chunk, ip, &sp, equality_result(a, b, 0)) != OAK_VM_OK)
+        if (cached_push_owned(vm, chunk, ip, &sp, equality_result(a, b, 0)) !=
+            OAK_VM_OK)
           return OAK_VM_RUNTIME_ERROR;
         break;
       }
@@ -545,13 +562,14 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
       {
         const struct oak_value_t b = cached_pop(&sp);
         const struct oak_value_t a = cached_pop(&sp);
-        if (cached_push_owned(
-                vm, chunk, ip, &sp, equality_result(a, b, 1)) != OAK_VM_OK)
+        if (cached_push_owned(vm, chunk, ip, &sp, equality_result(a, b, 1)) !=
+            OAK_VM_OK)
           return OAK_VM_RUNTIME_ERROR;
         break;
       }
 
-      /* ====== DEDICATED COMPARISON OPCODES (#4, #7 integer fast path) ====== */
+      /* ====== DEDICATED COMPARISON OPCODES (#4, #7 integer fast path) ======
+       */
       case OAK_OP_LESS:
       case OAK_OP_LESS_EQUAL:
       case OAK_OP_GREATER:
@@ -735,14 +753,11 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         {
           struct oak_obj_fn_t* fn =
               (struct oak_obj_fn_t*)oak_val_obj_ptr(fn_val);
-          if (fn->arity == (int)argc &&
-              fn->attr_hook_count == 0 &&
+          if (fn->arity == (int)argc && fn->attr_hook_count == 0 &&
               vm->frame_count < OAK_FRAMES_MAX &&
-              (fn->module_id == 0xFFFFu ||
-               fn->module_id == chunk->module_id))
+              (fn->module_id == 0xFFFFu || fn->module_id == chunk->module_id))
           {
-            struct oak_call_frame_t* frame =
-                &vm->frames[vm->frame_count++];
+            struct oak_call_frame_t* frame = &vm->frames[vm->frame_count++];
             frame->return_ip = ip;
             frame->caller_stack_base = vm->stack_base;
             frame->fn_slot = fn_slot;
@@ -755,8 +770,7 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
 
         cached_sync_to_vm(vm, chunk, ip, sp);
         {
-          const enum oak_vm_result_t _r =
-              oak_vm_op_call_with_argc(vm, argc);
+          const enum oak_vm_result_t _r = oak_vm_op_call_with_argc(vm, argc);
           if (_r != OAK_VM_OK)
             return _r;
         }
@@ -779,8 +793,7 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         }
 
         const struct oak_value_t result = *--sp;
-        struct oak_call_frame_t* frame =
-            &vm->frames[--vm->frame_count];
+        struct oak_call_frame_t* frame = &vm->frames[--vm->frame_count];
         const usize fn_slot = frame->fn_slot;
         const usize depth_before = (usize)(sp - vm->stack) + 1u;
 

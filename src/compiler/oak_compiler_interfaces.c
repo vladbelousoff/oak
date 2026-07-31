@@ -3,10 +3,11 @@
 #include <string.h>
 
 void oak_interface_registry_init(struct oak_interface_registry_t* r,
-                             struct oak_allocator_t* allocator)
+                                 struct oak_allocator_t* allocator)
 {
   r->allocator = allocator;
-  oak_assert(oak_dynarr_init(r->allocator, &r->interfaces, sizeof *r->interfaces));
+  oak_assert(
+      oak_dynarr_init(r->allocator, &r->interfaces, sizeof *r->interfaces));
   oak_assert(oak_dynarr_init(r->allocator, &r->impls, sizeof *r->impls));
 }
 
@@ -33,11 +34,10 @@ void oak_interface_registry_free(struct oak_interface_registry_t* r)
   oak_dynarr_free(&r->impls);
 }
 
-
 void oak_emit_interface_coerce(struct oak_compiler_t* c,
-                            const struct oak_ast_node_t* arg_expr,
-                            struct oak_type_t want,
-                            struct oak_code_loc_t loc)
+                               const struct oak_ast_node_t* arg_expr,
+                               struct oak_type_t want,
+                               struct oak_code_loc_t loc)
 {
   if (want.kind != OAK_TYPE_KIND_INTERFACE || want.is_weak)
     return;
@@ -52,7 +52,8 @@ void oak_emit_interface_coerce(struct oak_compiler_t* c,
   if (!oak_type_is_known(&got))
     return;
 
-  /* Interface-to-same-interface: already an interface object; no coercion needed. */
+  /* Interface-to-same-interface: already an interface object; no coercion
+   * needed. */
   if (oak_type_equal(&want, &got))
     return;
 
@@ -73,26 +74,25 @@ void oak_emit_interface_coerce(struct oak_compiler_t* c,
 
   if (!oak_record_satisfies_interface(c, sd, tr))
   {
-    oak_compiler_error_at(
-        c,
-        arg_expr ? arg_expr->token : null,
-        "type '%s' does not implement interface '%s'",
-        sd->name,
-        tr->name);
+    oak_compiler_error_at(c,
+                          arg_expr ? arg_expr->token : null,
+                          "type '%s' does not implement interface '%s'",
+                          sd->name,
+                          tr->name);
     return;
   }
 
   const u16 vtable_idx = oak_get_or_build_vtable(c, sd, tr);
   if (c->has_error)
     return;
-  oak_compiler_emit_op(c, OAK_OP_MAKE_INTERFACE_OBJECT, loc,
-                       OAK_ARG_U16(vtable_idx));
+  oak_compiler_emit_op(
+      c, OAK_OP_MAKE_INTERFACE_OBJECT, loc, OAK_ARG_U16(vtable_idx));
 }
 
 void oak_emit_weak_coerce(struct oak_compiler_t* c,
-                           const struct oak_ast_node_t* arg_expr,
-                           struct oak_type_t want,
-                           struct oak_code_loc_t loc)
+                          const struct oak_ast_node_t* arg_expr,
+                          struct oak_type_t want,
+                          struct oak_code_loc_t loc)
 {
   if (!want.is_weak)
     return;
@@ -117,9 +117,8 @@ void oak_emit_weak_coerce(struct oak_compiler_t* c,
   oak_compiler_emit_op(c, OAK_OP_WEAKEN, loc);
 }
 
-
 void oak_register_program_interfaces(struct oak_compiler_t* c,
-                                  const struct oak_ast_node_t* program)
+                                     const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
@@ -157,7 +156,8 @@ void oak_register_program_interfaces(struct oak_compiler_t* c,
       .methods = null,
     };
 
-    oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
+    oak_assert(
+        oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
 
     if (proto.interface_id < 0)
     {
@@ -167,15 +167,20 @@ void oak_register_program_interfaces(struct oak_compiler_t* c,
 
     const u16 owner_module_id =
         c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
-    if (!oak_compiler_declare_symbol(
-            c, item->lhs->token, tname, OAK_SYMBOL_INTERFACE,
-            oak_dynarr_count(c->interfaces.interfaces), owner_module_id, 0))
+    if (!oak_compiler_declare_symbol(c,
+                                     item->lhs->token,
+                                     tname,
+                                     OAK_SYMBOL_INTERFACE,
+                                     oak_dynarr_count(c->interfaces.interfaces),
+                                     owner_module_id,
+                                     0))
       return;
     if (oak_decl_is_exported(raw_item))
       oak_compiler_mark_symbol_exported(c, tname);
     oak_assert(oak_dynarr_push(&c->interfaces.interfaces, &proto));
     struct oak_registered_interface_t* tr =
-        &c->interfaces.interfaces[oak_dynarr_count(c->interfaces.interfaces) - 1];
+        &c->interfaces
+             .interfaces[oak_dynarr_count(c->interfaces.interfaces) - 1];
 
     /* Walk interface members — each must be a FN_DECL. */
     const struct oak_ast_node_t* members = item->rhs;
@@ -217,9 +222,8 @@ void oak_register_program_interfaces(struct oak_compiler_t* c,
   }
 }
 
-
-const struct oak_ast_node_t* oak_method_decl_type_ident(
-    const struct oak_ast_node_t* decl)
+const struct oak_ast_node_t*
+oak_method_decl_type_ident(const struct oak_ast_node_t* decl)
 {
   if (!decl->lhs || !decl->lhs->lhs)
     return null;
@@ -227,7 +231,7 @@ const struct oak_ast_node_t* oak_method_decl_type_ident(
 }
 
 void oak_register_method_decls(struct oak_compiler_t* c,
-                                const struct oak_ast_node_t* program)
+                               const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
@@ -258,8 +262,10 @@ void oak_register_method_decls(struct oak_compiler_t* c,
     }
     if (!sd)
     {
-      oak_compiler_error_at(
-          c, type_ident->token, "method declaration for unknown type '%s'", rname);
+      oak_compiler_error_at(c,
+                            type_ident->token,
+                            "method declaration for unknown type '%s'",
+                            rname);
       return;
     }
 
@@ -269,9 +275,8 @@ void oak_register_method_decls(struct oak_compiler_t* c,
   }
 }
 
-
 void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
-                                     const struct oak_ast_node_t* program)
+                                    const struct oak_ast_node_t* program)
 {
   struct oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
@@ -304,16 +309,14 @@ void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
       continue;
     const char* mname = oak_token_text(name_node->token);
 
-    const struct oak_registered_fn_t* sm =
-        oak_find_record_method(sd, mname, 0);
+    const struct oak_registered_fn_t* sm = oak_find_record_method(sd, mname, 0);
     if (!sm)
       sm = oak_find_record_method(sd, mname, 1);
     if (!sm)
       continue;
 
     const usize fn_offset = c->chunk->count;
-    struct oak_obj_fn_t* fn_obj =
-        oak_as_fn(c->chunk->constants[sm->const_idx]);
+    struct oak_obj_fn_t* fn_obj = oak_as_fn(c->chunk->constants[sm->const_idx]);
     fn_obj->code_offset = fn_offset;
 
     const int is_static = oak_fn_self_param(item) == null;
@@ -323,12 +326,11 @@ void oak_compile_method_decl_bodies(struct oak_compiler_t* c,
   }
 }
 
-
 /* Returns 1 if concrete record type `sd` structurally satisfies interface `tr`
  * (i.e. has all required methods with compatible arity). */
 int oak_record_satisfies_interface(struct oak_compiler_t* c,
-                                const struct oak_registered_record_t* sd,
-                                const struct oak_registered_interface_t* tr)
+                                   const struct oak_registered_record_t* sd,
+                                   const struct oak_registered_interface_t* tr)
 {
   for (int i = 0; i < oak_dynarr_count(tr->methods); ++i)
   {
@@ -416,13 +418,12 @@ int oak_record_satisfies_interface(struct oak_compiler_t* c,
   return 1;
 }
 
-
 /* Build (or return cached) vtable array const_idx for (sd, tr).
  * The vtable is an OAK_OBJ_ARRAY of function values, one per interface method.
  * Must be called after all fn bodies have been compiled (const_idx stable). */
 u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
-                             const struct oak_registered_record_t* sd,
-                             const struct oak_registered_interface_t* tr)
+                            const struct oak_registered_record_t* sd,
+                            const struct oak_registered_interface_t* tr)
 {
   struct oak_interface_impl_t* impl =
       oak_interface_impl_find(&c->interfaces, sd->type_id, tr->interface_id);
@@ -432,7 +433,8 @@ u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
     struct oak_interface_impl_t proto = {
       .interface_id = tr->interface_id,
       .record_type_id = sd->type_id,
-      .vtable = OAK_ALLOC(c->allocator, (usize)oak_dynarr_count(tr->methods) * sizeof(u16)),
+      .vtable = OAK_ALLOC(c->allocator,
+                          (usize)oak_dynarr_count(tr->methods) * sizeof(u16)),
       .vtable_count = oak_dynarr_count(tr->methods),
       .vtable_array_const_idx = 0,
       .vtable_built = 0,
@@ -461,8 +463,7 @@ u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
     const struct oak_registered_fn_t* sm =
         oak_find_record_method(sd, tm->name, 0);
     struct oak_value_t fn_val;
-    if (sm && sm->source_module_id != OAK_MODULE_ID_NONE &&
-        c->module_registry)
+    if (sm && sm->source_module_id != OAK_MODULE_ID_NONE && c->module_registry)
     {
       const struct oak_module_t* src_mod =
           oak_module_registry_get(c->module_registry, sm->source_module_id);
@@ -476,11 +477,11 @@ u16 oak_get_or_build_vtable(struct oak_compiler_t* c,
     {
       fn_val = c->chunk->constants[impl->vtable[i]];
     }
-    oak_array_push(arr, fn_val);
+    /* Compiler-created vtables and functions both live in shared table 0. */
+    oak_assert(oak_array_push(arr, fn_val));
   }
 
-  const u16 arr_idx = oak_compiler_intern_constant(
-      c, OAK_VALUE_OBJ(&arr->obj));
+  const u16 arr_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&arr->obj));
   /* The constant table stores a raw value (no incref), so the fn_obj-style
    * ownership is: creation sets refcount=1, table slot owns that ref.
    * Do NOT decref here — the table now owns the only reference. */

@@ -19,8 +19,12 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
   for (int hi = 0; hi < native->attr_hook_count; ++hi)
   {
     struct oak_native_ctx_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
-    const enum oak_fn_call_result_t r = native->attr_hooks[hi].cb(
-        &hook_ctx, native->name, arg_base, (int)argc, native->attr_hooks[hi].ud);
+    const enum oak_fn_call_result_t r =
+        native->attr_hooks[hi].cb(&hook_ctx,
+                                  native->name,
+                                  arg_base,
+                                  (int)argc,
+                                  native->attr_hooks[hi].ud);
     if (r != OAK_FN_CALL_OK)
     {
       oak_vm_runtime_error(vm,
@@ -41,6 +45,12 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
     oak_vm_runtime_error(vm,
                          "native function '%s' failed",
                          native->name ? native->name : "<anonymous>");
+    return OAK_VM_RUNTIME_ERROR;
+  }
+
+  if (!oak_vm_value_can_enter(vm, result))
+  {
+    oak_value_decref(result);
     return OAK_VM_RUNTIME_ERROR;
   }
 
@@ -136,12 +146,14 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
   const struct oak_value_t interface_obj_val = vm->stack[recv_pos];
   if (!oak_is_interface_object(interface_obj_val))
   {
-    oak_vm_runtime_error(vm,
-                         "CALL_VIRTUAL: receiver is not an interface object, got %s",
-                         oak_vm_value_kind_desc(interface_obj_val));
+    oak_vm_runtime_error(
+        vm,
+        "CALL_VIRTUAL: receiver is not an interface object, got %s",
+        oak_vm_value_kind_desc(interface_obj_val));
     return OAK_VM_RUNTIME_ERROR;
   }
-  const struct oak_obj_interface_object_t* to = oak_as_interface_object(interface_obj_val);
+  const struct oak_obj_interface_object_t* to =
+      oak_as_interface_object(interface_obj_val);
   if ((usize)vtable_slot >= to->vtable->length)
   {
     oak_vm_runtime_error(
@@ -157,6 +169,9 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
     oak_vm_runtime_error(vm, "CALL_VIRTUAL: vtable entry is not a function");
     return OAK_VM_RUNTIME_ERROR;
   }
+  if (!oak_vm_value_can_enter(vm, fn_val) ||
+      !oak_vm_value_can_enter(vm, concrete_val))
+    return OAK_VM_RUNTIME_ERROR;
 
   /* Make room for the fn value by shifting everything from recv_pos onwards
    * right by one slot, then insert fn and unwrapped concrete value. */
@@ -172,8 +187,6 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
   vm->sp++;
 
   /* Incref fn and concrete; decref the interface object (we replaced it). */
-  oak_value_assert_can_refcopy_to_table(fn_val, vm->object_table);
-  oak_value_assert_can_refcopy_to_table(concrete_val, vm->object_table);
   oak_value_incref(fn_val);
   oak_value_incref(concrete_val);
   oak_value_decref(interface_obj_val);

@@ -38,10 +38,10 @@ u32 oak_obj_table_acquire(void)
       return id;
     }
   }
-  /* Every entry is taken: fall back to the shared table, which is never
-   * recycled.  Isolation degrades but correctness does not. */
-  oak_log(OAK_LOG_WARN, "oak: object-table registry exhausted; sharing table 0");
-  return 0u;
+  /* Table 0 is process-owned.  Giving it to a VM would make values from that
+   * VM indistinguishable from deliberately shared constants. */
+  oak_log(OAK_LOG_ERROR, "oak: object-table registry exhausted");
+  oak_panic();
 }
 
 static void oak_obj_table_try_recycle(struct oak_obj_table_t* table)
@@ -190,7 +190,8 @@ static void oak_obj_destroy_payload(struct oak_obj_t* obj)
   }
   else if (obj->type == OAK_OBJ_INTERFACE_OBJECT)
   {
-    struct oak_obj_interface_object_t* to = (struct oak_obj_interface_object_t*)obj;
+    struct oak_obj_interface_object_t* to =
+        (struct oak_obj_interface_object_t*)obj;
     oak_value_decref(to->value);
     oak_obj_decref((struct oak_obj_t*)to->vtable);
   }
@@ -270,12 +271,11 @@ struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
   return fn;
 }
 
-struct oak_obj_native_fn_t*
-oak_native_fn_new(struct oak_allocator_t* a,
-                  const oak_native_fn_t fn,
-                  const int arity,
-                  const char* name,
-                  void* user_data)
+struct oak_obj_native_fn_t* oak_native_fn_new(struct oak_allocator_t* a,
+                                              const oak_native_fn_t fn,
+                                              const int arity,
+                                              const char* name,
+                                              void* user_data)
 {
   struct oak_obj_native_fn_t* native =
       OAK_ALLOC(a, sizeof(struct oak_obj_native_fn_t));
@@ -306,8 +306,7 @@ int oak_native_fn_format(char* buf,
 
 struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a)
 {
-  struct oak_obj_array_t* arr =
-      OAK_ALLOC(a, sizeof(struct oak_obj_array_t));
+  struct oak_obj_array_t* arr = OAK_ALLOC(a, sizeof(struct oak_obj_array_t));
   oak_obj_init(&arr->obj, OAK_OBJ_ARRAY, a);
   arr->length = 0;
   arr->capacity = 0;
@@ -315,18 +314,20 @@ struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a)
   return arr;
 }
 
-void oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
+int oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
 {
-  oak_value_assert_can_refcopy_to_table(value, arr->obj.table_id);
+  if (!oak_value_can_refcopy_to_table(value, arr->obj.table_id))
+    return 0;
   if (arr->length >= arr->capacity)
   {
     const usize new_cap = arr->capacity == 0 ? 8u : arr->capacity * 2u;
-    arr->items = OAK_REALLOC(arr->obj.allocator,
-        arr->items, new_cap * sizeof(struct oak_value_t));
+    arr->items = OAK_REALLOC(
+        arr->obj.allocator, arr->items, new_cap * sizeof(struct oak_value_t));
     arr->capacity = new_cap;
   }
   oak_value_incref(value);
   arr->items[arr->length++] = value;
+  return 1;
 }
 
 struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
@@ -400,15 +401,19 @@ oak_obj_native_record_new(struct oak_allocator_t* a,
 
 struct oak_obj_interface_object_t*
 oak_interface_object_new(struct oak_allocator_t* a,
-                     struct oak_value_t value,
-                     struct oak_obj_array_t* vtable)
+                         struct oak_value_t value,
+                         struct oak_obj_array_t* vtable)
 {
   struct oak_obj_interface_object_t* to =
       OAK_ALLOC(a, sizeof(struct oak_obj_interface_object_t));
   oak_obj_init(&to->obj, OAK_OBJ_INTERFACE_OBJECT, a);
-  oak_value_assert_can_refcopy_to_table(value, to->obj.table_id);
-  oak_assert(vtable->obj.table_id == 0u ||
-             vtable->obj.table_id == to->obj.table_id);
+  if (!oak_value_can_refcopy_to_table(value, to->obj.table_id) ||
+      (vtable->obj.table_id != 0u && vtable->obj.table_id != to->obj.table_id))
+  {
+    oak_obj_table_release(&to->obj);
+    OAK_FREE(a, to);
+    return null;
+  }
   oak_value_incref(value);
   to->value = value;
   oak_obj_incref((struct oak_obj_t*)vtable);
@@ -418,8 +423,7 @@ oak_interface_object_new(struct oak_allocator_t* a,
 
 struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
 {
-  struct oak_obj_map_t* map =
-      OAK_ALLOC(a, sizeof(struct oak_obj_map_t));
+  struct oak_obj_map_t* map = OAK_ALLOC(a, sizeof(struct oak_obj_map_t));
   oak_obj_init(&map->obj, OAK_OBJ_MAP, a);
   map->length = 0;
   map->capacity = 0;
@@ -611,7 +615,9 @@ int oak_map_set(struct oak_obj_map_t* map,
                 const struct oak_value_t key,
                 const struct oak_value_t value)
 {
-  if (map_key_invalid(key))
+  if (map_key_invalid(key) ||
+      !oak_value_can_refcopy_to_table(key, map->obj.table_id) ||
+      !oak_value_can_refcopy_to_table(value, map->obj.table_id))
     return 0;
   /* Tombstones count toward the load factor so insert/delete churn cannot
    * exhaust the EMPTY slots that terminate probing; capacity itself only
@@ -631,7 +637,6 @@ int oak_map_set(struct oak_obj_map_t* map,
 
   if (entry_idx != MAP_HT_EMPTY)
   {
-    oak_value_assert_can_refcopy_to_table(value, map->obj.table_id);
     oak_value_incref(value);
     oak_value_decref(map->entries[entry_idx].value);
     map->entries[entry_idx].value = value;
@@ -642,12 +647,11 @@ int oak_map_set(struct oak_obj_map_t* map,
   {
     const usize new_cap = map->capacity == 0u ? 8u : map->capacity * 2u;
     map->entries = OAK_REALLOC(map->obj.allocator,
-        map->entries, new_cap * sizeof(struct oak_map_entry_t));
+                               map->entries,
+                               new_cap * sizeof(struct oak_map_entry_t));
     map->capacity = new_cap;
   }
 
-  oak_value_assert_can_refcopy_to_table(key, map->obj.table_id);
-  oak_value_assert_can_refcopy_to_table(value, map->obj.table_id);
   oak_value_incref(key);
   oak_value_incref(value);
   map->entries[map->length].key = key;
@@ -722,10 +726,10 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
   if (oak_is_number(a) && oak_is_number(b) &&
       oak_value_tag(a) != oak_value_tag(b))
   {
-    const double da = oak_is_i32(a) ? (double)oak_as_i32(a)
-                                    : (double)oak_as_f32(a);
-    const double db = oak_is_i32(b) ? (double)oak_as_i32(b)
-                                    : (double)oak_as_f32(b);
+    const double da =
+        oak_is_i32(a) ? (double)oak_as_i32(a) : (double)oak_as_f32(a);
+    const double db =
+        oak_is_i32(b) ? (double)oak_as_i32(b) : (double)oak_as_f32(b);
     return da == db;
   }
 
@@ -734,13 +738,20 @@ int oak_value_equal(const struct oak_value_t a, const struct oak_value_t b)
 
   switch (oak_value_tag(a))
   {
-    case OAK_TAG_BOOL:   return oak_as_bool(a) == oak_as_bool(b);
-    case OAK_TAG_I32:    return oak_as_i32(a) == oak_as_i32(b);
-    case OAK_TAG_F32:    return oak_as_f32(a) == oak_as_f32(b);
-    case OAK_TAG_NONE:   return 1;
+    case OAK_TAG_BOOL:
+      return oak_as_bool(a) == oak_as_bool(b);
+    case OAK_TAG_I32:
+      return oak_as_i32(a) == oak_as_i32(b);
+    case OAK_TAG_F32:
+      return oak_as_f32(a) == oak_as_f32(b);
+    case OAK_TAG_NONE:
+      return 1;
     /* Same tag, so identity is payload equality on the packed word. */
-    case OAK_TAG_NATIVE: return a.bits == b.bits;
-    case OAK_TAG_HANDLE: return a.bits == b.bits;
-    default:             return 0;
+    case OAK_TAG_NATIVE:
+      return a.bits == b.bits;
+    case OAK_TAG_HANDLE:
+      return a.bits == b.bits;
+    default:
+      return 0;
   }
 }

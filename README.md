@@ -329,6 +329,34 @@ vm.run(result);
 See the [C embedding guide](docs/embedding-c.md) and the
 [C++ embedding guide](docs/embedding-cpp.md).
 
+### Object IDs, VM ownership, and threads
+
+Every Oak value occupies one 64-bit word. Object and weak-object values use
+the low 3 bits as their tag and form their ID from three fields:
+
+| Bits | Field | Purpose |
+|---|---|---|
+| `3..31` | 29-bit slot | Index in an object table |
+| `32..39` | 8-bit table | Owning VM's table (`0` means process-shared) |
+| `40..63` | 24-bit nonce | Slot generation when the ID was created |
+
+Allocation uses the current thread's active object-table ID. A VM installs
+its own table in thread-local state while it runs, so objects created by Oak
+code or native callbacks are automatically owned by that VM. When an object
+dies, its slot's nonce is incremented before the slot can be reused. A weak ID
+therefore resolves to `none` when its saved nonce no longer matches, rather
+than accidentally resolving to the next object allocated in the same slot.
+The nonce floor is also advanced when an entire VM table is recycled.
+
+Heap values created by a VM are thread- and VM-confined. The runtime rejects
+putting either a strong or weak reference from one VM into another VM's stack,
+array, map, record, native field, or call arguments; release builds enforce the
+same checks as debug builds. Scalar values and process-owned table-0 objects
+(such as compiled constants and native definitions) may be used by every VM.
+To communicate between workers, exchange host data or scalar Oak values and
+recreate arrays, maps, records, and strings in the destination VM instead of
+passing an `oak_value_t` object from the source VM.
+
 ## Benchmarks
 
 Cross-language benchmarks against peer bytecode interpreters (no JITs) run in

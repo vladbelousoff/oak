@@ -34,7 +34,8 @@ enum oak_fn_call_result_t builtin_push(struct oak_native_ctx_t* ctx,
   (void)ctx;
   if (argc != 2 || !oak_is_array(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_array_push(oak_as_array(args[0]), args[1]);
+  if (!oak_array_push(oak_as_array(args[0]), args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
   *out_result = OAK_VALUE_I32((int)oak_as_array(args[0])->length);
   return OAK_FN_CALL_OK;
 }
@@ -102,8 +103,10 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
     {
       if (i + 1 < len && s[i + 1] == '{')
       {
-        struct oak_obj_string_t* lit = oak_string_new_len(ctx->allocator, "{", 1);
-        struct oak_obj_string_t* next = oak_string_concat(ctx->allocator, acc, lit);
+        struct oak_obj_string_t* lit =
+            oak_string_new_len(ctx->allocator, "{", 1);
+        struct oak_obj_string_t* next =
+            oak_string_concat(ctx->allocator, acc, lit);
         oak_value_decref(OAK_VALUE_OBJ(acc));
         oak_value_decref(OAK_VALUE_OBJ(lit));
         acc = next;
@@ -152,7 +155,8 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
         oak_value_decref(OAK_VALUE_OBJ(acc));
         return OAK_FN_CALL_RUNTIME_ERROR;
       }
-      struct oak_obj_string_t* next = oak_string_concat(ctx->allocator, acc, piece);
+      struct oak_obj_string_t* next =
+          oak_string_concat(ctx->allocator, acc, piece);
       oak_value_decref(OAK_VALUE_OBJ(acc));
       oak_value_decref(OAK_VALUE_OBJ(piece));
       acc = next;
@@ -162,7 +166,8 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
     if (i + 1 < len && s[i] == '}' && s[i + 1] == '}')
     {
       struct oak_obj_string_t* lit = oak_string_new_len(ctx->allocator, "}", 1);
-      struct oak_obj_string_t* next = oak_string_concat(ctx->allocator, acc, lit);
+      struct oak_obj_string_t* next =
+          oak_string_concat(ctx->allocator, acc, lit);
       oak_value_decref(OAK_VALUE_OBJ(acc));
       oak_value_decref(OAK_VALUE_OBJ(lit));
       acc = next;
@@ -180,8 +185,10 @@ enum oak_fn_call_result_t builtin_string_format(struct oak_native_ctx_t* ctx,
           break;
         ++i;
       }
-      struct oak_obj_string_t* lit = oak_string_new_len(ctx->allocator, s + start, i - start);
-      struct oak_obj_string_t* next = oak_string_concat(ctx->allocator, acc, lit);
+      struct oak_obj_string_t* lit =
+          oak_string_new_len(ctx->allocator, s + start, i - start);
+      struct oak_obj_string_t* next =
+          oak_string_concat(ctx->allocator, acc, lit);
       oak_value_decref(OAK_VALUE_OBJ(acc));
       oak_value_decref(OAK_VALUE_OBJ(lit));
       acc = next;

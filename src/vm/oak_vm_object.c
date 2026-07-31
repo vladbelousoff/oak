@@ -18,6 +18,19 @@ static enum oak_vm_result_t runtime_error_decref3(struct oak_value_t a,
   return OAK_VM_RUNTIME_ERROR;
 }
 
+static int vm_value_can_store(struct oak_vm_t* vm,
+                              const struct oak_value_t value,
+                              const u32 dest_table)
+{
+  if (oak_value_can_refcopy_to_table(value, dest_table))
+    return 1;
+  oak_vm_runtime_error(vm,
+                       "cannot assign object from VM table %u to table %u",
+                       (unsigned)oak_value_obj_table(value),
+                       (unsigned)dest_table);
+  return 0;
+}
+
 static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
 {
   const struct oak_value_t subscript = oak_vm_pop(vm);
@@ -80,10 +93,13 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
   if (oak_is_map(recv))
   {
     struct oak_obj_map_t* map = oak_as_map(recv);
+    if (!vm_value_can_store(vm, subscript, map->obj.table_id) ||
+        !vm_value_can_store(vm, value, map->obj.table_id))
+      return runtime_error_decref3(recv, subscript, value);
     if (!oak_map_set(map, subscript, value))
     {
-      oak_vm_runtime_error(vm, "invalid map key: %s",
-                           oak_vm_value_kind_desc(subscript));
+      oak_vm_runtime_error(
+          vm, "invalid map key: %s", oak_vm_value_kind_desc(subscript));
       return runtime_error_decref3(recv, subscript, value);
     }
     oak_value_decref(recv);
@@ -114,6 +130,8 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
         vm, "array index %d out of bounds (length %zu)", i, arr->length);
     return runtime_error_decref3(recv, subscript, value);
   }
+  if (!vm_value_can_store(vm, value, arr->obj.table_id))
+    return runtime_error_decref3(recv, subscript, value);
   oak_value_decref(arr->items[i]);
   arr->items[i] = value;
   oak_value_decref(recv);
@@ -172,7 +190,17 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       struct oak_obj_array_t* arr = oak_array_new(vm->allocator);
       struct oak_value_t* base = vm->sp - (int)count;
       for (int i = 0; i < (int)count; ++i)
-        oak_array_push(arr, base[i]);
+      {
+        if (!oak_array_push(arr, base[i]))
+        {
+          oak_vm_runtime_error(vm, "array contains an object from another VM");
+          for (int j = 0; j < (int)count; ++j)
+            oak_value_decref(base[j]);
+          vm->sp -= (int)count;
+          oak_obj_decref(&arr->obj);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+      }
       for (int i = 0; i < (int)count; ++i)
         oak_value_decref(base[i]);
       vm->sp -= (int)count;
@@ -195,8 +223,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
         const struct oak_value_t v = base[i * 2 + 1];
         if (!oak_map_set(map, k, v))
         {
-          oak_vm_runtime_error(vm, "invalid map key: %s",
-                               oak_vm_value_kind_desc(k));
+          oak_vm_runtime_error(
+              vm, "invalid map key: %s", oak_vm_value_kind_desc(k));
           for (usize j = 0; j < slots; ++j)
             oak_value_decref(base[j]);
           vm->sp -= (int)slots;
@@ -257,7 +285,15 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
           vm->allocator, (int)count, type_name, (const char* const*)lay->name);
       for (int i = 0; i < (int)count; ++i)
       {
-        oak_value_assert_can_refcopy_to_table(base[i], s->obj.table_id);
+        if (!vm_value_can_store(vm, base[i], s->obj.table_id))
+        {
+          for (int j = 0; j < (int)count; ++j)
+            oak_value_decref(base[j]);
+          oak_value_decref(type_name_val);
+          vm->sp -= (int)count + 1;
+          oak_obj_decref(&s->obj);
+          return OAK_VM_RUNTIME_ERROR;
+        }
         oak_value_incref(base[i]);
         s->fields[i] = base[i];
       }
@@ -277,7 +313,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       const struct oak_value_t recv = oak_vm_pop(vm);
       if (oak_is_none_like(recv))
       {
-        oak_vm_runtime_error(vm, "field access on none (expired weak reference)");
+        oak_vm_runtime_error(vm,
+                             "field access on none (expired weak reference)");
         oak_value_decref(recv);
         return OAK_VM_RUNTIME_ERROR;
       }
@@ -306,11 +343,10 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
           return OAK_VM_RUNTIME_ERROR;
         }
         /* Getter returns an owned reference; push without extra incref. */
-        const struct oak_value_t result = ns->type->fields[idx].getter(
-            recv, ns->type->fields[idx].user_data);
+        const struct oak_value_t result =
+            ns->type->fields[idx].getter(recv, ns->type->fields[idx].user_data);
         oak_value_decref(recv);
-        const enum oak_vm_result_t push_result =
-            oak_vm_push_owned(vm, result);
+        const enum oak_vm_result_t push_result = oak_vm_push_owned(vm, result);
         if (push_result != OAK_VM_OK)
           return push_result;
       }
@@ -333,7 +369,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       const struct oak_value_t recv = oak_vm_pop(vm);
       if (oak_is_none_like(recv))
       {
-        oak_vm_runtime_error(vm, "field assignment on none (expired weak reference)");
+        oak_vm_runtime_error(
+            vm, "field assignment on none (expired weak reference)");
         oak_value_decref(recv);
         oak_value_decref(value);
         return OAK_VM_RUNTIME_ERROR;
@@ -342,6 +379,12 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       {
         struct oak_obj_record_t* s = oak_as_record(recv);
         oak_assert((int)idx < s->field_count);
+        if (!vm_value_can_store(vm, value, s->obj.table_id))
+        {
+          oak_value_decref(recv);
+          oak_value_decref(value);
+          return OAK_VM_RUNTIME_ERROR;
+        }
         const struct oak_value_t old_field = s->fields[idx];
         s->fields[idx] = value;
         oak_value_decref(old_field);
@@ -364,11 +407,16 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
         }
         if (!ns->type->fields[idx].setter)
         {
-          oak_vm_runtime_error(
-              vm,
-              "field '%s' on native record '%s' is read-only",
-              ns->type->fields[idx].name,
-              ns->type->name);
+          oak_vm_runtime_error(vm,
+                               "field '%s' on native record '%s' is read-only",
+                               ns->type->fields[idx].name,
+                               ns->type->name);
+          oak_value_decref(recv);
+          oak_value_decref(value);
+          return OAK_VM_RUNTIME_ERROR;
+        }
+        if (!vm_value_can_store(vm, value, ns->obj.table_id))
+        {
           oak_value_decref(recv);
           oak_value_decref(value);
           return OAK_VM_RUNTIME_ERROR;
@@ -419,8 +467,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       const u16 vtable_idx = oak_vm_read_u16(vm);
       if ((usize)vtable_idx >= chunk->const_count)
       {
-        oak_vm_runtime_error(vm,
-                             "MAKE_INTERFACE_OBJECT: vtable index out of range");
+        oak_vm_runtime_error(
+            vm, "MAKE_INTERFACE_OBJECT: vtable index out of range");
         return OAK_VM_RUNTIME_ERROR;
       }
       const struct oak_value_t vtable_val = chunk->constants[vtable_idx];
@@ -432,7 +480,15 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       }
       struct oak_obj_array_t* vtable = oak_as_array(vtable_val);
       const struct oak_value_t concrete = oak_vm_pop(vm);
-      struct oak_obj_interface_object_t* to = oak_interface_object_new(vm->allocator, concrete, vtable);
+      struct oak_obj_interface_object_t* to =
+          oak_interface_object_new(vm->allocator, concrete, vtable);
+      if (!to)
+      {
+        oak_vm_runtime_error(
+            vm, "cannot create an interface object from another VM's value");
+        oak_value_decref(concrete);
+        return OAK_VM_RUNTIME_ERROR;
+      }
       oak_value_decref(concrete);
       const enum oak_vm_result_t result =
           oak_vm_push_owned(vm, OAK_VALUE_OBJ(&to->obj));
