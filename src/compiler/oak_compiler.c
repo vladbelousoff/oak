@@ -11,10 +11,6 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
                     const struct oak_compile_options_t* opts,
                     struct oak_compile_result_t* out)
 {
-  /* Chunk constants are VM-independent, so they belong to the shared object
-   * table even when compilation is triggered from inside a running VM
-   * (runtime module imports would otherwise pin that VM's table). */
-  const u32 prev_table = oak_obj_table_set_current(0u);
   struct oak_compiler_t compiler = { 0 };
   struct oak_allocator_t* allocator =
       (opts && opts->allocator) ? opts->allocator : &oak_system_allocator;
@@ -29,7 +25,6 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
     oak_compiler_error_at(&compiler, null, "expected a program root");
     oak_chunk_free(chunk);
     oak_compiler_teardown(&compiler);
-    oak_obj_table_set_current(prev_table);
     return;
   }
 
@@ -37,14 +32,11 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
   {
     oak_chunk_free(chunk);
     oak_compiler_teardown(&compiler);
-    oak_obj_table_set_current(prev_table);
     return;
   }
 
   oak_compiler_compile_program(&compiler, root);
   oak_compiler_teardown(&compiler);
-  oak_obj_table_set_current(prev_table);
-
   if (out->error_count > 0)
   {
     oak_chunk_free(chunk);

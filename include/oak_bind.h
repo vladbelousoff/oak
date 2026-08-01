@@ -417,8 +417,10 @@ OAK_API int oak_bind_attr(struct oak_compile_options_t* opts,
                           const struct oak_bind_attr_t* params);
 
 
-/* Wrap a C instance pointer in an Oak value typed as the given native type.
- * The resulting Oak value participates in normal refcounting. When its
+/* Wrap a C instance pointer in a process-shared Oak value typed as the given
+ * native type.  Use oak_vm_native_record_new() inside a native callback when
+ * the wrapper should belong to that callback's VM.  The resulting Oak value
+ * participates in normal refcounting. When its
  * refcount reaches zero, `type->destructor` runs on non-NULL `instance`
  * (if registered), then the wrapper is freed. If `destructor` is NULL,
  * `instance` is not freed — lifetime is the embedder's responsibility.

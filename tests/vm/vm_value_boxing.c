@@ -8,6 +8,7 @@
 OAK_TEST_DECL(ValueSizeIs8Bytes)
 {
   OAK_CHECK(sizeof(struct oak_value_t) == 8);
+  OAK_CHECK(OAK_OBJ_TABLE_COUNT == 64u);
   return OAK_TEST_OK;
 }
 
@@ -138,12 +139,12 @@ OAK_TEST_DECL(PerVmTableIsolationAndRecycle)
   struct oak_allocator_t allocator;
   oak_system_allocator_init(&allocator);
 
-  const u32 table = oak_obj_table_acquire();
+  struct oak_vm_t vm;
+  oak_vm_init(&vm, &allocator);
+  const u32 table = vm.object_table;
   OAK_CHECK(table != 0);
 
-  const u32 prev = oak_obj_table_set_current(table);
-  struct oak_obj_string_t* scoped = oak_string_new(&allocator, "scoped");
-  oak_obj_table_set_current(prev);
+  struct oak_obj_string_t* scoped = oak_vm_string_new(&vm, "scoped");
 
   struct oak_obj_string_t* shared = oak_string_new(&allocator, "shared");
   OAK_CHECK(scoped->obj.table_id == table);
@@ -157,8 +158,8 @@ OAK_TEST_DECL(PerVmTableIsolationAndRecycle)
   oak_obj_decref((struct oak_obj_t*)scoped);
   OAK_CHECK(oak_is_expired_weak(weak));
 
-  /* Last object already died, so detaching recycles the entry at once. */
-  oak_obj_table_detach(table);
+  /* Last object already died, so freeing the VM recycles the entry at once. */
+  oak_vm_free(&vm);
   OAK_CHECK(oak_obj_tables[table].state == OAK_OBJ_TABLE_FREE);
   OAK_CHECK(oak_obj_tables[table].slots == null);
 
@@ -167,16 +168,16 @@ OAK_TEST_DECL(PerVmTableIsolationAndRecycle)
 
   /* ...even after the entry is reacquired and repopulated: fresh slots
    * start above the nonce floor left by the previous incarnation. */
-  const u32 again = oak_obj_table_acquire();
+  struct oak_vm_t next_vm;
+  oak_vm_init(&next_vm, &allocator);
+  const u32 again = next_vm.object_table;
   OAK_CHECK(again == table);
-  const u32 prev2 = oak_obj_table_set_current(again);
-  struct oak_obj_string_t* reborn = oak_string_new(&allocator, "reborn");
-  oak_obj_table_set_current(prev2);
+  struct oak_obj_string_t* reborn = oak_vm_string_new(&next_vm, "reborn");
   OAK_CHECK(oak_is_expired_weak(weak));
   OAK_CHECK(oak_is_obj(OAK_VALUE_OBJ(reborn)));
 
   oak_obj_decref((struct oak_obj_t*)reborn);
-  oak_obj_table_detach(again);
+  oak_vm_free(&next_vm);
   oak_obj_decref((struct oak_obj_t*)shared);
   return OAK_TEST_OK;
 }
@@ -186,18 +187,34 @@ OAK_TEST_DECL(TableRegistryRecyclesUnderChurn)
   struct oak_allocator_t allocator;
   oak_system_allocator_init(&allocator);
 
-  /* More cycles than registry entries (256): only recycling can keep
-   * acquire from exhausting the registry and falling back to table 0. */
-  for (int i = 0; i < 300; ++i)
+  /* More cycles than registry entries (64): only recycling can keep acquire
+
+   * * from exhausting the registry. */
+  for (int i = 0; i < 100; ++i)
   {
-    const u32 table = oak_obj_table_acquire();
-    OAK_CHECK(table != 0);
-    const u32 prev = oak_obj_table_set_current(table);
-    struct oak_obj_string_t* str = oak_string_new(&allocator, "churn");
-    oak_obj_table_set_current(prev);
+    struct oak_vm_t vm;
+    oak_vm_init(&vm, &allocator);
+    OAK_CHECK(vm.object_table != 0);
+    struct oak_obj_string_t* str = oak_vm_string_new(&vm, "churn");
     oak_obj_decref((struct oak_obj_t*)str);
-    oak_obj_table_detach(table);
+    oak_vm_free(&vm);
   }
+  return OAK_TEST_OK;
+}
+
+OAK_TEST_DECL(RegistryProvides63VmTables)
+{
+  struct oak_allocator_t allocator;
+  oak_system_allocator_init(&allocator);
+
+  struct oak_vm_t vms[OAK_OBJ_TABLE_COUNT - 1u];
+  for (u32 i = 0; i < OAK_OBJ_TABLE_COUNT - 1u; ++i)
+  {
+    oak_vm_init(&vms[i], &allocator);
+    OAK_CHECK(vms[i].object_table == i + 1u);
+  }
+  for (u32 i = OAK_OBJ_TABLE_COUNT - 1u; i-- > 0u;)
+    oak_vm_free(&vms[i]);
   return OAK_TEST_OK;
 }
 
@@ -206,15 +223,17 @@ OAK_TEST_DECL(ObjectRefcopyCompatibilityRejectsOtherVmTables)
   struct oak_allocator_t allocator;
   oak_system_allocator_init(&allocator);
 
-  const u32 table_a = oak_obj_table_acquire();
-  const u32 table_b = oak_obj_table_acquire();
+  struct oak_vm_t vm_a;
+  struct oak_vm_t vm_b;
+  oak_vm_init(&vm_a, &allocator);
+  oak_vm_init(&vm_b, &allocator);
+  const u32 table_a = vm_a.object_table;
+  const u32 table_b = vm_b.object_table;
   OAK_CHECK(table_a != 0);
   OAK_CHECK(table_b != 0);
   OAK_CHECK(table_a != table_b);
 
-  const u32 prev = oak_obj_table_set_current(table_a);
-  struct oak_obj_string_t* vm_owned = oak_string_new(&allocator, "vm");
-  oak_obj_table_set_current(prev);
+  struct oak_obj_string_t* vm_owned = oak_vm_string_new(&vm_a, "vm");
 
   struct oak_obj_string_t* shared = oak_string_new(&allocator, "shared");
 
@@ -226,10 +245,8 @@ OAK_TEST_DECL(ObjectRefcopyCompatibilityRejectsOtherVmTables)
   OAK_CHECK(
       !oak_value_can_refcopy_to_table(oak_value_weaken(vm_value), table_b));
 
-  const u32 prev_b = oak_obj_table_set_current(table_b);
-  struct oak_obj_array_t* array_b = oak_array_new(&allocator);
-  struct oak_obj_map_t* map_b = oak_map_new(&allocator);
-  oak_obj_table_set_current(prev_b);
+  struct oak_obj_array_t* array_b = oak_vm_array_new(&vm_b);
+  struct oak_obj_map_t* map_b = oak_vm_map_new(&vm_b);
 
   OAK_CHECK(!oak_array_push(array_b, vm_value));
   OAK_CHECK(array_b->length == 0u);
@@ -248,8 +265,8 @@ OAK_TEST_DECL(ObjectRefcopyCompatibilityRejectsOtherVmTables)
   oak_obj_decref((struct oak_obj_t*)map_b);
   oak_obj_decref((struct oak_obj_t*)vm_owned);
   oak_obj_decref((struct oak_obj_t*)shared);
-  oak_obj_table_detach(table_a);
-  oak_obj_table_detach(table_b);
+  oak_vm_free(&vm_a);
+  oak_vm_free(&vm_b);
   return OAK_TEST_OK;
 }
 
@@ -264,12 +281,11 @@ OAK_TEST_DECL(VmCallRejectsValuesFromAnotherVm)
   oak_vm_init(&vm_b, &allocator);
   OAK_CHECK(vm_a.object_table != vm_b.object_table);
 
-  const u32 prev = oak_obj_table_set_current(vm_a.object_table);
-  struct oak_obj_string_t* owned_by_a = oak_string_new(&allocator, "vm-a");
-  oak_obj_table_set_current(prev);
+  struct oak_obj_string_t* owned_by_a = oak_vm_string_new(&vm_a, "vm-a");
   const struct oak_value_t a_value = OAK_VALUE_OBJ(owned_by_a);
 
   /* A dummy chunk is enough to reach oak_vm_call's argument-transfer
+   *
    * boundary; the foreign value must be rejected before call dispatch. */
   struct oak_chunk_t dummy_chunk = { 0 };
   vm_b.chunk = &dummy_chunk;
@@ -331,6 +347,7 @@ int main(const int argc, char* argv[])
     OAK_TEST_ENTRY(WeakStaysExpiredAfterSlotReuse),
     OAK_TEST_ENTRY(PerVmTableIsolationAndRecycle),
     OAK_TEST_ENTRY(TableRegistryRecyclesUnderChurn),
+    OAK_TEST_ENTRY(RegistryProvides63VmTables),
     OAK_TEST_ENTRY(ObjectRefcopyCompatibilityRejectsOtherVmTables),
     OAK_TEST_ENTRY(VmCallRejectsValuesFromAnotherVm),
     OAK_TEST_ENTRY(HandleRoundTrip61Bits),

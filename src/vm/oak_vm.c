@@ -14,6 +14,71 @@ void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator)
   vm->object_table = oak_obj_table_acquire();
 }
 
+struct oak_obj_string_t* oak_vm_string_new(struct oak_vm_t* vm,
+                                           const char* chars)
+{
+  return oak_string_new_in_table(vm->allocator, vm->object_table, chars);
+}
+
+struct oak_obj_string_t* oak_vm_string_new_len(struct oak_vm_t* vm,
+                                               const char* chars,
+                                               const usize length)
+{
+  return oak_string_new_len_in_table(
+      vm->allocator, vm->object_table, chars, length);
+}
+
+struct oak_obj_string_t*
+oak_vm_string_concat(struct oak_vm_t* vm,
+                     const struct oak_obj_string_t* left,
+                     const struct oak_obj_string_t* right)
+{
+  return oak_string_concat_in_table(
+      vm->allocator, vm->object_table, left, right);
+}
+
+struct oak_obj_array_t* oak_vm_array_new(struct oak_vm_t* vm)
+{
+  return oak_array_new_in_table(vm->allocator, vm->object_table);
+}
+
+struct oak_obj_map_t* oak_vm_map_new(struct oak_vm_t* vm)
+{
+  return oak_map_new_in_table(vm->allocator, vm->object_table);
+}
+
+struct oak_obj_record_t* oak_vm_record_new(struct oak_vm_t* vm,
+                                           const int field_count,
+                                           const char* type_name,
+                                           const char* const* field_names)
+{
+  return oak_record_new_in_table(
+      vm->allocator, vm->object_table, field_count, type_name, field_names);
+}
+
+struct oak_value_t oak_vm_native_record_new(struct oak_vm_t* vm,
+                                            const struct oak_bind_type_t* type,
+                                            void* instance)
+{
+  oak_assert(type != null);
+  struct oak_obj_native_record_t* record = oak_obj_native_record_new_in_table(
+      vm->allocator, vm->object_table, type, instance);
+  return OAK_VALUE_OBJ(&record->obj);
+}
+
+struct oak_obj_string_t* oak_vm_value_to_string(struct oak_vm_t* vm,
+                                                struct oak_value_t value)
+{
+  return oak_value_to_string_in_table(vm->allocator, vm->object_table, value);
+}
+
+struct oak_obj_string_t* oak_vm_string_from_value_repr(struct oak_vm_t* vm,
+                                                       struct oak_value_t value)
+{
+  return oak_string_from_value_repr_in_table(
+      vm->allocator, vm->object_table, value);
+}
+
 void oak_vm_set_debug_hook(struct oak_vm_t* vm,
                            struct oak_vm_debug_hook_t* hook)
 {
@@ -420,8 +485,11 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
         const struct oak_value_t a = cached_pop(&sp);
         if (oak_is_string(a) && oak_is_string(b))
         {
-          struct oak_obj_string_t* result = oak_string_concat(
-              vm->allocator, oak_as_string(a), oak_as_string(b));
+          struct oak_obj_string_t* result =
+              oak_string_concat_in_table(vm->allocator,
+                                         vm->object_table,
+                                         oak_as_string(a),
+                                         oak_as_string(b));
           oak_value_decref(a);
           oak_value_decref(b);
           if (cached_push_owned(vm, chunk, ip, &sp, OAK_VALUE_OBJ(result)) !=
@@ -854,10 +922,5 @@ static enum oak_vm_result_t oak_vm_resume_loop(struct oak_vm_t* vm)
 
 enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm)
 {
-  /* Objects created while this VM executes (including inside native
-   * callbacks) land in its table; save/restore supports nested VMs. */
-  const u32 prev_table = oak_obj_table_set_current(vm->object_table);
-  const enum oak_vm_result_t result = oak_vm_resume_loop(vm);
-  oak_obj_table_set_current(prev_table);
-  return result;
+  return oak_vm_resume_loop(vm);
 }

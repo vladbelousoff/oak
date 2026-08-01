@@ -2,6 +2,7 @@
 
 #include "oak_allocator.h"
 #include "oak_value.h"
+#include "oak_vm.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -40,7 +41,7 @@ static void make_string(struct oak_native_ctx_t* ctx,
                         usize len,
                         struct oak_value_t* out)
 {
-  struct oak_obj_string_t* s = oak_string_new_len(ctx->allocator, src, len);
+  struct oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, src, len);
   *out = OAK_VALUE_OBJ(&s->obj);
 }
 

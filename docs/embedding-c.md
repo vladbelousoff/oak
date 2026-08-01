@@ -61,6 +61,20 @@ oak_compile_options_free(&opts);
 `oak_vm_t::user_data` carries an embedder pointer so native callbacks can
 recover their host object without process globals.
 
+VM ownership is explicit rather than thread-local. Use the `oak_vm_*_new()`
+family when a heap value should belong to a particular VM; for example:
+
+```c
+struct oak_obj_string_t* message = oak_vm_string_new(&vm, "hello");
+struct oak_obj_array_t* items = oak_vm_array_new(&vm);
+```
+
+The plain `oak_string_new()`, `oak_array_new()`, and related constructors make
+process-shared values instead. A thread may operate on different VMs, and a VM
+may move between threads between calls, but a VM and its values must never be
+used concurrently. The registry supports 63 live VM tables plus shared table
+0.
+
 ## Native functions
 
 Every native callable — global function, instance method, static method —
@@ -152,7 +166,7 @@ static void vec2_set_x(struct oak_value_t self,
 static void vec2_free(void* instance)
 {
   /* free whatever the instance owns; instance itself is the pointer you
-   * passed to oak_native_record_new */
+   * passed to oak_vm_native_record_new */
   free(instance);
 }
 
@@ -174,7 +188,7 @@ returned as a fresh reference with the refcount already incremented; scalar
 values (numbers, bools) need no refcounting.
 
 Instances are created inside a native callback (typically a factory function
-or static method) with `oak_native_record_new()`:
+or static method) with `oak_vm_native_record_new()`:
 
 ```c
 static enum oak_fn_call_result_t make_vec2(struct oak_native_ctx_t* ctx,
@@ -186,7 +200,7 @@ static enum oak_fn_call_result_t make_vec2(struct oak_native_ctx_t* ctx,
   v->x = oak_as_f32(args[0]);
   v->y = oak_as_f32(args[1]);
   /* user_data carries the type descriptor (set it on the binding) */
-  *out = oak_native_record_new(ctx->allocator, ctx->user_data, v);
+  *out = oak_vm_native_record_new(ctx->vm, ctx->user_data, v);
   return OAK_FN_CALL_OK;
 }
 ```

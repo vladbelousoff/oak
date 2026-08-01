@@ -16,18 +16,6 @@
  * shared table 0 is special-cased below and never handed out or recycled. */
 struct oak_obj_table_t oak_obj_tables[OAK_OBJ_TABLE_COUNT];
 
-/* Objects created on this thread land in this table.  Defaults to the
- * shared table 0; the VM run entry points scope it to the running VM. */
-static _Thread_local u32 oak_current_obj_table = 0u;
-
-u32 oak_obj_table_set_current(const u32 table_id)
-{
-  oak_assert(table_id < OAK_OBJ_TABLE_COUNT);
-  const u32 prev = oak_current_obj_table;
-  oak_current_obj_table = table_id;
-  return prev;
-}
-
 u32 oak_obj_table_acquire(void)
 {
   for (u32 id = 1u; id < OAK_OBJ_TABLE_COUNT; ++id)
@@ -39,7 +27,8 @@ u32 oak_obj_table_acquire(void)
     }
   }
   /* Table 0 is process-owned.  Giving it to a VM would make values from that
-   * VM indistinguishable from deliberately shared constants. */
+
+   * * VM indistinguishable from deliberately shared constants. */
   oak_log(OAK_LOG_ERROR, "oak: object-table registry exhausted");
   oak_panic();
 }
@@ -133,12 +122,16 @@ static void oak_obj_table_release(const struct oak_obj_t* obj)
 
 static void oak_obj_init(struct oak_obj_t* obj,
                          const enum oak_obj_type_t type,
-                         struct oak_allocator_t* allocator)
+                         struct oak_allocator_t* allocator,
+                         const u32 table_id)
 {
+  oak_assert(table_id < OAK_OBJ_TABLE_COUNT);
+  oak_assert(table_id == 0u ||
+             oak_obj_tables[table_id].state == OAK_OBJ_TABLE_ACTIVE);
   obj->type = type;
   oak_refcount_init(&obj->refcount, 1);
   obj->allocator = allocator;
-  obj->table_id = oak_current_obj_table;
+  obj->table_id = table_id;
   obj->slot_index = oak_obj_table_insert(obj->table_id, obj);
 }
 
@@ -235,13 +228,14 @@ static u32 hash_string(const char* chars, const usize length)
   return hash;
 }
 
-struct oak_obj_string_t* oak_string_new_len(struct oak_allocator_t* a,
-                                            const char* chars,
-                                            const usize length)
+struct oak_obj_string_t* oak_string_new_len_in_table(struct oak_allocator_t* a,
+                                                     const u32 table_id,
+                                                     const char* chars,
+                                                     const usize length)
 {
   struct oak_obj_string_t* str =
       OAK_ALLOC(a, sizeof(struct oak_obj_string_t) + length + 1);
-  oak_obj_init(&str->obj, OAK_OBJ_STRING, a);
+  oak_obj_init(&str->obj, OAK_OBJ_STRING, a, table_id);
   str->length = length;
   memcpy(str->chars, chars, length);
   str->chars[length] = 0;
@@ -249,10 +243,24 @@ struct oak_obj_string_t* oak_string_new_len(struct oak_allocator_t* a,
   return str;
 }
 
+struct oak_obj_string_t* oak_string_new_len(struct oak_allocator_t* a,
+                                            const char* chars,
+                                            const usize length)
+{
+  return oak_string_new_len_in_table(a, 0u, chars, length);
+}
+
+struct oak_obj_string_t* oak_string_new_in_table(struct oak_allocator_t* a,
+                                                 const u32 table_id,
+                                                 const char* chars)
+{
+  return oak_string_new_len_in_table(a, table_id, chars, strlen(chars));
+}
+
 struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
                                         const char* chars)
 {
-  return oak_string_new_len(a, chars, strlen(chars));
+  return oak_string_new_in_table(a, 0u, chars);
 }
 
 struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
@@ -261,7 +269,7 @@ struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
                                 const u16 module_id)
 {
   struct oak_obj_fn_t* fn = OAK_ALLOC(a, sizeof(struct oak_obj_fn_t));
-  oak_obj_init(&fn->obj, OAK_OBJ_FN, a);
+  oak_obj_init(&fn->obj, OAK_OBJ_FN, a, 0u);
   fn->code_offset = code_offset;
   fn->arity = arity;
   fn->module_id = module_id;
@@ -279,7 +287,7 @@ struct oak_obj_native_fn_t* oak_native_fn_new(struct oak_allocator_t* a,
 {
   struct oak_obj_native_fn_t* native =
       OAK_ALLOC(a, sizeof(struct oak_obj_native_fn_t));
-  oak_obj_init(&native->obj, OAK_OBJ_NATIVE_FN, a);
+  oak_obj_init(&native->obj, OAK_OBJ_NATIVE_FN, a, 0u);
   native->fn = fn;
   native->arity = arity;
   native->name = name;
@@ -304,14 +312,20 @@ int oak_native_fn_format(char* buf,
   return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity, fn_ptr);
 }
 
-struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a)
+struct oak_obj_array_t* oak_array_new_in_table(struct oak_allocator_t* a,
+                                               const u32 table_id)
 {
   struct oak_obj_array_t* arr = OAK_ALLOC(a, sizeof(struct oak_obj_array_t));
-  oak_obj_init(&arr->obj, OAK_OBJ_ARRAY, a);
+  oak_obj_init(&arr->obj, OAK_OBJ_ARRAY, a, table_id);
   arr->length = 0;
   arr->capacity = 0;
   arr->items = null;
   return arr;
+}
+
+struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a)
+{
+  return oak_array_new_in_table(a, 0u);
 }
 
 int oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
@@ -330,16 +344,18 @@ int oak_array_push(struct oak_obj_array_t* arr, const struct oak_value_t value)
   return 1;
 }
 
-struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
-                                        const int field_count,
-                                        const char* const type_name,
-                                        const char* const* const field_names)
+struct oak_obj_record_t*
+oak_record_new_in_table(struct oak_allocator_t* a,
+                        const u32 table_id,
+                        const int field_count,
+                        const char* const type_name,
+                        const char* const* const field_names)
 {
   oak_assert(field_count >= 0);
   const usize size = sizeof(struct oak_obj_record_t) +
                      (usize)field_count * sizeof(struct oak_value_t);
   struct oak_obj_record_t* s = OAK_ALLOC(a, size);
-  oak_obj_init(&s->obj, OAK_OBJ_RECORD, a);
+  oak_obj_init(&s->obj, OAK_OBJ_RECORD, a, table_id);
   s->type_name = null;
   s->field_count = field_count;
   s->field_name_ptrs = null;
@@ -386,27 +402,45 @@ struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
   return s;
 }
 
+struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
+                                        const int field_count,
+                                        const char* const type_name,
+                                        const char* const* const field_names)
+{
+  return oak_record_new_in_table(a, 0u, field_count, type_name, field_names);
+}
+
 struct oak_obj_native_record_t*
-oak_obj_native_record_new(struct oak_allocator_t* a,
-                          const struct oak_bind_type_t* type,
-                          void* instance)
+oak_obj_native_record_new_in_table(struct oak_allocator_t* a,
+                                   const u32 table_id,
+                                   const struct oak_bind_type_t* type,
+                                   void* instance)
 {
   struct oak_obj_native_record_t* ns =
       OAK_ALLOC(a, sizeof(struct oak_obj_native_record_t));
-  oak_obj_init(&ns->obj, OAK_OBJ_NATIVE_RECORD, a);
+  oak_obj_init(&ns->obj, OAK_OBJ_NATIVE_RECORD, a, table_id);
   ns->instance = instance;
   ns->type = type;
   return ns;
 }
 
+struct oak_obj_native_record_t*
+oak_obj_native_record_new(struct oak_allocator_t* a,
+                          const struct oak_bind_type_t* type,
+                          void* instance)
+{
+  return oak_obj_native_record_new_in_table(a, 0u, type, instance);
+}
+
 struct oak_obj_interface_object_t*
-oak_interface_object_new(struct oak_allocator_t* a,
-                         struct oak_value_t value,
-                         struct oak_obj_array_t* vtable)
+oak_interface_object_new_in_table(struct oak_allocator_t* a,
+                                  const u32 table_id,
+                                  struct oak_value_t value,
+                                  struct oak_obj_array_t* vtable)
 {
   struct oak_obj_interface_object_t* to =
       OAK_ALLOC(a, sizeof(struct oak_obj_interface_object_t));
-  oak_obj_init(&to->obj, OAK_OBJ_INTERFACE_OBJECT, a);
+  oak_obj_init(&to->obj, OAK_OBJ_INTERFACE_OBJECT, a, table_id);
   if (!oak_value_can_refcopy_to_table(value, to->obj.table_id) ||
       (vtable->obj.table_id != 0u && vtable->obj.table_id != to->obj.table_id))
   {
@@ -421,10 +455,19 @@ oak_interface_object_new(struct oak_allocator_t* a,
   return to;
 }
 
-struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
+struct oak_obj_interface_object_t*
+oak_interface_object_new(struct oak_allocator_t* a,
+                         struct oak_value_t value,
+                         struct oak_obj_array_t* vtable)
+{
+  return oak_interface_object_new_in_table(a, 0u, value, vtable);
+}
+
+struct oak_obj_map_t* oak_map_new_in_table(struct oak_allocator_t* a,
+                                           const u32 table_id)
 {
   struct oak_obj_map_t* map = OAK_ALLOC(a, sizeof(struct oak_obj_map_t));
-  oak_obj_init(&map->obj, OAK_OBJ_MAP, a);
+  oak_obj_init(&map->obj, OAK_OBJ_MAP, a, table_id);
   map->length = 0;
   map->capacity = 0;
   map->entries = null;
@@ -432,6 +475,11 @@ struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
   map->ht = null;
   map->ht_tombstones = 0;
   return map;
+}
+
+struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a)
+{
+  return oak_map_new_in_table(a, 0u);
 }
 
 static u32 hash_value(const struct oak_value_t v)
@@ -663,20 +711,29 @@ int oak_map_set(struct oak_obj_map_t* map,
   return 1;
 }
 
-struct oak_obj_string_t* oak_string_concat(struct oak_allocator_t* al,
-                                           const struct oak_obj_string_t* a,
-                                           const struct oak_obj_string_t* b)
+struct oak_obj_string_t*
+oak_string_concat_in_table(struct oak_allocator_t* al,
+                           const u32 table_id,
+                           const struct oak_obj_string_t* a,
+                           const struct oak_obj_string_t* b)
 {
   const usize length = a->length + b->length;
   struct oak_obj_string_t* str =
       OAK_ALLOC(al, sizeof(struct oak_obj_string_t) + length + 1);
-  oak_obj_init(&str->obj, OAK_OBJ_STRING, al);
+  oak_obj_init(&str->obj, OAK_OBJ_STRING, al, table_id);
   str->length = length;
   memcpy(str->chars, a->chars, a->length);
   memcpy(str->chars + a->length, b->chars, b->length);
   str->chars[length] = 0;
   str->hash = hash_string(str->chars, length);
   return str;
+}
+
+struct oak_obj_string_t* oak_string_concat(struct oak_allocator_t* al,
+                                           const struct oak_obj_string_t* a,
+                                           const struct oak_obj_string_t* b)
+{
+  return oak_string_concat_in_table(al, 0u, a, b);
 }
 
 int oak_is_truthy(const struct oak_value_t value)

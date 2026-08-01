@@ -109,16 +109,15 @@ vec2.field("x", &Vec2::x)
   `oak_bind_destructor_t` to free differently, or skip it to keep lifetime on
   the host side.
 
-Instances enter Oak through a factory function that wraps a C++ object with
-`oak_native_record_new`:
+Instances enter Oak through a factory function that wraps a C++ object for the
+callback's VM:
 
 ```cpp
 opts.bind_fn(
     "make_vec", 2,
     [raw = vec2.raw()](oak::Context& ctx, oak::Args a) -> oak::Value {
       auto* v = new Vec2{a[0].as_f32(), a[1].as_f32()};
-      return oak::Value::from_raw(
-          oak_native_record_new(ctx.allocator(), raw, v));
+      return ctx.native_record(raw, v);
     },
     OAK_BIND_NATIVE(vec2.raw()));
 ```

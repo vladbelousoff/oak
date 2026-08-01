@@ -337,18 +337,26 @@ the low 3 bits as their tag and form their ID from three fields:
 | Bits | Field | Purpose |
 |---|---|---|
 | `3..31` | 29-bit slot | Index in an object table |
-| `32..39` | 8-bit table | Owning VM's table (`0` means process-shared) |
+| `32..37` | 6-bit table | Owning VM's table (`0` means process-shared; 64 tables total) |
+| `38..39` | reserved | Currently zero |
 | `40..63` | 24-bit nonce | Slot generation when the ID was created |
 
-Allocation uses the current thread's active object-table ID. A VM installs
-its own table in thread-local state while it runs, so objects created by Oak
-code or native callbacks are automatically owned by that VM. When an object
-dies, its slot's nonce is incremented before the slot can be reused. A weak ID
-therefore resolves to `none` when its saved nonce no longer matches, rather
-than accidentally resolving to the next object allocated in the same slot.
-The nonce floor is also advanced when an entire VM table is recycled.
+Ownership is explicit and does not use thread-local state. VM bytecode routes
+its allocations through its `oak_vm_t`, and native code can select an owner
+with `oak_vm_string_new()`, `oak_vm_array_new()`, `oak_vm_map_new()`,
+`oak_vm_record_new()`, and `oak_vm_native_record_new()`. The plain
+`oak_*_new()` functions create process-shared table-0 values. One thread may
+operate on different VMs, and a VM may move between threads between calls;
+neither a VM nor its values may be accessed concurrently. At most 63 VM
+tables can be live alongside the shared table.
 
-Heap values created by a VM are thread- and VM-confined. The runtime rejects
+When an object dies, its slot's nonce is incremented before the slot can be
+reused. A weak ID therefore resolves to `none` when its saved nonce no longer
+matches, rather than accidentally resolving to the next object allocated in
+the same slot. The nonce floor is also advanced when an entire VM table is
+recycled.
+
+Heap values created by a VM are VM-confined. The runtime rejects
 putting either a strong or weak reference from one VM into another VM's stack,
 array, map, record, native field, or call arguments; release builds enforce the
 same checks as debug builds. Scalar values and process-owned table-0 objects

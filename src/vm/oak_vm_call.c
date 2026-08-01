@@ -174,7 +174,8 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
     return OAK_VM_RUNTIME_ERROR;
 
   /* Make room for the fn value by shifting everything from recv_pos onwards
-   * right by one slot, then insert fn and unwrapped concrete value. */
+
+   * * right by one slot, then insert fn and unwrapped concrete value. */
   if (vm->sp >= vm->stack + OAK_STACK_MAX)
   {
     oak_vm_runtime_error(vm, "stack overflow in virtual call setup");
@@ -294,13 +295,7 @@ enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
                                  int argc,
                                  struct oak_value_t* out_result)
 {
-  /* Native functions can run during call setup, before oak_vm_resume takes
-   * over, so the whole call is scoped to this VM's object table. */
-  const u32 prev_table = oak_obj_table_set_current(vm->object_table);
-  const enum oak_vm_result_t result =
-      oak_vm_call_impl(vm, fn_val, args, argc, out_result);
-  oak_obj_table_set_current(prev_table);
-  return result;
+  return oak_vm_call_impl(vm, fn_val, args, argc, out_result);
 }
 
 enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)

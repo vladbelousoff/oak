@@ -72,7 +72,7 @@ static enum oak_fn_call_result_t file_open(struct oak_native_ctx_t* ctx,
   }
   h->fp = fp;
   h->allocator = ctx->allocator;
-  *out = oak_native_record_new(ctx->allocator, s_file_type, h);
+  *out = oak_vm_native_record_new(ctx->vm, s_file_type, h);
   return OAK_FN_CALL_OK;
 }
 
@@ -89,12 +89,12 @@ static enum oak_fn_call_result_t file_read(struct oak_native_ctx_t* ctx,
   char buf[4096];
   if (!fgets(buf, sizeof buf, h->fp))
   {
-    struct oak_obj_string_t* s = oak_string_new_len(ctx->allocator, "", 0);
+    struct oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, "", 0);
     *out = OAK_VALUE_OBJ(&s->obj);
     return OAK_FN_CALL_OK;
   }
   const usize len = strlen(buf);
-  struct oak_obj_string_t* s = oak_string_new_len(ctx->allocator, buf, len);
+  struct oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, buf, len);
   *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
@@ -121,7 +121,7 @@ static enum oak_fn_call_result_t file_read_all(struct oak_native_ctx_t* ctx,
   const size_t n = (size_t)(end - pos);
   if (n == 0)
   {
-    struct oak_obj_string_t* s = oak_string_new_len(ctx->allocator, "", 0);
+    struct oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, "", 0);
     *out = OAK_VALUE_OBJ(&s->obj);
     return OAK_FN_CALL_OK;
   }
@@ -130,7 +130,7 @@ static enum oak_fn_call_result_t file_read_all(struct oak_native_ctx_t* ctx,
     return OAK_FN_CALL_RUNTIME_ERROR;
   const size_t got = fread(buf, 1u, n, f);
   buf[got] = '\0';
-  struct oak_obj_string_t* s = oak_string_new_len(ctx->allocator, buf, got);
+  struct oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, buf, got);
   OAK_FREE(ctx->allocator, buf);
   *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
@@ -198,7 +198,8 @@ void oak_stdlib_register_file(struct oak_compile_options_t* opts)
   t->destructor = file_destroy;
   s_file_type = t;
 
-  struct oak_bind_enum_t* mode = oak_bind_enum_in_module(opts, "io", "FileMode");
+  struct oak_bind_enum_t* mode =
+      oak_bind_enum_in_module(opts, "io", "FileMode");
   if (mode)
   {
     oak_bind_enum_variant(mode, "Read", OAK_FILE_MODE_READ);

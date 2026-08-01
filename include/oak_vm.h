@@ -67,16 +67,49 @@ struct oak_vm_t
   /* Opaque debug hook; null when no debugger is attached.  Installed via
    * oak_vm_set_debug_hook.  Borrowed, never freed by the VM. */
   struct oak_vm_debug_hook_t* debug_hook;
-  /* This VM's object table: objects created while the VM executes live in
-   * oak_obj_tables[object_table].  Acquired by oak_vm_init, detached by
+  /* This VM's object table.  oak_vm_* allocation functions create objects in
+
+   * * oak_obj_tables[object_table].  Acquired by oak_vm_init, detached by
+   *
    * oak_vm_free (and recycled once its last object dies) — see the object
+   *
    * table registry in oak_value.h. */
   u32 object_table;
 };
 
 /* Zero-initialize a VM and wire it to an allocator.  The allocator pointer
  * is borrowed for the lifetime of the VM; it is not freed by oak_vm_free. */
-OAK_API void oak_vm_init(struct oak_vm_t* vm, struct oak_allocator_t* allocator);
+OAK_API void oak_vm_init(struct oak_vm_t* vm,
+                         struct oak_allocator_t* allocator);
+
+/* Allocate values owned by `vm`, independently of which thread makes the
+ *
+ * call.  A VM may be used from different threads between calls, but the VM
+ *
+ * and its values must not be accessed concurrently.  The plain oak_*_new
+ *
+ * constructors create process-shared table-0 values instead. */
+OAK_API struct oak_obj_string_t* oak_vm_string_new(struct oak_vm_t* vm,
+                                                   const char* chars);
+OAK_API struct oak_obj_string_t*
+oak_vm_string_new_len(struct oak_vm_t* vm, const char* chars, usize length);
+OAK_API struct oak_obj_string_t*
+oak_vm_string_concat(struct oak_vm_t* vm,
+                     const struct oak_obj_string_t* left,
+                     const struct oak_obj_string_t* right);
+OAK_API struct oak_obj_array_t* oak_vm_array_new(struct oak_vm_t* vm);
+OAK_API struct oak_obj_map_t* oak_vm_map_new(struct oak_vm_t* vm);
+OAK_API struct oak_obj_record_t*
+oak_vm_record_new(struct oak_vm_t* vm,
+                  int field_count,
+                  const char* type_name,
+                  const char* const* field_names);
+OAK_API struct oak_value_t oak_vm_native_record_new(
+    struct oak_vm_t* vm, const struct oak_bind_type_t* type, void* instance);
+OAK_API struct oak_obj_string_t*
+oak_vm_value_to_string(struct oak_vm_t* vm, struct oak_value_t value);
+OAK_API struct oak_obj_string_t*
+oak_vm_string_from_value_repr(struct oak_vm_t* vm, struct oak_value_t value);
 
 /* Release any heap state owned by the VM.  Does not free chunks (those are
  * owned by their oak_compile_result_t / oak_module_t). */

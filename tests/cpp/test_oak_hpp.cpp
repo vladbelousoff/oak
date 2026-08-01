@@ -78,6 +78,20 @@ static bool test_value_string()
   return true;
 }
 
+static bool test_vm_owned_string()
+{
+  oak::Allocator alloc;
+  oak::VM first(alloc);
+  oak::VM second(alloc);
+  oak::Value value = first.string("owned");
+
+  CHECK(value.is_string());
+  CHECK(oak_value_obj_table(value.raw()) == first.raw()->object_table);
+  CHECK(!oak_value_can_refcopy_to_table(value.raw(),
+                                        second.raw()->object_table));
+  return true;
+}
+
 static bool test_compile_and_run()
 {
   oak::Allocator alloc;
@@ -270,8 +284,7 @@ static void bind_make_vec(oak::CompileOptions& opts, oak_bind_type_t* raw_type)
       "make_vec", 2,
       [raw_type](oak::Context& ctx, oak::Args a) -> oak::Value {
         auto* v = new Vec2{a[0].as_f32(), a[1].as_f32()};
-        return oak::Value::from_raw(
-            oak_native_record_new(ctx.allocator(), raw_type, v));
+        return ctx.native_record(raw_type, v);
       },
       OAK_BIND_NATIVE(raw_type));
 }
@@ -677,6 +690,7 @@ int main()
   TestEntry tests[] = {
       {"value_basics", test_value_basics},
       {"value_string", test_value_string},
+      {"vm_owned_string", test_vm_owned_string},
       {"compile_and_run", test_compile_and_run},
       {"compile_error", test_compile_error},
       {"bind_native_fn", test_bind_native_fn},

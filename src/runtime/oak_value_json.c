@@ -79,8 +79,9 @@ static char* oak_map_key_cstr(struct oak_value_t key, unsigned depth)
   }
 }
 
-static yyjson_mut_val* yyjson_str_from_oak_string(yyjson_mut_doc* doc,
-                                                   const struct oak_obj_string_t* s)
+static yyjson_mut_val*
+yyjson_str_from_oak_string(yyjson_mut_doc* doc,
+                           const struct oak_obj_string_t* s)
 {
   return yyjson_mut_strncpy(doc, s->chars, s->length);
 }
@@ -233,15 +234,17 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
   return yyjson_unhandled(doc, value);
 }
 
-struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
-                                             struct oak_value_t value)
+struct oak_obj_string_t*
+oak_value_to_string_in_table(struct oak_allocator_t* allocator,
+                             const u32 table_id,
+                             struct oak_value_t value)
 {
   if (oak_is_none_like(value))
-    return oak_string_new_len(allocator, "none", 4);
+    return oak_string_new_len_in_table(allocator, table_id, "none", 4);
   if (oak_is_bool(value))
   {
     const char* s = oak_as_bool(value) ? "true" : "false";
-    return oak_string_new_len(allocator, s, strlen(s));
+    return oak_string_new_len_in_table(allocator, table_id, s, strlen(s));
   }
   if (oak_is_number(value))
   {
@@ -253,24 +256,31 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
       n = snprintf(buf, sizeof(buf), "%d", oak_as_i32(value));
     if (n < 0)
       return null;
-    return oak_string_new_len(allocator, buf, (usize)n);
+    return oak_string_new_len_in_table(allocator, table_id, buf, (usize)n);
   }
   if (oak_is_string(value))
   {
-    oak_obj_incref(oak_val_obj_ptr(value));
-    return oak_as_string(value);
+    struct oak_obj_string_t* string = oak_as_string(value);
+    if (string->obj.table_id == table_id)
+    {
+      oak_obj_incref(&string->obj);
+      return string;
+    }
+    return oak_string_new_len_in_table(
+        allocator, table_id, string->chars, string->length);
   }
   if (oak_is_native_value(value))
-    return oak_string_from_value_repr(allocator, value);
+    return oak_string_from_value_repr_in_table(allocator, table_id, value);
   if (oak_is_handle(value))
   {
     char buf[32];
-    const int n =
-        snprintf(buf, sizeof(buf), "%llu",
-                 (unsigned long long)oak_value_as_handle(value));
+    const int n = snprintf(buf,
+                           sizeof(buf),
+                           "%llu",
+                           (unsigned long long)oak_value_as_handle(value));
     if (n < 0)
       return null;
-    return oak_string_new_len(allocator, buf, (usize)n);
+    return oak_string_new_len_in_table(allocator, table_id, buf, (usize)n);
   }
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
   if (!doc)
@@ -287,7 +297,14 @@ struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
   yyjson_mut_doc_free(doc);
   if (!p)
     return null;
-  struct oak_obj_string_t* s = oak_string_new_len(allocator, p, json_len);
+  struct oak_obj_string_t* s =
+      oak_string_new_len_in_table(allocator, table_id, p, json_len);
   free(p);
   return s;
+}
+
+struct oak_obj_string_t* oak_value_to_string(struct oak_allocator_t* allocator,
+                                             struct oak_value_t value)
+{
+  return oak_value_to_string_in_table(allocator, 0u, value);
 }

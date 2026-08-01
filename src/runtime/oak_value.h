@@ -20,8 +20,9 @@
  *   [2:0]          tag (oak_value_tag_t)
  *   I32/F32/BOOL:  payload in [63:32]
  *   HANDLE/NATIVE: payload in [63:3]
- *   OBJ/WEAK:      slot index in [31:3], table id in [39:32],
- *                  nonce in [63:40]
+ *   OBJ/WEAK:      slot index in [31:3], table id in [37:32],
+ * [39:38]
+ * reserved, nonce in [63:40]
  */
 
 /* Runtime tag for the payload of an oak_value_t.
@@ -101,17 +102,27 @@ struct oak_obj_t
  * resolve any object without a context parameter.  Table 0 is the shared
  * table: it holds objects created outside a VM (chunk constants built by
  * the compiler, embedder-created values) and is never recycled.  Every VM
- * acquires its own table in oak_vm_init and detaches it in oak_vm_free;
- * objects created while that VM executes land in its table (routed through
- * a thread-local current-table id scoped by the VM entry points).  A
- * detached table is recycled — its slot array freed and its registry entry
- * reusable — once the last object in it dies; fresh slots then start at a
- * nonce floor above every nonce the previous incarnation issued, so stale
- * weak references cannot alias across recycles.
+ * acquires its own table in oak_vm_init and detaches it in oak_vm_free.
+ * VM
+ * allocation entry points pass that table explicitly, so a VM can move
+ *
+ * between threads and one thread can operate on different VMs without any
+ *
+ * implicit thread-local ownership state.  A detached table is recycled — its
+ *
+ * slot array freed and its registry entry reusable — once the last object in
+ *
+ * it dies; fresh slots then start at a
+ * nonce floor above every nonce the
+ * previous incarnation issued, so stale weak references cannot alias across
+ * recycles.
  *
  * Registry mutation is not synchronized.  Initialize VMs before starting a
+ *
  * parallel region, keep each active table confined to its VM thread, and free
- * VMs after joining the workers.  Shared table-0 objects must remain read-only
+
+ * * VMs after joining the workers.  Shared table-0 objects must remain
+ * read-only
  * while the workers run. */
 
 struct oak_obj_slot_t
@@ -139,23 +150,20 @@ struct oak_obj_table_t
 };
 
 #define OAK_OBJ_SLOT_NONE   0xFFFFFFFFu
-#define OAK_OBJ_TABLE_COUNT 256u
+#define OAK_OBJ_TABLE_COUNT 64u
 
 OAK_API extern struct oak_obj_table_t oak_obj_tables[/*OAK_OBJ_TABLE_COUNT*/];
 
 /* Reserve a table for a new owner (a VM).  Table 0 is reserved for shared
+ *
  * process-owned objects and is never returned.  Exhausting the registry is
+ *
  * fatal: silently sharing table 0 would break VM ownership isolation. */
 OAK_API u32 oak_obj_table_acquire(void);
 
 /* Declare the owner gone.  The table is recycled as soon as no object in it
  * remains alive.  No-op for table 0. */
 OAK_API void oak_obj_table_detach(u32 table_id);
-
-/* Route objects created on this thread into `table_id`; returns the
- * previous current table so callers can scope and restore it.  The VM run
- * entry points wrap execution with this. */
-OAK_API u32 oak_obj_table_set_current(u32 table_id);
 
 struct oak_value_t
 {
@@ -167,7 +175,7 @@ struct oak_value_t
 #define OAK_VALUE_TAG_MASK  ((u64)0x7u)
 #define OAK_OBJ_INDEX_MASK  0x1FFFFFFFu /* 29 bits */
 #define OAK_OBJ_TABLE_SHIFT 32u
-#define OAK_OBJ_TABLE_MASK  0xFFu /* 8 bits */
+#define OAK_OBJ_TABLE_MASK  0x3Fu /* 6 bits; bits 38..39 are reserved */
 #define OAK_OBJ_NONCE_SHIFT 40u
 #define OAK_OBJ_NONCE_MASK  0xFFFFFFu /* 24 bits */
 
@@ -340,9 +348,13 @@ static inline u32 oak_value_obj_nonce(const struct oak_value_t value)
 }
 
 /* Copying a VM-owned object reference into another VM would make the value
+ *
  * reachable through the wrong owner.  This applies to strong and weak
+ *
  * references: weak references are non-owning, but resolving one across VM
+ *
  * threads would still race the source table.  Table 0 is process-owned and
+ *
  * may be copied into any VM. */
 static inline int oak_value_can_refcopy_to_table(const struct oak_value_t value,
                                                  const u32 dest_table)
@@ -549,8 +561,8 @@ struct oak_map_entry_t
   struct oak_value_t value;
 };
 
-#define MAP_HT_EMPTY     ((usize) - 1)
-#define MAP_HT_TOMBSTONE ((usize) - 2)
+#define MAP_HT_EMPTY     ((usize)-1)
+#define MAP_HT_TOMBSTONE ((usize)-2)
 
 struct oak_obj_map_t
 {
@@ -705,10 +717,26 @@ OAK_API struct oak_obj_string_t* oak_string_new(struct oak_allocator_t* a,
 struct oak_obj_string_t*
 oak_string_new_len(struct oak_allocator_t* a, const char* chars, usize length);
 
+/* Explicit-table constructors used by the VM-facing allocation API.  Table 0
+ *
+ * is process-shared; nonzero tables must belong to a live VM. */
+struct oak_obj_string_t* oak_string_new_in_table(struct oak_allocator_t* a,
+                                                 u32 table_id,
+                                                 const char* chars);
+struct oak_obj_string_t* oak_string_new_len_in_table(struct oak_allocator_t* a,
+                                                     u32 table_id,
+                                                     const char* chars,
+                                                     usize length);
+
 OAK_API struct oak_obj_string_t*
 oak_string_concat(struct oak_allocator_t* a,
                   const struct oak_obj_string_t* s1,
                   const struct oak_obj_string_t* s2);
+struct oak_obj_string_t*
+oak_string_concat_in_table(struct oak_allocator_t* a,
+                           u32 table_id,
+                           const struct oak_obj_string_t* s1,
+                           const struct oak_obj_string_t* s2);
 
 OAK_API struct oak_obj_fn_t* oak_fn_new(struct oak_allocator_t* a,
                                         usize code_offset,
@@ -722,6 +750,8 @@ OAK_API struct oak_obj_native_fn_t* oak_native_fn_new(struct oak_allocator_t* a,
                                                       void* user_data);
 
 OAK_API struct oak_obj_array_t* oak_array_new(struct oak_allocator_t* a);
+struct oak_obj_array_t* oak_array_new_in_table(struct oak_allocator_t* a,
+                                               u32 table_id);
 /* Return 0 without modifying the array when `value` belongs to another VM. */
 OAK_API int oak_array_push(struct oak_obj_array_t* arr,
                            struct oak_value_t value);
@@ -732,22 +762,41 @@ OAK_API struct oak_obj_record_t* oak_record_new(struct oak_allocator_t* a,
                                                 int field_count,
                                                 const char* type_name,
                                                 const char* const* field_names);
+struct oak_obj_record_t*
+oak_record_new_in_table(struct oak_allocator_t* a,
+                        u32 table_id,
+                        int field_count,
+                        const char* type_name,
+                        const char* const* field_names);
 
 OAK_API struct oak_obj_native_record_t*
 oak_obj_native_record_new(struct oak_allocator_t* a,
                           const struct oak_bind_type_t* type,
                           void* instance);
+struct oak_obj_native_record_t*
+oak_obj_native_record_new_in_table(struct oak_allocator_t* a,
+                                   u32 table_id,
+                                   const struct oak_bind_type_t* type,
+                                   void* instance);
 
 OAK_API struct oak_obj_interface_object_t*
 oak_interface_object_new(struct oak_allocator_t* a,
                          struct oak_value_t value,
                          struct oak_obj_array_t* vtable);
+struct oak_obj_interface_object_t*
+oak_interface_object_new_in_table(struct oak_allocator_t* a,
+                                  u32 table_id,
+                                  struct oak_value_t value,
+                                  struct oak_obj_array_t* vtable);
 
 OAK_API struct oak_obj_map_t* oak_map_new(struct oak_allocator_t* a);
+struct oak_obj_map_t* oak_map_new_in_table(struct oak_allocator_t* a,
+                                           u32 table_id);
 OAK_API int oak_map_get(const struct oak_obj_map_t* map,
                         struct oak_value_t key,
                         struct oak_value_t* out);
 /* Return 0 without modifying the map for an invalid key or when either value
+ *
  * belongs to another VM. */
 OAK_API int oak_map_set(struct oak_obj_map_t* map,
                         struct oak_value_t key,
@@ -767,6 +816,8 @@ OAK_API int oak_native_fn_format(char* buf,
 OAK_API struct oak_obj_string_t*
 oak_value_to_string(struct oak_allocator_t* allocator,
                     struct oak_value_t value);
+struct oak_obj_string_t* oak_value_to_string_in_table(
+    struct oak_allocator_t* allocator, u32 table_id, struct oak_value_t value);
 
 OAK_API void oak_value_println(struct oak_allocator_t* allocator,
                                struct oak_value_t value);
@@ -777,3 +828,5 @@ oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value);
 OAK_API struct oak_obj_string_t*
 oak_string_from_value_repr(struct oak_allocator_t* allocator,
                            struct oak_value_t value);
+struct oak_obj_string_t* oak_string_from_value_repr_in_table(
+    struct oak_allocator_t* allocator, u32 table_id, struct oak_value_t value);

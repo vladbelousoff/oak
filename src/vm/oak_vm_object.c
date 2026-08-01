@@ -187,7 +187,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     {
       const u8 count = oak_vm_read_u8(vm);
       oak_assert((usize)(vm->sp - vm->stack) >= (usize)count);
-      struct oak_obj_array_t* arr = oak_array_new(vm->allocator);
+      struct oak_obj_array_t* arr =
+          oak_array_new_in_table(vm->allocator, vm->object_table);
       struct oak_value_t* base = vm->sp - (int)count;
       for (int i = 0; i < (int)count; ++i)
       {
@@ -215,7 +216,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       const u8 count = oak_vm_read_u8(vm);
       const usize slots = (usize)count * 2u;
       oak_assert((usize)(vm->sp - vm->stack) >= slots);
-      struct oak_obj_map_t* map = oak_map_new(vm->allocator);
+      struct oak_obj_map_t* map =
+          oak_map_new_in_table(vm->allocator, vm->object_table);
       struct oak_value_t* base = vm->sp - (int)slots;
       for (int i = 0; i < (int)count; ++i)
       {
@@ -281,8 +283,12 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       if (oak_is_string(type_name_val))
         type_name = oak_as_string(type_name_val)->chars;
 
-      struct oak_obj_record_t* s = oak_record_new(
-          vm->allocator, (int)count, type_name, (const char* const*)lay->name);
+      struct oak_obj_record_t* s =
+          oak_record_new_in_table(vm->allocator,
+                                  vm->object_table,
+                                  (int)count,
+                                  type_name,
+                                  (const char* const*)lay->name);
       for (int i = 0; i < (int)count; ++i)
       {
         if (!vm_value_can_store(vm, base[i], s->obj.table_id))
@@ -480,8 +486,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       }
       struct oak_obj_array_t* vtable = oak_as_array(vtable_val);
       const struct oak_value_t concrete = oak_vm_pop(vm);
-      struct oak_obj_interface_object_t* to =
-          oak_interface_object_new(vm->allocator, concrete, vtable);
+      struct oak_obj_interface_object_t* to = oak_interface_object_new_in_table(
+          vm->allocator, vm->object_table, concrete, vtable);
       if (!to)
       {
         oak_vm_runtime_error(

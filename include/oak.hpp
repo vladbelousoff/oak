@@ -313,6 +313,16 @@ public:
   oak_allocator_t* allocator() noexcept { return ctx_->allocator; }
   void* user_data() noexcept { return ctx_->vm->user_data; }
   oak_native_ctx_t* raw() noexcept { return ctx_; }
+
+  Value string(const char* s)
+  {
+    return Value::from_raw(OAK_VALUE_OBJ(oak_vm_string_new(ctx_->vm, s)));
+  }
+
+  Value native_record(const oak_bind_type_t* type, void* instance)
+  {
+    return Value::from_raw(oak_vm_native_record_new(ctx_->vm, type, instance));
+  }
 };
 
 namespace detail {
@@ -1326,6 +1336,16 @@ public:
   }
 
   oak_vm_result_t resume() { return oak_vm_resume(&vm_); }
+
+  Value string(const char* s)
+  {
+    return Value::from_raw(OAK_VALUE_OBJ(oak_vm_string_new(&vm_, s)));
+  }
+
+  Value native_record(const oak_bind_type_t* type, void* instance)
+  {
+    return Value::from_raw(oak_vm_native_record_new(&vm_, type, instance));
+  }
 
   void set_module_registry(oak_module_registry_t* reg)
   {
