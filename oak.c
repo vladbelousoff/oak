@@ -10,6 +10,7 @@
 #include "oak_stdlib.h"
 #include "oak_vm.h"
 
+#include <mimalloc.h>
 #include <stdio.h>
 
 int main(const int argc, const char* argv[])
@@ -33,7 +34,7 @@ int main(const int argc, const char* argv[])
   if (cli.track_memory)
     oak_tracking_allocator_init(&allocator);
   else
-    oak_system_allocator_init(&allocator);
+    oak_allocator_init(&allocator, mi_malloc, mi_realloc, mi_free);
 
   struct oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts, &allocator);

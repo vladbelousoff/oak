@@ -201,6 +201,8 @@ if is_emscripten
     ],
   )
 else
+  mimalloc_dep = dependency('mimalloc')
+
   # The installed CLI links the shared acorn library, which installs to
   # <prefix>/libdir. For a non-system prefix the dynamic loader will not find it
   # via PATH alone, so bake a relocatable install rpath pointing from the
@@ -219,7 +221,7 @@ else
     files('oak.c', 'oak_cli.c'),
     include_directories: [include_directories('.'), src_inc],
     c_args: common_c_args,
-    dependencies: acorn_dep,
+    dependencies: [acorn_dep, mimalloc_dep],
     install: install_oak,
     install_rpath: oak_install_rpath,
   )

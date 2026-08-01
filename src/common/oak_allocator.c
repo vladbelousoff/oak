@@ -21,40 +21,37 @@ static void oom_abort(const usize size, const char* file, const int line)
 }
 
 
-static void* sys_alloc(struct oak_allocator_t* self,
-                       usize size,
-                       const char* file,
-                       int line)
+static void* custom_alloc(struct oak_allocator_t* self,
+                          usize size,
+                          const char* file,
+                          int line)
 {
-  (void)self;
-  void* ptr = malloc(size);
+  void* ptr = self->malloc_fn(size);
   if (!ptr && size != 0)
     oom_abort(size, file, line);
   return ptr;
 }
 
-static void* sys_realloc(struct oak_allocator_t* self,
-                         void* ptr,
-                         usize new_size,
-                         const char* file,
-                         int line)
+static void* custom_realloc(struct oak_allocator_t* self,
+                            void* ptr,
+                            usize new_size,
+                            const char* file,
+                            int line)
 {
-  (void)self;
-  void* new_ptr = realloc(ptr, new_size);
+  void* new_ptr = self->realloc_fn(ptr, new_size);
   if (!new_ptr && new_size != 0)
     oom_abort(new_size, file, line);
   return new_ptr;
 }
 
-static void sys_free(struct oak_allocator_t* self,
-                     void* ptr,
-                     const char* file,
-                     int line)
+static void custom_free(struct oak_allocator_t* self,
+                        void* ptr,
+                        const char* file,
+                        int line)
 {
-  (void)self;
   (void)file;
   (void)line;
-  free(ptr);
+  self->free_fn(ptr);
 }
 
 static int sys_shutdown(struct oak_allocator_t* self)
@@ -64,12 +61,30 @@ static int sys_shutdown(struct oak_allocator_t* self)
 }
 
 struct oak_allocator_t oak_system_allocator = {
-  .alloc = sys_alloc,
-  .realloc = sys_realloc,
-  .free = sys_free,
+  .alloc = custom_alloc,
+  .realloc = custom_realloc,
+  .free = custom_free,
   .shutdown = sys_shutdown,
   .state = null,
+  .malloc_fn = malloc,
+  .realloc_fn = realloc,
+  .free_fn = free,
 };
+
+void oak_allocator_init(struct oak_allocator_t* a,
+                        oak_malloc_fn malloc_fn,
+                        oak_realloc_fn realloc_fn,
+                        oak_free_fn free_fn)
+{
+  a->alloc = custom_alloc;
+  a->realloc = custom_realloc;
+  a->free = custom_free;
+  a->shutdown = sys_shutdown;
+  a->state = null;
+  a->malloc_fn = malloc_fn;
+  a->realloc_fn = realloc_fn;
+  a->free_fn = free_fn;
+}
 
 void oak_system_allocator_init(struct oak_allocator_t* a)
 {
@@ -222,4 +237,7 @@ void oak_tracking_allocator_init(struct oak_allocator_t* a)
   a->free = track_free;
   a->shutdown = track_shutdown;
   a->state = st;
+  a->malloc_fn = null;
+  a->realloc_fn = null;
+  a->free_fn = null;
 }

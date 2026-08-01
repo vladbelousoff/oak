@@ -126,6 +126,12 @@ public:
       oak_system_allocator_init(&alloc_);
   }
 
+  Allocator(oak_malloc_fn malloc_fn, oak_realloc_fn realloc_fn,
+            oak_free_fn free_fn)
+  {
+    oak_allocator_init(&alloc_, malloc_fn, realloc_fn, free_fn);
+  }
+
   ~Allocator()
   {
     if (alloc_.shutdown)

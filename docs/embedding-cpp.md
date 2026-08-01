@@ -29,6 +29,9 @@ oak::VM vm(alloc);
 oak_vm_result_t r = vm.run(result);
 ```
 
+Pass `malloc`/`realloc`/`free`-compatible functions to `oak::Allocator` to use
+a custom allocator: `oak::Allocator alloc(my_malloc, my_realloc, my_free);`.
+
 `oak::CompileResult` owns the chunk and frees it on destruction (movable, not
 copyable). `oak::VM::call()` invokes an Oak function value from C++ after a
 chunk has run.

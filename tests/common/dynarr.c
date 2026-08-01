@@ -18,6 +18,28 @@ struct fail_state_t
   int fail_realloc;
 };
 
+static int custom_alloc_count;
+static int custom_realloc_count;
+static int custom_free_count;
+
+static void* counted_malloc(usize size)
+{
+  ++custom_alloc_count;
+  return malloc(size);
+}
+
+static void* counted_realloc(void* ptr, usize size)
+{
+  ++custom_realloc_count;
+  return realloc(ptr, size);
+}
+
+static void counted_free(void* ptr)
+{
+  ++custom_free_count;
+  free(ptr);
+}
+
 static void* fail_alloc(struct oak_allocator_t* self,
                         usize size,
                         const char* file,
@@ -72,6 +94,19 @@ static struct oak_allocator_t fail_allocator(struct fail_state_t* state)
 
 int main(void)
 {
+  struct oak_allocator_t custom;
+  oak_allocator_init(
+      &custom, counted_malloc, counted_realloc, counted_free);
+  void* custom_ptr = OAK_ALLOC(&custom, 8);
+  CHECK(custom_ptr != null);
+  custom_ptr = OAK_REALLOC(&custom, custom_ptr, 16);
+  CHECK(custom_ptr != null);
+  OAK_FREE(&custom, custom_ptr);
+  CHECK(custom_alloc_count == 1);
+  CHECK(custom_realloc_count == 1);
+  CHECK(custom_free_count == 1);
+  CHECK(custom.shutdown(&custom) == 0);
+
   struct oak_allocator_t tracking;
   oak_tracking_allocator_init(&tracking);
 

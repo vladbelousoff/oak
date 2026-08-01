@@ -57,6 +57,14 @@ oak_lexer_free(lexer);
 oak_compile_options_free(&opts);
 ```
 
+To route Oak through another allocator, initialize it with any
+`malloc`/`realloc`/`free`-compatible functions instead:
+
+```c
+struct oak_allocator_t allocator_storage;
+oak_allocator_init(&allocator_storage, my_malloc, my_realloc, my_free);
+```
+
 `oak_vm_call()` calls an Oak function value from C after a chunk has run;
 `oak_vm_t::user_data` carries an embedder pointer so native callbacks can
 recover their host object without process globals.
