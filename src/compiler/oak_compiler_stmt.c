@@ -1,5 +1,56 @@
 #include "internal/oak_compiler.h"
 
+/* Compile a condition and emit a branch that pops it and jumps when false.
+ * When the condition is a numeric comparison (`<`, `<=`, `>`, `>=`) the
+ * comparison and the branch fuse into a single OP_*_JUMP_IF_FALSE, saving a
+ * bool push/pop and a dispatch every time the guard runs — the hot path for
+ * `if`/`while` conditions and recursion base cases. Returns the patch offset
+ * of the 16-bit forward operand, exactly like oak_compiler_emit_jump. */
+static usize emit_cond_jump_if_false(struct oak_compiler_t* c,
+                                     const struct oak_ast_node_t* cond)
+{
+  oak_compiler_compile_node(c, cond);
+  if (c->has_error)
+    return c->chunk->count;
+
+  u8 fused;
+  switch (cond->kind)
+  {
+    case OAK_NODE_BINARY_LESS:
+      fused = OAK_OP_LESS_JUMP_IF_FALSE;
+      break;
+    case OAK_NODE_BINARY_LESS_EQ:
+      fused = OAK_OP_LESS_EQUAL_JUMP_IF_FALSE;
+      break;
+    case OAK_NODE_BINARY_GREATER:
+      fused = OAK_OP_GREATER_JUMP_IF_FALSE;
+      break;
+    case OAK_NODE_BINARY_GREATER_EQ:
+      fused = OAK_OP_GREATER_EQUAL_JUMP_IF_FALSE;
+      break;
+    default:
+      return oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
+  }
+
+  /* A comparison compiles to a single trailing opcode byte. Rewrite it into the
+   * fused compare+branch and append the offset placeholder. Guard the rewrite
+   * so anything that ever breaks that assumption falls back to a plain branch
+   * rather than corrupting the stream. */
+  const u8 cmp_op = oak_binop_for_node(cond->kind);
+  const usize last = c->chunk->count - 1;
+  if (c->chunk->count == 0 || c->chunk->bytecode[last] != cmp_op)
+    return oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
+
+  c->chunk->bytecode[last] = fused;
+  oak_compiler_emit_byte(c, 0xff, OAK_LOC_SYNTHETIC);
+  oak_compiler_emit_byte(c, 0xff, OAK_LOC_SYNTHETIC);
+  /* The comparison's stack effect was already applied when it compiled; account
+   * for the extra operand the fused op pops (its effect is one lower). */
+  c->scope.stack_depth +=
+      oak_op_info[fused].stack_effect - oak_op_info[cmp_op].stack_effect;
+  return c->chunk->count - 2;
+}
+
 void oak_compiler_compile_block(struct oak_compiler_t* c,
                                 const struct oak_ast_node_t* block)
 {
@@ -46,9 +97,7 @@ void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
   if (c->has_error)
     return;
 
-  oak_compiler_compile_node(c, cond);
-  const usize then_jump =
-      oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
+  const usize then_jump = emit_cond_jump_if_false(c, cond);
 
   /* After the condition + JUMP_IF_FALSE, only parameter/locals slots remain on
    * the stack model. The then/else branches must not leave extra stack slots
@@ -106,9 +155,7 @@ void oak_compile_while(struct oak_compiler_t* c,
     return;
   }
 
-  oak_compiler_compile_node(c, node->lhs);
-  const usize exit_jump =
-      oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
+  const usize exit_jump = emit_cond_jump_if_false(c, node->lhs);
 
   oak_compiler_compile_block(c, node->rhs);
 

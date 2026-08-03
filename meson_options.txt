@@ -4,3 +4,10 @@ option(
   value: true,
   description: 'Install the oak CLI (and its runtime library) so it is available on PATH',
 )
+
+option(
+  'atomic_refcount',
+  type: 'boolean',
+  value: false,
+  description: 'Use atomic reference counting. Off by default: VM-local objects are confined to their VM thread and shared table-0 objects are not concurrently mutated across VMs, so no synchronization is needed by design. Enable only for embedders that deliberately break that invariant.',
+)

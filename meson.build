@@ -22,7 +22,9 @@ warning_args = is_msvc ? ['/wd4200'] : ['-Wno-unused-function']
 debug_defines = is_debug ? ['-DOAK_TRACK_MEMORY', '-DOAK_DEBUG_LOGGING'] : []
 platform_defines = is_msvc ? ['-D_CRT_SECURE_NO_WARNINGS'] : ['-D_XOPEN_SOURCE=700']
 common_c_args = warning_args + debug_defines + platform_defines
-common_c_args += ['-DOAK_ATOMIC_REFCOUNT']
+if get_option('atomic_refcount')
+  common_c_args += ['-DOAK_ATOMIC_REFCOUNT']
+endif
 
 yyjson_dep = dependency('yyjson')
 math_dep = cc.find_library('m', required: false)
@@ -298,7 +300,10 @@ else
   is_msvc_cxx = cxx.get_id() == 'msvc'
   cpp_warning_args = is_msvc_cxx ? ['/wd4200'] : ['-Wno-unused-function']
   cpp_std_args = is_msvc_cxx ? ['/std:c++20', '/EHs-c-', '/GR-'] : ['-std=c++20', '-fno-exceptions', '-fno-rtti']
-  cpp_args = cpp_warning_args + cpp_std_args + debug_defines + platform_defines + ['-DOAK_ATOMIC_REFCOUNT', stdlib_dir_define]
+  cpp_args = cpp_warning_args + cpp_std_args + debug_defines + platform_defines + [stdlib_dir_define]
+  if get_option('atomic_refcount')
+    cpp_args += ['-DOAK_ATOMIC_REFCOUNT']
+  endif
 
   test_oak_hpp = executable(
     'test_oak_hpp',
