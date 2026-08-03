@@ -5,6 +5,7 @@ project(
   default_options: [
     'c_std=c17',
     'default_library=static',
+    'prefix=~/.local',
     'warning_level=2',
   ],
 )

@@ -54,13 +54,19 @@ meson compile -C build-release
 ## Install
 
 ```sh
-meson setup build --prefix="$HOME/.local"
+meson setup build
 meson compile -C build
 meson install -C build
+oak examples/01_values/01_values.oak
 ```
 
-Add `<prefix>/bin` to `PATH`. Installed builds find the stdlib relative to the
-`oak` executable. Set `OAK_STDLIB_DIR` only to override that lookup.
+By default, Oak installs under `~/.local`, so the executable lands in
+`~/.local/bin`, the standard per-user binary directory used by most Linux
+shells.
+
+Pass `--prefix=<path>` to `meson setup` when packaging or when you need a
+different install root. Installed builds find the stdlib relative to the `oak`
+executable. Set `OAK_STDLIB_DIR` only to override that lookup.
 
 ## Web Playground
 
