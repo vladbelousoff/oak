@@ -5,7 +5,7 @@
 
 /* Generic open-addressing hash table.
  *
- * Keys are raw byte sequences (const void*, int length). The FNV-1a hash treats
+ * Keys are raw byte sequences (const void*, usize length). The FNV-1a hash treats
  * any key as bytes, so strings, integers, compound structs, etc. all work
  * without callbacks or type parameters.
  *
@@ -18,7 +18,7 @@
 struct oak_htable_slot_t
 {
   const void* key; /* null = empty slot */
-  int key_len;
+  usize key_len;
   u32 hash; /* cached FNV-1a hash */
   int value;
 };
@@ -38,10 +38,10 @@ void oak_htable_free(struct oak_htable_t* ht);
  * Behaviour is undefined if the key is already present. */
 void oak_htable_insert(struct oak_htable_t* ht,
                        const void* key,
-                       int key_len,
+                       usize key_len,
                        int value);
 
 /* Returns the stored int for the key, or -1 if not found. */
 int oak_htable_get(const struct oak_htable_t* ht,
                    const void* key,
-                   int key_len);
+                   usize key_len);

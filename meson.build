@@ -16,17 +16,50 @@ python = import('python').find_installation('python3')
 is_msvc = cc.get_id() == 'msvc'
 is_emscripten = cc.get_id() == 'emscripten'
 is_debug = get_option('buildtype') == 'debug'
+is_release = get_option('buildtype') == 'release'
 install_oak = get_option('install')
 
 warning_args = is_msvc ? ['/wd4200'] : ['-Wno-unused-function']
 debug_defines = is_debug ? ['-DOAK_TRACK_MEMORY', '-DOAK_DEBUG_LOGGING'] : []
 platform_defines = is_msvc ? ['-D_CRT_SECURE_NO_WARNINGS'] : ['-D_XOPEN_SOURCE=700']
-common_c_args = warning_args + debug_defines + platform_defines
+release_symbol_args = []
+if is_release
+  release_symbol_args = is_msvc ? ['/Z7'] : ['-g']
+endif
+common_c_args = warning_args + debug_defines + platform_defines + release_symbol_args
 if get_option('atomic_refcount')
   common_c_args += ['-DOAK_ATOMIC_REFCOUNT']
 endif
 
-yyjson_dep = dependency('yyjson')
+if is_release and is_msvc
+  add_project_link_arguments('/DEBUG', language: 'c')
+endif
+
+if is_msvc
+  # MSVC reports these level-1 diagnostics in mimalloc even at
+  # warning_level=0. Keep them quiet in bundled C subprojects.
+  add_global_arguments('/wd4024', '/wd4047', language: 'c')
+endif
+
+# Keep bundled third-party code quiet without lowering the warning level for
+# Oak itself. Meson's CMake dependency probe also emits spurious
+# generator-expression warnings with recent MSVC toolchains, so use the bundled
+# yyjson dependency directly there.
+subproject_default_options = [
+  'warning_level=0',
+]
+if is_msvc
+  yyjson_subproject = subproject(
+    'yyjson',
+    default_options: subproject_default_options,
+  )
+  yyjson_dep = yyjson_subproject.get_variable('yyjson_dep')
+else
+  yyjson_dep = dependency(
+    'yyjson',
+    default_options: subproject_default_options,
+  )
+endif
 math_dep = cc.find_library('m', required: false)
 socket_dep = host_machine.system() == 'windows' ? cc.find_library('ws2_32') : declare_dependency()
 
@@ -204,7 +237,18 @@ if is_emscripten
     ],
   )
 else
-  mimalloc_dep = dependency('mimalloc')
+  if is_msvc
+    mimalloc_subproject = subproject(
+      'mimalloc',
+      default_options: subproject_default_options,
+    )
+    mimalloc_dep = mimalloc_subproject.get_variable('mi_dep')
+  else
+    mimalloc_dep = dependency(
+      'mimalloc',
+      default_options: subproject_default_options,
+    )
+  endif
 
   # The installed CLI links the shared acorn library, which installs to
   # <prefix>/libdir. For a non-system prefix the dynamic loader will not find it
@@ -299,8 +343,9 @@ else
   cxx = meson.get_compiler('cpp')
   is_msvc_cxx = cxx.get_id() == 'msvc'
   cpp_warning_args = is_msvc_cxx ? ['/wd4200'] : ['-Wno-unused-function']
-  cpp_std_args = is_msvc_cxx ? ['/std:c++20', '/EHs-c-', '/GR-'] : ['-std=c++20', '-fno-exceptions', '-fno-rtti']
-  cpp_args = cpp_warning_args + cpp_std_args + debug_defines + platform_defines + [stdlib_dir_define]
+  cpp_std_args = is_msvc_cxx ? ['/std:c++20', '/GR-'] : ['-std=c++20', '-fno-exceptions', '-fno-rtti']
+  cpp_args = cpp_warning_args + cpp_std_args + debug_defines + platform_defines + release_symbol_args + [stdlib_dir_define]
+  cpp_release_link_args = is_release and is_msvc_cxx ? ['/DEBUG'] : []
   if get_option('atomic_refcount')
     cpp_args += ['-DOAK_ATOMIC_REFCOUNT']
   endif
@@ -310,6 +355,7 @@ else
     files('tests/cpp/test_oak_hpp.cpp'),
     include_directories: [src_inc, public_inc],
     cpp_args: cpp_args,
+    link_args: cpp_release_link_args,
     dependencies: acorn_dep,
   )
   test('test_oak_hpp', test_oak_hpp)

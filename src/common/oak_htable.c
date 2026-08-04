@@ -3,11 +3,11 @@
 #include <string.h>
 
 /* FNV-1a 32-bit hash over arbitrary bytes. */
-static u32 fnv1a(const void* data, int len)
+static u32 fnv1a(const void* data, usize len)
 {
   const u8* bytes = (const u8*)data;
   u32 h = 2166136261u;
-  for (int i = 0; i < len; ++i)
+  for (usize i = 0; i < len; ++i)
   {
     h ^= bytes[i];
     h *= 16777619u;
@@ -59,7 +59,7 @@ static void grow(struct oak_htable_t* ht)
 
 void oak_htable_insert(struct oak_htable_t* ht,
                        const void* key,
-                       int key_len,
+                       usize key_len,
                        int value)
 {
   /* Grow before load exceeds 75%. */
@@ -80,7 +80,7 @@ void oak_htable_insert(struct oak_htable_t* ht,
 
 int oak_htable_get(const struct oak_htable_t* ht,
                    const void* key,
-                   int key_len)
+                   usize key_len)
 {
   if (!ht->capacity)
     return -1;
@@ -90,7 +90,7 @@ int oak_htable_get(const struct oak_htable_t* ht,
   while (ht->slots[i].key)
   {
     if (ht->slots[i].hash == h && ht->slots[i].key_len == key_len &&
-        memcmp(ht->slots[i].key, key, (usize)key_len) == 0)
+        memcmp(ht->slots[i].key, key, key_len) == 0)
       return ht->slots[i].value;
     i = (i + 1) & (ht->capacity - 1);
   }
