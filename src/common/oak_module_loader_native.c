@@ -593,6 +593,11 @@ struct oak_module_t* create_native_module(
     const struct oak_bind_enum_t* e = opts->native_enums[i];
     if (!e || !native_module_name_eq(e->module_name, dotted))
       continue;
+    /* Give the enum a type ID in this module's registry, exactly as the
+     * native types above get one. Importers resolve an exported enum by
+     * looking its name up here; without the entry the lookup fails and the
+     * import is rejected ("failed to register imported enum"). */
+    oak_type_registry_intern(&mod->types, e->name);
     struct oak_module_export_enum_t exp = { 0 };
     exp.name = e->name;
     oak_assert(oak_dynarr_init(a, &exp.variants, sizeof *exp.variants));

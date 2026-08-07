@@ -303,6 +303,16 @@ the module like any other:
 import { File, FileMode } from io;
 ```
 
+The loader resolves the declaration module from the stdlib search path, and a
+missing file is an error. A host with no filesystem to load it from (the
+WebAssembly playground, an embedder shipping only bindings) can set
+`allow_synthetic_native_modules` on the compile options — or pass
+`--allow-synthetic-modules` to the CLI — to build the module from the
+registered bindings alone. The synthesized module carries only what the
+bindings describe, so anything the stub adds on top — parameter types and
+mutability, `mut self` receivers, declarations with no matching binding — is
+absent, and calls into it are checked more loosely.
+
 ## Attributes
 
 `oak_bind_attr()` registers a named attribute with two optional hooks:

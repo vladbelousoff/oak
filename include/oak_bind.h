@@ -316,6 +316,16 @@ struct oak_compile_options_t
    * function signatures without Oak bodies because their implementations are
    * provided by native bindings. */
   int allow_bodyless_fns;
+
+  /* When non-zero, importing a native module whose Oak stub file cannot be
+   * found synthesizes the module from the registered native bindings alone
+   * instead of failing. The synthesized module carries only what the bindings
+   * describe, so everything the stub adds on top (parameter types, mutability,
+   * stub-only declarations) is lost and calls are checked more loosely —
+   * hence it is off by default and a missing stub is an error. Enable
+   * it for hosts that have no filesystem to load the stub from (the WebAssembly
+   * playground) or via the CLI's --allow-synthetic-modules. */
+  int allow_synthetic_native_modules;
 };
 
 

@@ -69,6 +69,11 @@ int oak_cli_parse(int argc,
         args->debug_port_set = 1;
         continue;
       }
+      if (strcmp(a, "--allow-synthetic-modules") == 0)
+      {
+        args->allow_synthetic_modules = 1;
+        continue;
+      }
       if (strcmp(a, "--disassemble") == 0)
       {
         args->disassemble = 1;
@@ -117,6 +122,6 @@ void oak_cli_usage(FILE* out)
 {
   fprintf(out,
           "usage: oak [--debug] [--debug-port <port>] [--disassemble] "
-          "[--no-debug-symbols] "
+          "[--no-debug-symbols] [--allow-synthetic-modules] "
           "[--track-memory] [--help] <script> [script args...]\n");
 }

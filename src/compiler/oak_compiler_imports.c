@@ -137,13 +137,13 @@ static void import_enum_from_dep(struct oak_compiler_t* c,
   }
   const oak_type_id_t enum_type_id =
       oak_type_registry_lookup(&dep->types, exp->name);
-  oak_type_registry_intern_with_id(&c->types, exp->name, enum_type_id);
   if (enum_type_id < 0)
   {
     oak_compiler_error_at(c, null, "failed to register imported enum '%s'",
                           exp->name);
     return;
   }
+  oak_type_registry_intern_with_id(&c->types, exp->name, enum_type_id);
   {
     struct oak_registered_enum_t re = {
       .name = exp->name,

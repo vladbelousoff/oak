@@ -40,6 +40,7 @@ int main(const int argc, const char* argv[])
   oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = cli.script_path;
   compile_opts.emit_debug_info = cli.debug || !cli.no_debug_symbols;
+  compile_opts.allow_synthetic_native_modules = cli.allow_synthetic_modules;
   oak_stdlib_register(&compile_opts);
 
   struct oak_module_registry_t registry;

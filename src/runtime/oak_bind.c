@@ -25,6 +25,8 @@ void oak_compile_options_init(struct oak_compile_options_t* opts,
   opts->emit_debug_info = 1;
   opts->module_registry = null;
   opts->current_module = null;
+  opts->allow_bodyless_fns = 0;
+  opts->allow_synthetic_native_modules = 0;
 }
 
 void oak_compile_options_free(struct oak_compile_options_t* opts)

@@ -4,6 +4,7 @@
 
 struct oak_cli_args_t
 {
+  int allow_synthetic_modules;
   int disassemble;
   int debug;
   int debug_port;

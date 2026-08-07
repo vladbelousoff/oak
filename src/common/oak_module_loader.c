@@ -231,6 +231,24 @@ int oak_module_loader_load_program(const char* entry_path,
 
     if (!path_exists(file_path) && is_native)
     {
+      /* Synthesizing the module from the native bindings alone drops
+       * everything only the Oak stub declares (parameter types, record
+       * methods, bodyless signatures), so it is opt-in: hosts without a
+       * filesystem to load stubs from enable it explicitly. Otherwise a
+       * missing stub is reported as the configuration error it is. */
+      if (!opts->allow_synthetic_native_modules)
+      {
+        loader_error(out,
+                     "cannot find stdlib module '%s': %s "
+                     "(pass --allow-synthetic-modules to build it from the "
+                     "native bindings instead)",
+                     dotted,
+                     file_path);
+        OAK_FREE(a, file_path);
+        OAK_FREE(a, dotted);
+        rc = -1;
+        break;
+      }
       struct oak_module_t* dep =
           create_native_module(out_reg, opts, dotted, out);
       if (!dep || out->error_count > 0)

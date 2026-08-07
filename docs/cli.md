@@ -15,6 +15,7 @@ to the script unchanged.
 | `--debug-port <port>` | Debug server port; use `0` to choose a free port |
 | `--disassemble` | Print compiled bytecode instead of running |
 | `--no-debug-symbols` | Compile without source debug metadata |
+| `--allow-synthetic-modules` | Build a native module from its bindings when its Oak stub file is missing, instead of failing |
 | `--track-memory` | Fail if tracked runtime allocations leak |
 | `--help` | Print usage |
 
