@@ -1,22 +1,22 @@
 #include "internal/oak_compiler.h"
 
-struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
-                                       struct oak_compile_result_t* out,
-                                       struct oak_allocator_t* allocator)
+oak_chunk_t* oak_compiler_init(oak_compiler_t* c,
+                                       oak_compile_result_t* out,
+                                       oak_allocator_t* allocator)
 {
   c->allocator = allocator;
 
-  struct oak_chunk_t* chunk =
-      OAK_ALLOC(allocator, sizeof(struct oak_chunk_t));
+  oak_chunk_t* chunk =
+      OAK_ALLOC(allocator, sizeof(oak_chunk_t));
   oak_chunk_init(chunk, allocator);
 
-  struct oak_type_t no_return_type;
+  oak_type_t no_return_type;
   oak_type_clear(&no_return_type);
 
   c->chunk = chunk;
   c->result = out;
   c->has_error = 0;
-  c->scope = (struct oak_scope_ctx_t){
+  c->scope = (oak_scope_ctx_t){
     .local_count = 0,
     .scope_depth = 0,
     .stack_depth = 0,
@@ -29,7 +29,7 @@ struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
   oak_fn_registry_init(&c->fns, allocator);
   oak_record_registry_init(&c->records, allocator);
   oak_enum_registry_init(&c->enums, allocator);
-  oak_htable_init(&c->module_scope_names, allocator);
+  c->module_scope_names = oak_hash_set_new(allocator);
   oak_interface_registry_init(&c->interfaces, allocator);
   oak_symbol_registry_init(&c->symbols, allocator);
   c->native_types_cursor = 0;
@@ -41,8 +41,8 @@ struct oak_chunk_t* oak_compiler_init(struct oak_compiler_t* c,
   return chunk;
 }
 
-void oak_compiler_configure(struct oak_compiler_t* c,
-                             const struct oak_compile_options_t* opts)
+void oak_compiler_configure(oak_compiler_t* c,
+                             const oak_compile_options_t* opts)
 {
   c->opts = opts;
   c->allow_bodyless_fns = opts ? opts->allow_bodyless_fns : 0;
@@ -56,10 +56,10 @@ void oak_compiler_configure(struct oak_compiler_t* c,
   }
 }
 
-void oak_compiler_teardown(struct oak_compiler_t* c)
+void oak_compiler_teardown(oak_compiler_t* c)
 {
   oak_compiler_free_cycles(c);
-  oak_htable_free(&c->module_scope_names);
+  oak_destroy(c->module_scope_names);
   oak_fn_registry_free(&c->fns);
   oak_record_registry_free(&c->records);
   oak_enum_registry_free(&c->enums);
@@ -68,7 +68,7 @@ void oak_compiler_teardown(struct oak_compiler_t* c)
   oak_type_registry_free(&c->types);
 }
 
-void oak_compiler_move_types_to_module(struct oak_compiler_t* c)
+void oak_compiler_move_types_to_module(oak_compiler_t* c)
 {
   if (!c->current_module)
     return;

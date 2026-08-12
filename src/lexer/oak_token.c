@@ -4,51 +4,51 @@
 
 #include <string.h>
 
-enum oak_token_kind_t oak_token_kind(const struct oak_token_t* token)
+oak_token_kind_t oak_token_kind(const oak_token_t* token)
 {
   return token->kind;
 }
 
-int oak_token_line(const struct oak_token_t* token)
+int oak_token_line(const oak_token_t* token)
 {
   return token->line;
 }
 
-int oak_token_column(const struct oak_token_t* token)
+int oak_token_column(const oak_token_t* token)
 {
   return token->column;
 }
 
-int oak_token_offset(const struct oak_token_t* token)
+int oak_token_offset(const oak_token_t* token)
 {
   return token->offset;
 }
 
-int oak_token_size(const struct oak_token_t* token)
+int oak_token_size(const oak_token_t* token)
 {
   return token->length;
 }
 
-const char* oak_token_text(const struct oak_token_t* token)
+const char* oak_token_text(const oak_token_t* token)
 {
   return token->text;
 }
 
-int oak_token_as_i32(const struct oak_token_t* token)
+int oak_token_as_i32(const oak_token_t* token)
 {
   oak_assert(token->kind == OAK_TOKEN_INT);
   return *(const int*)token->text;
 }
 
-float oak_token_as_f32(const struct oak_token_t* token)
+float oak_token_as_f32(const oak_token_t* token)
 {
   oak_assert(token->kind == OAK_TOKEN_FLOAT);
   return *(const float*)token->text;
 }
 
-enum oak_token_kind_t oak_keyword_lookup(const char* ident)
+oak_token_kind_t oak_keyword_lookup(const char* ident)
 {
-  static const struct oak_keyword_entry_t keywords[] = {
+  static const oak_keyword_entry_t keywords[] = {
     { "as", OAK_TOKEN_AS },
     { "break", OAK_TOKEN_BREAK },   { "continue", OAK_TOKEN_CONTINUE },
     { "else", OAK_TOKEN_ELSE },     { "enum", OAK_TOKEN_ENUM },
@@ -75,7 +75,7 @@ enum oak_token_kind_t oak_keyword_lookup(const char* ident)
   return OAK_TOKEN_IDENT;
 }
 
-const char* oak_token_name(const enum oak_token_kind_t token_kind)
+const char* oak_token_name(const oak_token_kind_t token_kind)
 {
   switch (token_kind)
   {

@@ -11,7 +11,7 @@
 #include <unistd.h>
 #endif
 
-char* path_dirname_dup(struct oak_allocator_t* a, const char* path)
+char* path_dirname_dup(oak_allocator_t* a, const char* path)
 {
   const char* last = null;
   for (const char* p = path; *p; ++p)
@@ -33,7 +33,7 @@ char* path_dirname_dup(struct oak_allocator_t* a, const char* path)
   return d;
 }
 
-char* path_resolve_dotted(struct oak_allocator_t* a,
+char* path_resolve_dotted(oak_allocator_t* a,
                           const char* base_dir,
                           const char* dotted)
 {
@@ -54,7 +54,7 @@ char* path_resolve_dotted(struct oak_allocator_t* a,
   return out;
 }
 
-char* path_join(struct oak_allocator_t* a, const char* base, const char* rel)
+char* path_join(oak_allocator_t* a, const char* base, const char* rel)
 {
   const usize bl = strlen(base);
   const usize rl = strlen(rel);
@@ -70,7 +70,7 @@ char* path_join(struct oak_allocator_t* a, const char* base, const char* rel)
   return out;
 }
 
-char* path_executable_dir(struct oak_allocator_t* a)
+char* path_executable_dir(oak_allocator_t* a)
 {
   /* Use the OS narrow-char API so the result matches the encoding fopen()
    * expects elsewhere in this file (path_exists). 4096 covers realistic
@@ -94,7 +94,7 @@ char* path_executable_dir(struct oak_allocator_t* a)
   return path_dirname_dup(a, buf);
 }
 
-char* path_canonicalize(struct oak_allocator_t* a, const char* path)
+char* path_canonicalize(oak_allocator_t* a, const char* path)
 {
 #if defined(_WIN32)
   char* abs = _fullpath(null, path, 0);
@@ -143,16 +143,16 @@ int path_dir_exists(const char* path)
 #endif
 }
 
-char* dotted_name_from_path(struct oak_allocator_t* a,
-                            const struct oak_ast_node_t* path_node)
+char* dotted_name_from_path(oak_allocator_t* a,
+                            const oak_ast_node_t* path_node)
 {
   usize total = 0;
   int count = 0;
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &path_node->children)
   {
-    const struct oak_ast_node_t* ident =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* ident =
+        oak_container_of(pos, oak_ast_node_t, link);
     total += oak_token_size(ident->token);
     ++count;
   }
@@ -168,8 +168,8 @@ char* dotted_name_from_path(struct oak_allocator_t* a,
   int first = 1;
   oak_list_for_each(pos, &path_node->children)
   {
-    const struct oak_ast_node_t* ident =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* ident =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (!first)
       buf[w++] = '.';
     const int len = oak_token_size(ident->token);
@@ -181,12 +181,12 @@ char* dotted_name_from_path(struct oak_allocator_t* a,
   return buf;
 }
 
-const struct oak_ast_node_t* dotted_path_last_segment(
-    const struct oak_ast_node_t* path_node)
+const oak_ast_node_t* dotted_path_last_segment(
+    const oak_ast_node_t* path_node)
 {
-  const struct oak_ast_node_t* last = null;
-  struct oak_list_entry_t* pos;
+  const oak_ast_node_t* last = null;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &path_node->children) last =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+      oak_container_of(pos, oak_ast_node_t, link);
   return last;
 }

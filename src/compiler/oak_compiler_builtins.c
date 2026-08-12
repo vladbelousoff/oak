@@ -2,24 +2,24 @@
 #include "oak_stdlib_math.h"
 #include "oak_stdlib_string.h"
 
-u16 oak_intern_native_const(struct oak_compiler_t* c,
+u16 oak_intern_native_const(oak_compiler_t* c,
                                         const oak_native_fn_t impl,
                                         const int arity,
                                         const char* name)
 {
-  struct oak_obj_native_fn_t* native =
+  oak_obj_native_fn_t* native =
       oak_native_fn_new(c->allocator, impl, arity, name, null);
   return oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
-static void register_native_fn(struct oak_compiler_t* c,
-                               const struct oak_native_binding_t* binding)
+static void register_native_fn(oak_compiler_t* c,
+                               const oak_native_binding_t* binding)
 {
-  struct oak_obj_native_fn_t* native = oak_native_fn_new(
+  oak_obj_native_fn_t* native = oak_native_fn_new(
       c->allocator, binding->impl, binding->arity, binding->name, null);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
-  struct oak_registered_fn_t entry = {
+  oak_registered_fn_t entry = {
     .name = binding->name,
     .const_idx = idx,
     .arity = binding->arity,
@@ -31,16 +31,16 @@ static void register_native_fn(struct oak_compiler_t* c,
   };
   if (!oak_compiler_declare_symbol(c, null, entry.name,
                                    OAK_SYMBOL_FUNCTION,
-                                   oak_dynarr_count(c->fns.entries),
+                                   (int)oak_size(c->fns.entries),
                                    OAK_MODULE_ID_NONE, 0))
     return;
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
-static enum oak_fn_call_result_t builtin_print(struct oak_native_ctx_t* ctx,
-                                               const struct oak_value_t* args,
+static oak_fn_call_result_t builtin_print(oak_native_ctx_t* ctx,
+                                               const oak_value_t* args,
                                                int argc,
-                                               struct oak_value_t* out_result)
+                                               oak_value_t* out_result)
 {
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
@@ -49,20 +49,20 @@ static enum oak_fn_call_result_t builtin_print(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static int builtin_number_as_i32(const struct oak_value_t value)
+static int builtin_number_as_i32(const oak_value_t value)
 {
   return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
 }
 
-static float builtin_number_as_f32(const struct oak_value_t value)
+static float builtin_number_as_f32(const oak_value_t value)
 {
   return oak_is_f32(value) ? oak_as_f32(value) : (float)oak_as_i32(value);
 }
 
-static enum oak_fn_call_result_t builtin_to_int(struct oak_native_ctx_t* ctx,
-                                                const struct oak_value_t* args,
+static oak_fn_call_result_t builtin_to_int(oak_native_ctx_t* ctx,
+                                                const oak_value_t* args,
                                                 int argc,
-                                                struct oak_value_t* out_result)
+                                                oak_value_t* out_result)
 {
   (void)ctx;
   if (argc != 1 || !oak_is_number(args[0]))
@@ -71,10 +71,10 @@ static enum oak_fn_call_result_t builtin_to_int(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t builtin_to_float(struct oak_native_ctx_t* ctx,
-                                                  const struct oak_value_t* args,
+static oak_fn_call_result_t builtin_to_float(oak_native_ctx_t* ctx,
+                                                  const oak_value_t* args,
                                                   int argc,
-                                                  struct oak_value_t* out_result)
+                                                  oak_value_t* out_result)
 {
   (void)ctx;
   if (argc != 1 || !oak_is_number(args[0]))
@@ -83,10 +83,10 @@ static enum oak_fn_call_result_t builtin_to_float(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t builtin_is_int(struct oak_native_ctx_t* ctx,
-                                                const struct oak_value_t* args,
+static oak_fn_call_result_t builtin_is_int(oak_native_ctx_t* ctx,
+                                                const oak_value_t* args,
                                                 int argc,
-                                                struct oak_value_t* out_result)
+                                                oak_value_t* out_result)
 {
   (void)ctx;
   if (argc != 1)
@@ -95,10 +95,10 @@ static enum oak_fn_call_result_t builtin_is_int(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static enum oak_fn_call_result_t builtin_is_float(struct oak_native_ctx_t* ctx,
-                                                  const struct oak_value_t* args,
+static oak_fn_call_result_t builtin_is_float(oak_native_ctx_t* ctx,
+                                                  const oak_value_t* args,
                                                   int argc,
-                                                  struct oak_value_t* out_result)
+                                                  oak_value_t* out_result)
 {
   (void)ctx;
   if (argc != 1)
@@ -107,7 +107,7 @@ static enum oak_fn_call_result_t builtin_is_float(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static const struct oak_native_binding_t native_builtins[] = {
+static const oak_native_binding_t native_builtins[] = {
   { "print", builtin_print, 1, OAK_TYPE_VOID },
   { "to_int", builtin_to_int, 1, OAK_TYPE_NUMBER },
   { "to_float", builtin_to_float, 1, OAK_TYPE_NUMBER },
@@ -135,7 +135,7 @@ static const struct oak_native_binding_t native_builtins[] = {
   { "parse_number", oak_str_parse_number, 1, OAK_TYPE_NUMBER },
 };
 
-void oak_register_native_builtins(struct oak_compiler_t* c)
+void oak_register_native_builtins(oak_compiler_t* c)
 {
   for (usize i = 0; i < oak_count_of(native_builtins); ++i)
   {

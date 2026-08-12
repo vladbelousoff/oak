@@ -1,16 +1,16 @@
 #include "internal/oak_vm.h"
 
-static enum oak_vm_result_t runtime_error_decref2(struct oak_value_t a,
-                                                  struct oak_value_t b)
+static oak_vm_result_t runtime_error_decref2(oak_value_t a,
+                                                  oak_value_t b)
 {
   oak_value_decref(a);
   oak_value_decref(b);
   return OAK_VM_RUNTIME_ERROR;
 }
 
-static enum oak_vm_result_t runtime_error_decref3(struct oak_value_t a,
-                                                  struct oak_value_t b,
-                                                  struct oak_value_t c)
+static oak_vm_result_t runtime_error_decref3(oak_value_t a,
+                                                  oak_value_t b,
+                                                  oak_value_t c)
 {
   oak_value_decref(a);
   oak_value_decref(b);
@@ -18,8 +18,8 @@ static enum oak_vm_result_t runtime_error_decref3(struct oak_value_t a,
   return OAK_VM_RUNTIME_ERROR;
 }
 
-static int vm_value_can_store(struct oak_vm_t* vm,
-                              const struct oak_value_t value,
+static int vm_value_can_store(oak_vm_t* vm,
+                              const oak_value_t value,
                               const u32 dest_table)
 {
   if (oak_value_can_refcopy_to_table(value, dest_table))
@@ -31,21 +31,21 @@ static int vm_value_can_store(struct oak_vm_t* vm,
   return 0;
 }
 
-static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
+static oak_vm_result_t vm_op_get_index_impl(oak_vm_t* vm)
 {
-  const struct oak_value_t subscript = oak_vm_pop(vm);
-  const struct oak_value_t recv = oak_vm_pop(vm);
+  const oak_value_t subscript = oak_vm_pop(vm);
+  const oak_value_t recv = oak_vm_pop(vm);
 
   if (oak_is_map(recv))
   {
-    const struct oak_obj_map_t* map = oak_as_map(recv);
-    struct oak_value_t out;
+    const oak_obj_map_t* map = oak_as_map(recv);
+    oak_value_t out;
     if (!oak_map_get(map, subscript, &out))
     {
       oak_vm_runtime_error(vm, "key not found in map");
       return runtime_error_decref2(subscript, recv);
     }
-    const enum oak_vm_result_t pr = oak_vm_push(vm, out);
+    const oak_vm_result_t pr = oak_vm_push(vm, out);
     oak_value_decref(subscript);
     oak_value_decref(recv);
     return pr;
@@ -65,7 +65,7 @@ static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
                          oak_vm_value_kind_desc(subscript));
     return runtime_error_decref2(subscript, recv);
   }
-  const struct oak_obj_array_t* arr = oak_as_array(recv);
+  const oak_obj_array_t* arr = oak_as_array(recv);
   const int i = oak_as_i32(subscript);
   if (i < 0 || (usize)i >= arr->length)
   {
@@ -73,26 +73,26 @@ static enum oak_vm_result_t vm_op_get_index_impl(struct oak_vm_t* vm)
         vm, "array index %d out of bounds (length %zu)", i, arr->length);
     return runtime_error_decref2(subscript, recv);
   }
-  const enum oak_vm_result_t pr = oak_vm_push(vm, arr->items[i]);
+  const oak_vm_result_t pr = oak_vm_push(vm, arr->items[i]);
   oak_value_decref(subscript);
   oak_value_decref(recv);
   return pr;
 }
 
-static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
+static oak_vm_result_t vm_op_set_index_impl(oak_vm_t* vm)
 {
   if (vm->sp - vm->stack < 3)
   {
     oak_vm_runtime_error(vm, "stack underflow in indexed assignment");
     return OAK_VM_RUNTIME_ERROR;
   }
-  const struct oak_value_t value = oak_vm_pop(vm);
-  const struct oak_value_t subscript = oak_vm_pop(vm);
-  const struct oak_value_t recv = oak_vm_pop(vm);
+  const oak_value_t value = oak_vm_pop(vm);
+  const oak_value_t subscript = oak_vm_pop(vm);
+  const oak_value_t recv = oak_vm_pop(vm);
 
   if (oak_is_map(recv))
   {
-    struct oak_obj_map_t* map = oak_as_map(recv);
+    oak_obj_map_t* map = oak_as_map(recv);
     if (!vm_value_can_store(vm, subscript, map->obj.table_id) ||
         !vm_value_can_store(vm, value, map->obj.table_id))
       return runtime_error_decref3(recv, subscript, value);
@@ -122,7 +122,7 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
                          oak_vm_value_kind_desc(subscript));
     return runtime_error_decref3(recv, subscript, value);
   }
-  struct oak_obj_array_t* arr = oak_as_array(recv);
+  oak_obj_array_t* arr = oak_as_array(recv);
   const int i = oak_as_i32(subscript);
   if (i < 0 || (usize)i >= arr->length)
   {
@@ -139,11 +139,11 @@ static enum oak_vm_result_t vm_op_set_index_impl(struct oak_vm_t* vm)
   return OAK_VM_OK;
 }
 
-static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
+static oak_vm_result_t vm_op_map_key_value_at(oak_vm_t* vm,
                                                    const u8 instruction)
 {
-  const struct oak_value_t iter_index = oak_vm_pop(vm);
-  const struct oak_value_t map_val = oak_vm_pop(vm);
+  const oak_value_t iter_index = oak_vm_pop(vm);
+  const oak_value_t map_val = oak_vm_pop(vm);
 
   if (!oak_is_map(map_val))
   {
@@ -159,7 +159,7 @@ static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
                          oak_vm_value_kind_desc(iter_index));
     return runtime_error_decref2(iter_index, map_val);
   }
-  const struct oak_obj_map_t* map = oak_as_map(map_val);
+  const oak_obj_map_t* map = oak_as_map(map_val);
   const int i = oak_as_i32(iter_index);
   if (i < 0 || (usize)i >= map->length)
   {
@@ -167,18 +167,18 @@ static enum oak_vm_result_t vm_op_map_key_value_at(struct oak_vm_t* vm,
         vm, "map iterator index %d out of bounds (length %zu)", i, map->length);
     return runtime_error_decref2(iter_index, map_val);
   }
-  const struct oak_value_t v =
+  const oak_value_t v =
       instruction == OAK_OP_MAP_KEY_AT
           ? oak_map_key_at(map, (usize)i)
           : oak_map_value_at(map, (usize)i); /* OAK_OP_MAP_VAL_AT */
-  const enum oak_vm_result_t pr = oak_vm_push(vm, v);
+  const oak_vm_result_t pr = oak_vm_push(vm, v);
   oak_value_decref(iter_index);
   oak_value_decref(map_val);
   return pr;
 }
 
-enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
-                                        struct oak_chunk_t* chunk,
+oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,
+                                        oak_chunk_t* chunk,
                                         u8 instruction)
 {
   switch (instruction)
@@ -187,9 +187,9 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     {
       const u8 count = oak_vm_read_u8(vm);
       oak_assert((usize)(vm->sp - vm->stack) >= (usize)count);
-      struct oak_obj_array_t* arr =
+      oak_obj_array_t* arr =
           oak_array_new_in_table(vm->allocator, vm->object_table);
-      struct oak_value_t* base = vm->sp - (int)count;
+      oak_value_t* base = vm->sp - (int)count;
       for (int i = 0; i < (int)count; ++i)
       {
         if (!oak_array_push(arr, base[i]))
@@ -205,7 +205,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       for (int i = 0; i < (int)count; ++i)
         oak_value_decref(base[i]);
       vm->sp -= (int)count;
-      const enum oak_vm_result_t result =
+      const oak_vm_result_t result =
           oak_vm_push_owned(vm, OAK_VALUE_OBJ(&arr->obj));
       if (result != OAK_VM_OK)
         return result;
@@ -216,13 +216,13 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       const u8 count = oak_vm_read_u8(vm);
       const usize slots = (usize)count * 2u;
       oak_assert((usize)(vm->sp - vm->stack) >= slots);
-      struct oak_obj_map_t* map =
+      oak_obj_map_t* map =
           oak_map_new_in_table(vm->allocator, vm->object_table);
-      struct oak_value_t* base = vm->sp - (int)slots;
+      oak_value_t* base = vm->sp - (int)slots;
       for (int i = 0; i < (int)count; ++i)
       {
-        const struct oak_value_t k = base[i * 2 + 0];
-        const struct oak_value_t v = base[i * 2 + 1];
+        const oak_value_t k = base[i * 2 + 0];
+        const oak_value_t v = base[i * 2 + 1];
         if (!oak_map_set(map, k, v))
         {
           oak_vm_runtime_error(
@@ -237,7 +237,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       for (usize i = 0; i < slots; ++i)
         oak_value_decref(base[i]);
       vm->sp -= (int)slots;
-      const enum oak_vm_result_t result =
+      const oak_vm_result_t result =
           oak_vm_push_owned(vm, OAK_VALUE_OBJ(&map->obj));
       if (result != OAK_VM_OK)
         return result;
@@ -245,14 +245,14 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     }
     case OAK_OP_GET_INDEX:
     {
-      const enum oak_vm_result_t r = vm_op_get_index_impl(vm);
+      const oak_vm_result_t r = vm_op_get_index_impl(vm);
       if (r != OAK_VM_OK)
         return r;
       break;
     }
     case OAK_OP_SET_INDEX:
     {
-      const enum oak_vm_result_t r = vm_op_set_index_impl(vm);
+      const oak_vm_result_t r = vm_op_set_index_impl(vm);
       if (r != OAK_VM_OK)
         return r;
       break;
@@ -260,7 +260,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     case OAK_OP_MAP_KEY_AT:
     case OAK_OP_MAP_VAL_AT:
     {
-      const enum oak_vm_result_t r = vm_op_map_key_value_at(vm, instruction);
+      const oak_vm_result_t r = vm_op_map_key_value_at(vm, instruction);
       if (r != OAK_VM_OK)
         return r;
       break;
@@ -272,18 +272,18 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       const u8 count = oak_vm_read_u8(vm);
       const u16 layout_id = oak_vm_read_u16(vm);
       oak_assert((usize)(vm->sp - vm->stack) >= (usize)count + 1u);
-      oak_assert((usize)layout_id < (usize)chunk->field_layout_count);
-      const struct oak_chunk_field_layout* const lay =
-          &chunk->field_layouts[layout_id];
+      oak_assert((usize)layout_id < oak_size(chunk->field_layouts));
+      const oak_chunk_field_layout_t* const lay =
+          oak_cget(chunk->field_layouts, layout_id);
       oak_assert(lay->field_count == (int)count);
 
-      struct oak_value_t* base = vm->sp - (int)count;
-      const struct oak_value_t type_name_val = base[-1];
+      oak_value_t* base = vm->sp - (int)count;
+      const oak_value_t type_name_val = base[-1];
       const char* type_name = null;
       if (oak_is_string(type_name_val))
         type_name = oak_as_string(type_name_val)->chars;
 
-      struct oak_obj_record_t* s =
+      oak_obj_record_t* s =
           oak_record_new_in_table(vm->allocator,
                                   vm->object_table,
                                   (int)count,
@@ -307,7 +307,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
         oak_value_decref(base[i]);
       oak_value_decref(type_name_val);
       vm->sp -= (int)count + 1;
-      const enum oak_vm_result_t result =
+      const oak_vm_result_t result =
           oak_vm_push_owned(vm, OAK_VALUE_OBJ(&s->obj));
       if (result != OAK_VM_OK)
         return result;
@@ -316,7 +316,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     case OAK_OP_GET_FIELD:
     {
       const u8 idx = oak_vm_read_u8(vm);
-      const struct oak_value_t recv = oak_vm_pop(vm);
+      const oak_value_t recv = oak_vm_pop(vm);
       if (oak_is_none_like(recv))
       {
         oak_vm_runtime_error(vm,
@@ -326,33 +326,35 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       }
       if (oak_is_record(recv))
       {
-        const struct oak_obj_record_t* s = oak_as_record(recv);
+        const oak_obj_record_t* s = oak_as_record(recv);
         oak_assert((int)idx < s->field_count);
-        const struct oak_value_t field = s->fields[idx];
-        const enum oak_vm_result_t pr = oak_vm_push(vm, field);
+        const oak_value_t field = s->fields[idx];
+        const oak_vm_result_t pr = oak_vm_push(vm, field);
         oak_value_decref(recv);
         if (pr != OAK_VM_OK)
           return pr;
       }
       else if (oak_is_native_record(recv))
       {
-        const struct oak_obj_native_record_t* ns = oak_as_native_record(recv);
-        if ((int)idx >= oak_dynarr_count(ns->type->fields))
+        const oak_obj_native_record_t* ns = oak_as_native_record(recv);
+        const oak_bind_field_t* fields =
+            OAK_CDATA(oak_bind_field_t, ns->type->fields);
+        if (idx >= oak_size(ns->type->fields))
         {
           oak_vm_runtime_error(vm,
                                "field index %u out of bounds (native record "
                                "'%s' has %d fields)",
                                (unsigned)idx,
                                ns->type->name,
-                               oak_dynarr_count(ns->type->fields));
+                               (int)oak_size(ns->type->fields));
           oak_value_decref(recv);
           return OAK_VM_RUNTIME_ERROR;
         }
         /* Getter returns an owned reference; push without extra incref. */
-        const struct oak_value_t result =
-            ns->type->fields[idx].getter(recv, ns->type->fields[idx].user_data);
+        const oak_value_t result =
+            fields[idx].getter(recv, fields[idx].user_data);
         oak_value_decref(recv);
-        const enum oak_vm_result_t push_result = oak_vm_push_owned(vm, result);
+        const oak_vm_result_t push_result = oak_vm_push_owned(vm, result);
         if (push_result != OAK_VM_OK)
           return push_result;
       }
@@ -371,8 +373,8 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       /* Stack: [..., recv, value]; pops both. */
       const u8 idx = oak_vm_read_u8(vm);
       oak_assert(vm->sp - vm->stack >= 2);
-      const struct oak_value_t value = oak_vm_pop(vm);
-      const struct oak_value_t recv = oak_vm_pop(vm);
+      const oak_value_t value = oak_vm_pop(vm);
+      const oak_value_t recv = oak_vm_pop(vm);
       if (oak_is_none_like(recv))
       {
         oak_vm_runtime_error(
@@ -383,7 +385,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
       }
       if (oak_is_record(recv))
       {
-        struct oak_obj_record_t* s = oak_as_record(recv);
+        oak_obj_record_t* s = oak_as_record(recv);
         oak_assert((int)idx < s->field_count);
         if (!vm_value_can_store(vm, value, s->obj.table_id))
         {
@@ -391,31 +393,33 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
           oak_value_decref(value);
           return OAK_VM_RUNTIME_ERROR;
         }
-        const struct oak_value_t old_field = s->fields[idx];
+        const oak_value_t old_field = s->fields[idx];
         s->fields[idx] = value;
         oak_value_decref(old_field);
         oak_value_decref(recv);
       }
       else if (oak_is_native_record(recv))
       {
-        const struct oak_obj_native_record_t* ns = oak_as_native_record(recv);
-        if ((int)idx >= oak_dynarr_count(ns->type->fields))
+        const oak_obj_native_record_t* ns = oak_as_native_record(recv);
+        const oak_bind_field_t* fields =
+            OAK_CDATA(oak_bind_field_t, ns->type->fields);
+        if (idx >= oak_size(ns->type->fields))
         {
           oak_vm_runtime_error(vm,
                                "field index %u out of bounds (native record "
                                "'%s' has %d fields)",
                                (unsigned)idx,
                                ns->type->name,
-                               oak_dynarr_count(ns->type->fields));
+                               (int)oak_size(ns->type->fields));
           oak_value_decref(recv);
           oak_value_decref(value);
           return OAK_VM_RUNTIME_ERROR;
         }
-        if (!ns->type->fields[idx].setter)
+        if (!fields[idx].setter)
         {
           oak_vm_runtime_error(vm,
                                "field '%s' on native record '%s' is read-only",
-                               ns->type->fields[idx].name,
+                               fields[idx].name,
                                ns->type->name);
           oak_value_decref(recv);
           oak_value_decref(value);
@@ -427,8 +431,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
           oak_value_decref(value);
           return OAK_VM_RUNTIME_ERROR;
         }
-        ns->type->fields[idx].setter(
-            recv, value, ns->type->fields[idx].user_data);
+        fields[idx].setter(recv, value, fields[idx].user_data);
         oak_value_decref(recv);
         oak_value_decref(value);
       }
@@ -454,16 +457,16 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
                              "no module registry");
         return OAK_VM_RUNTIME_ERROR;
       }
-      const struct oak_module_t* m =
+      const oak_module_t* m =
           oak_module_registry_get(vm->modules, mod_id);
-      if (!m || !m->chunk || (usize)const_idx >= m->chunk->const_count)
+      if (!m || !m->chunk || (usize)const_idx >= oak_size(m->chunk->constants))
       {
         oak_vm_runtime_error(
             vm, "internal: cross-module reference resolves to invalid slot");
         return OAK_VM_RUNTIME_ERROR;
       }
-      const enum oak_vm_result_t result =
-          oak_vm_push(vm, m->chunk->constants[const_idx]);
+      const oak_vm_result_t result =
+          oak_vm_push(vm, oak_chunk_constant(m->chunk, (usize)const_idx));
       if (result != OAK_VM_OK)
         return result;
       break;
@@ -471,22 +474,23 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
     case OAK_OP_MAKE_INTERFACE_OBJECT:
     {
       const u16 vtable_idx = oak_vm_read_u16(vm);
-      if ((usize)vtable_idx >= chunk->const_count)
+      if ((usize)vtable_idx >= oak_size(chunk->constants))
       {
         oak_vm_runtime_error(
             vm, "MAKE_INTERFACE_OBJECT: vtable index out of range");
         return OAK_VM_RUNTIME_ERROR;
       }
-      const struct oak_value_t vtable_val = chunk->constants[vtable_idx];
+      const oak_value_t vtable_val =
+          oak_chunk_constant(chunk, (usize)vtable_idx);
       if (!oak_is_array(vtable_val))
       {
         oak_vm_runtime_error(vm,
                              "MAKE_INTERFACE_OBJECT: vtable is not an array");
         return OAK_VM_RUNTIME_ERROR;
       }
-      struct oak_obj_array_t* vtable = oak_as_array(vtable_val);
-      const struct oak_value_t concrete = oak_vm_pop(vm);
-      struct oak_obj_interface_object_t* to = oak_interface_object_new_in_table(
+      oak_obj_array_t* vtable = oak_as_array(vtable_val);
+      const oak_value_t concrete = oak_vm_pop(vm);
+      oak_obj_interface_object_t* to = oak_interface_object_new_in_table(
           vm->allocator, vm->object_table, concrete, vtable);
       if (!to)
       {
@@ -496,7 +500,7 @@ enum oak_vm_result_t vm_object_dispatch(struct oak_vm_t* vm,
         return OAK_VM_RUNTIME_ERROR;
       }
       oak_value_decref(concrete);
-      const enum oak_vm_result_t result =
+      const oak_vm_result_t result =
           oak_vm_push_owned(vm, OAK_VALUE_OBJ(&to->obj));
       if (result != OAK_VM_OK)
         return result;

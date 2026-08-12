@@ -1,8 +1,8 @@
 #include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
-void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
-                                        const struct oak_ast_node_t* node)
+void oak_compiler_compile_array_literal(oak_compiler_t* c,
+                                        const oak_ast_node_t* node)
 {
   const usize count = oak_list_length(&node->children);
   if (count == 0)
@@ -18,14 +18,14 @@ void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
     return;
   }
 
-  const struct oak_list_entry_t* first = node->children.next;
-  const struct oak_ast_node_t* first_wrap =
-      oak_container_of(first, struct oak_ast_node_t, link);
-  const struct oak_ast_node_t* first_elem =
+  const oak_list_entry_t* first = node->children.next;
+  const oak_ast_node_t* first_wrap =
+      oak_container_of(first, oak_ast_node_t, link);
+  const oak_ast_node_t* first_elem =
       first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
                                                          : first_wrap;
 
-  struct oak_type_t elem_ty;
+  oak_type_t elem_ty;
   oak_infer_type(c, first_elem, &elem_ty);
   if (!oak_type_is_known(&elem_ty))
   {
@@ -35,15 +35,15 @@ void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &node->children)
   {
-    const struct oak_ast_node_t* wrap =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    const struct oak_ast_node_t* elem =
+    const oak_ast_node_t* wrap =
+        oak_container_of(pos, oak_ast_node_t, link);
+    const oak_ast_node_t* elem =
         wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
 
-    struct oak_type_t et;
+    oak_type_t et;
     oak_infer_type(c, elem, &et);
     if (oak_type_is_known(&et) && !oak_type_equal(&elem_ty, &et))
     {
@@ -66,11 +66,11 @@ void oak_compiler_compile_array_literal(struct oak_compiler_t* c,
   c->scope.stack_depth -= (int)count;
 }
 
-void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
-                                      const struct oak_ast_node_t* node)
+void oak_compiler_compile_map_literal(oak_compiler_t* c,
+                                      const oak_ast_node_t* node)
 {
-  const struct oak_ast_node_t* first_entry = node->lhs;
-  const struct oak_ast_node_t* more = node->rhs;
+  const oak_ast_node_t* first_entry = node->lhs;
+  const oak_ast_node_t* more = node->rhs;
   if (!first_entry || !more || more->kind != OAK_NODE_MAP_LITERAL_ENTRIES)
   {
     oak_compiler_error_at(c, null, "malformed map literal");
@@ -91,8 +91,8 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_type_t key_ty;
-  struct oak_type_t val_ty;
+  oak_type_t key_ty;
+  oak_type_t val_ty;
   oak_infer_type(c, first_entry->lhs, &key_ty);
   oak_infer_type(c, first_entry->rhs, &val_ty);
   if (!oak_type_is_known(&key_ty))
@@ -117,19 +117,19 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &more->children)
   {
-    const struct oak_ast_node_t* entry =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* entry =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (entry->kind != OAK_NODE_MAP_LITERAL_ENTRY || !entry->lhs || !entry->rhs)
     {
       oak_compiler_error_at(c, null, "malformed map literal entry");
       return;
     }
 
-    struct oak_type_t kt;
-    struct oak_type_t vt;
+    oak_type_t kt;
+    oak_type_t vt;
     oak_infer_type(c, entry->lhs, &kt);
     oak_infer_type(c, entry->rhs, &vt);
     if (oak_type_is_known(&kt) && !oak_type_equal(&key_ty, &kt))
@@ -162,8 +162,8 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
     return;
   oak_list_for_each(pos, &more->children)
   {
-    const struct oak_ast_node_t* entry =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* entry =
+        oak_container_of(pos, oak_ast_node_t, link);
     oak_compiler_compile_node(c, entry->lhs);
     if (c->has_error)
       return;
@@ -177,16 +177,16 @@ void oak_compiler_compile_map_literal(struct oak_compiler_t* c,
   c->scope.stack_depth -= (int)count * 2;
 }
 
-void oak_compiler_compile_new_array(struct oak_compiler_t* c,
-                                    const struct oak_ast_node_t* node)
+void oak_compiler_compile_new_array(oak_compiler_t* c,
+                                    const oak_ast_node_t* node)
 {
-  const struct oak_ast_node_t* type_node = node->child;
+  const oak_ast_node_t* type_node = node->child;
   if (!type_node || type_node->kind != OAK_NODE_TYPE_ARRAY)
   {
     oak_compiler_error_at(c, null, "malformed 'new' array expression");
     return;
   }
-  const struct oak_ast_node_t* elem = type_node->child;
+  const oak_ast_node_t* elem = type_node->child;
   if (!elem || elem->kind != OAK_NODE_IDENT)
   {
     oak_compiler_error_at(
@@ -196,17 +196,17 @@ void oak_compiler_compile_new_array(struct oak_compiler_t* c,
   oak_compiler_emit_op(c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
 }
 
-void oak_compiler_compile_new_map(struct oak_compiler_t* c,
-                                  const struct oak_ast_node_t* node)
+void oak_compiler_compile_new_map(oak_compiler_t* c,
+                                  const oak_ast_node_t* node)
 {
-  const struct oak_ast_node_t* type_node = node->child;
+  const oak_ast_node_t* type_node = node->child;
   if (!type_node || type_node->kind != OAK_NODE_TYPE_MAP)
   {
     oak_compiler_error_at(c, null, "malformed 'new' map expression");
     return;
   }
-  const struct oak_ast_node_t* key = type_node->lhs;
-  const struct oak_ast_node_t* val = type_node->rhs;
+  const oak_ast_node_t* key = type_node->lhs;
+  const oak_ast_node_t* val = type_node->rhs;
   if (!key || !val || key->kind != OAK_NODE_IDENT ||
       val->kind != OAK_NODE_IDENT)
   {

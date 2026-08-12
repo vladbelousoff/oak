@@ -11,10 +11,10 @@
 
 OAK_TEST_DECL(LexNumbersIdentifiersAndOperators)
 {
-  struct oak_lexer_result_t* lexer =
+  oak_lexer_result_t* lexer =
       OAK_LEX("answer = 1 + 2.5 * 3e2 != 0;");
 
-  static struct oak_expected_token_t expected[] = {
+  static oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_IDENT, .line = 1, .column = 1, .offset = 1, .string = "answer" },
     { .kind = OAK_TOKEN_ASSIGN, .line = 1, .column = 8, .offset = 8 },
     { .kind = OAK_TOKEN_INT, .line = 1, .column = 10, .offset = 10, .integer = 1 },
@@ -27,7 +27,7 @@ OAK_TEST_DECL(LexNumbersIdentifiersAndOperators)
     { .kind = OAK_TOKEN_SEMICOLON, .line = 1, .column = 28, .offset = 28 },
   };
 
-  const enum oak_test_status_t result =
+  const oak_test_status_t result =
       oak_test_tokens(lexer, expected, oak_count_of(expected));
   oak_lexer_free(lexer);
   return result;
@@ -35,11 +35,11 @@ OAK_TEST_DECL(LexNumbersIdentifiersAndOperators)
 
 OAK_TEST_DECL(LexKeywordsAndPunctuation)
 {
-  struct oak_lexer_result_t* lexer = OAK_LEX(
+  oak_lexer_result_t* lexer = OAK_LEX(
       "let mut if else while for in break continue return true false "
       "fn record enum import export as from to new self weak interface");
 
-  static struct oak_expected_token_t expected[] = {
+  static oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_LET, .line = 1, .column = 1, .offset = 1 },
     { .kind = OAK_TOKEN_MUT, .line = 1, .column = 5, .offset = 5 },
     { .kind = OAK_TOKEN_IF, .line = 1, .column = 9, .offset = 9 },
@@ -66,7 +66,7 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
     { .kind = OAK_TOKEN_INTERFACE, .line = 1, .column = 117, .offset = 117 },
   };
 
-  const enum oak_test_status_t result =
+  const oak_test_status_t result =
       oak_test_tokens(lexer, expected, oak_count_of(expected));
   oak_lexer_free(lexer);
   return result;
@@ -74,10 +74,10 @@ OAK_TEST_DECL(LexKeywordsAndPunctuation)
 
 OAK_TEST_DECL(LexOperatorsAndPunctuation)
 {
-  struct oak_lexer_result_t* lexer =
+  oak_lexer_result_t* lexer =
       OAK_LEX("? == && || >= <= -= *= /= %= // : , ( ) { } [ ] > < . ->");
 
-  static struct oak_expected_token_t expected[] = {
+  static oak_expected_token_t expected[] = {
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_QUESTION, 1),
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_EQUAL_EQUAL, 3),
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_AND, 6),
@@ -103,7 +103,7 @@ OAK_TEST_DECL(LexOperatorsAndPunctuation)
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_ARROW, 55),
   };
 
-  const enum oak_test_status_t result =
+  const oak_test_status_t result =
       oak_test_tokens(lexer, expected, oak_count_of(expected));
   oak_lexer_free(lexer);
   return result;
@@ -111,9 +111,9 @@ OAK_TEST_DECL(LexOperatorsAndPunctuation)
 
 OAK_TEST_DECL(LexTraitIsIdentifier)
 {
-  struct oak_lexer_result_t* lexer = OAK_LEX("trait");
+  oak_lexer_result_t* lexer = OAK_LEX("trait");
 
-  static struct oak_expected_token_t expected[] = {
+  static oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_IDENT,
       .line = 1,
       .column = 1,
@@ -121,7 +121,7 @@ OAK_TEST_DECL(LexTraitIsIdentifier)
       .string = "trait" },
   };
 
-  const enum oak_test_status_t result =
+  const oak_test_status_t result =
       oak_test_tokens(lexer, expected, oak_count_of(expected));
   oak_lexer_free(lexer);
   return result;
@@ -129,10 +129,10 @@ OAK_TEST_DECL(LexTraitIsIdentifier)
 
 OAK_TEST_DECL(LexBlockComments)
 {
-  struct oak_lexer_result_t* lexer =
+  oak_lexer_result_t* lexer =
       OAK_LEX("let /* ignored\ncomment */ value = 1;");
 
-  static struct oak_expected_token_t expected[] = {
+  static oak_expected_token_t expected[] = {
     OAK_EXPECT_TOKEN_AT(OAK_TOKEN_LET, 1),
     { .kind = OAK_TOKEN_IDENT, .line = 2, .column = 12, .offset = 27, .string = "value" },
     { .kind = OAK_TOKEN_ASSIGN, .line = 2, .column = 18, .offset = 33 },
@@ -140,7 +140,7 @@ OAK_TEST_DECL(LexBlockComments)
     { .kind = OAK_TOKEN_SEMICOLON, .line = 2, .column = 21, .offset = 36 },
   };
 
-  const enum oak_test_status_t result =
+  const oak_test_status_t result =
       oak_test_tokens(lexer, expected, oak_count_of(expected));
   oak_lexer_free(lexer);
   return result;
@@ -148,17 +148,17 @@ OAK_TEST_DECL(LexBlockComments)
 
 OAK_TEST_DECL(LexStringsEscapesUnicodeAndGrowth)
 {
-  struct oak_lexer_result_t* lexer =
+  oak_lexer_result_t* lexer =
       OAK_LEX("'hello' '\\n\\t\\r\\'\\\\' '\xCF\x80' '" LONG_A "'");
 
-  static struct oak_expected_token_t expected[] = {
+  static oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_STRING, .line = 1, .column = 1, .offset = 1, .string = "hello" },
     { .kind = OAK_TOKEN_STRING, .line = 1, .column = 9, .offset = 9, .string = "\n\t\r'\\" },
     { .kind = OAK_TOKEN_STRING, .line = 1, .column = 22, .offset = 22, .string = "\xCF\x80" },
     { .kind = OAK_TOKEN_STRING, .line = 1, .column = 26, .offset = 26, .string = LONG_A },
   };
 
-  const enum oak_test_status_t result =
+  const oak_test_status_t result =
       oak_test_tokens(lexer, expected, oak_count_of(expected));
   oak_lexer_free(lexer);
   return result;
@@ -166,8 +166,8 @@ OAK_TEST_DECL(LexStringsEscapesUnicodeAndGrowth)
 
 OAK_TEST_DECL(LexWhitespaceNewlinesAndErrors)
 {
-  struct oak_lexer_result_t* lexer = OAK_LEX("let x = 1;\n\n  x += 2;");
-  static struct oak_expected_token_t expected[] = {
+  oak_lexer_result_t* lexer = OAK_LEX("let x = 1;\n\n  x += 2;");
+  static oak_expected_token_t expected[] = {
     { .kind = OAK_TOKEN_LET, .line = 1, .column = 1, .offset = 1 },
     { .kind = OAK_TOKEN_IDENT, .line = 1, .column = 5, .offset = 5, .string = "x" },
     { .kind = OAK_TOKEN_ASSIGN, .line = 1, .column = 7, .offset = 7 },
@@ -179,7 +179,7 @@ OAK_TEST_DECL(LexWhitespaceNewlinesAndErrors)
     { .kind = OAK_TOKEN_SEMICOLON, .line = 3, .column = 9, .offset = 21 },
   };
 
-  enum oak_test_status_t result =
+  oak_test_status_t result =
       oak_test_tokens(lexer, expected, oak_count_of(expected));
   oak_lexer_free(lexer);
   OAK_CHECK(result == OAK_TEST_OK);
@@ -195,7 +195,7 @@ OAK_TEST_DECL(LexWhitespaceNewlinesAndErrors)
  * (a regression here is an infinite loop, e.g. on double-quoted strings). */
 OAK_TEST_DECL(LexErrorsTerminate)
 {
-  struct oak_lexer_result_t* lexer = OAK_LEX("let s = \"hi\";");
+  oak_lexer_result_t* lexer = OAK_LEX("let s = \"hi\";");
   OAK_CHECK(oak_lexer_error_count(lexer) == 2);
   oak_lexer_free(lexer);
 
@@ -220,7 +220,7 @@ int main(const int argc, char* argv[])
 {
   (void)argc;
   (void)argv;
-  static struct oak_test_t tests[] = {
+  static oak_test_t tests[] = {
     OAK_TEST_ENTRY(LexNumbersIdentifiersAndOperators),
     OAK_TEST_ENTRY(LexKeywordsAndPunctuation),
     OAK_TEST_ENTRY(LexOperatorsAndPunctuation),

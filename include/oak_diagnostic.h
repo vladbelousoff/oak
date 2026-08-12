@@ -2,7 +2,8 @@
 
 #define OAK_MAX_DIAGNOSTICS 64
 
-struct oak_diagnostic_t
+typedef struct oak_diagnostic oak_diagnostic_t;
+struct oak_diagnostic
 {
   int line; /* 0 = no source location */
   int column;

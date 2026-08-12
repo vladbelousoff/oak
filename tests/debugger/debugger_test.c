@@ -18,27 +18,28 @@
 
 #define DBG_OUT_MAX 8192
 
-struct dbg_session_t
+typedef struct dbg_session dbg_session_t;
+struct dbg_session
 {
-  enum oak_vm_result_t result;
+  oak_vm_result_t result;
   char output[DBG_OUT_MAX];
 };
 
-static struct oak_compile_result_t compile_debug(const char* source)
+static oak_compile_result_t compile_debug(const char* source)
 {
-  struct oak_allocator_t* a = oak_test_allocator();
-  struct oak_lexer_result_t* lex =
+  oak_allocator_t* a = oak_test_allocator();
+  oak_lexer_result_t* lex =
       oak_lexer_tokenize(source, a);
-  struct oak_parser_result_t pr = { 0 };
+  oak_parser_result_t pr = { 0 };
   oak_parse(lex, OAK_NODE_PROGRAM, &pr, a);
-  const struct oak_ast_node_t* root = oak_parser_root(&pr);
+  const oak_ast_node_t* root = oak_parser_root(&pr);
 
-  struct oak_compile_options_t opts;
+  oak_compile_options_t opts;
   oak_compile_options_init(&opts, a);
   opts.emit_debug_info = 1;
   opts.source_name = "test.oak";
 
-  struct oak_compile_result_t cr = { 0 };
+  oak_compile_result_t cr = { 0 };
   oak_compile_ex(root, &opts, &cr);
 
   oak_compile_options_free(&opts);
@@ -48,28 +49,28 @@ static struct oak_compile_result_t compile_debug(const char* source)
 }
 
 /* Run a debug session. bp_line == 0 means no breakpoint. */
-static struct dbg_session_t run_session(const char* source,
+static dbg_session_t run_session(const char* source,
                                         const char* commands,
                                         int bp_line)
 {
-  struct dbg_session_t s = { 0 };
-  struct oak_allocator_t* a = oak_test_allocator();
+  dbg_session_t s = { 0 };
+  oak_allocator_t* a = oak_test_allocator();
 
-  struct oak_compile_result_t cr = compile_debug(source);
+  oak_compile_result_t cr = compile_debug(source);
   if (!cr.chunk)
   {
     s.result = OAK_VM_RUNTIME_ERROR;
     return s;
   }
 
-  struct oak_debugger_t dbg;
+  oak_debugger_t dbg;
   oak_debugger_init(&dbg, a);
   if (bp_line)
     oak_debugger_add_breakpoint(&dbg, bp_line, "test.oak");
 
-  struct oak_vm_t vm;
+  oak_vm_t vm;
   oak_vm_init(&vm, a);
-  struct oak_vm_debug_hook_t hook;
+  oak_vm_debug_hook_t hook;
   hook.fn = oak_debugger_hook;
   hook.ctx = &dbg;
   oak_vm_set_debug_hook(&vm, &hook);
@@ -99,7 +100,7 @@ static struct dbg_session_t run_session(const char* source,
   return s;
 }
 
-static int has(const struct dbg_session_t* s, const char* needle)
+static int has(const dbg_session_t* s, const char* needle)
 {
   return strstr(s->output, needle) != null;
 }
@@ -126,7 +127,7 @@ static const char* FLAT_SRC = "let a = 10;\nlet b = 20;\nlet c = 30;\n";
 
 OAK_TEST_DECL(DebuggerQuitImmediately)
 {
-  struct dbg_session_t s = run_session(FLAT_SRC, "quit\n", 0);
+  dbg_session_t s = run_session(FLAT_SRC, "quit\n", 0);
   OAK_CHECK(s.result == OAK_VM_DEBUG_HALT);
   OAK_CHECK(has(&s, "stopped at test.oak:1"));
   return OAK_TEST_OK;
@@ -134,7 +135,7 @@ OAK_TEST_DECL(DebuggerQuitImmediately)
 
 OAK_TEST_DECL(DebuggerContinueToEnd)
 {
-  struct dbg_session_t s = run_session(FLAT_SRC, "continue\n", 0);
+  dbg_session_t s = run_session(FLAT_SRC, "continue\n", 0);
   OAK_CHECK(s.result == OAK_VM_OK);
   OAK_CHECK(has(&s, "stopped at test.oak:1"));
   return OAK_TEST_OK;
@@ -142,7 +143,7 @@ OAK_TEST_DECL(DebuggerContinueToEnd)
 
 OAK_TEST_DECL(DebuggerBreakpointHit)
 {
-  struct dbg_session_t s = run_session(FLAT_SRC, "continue\ncontinue\n", 2);
+  dbg_session_t s = run_session(FLAT_SRC, "continue\ncontinue\n", 2);
   OAK_CHECK(s.result == OAK_VM_OK);
   OAK_CHECK(has(&s, "stopped at test.oak:1")); /* initial stop */
   OAK_CHECK(has(&s, "stopped at test.oak:2")); /* breakpoint */
@@ -152,7 +153,7 @@ OAK_TEST_DECL(DebuggerBreakpointHit)
 OAK_TEST_DECL(DebuggerLocalsCommand)
 {
   /* Break inside f() where both the parameter and a local are live. */
-  struct dbg_session_t s =
+  dbg_session_t s =
       run_session(FN_SRC, "continue\nlocals\ncontinue\n", 3);
   OAK_CHECK(s.result == OAK_VM_OK);
   OAK_CHECK(has(&s, "stopped at test.oak:3"));
@@ -163,7 +164,7 @@ OAK_TEST_DECL(DebuggerLocalsCommand)
 
 OAK_TEST_DECL(DebuggerPrintCommand)
 {
-  struct dbg_session_t s =
+  dbg_session_t s =
       run_session(FN_SRC, "continue\nprint b\nprint missing\ncontinue\n", 3);
   OAK_CHECK(s.result == OAK_VM_OK);
   OAK_CHECK(has(&s, "b = 42"));
@@ -174,7 +175,7 @@ OAK_TEST_DECL(DebuggerPrintCommand)
 OAK_TEST_DECL(DebuggerInvalidBreak)
 {
   /* atoi would have accepted "12xyz" as 12; strtol must reject it. */
-  struct dbg_session_t s =
+  dbg_session_t s =
       run_session(FLAT_SRC, "break 12xyz\nbreak 0\ncontinue\n", 0);
   OAK_CHECK(s.result == OAK_VM_OK);
   OAK_CHECK(has(&s, "usage: break <line>"));
@@ -185,7 +186,7 @@ OAK_TEST_DECL(DebuggerInvalidBreak)
 
 OAK_TEST_DECL(DebuggerInvalidDelete)
 {
-  struct dbg_session_t s =
+  dbg_session_t s =
       run_session(FLAT_SRC, "delete abc\ndelete 99\ncontinue\n", 0);
   OAK_CHECK(s.result == OAK_VM_OK);
   OAK_CHECK(has(&s, "usage: delete <id>"));
@@ -197,7 +198,7 @@ OAK_TEST_DECL(DebuggerNextStepsOverCall)
 {
   /* From line 5 (let x = f(41)), `next` must land on line 6 without
    * stopping inside f(). */
-  struct dbg_session_t s = run_session(FN_SRC, "next\nquit\n", 0);
+  dbg_session_t s = run_session(FN_SRC, "next\nquit\n", 0);
   OAK_CHECK(has(&s, "stopped at test.oak:5"));
   OAK_CHECK(has(&s, "stopped at test.oak:6"));
   OAK_CHECK(!has(&s, "stopped at test.oak:2"));
@@ -207,7 +208,7 @@ OAK_TEST_DECL(DebuggerNextStepsOverCall)
 OAK_TEST_DECL(DebuggerStepEntersCall)
 {
   /* From line 5, `step` must descend into f() (line 2). */
-  struct dbg_session_t s = run_session(FN_SRC, "step\nquit\n", 0);
+  dbg_session_t s = run_session(FN_SRC, "step\nquit\n", 0);
   OAK_CHECK(has(&s, "stopped at test.oak:5"));
   OAK_CHECK(has(&s, "stopped at test.oak:2"));
   return OAK_TEST_OK;
@@ -217,7 +218,7 @@ OAK_TEST_DECL(DebuggerFinishReturnsToCaller)
 {
   /* Break inside f() at line 2, then `finish` runs until f() returns,
    * landing back at the caller (line 6). */
-  struct dbg_session_t s =
+  dbg_session_t s =
       run_session(FN_SRC, "continue\nfinish\nquit\n", 2);
   OAK_CHECK(has(&s, "stopped at test.oak:2"));
   OAK_CHECK(has(&s, "stopped at test.oak:6"));
@@ -226,14 +227,14 @@ OAK_TEST_DECL(DebuggerFinishReturnsToCaller)
 
 OAK_TEST_DECL(DebuggerNoHookRunsNormally)
 {
-  struct oak_compile_result_t cr = compile_debug("let x = 1; let y = 2;");
+  oak_compile_result_t cr = compile_debug("let x = 1; let y = 2;");
   OAK_CHECK(cr.chunk != null);
 
-  struct oak_allocator_t* a = oak_test_allocator();
-  struct oak_vm_t vm;
+  oak_allocator_t* a = oak_test_allocator();
+  oak_vm_t vm;
   oak_vm_init(&vm, a);
 
-  const enum oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
+  const oak_vm_result_t r = oak_vm_run(&vm, cr.chunk);
   OAK_CHECK(r == OAK_VM_OK);
 
   oak_vm_free(&vm);
@@ -245,7 +246,7 @@ int main(const int argc, char* argv[])
 {
   (void)argc;
   (void)argv;
-  static struct oak_test_t tests[] = {
+  static oak_test_t tests[] = {
     OAK_TEST_ENTRY(DebuggerQuitImmediately),
     OAK_TEST_ENTRY(DebuggerContinueToEnd),
     OAK_TEST_ENTRY(DebuggerBreakpointHit),

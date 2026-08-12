@@ -15,7 +15,7 @@
 
 int main(const int argc, const char* argv[])
 {
-  struct oak_cli_args_t cli;
+  oak_cli_args_t cli;
   if (oak_cli_parse(argc, argv, &cli) != 0)
   {
     if (cli.error)
@@ -30,29 +30,29 @@ int main(const int argc, const char* argv[])
     return 0;
   }
 
-  struct oak_allocator_t allocator;
+  oak_allocator_t allocator;
   if (cli.track_memory)
     oak_tracking_allocator_init(&allocator);
   else
     oak_allocator_init(&allocator, mi_malloc, mi_realloc, mi_free);
 
-  struct oak_compile_options_t compile_opts;
+  oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = cli.script_path;
   compile_opts.emit_debug_info = cli.debug || !cli.no_debug_symbols;
   compile_opts.allow_synthetic_native_modules = cli.allow_synthetic_modules;
   oak_stdlib_register(&compile_opts);
 
-  struct oak_module_registry_t registry;
+  oak_module_registry_t registry;
   oak_module_registry_init(&registry, &allocator);
-  struct oak_module_loader_result_t lr = { 0 };
+  oak_module_loader_result_t lr = { 0 };
 
   int exit_code = 1;
   const int load_rc = oak_module_loader_load_program(
       cli.script_path, &compile_opts, &registry, &lr);
   for (int i = 0; i < lr.error_count; i++)
   {
-    const struct oak_diagnostic_t* d = &lr.errors[i];
+    const oak_diagnostic_t* d = &lr.errors[i];
     if (d->line > 0)
       oak_log(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
     else
@@ -64,9 +64,11 @@ int main(const int argc, const char* argv[])
     exit_code = 0;
     if (cli.disassemble)
     {
-      for (int i = 0; i < oak_dynarr_count(registry.modules); ++i)
+      oak_module_t* const* modules =
+          OAK_DATA(oak_module_t*, registry.modules);
+      for (usize i = 0; i < oak_size(registry.modules); ++i)
       {
-        const struct oak_module_t* m = registry.modules[i];
+        const oak_module_t* m = modules[i];
         oak_log(OAK_LOG_INFO,
                 "==== module [%s] ====",
                 m->dotted_name ? m->dotted_name : "<entry>");
@@ -75,11 +77,11 @@ int main(const int argc, const char* argv[])
     }
     else
     {
-      struct oak_vm_t vm;
+      oak_vm_t vm;
       oak_vm_init(&vm, &allocator);
       oak_vm_set_module_registry(&vm, &registry);
-      struct oak_debugger_t debugger;
-      struct oak_vm_debug_hook_t dbg_hook;
+      oak_debugger_t debugger;
+      oak_vm_debug_hook_t dbg_hook;
       if (cli.debug)
       {
         oak_debugger_init(&debugger, &allocator);
@@ -87,7 +89,7 @@ int main(const int argc, const char* argv[])
         dbg_hook.ctx = &debugger;
         oak_vm_set_debug_hook(&vm, &dbg_hook);
       }
-      const enum oak_vm_result_t vm_result =
+      const oak_vm_result_t vm_result =
           cli.debug
               ? oak_dap_serve(&debugger, &vm, lr.entry->chunk,
                               cli.debug_port_set ? cli.debug_port : 4711)

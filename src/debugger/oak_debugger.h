@@ -1,13 +1,15 @@
 #pragma once
 
 #include "oak_allocator.h"
+#include "oak_container.h"
 #include "oak_export.h"
 #include "oak_file_map.h"
 #include "oak_vm.h"
 
 #include <stdio.h>
 
-enum oak_debug_step_mode_t
+typedef enum oak_debug_step_mode oak_debug_step_mode_t;
+enum oak_debug_step_mode
 {
   OAK_DEBUG_MODE_RUN,
   OAK_DEBUG_MODE_STEP,
@@ -15,7 +17,8 @@ enum oak_debug_step_mode_t
   OAK_DEBUG_MODE_FINISH,
 };
 
-struct oak_breakpoint_t
+typedef struct oak_breakpoint oak_breakpoint_t;
+struct oak_breakpoint
 {
   int id;
   int line;
@@ -23,26 +26,26 @@ struct oak_breakpoint_t
   int enabled;
 };
 
-struct oak_debugger_t
+typedef struct oak_debugger oak_debugger_t;
+struct oak_debugger
 {
-  struct oak_allocator_t* allocator;
-  enum oak_debug_step_mode_t mode;
+  oak_allocator_t* allocator;
+  oak_debug_step_mode_t mode;
   int step_frame_count;
   int step_line;
   const char* step_source;
 
-  struct oak_breakpoint_t* breakpoints;
-  int bp_count;
-  int bp_capacity;
+  /* oak_breakpoint_t */
+  oak_container_t* breakpoints;
   int next_bp_id;
 
-  struct oak_file_map_t source_map;
+  oak_file_map_t source_map;
   const char* cached_source_path;
-  int* line_offsets;
-  int line_count;
+  /* int: byte offset of the start of each line in the cached source. */
+  oak_container_t* line_offsets;
 
   usize last_stopped_offset;
-  const struct oak_chunk_t* last_stopped_chunk;
+  const oak_chunk_t* last_stopped_chunk;
   usize prev_offset;
   int prev_frame_count;
 
@@ -54,22 +57,22 @@ struct oak_debugger_t
 
   /* Command input and output streams. Default to stdin/stdout; tests redirect
    * them to in-memory files instead of reassigning the globals (which is not
-   * portable — stdin/stdout are not l-values under MSVC). */
+   * portable â€” stdin/stdout are not l-values under MSVC). */
   FILE* in;
   FILE* out;
 };
 
-OAK_API void oak_debugger_init(struct oak_debugger_t* dbg,
-                               struct oak_allocator_t* allocator);
-OAK_API void oak_debugger_free(struct oak_debugger_t* dbg);
+OAK_API void oak_debugger_init(oak_debugger_t* dbg,
+                               oak_allocator_t* allocator);
+OAK_API void oak_debugger_free(oak_debugger_t* dbg);
 
-OAK_API enum oak_debug_action_t oak_debugger_hook(struct oak_vm_t* vm,
+OAK_API oak_debug_action_t oak_debugger_hook(oak_vm_t* vm,
                                                   void* ctx);
 
-OAK_API int oak_debugger_add_breakpoint(struct oak_debugger_t* dbg, int line,
+OAK_API int oak_debugger_add_breakpoint(oak_debugger_t* dbg, int line,
                                        const char* source_name);
-OAK_API int oak_debugger_remove_breakpoint(struct oak_debugger_t* dbg,
+OAK_API int oak_debugger_remove_breakpoint(oak_debugger_t* dbg,
                                            int id);
 
-OAK_API void oak_debugger_clear_breakpoints(struct oak_debugger_t* dbg,
+OAK_API void oak_debugger_clear_breakpoints(oak_debugger_t* dbg,
                                             const char* source_name);

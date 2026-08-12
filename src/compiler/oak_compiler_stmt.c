@@ -6,12 +6,12 @@
  * bool push/pop and a dispatch every time the guard runs — the hot path for
  * `if`/`while` conditions and recursion base cases. Returns the patch offset
  * of the 16-bit forward operand, exactly like oak_compiler_emit_jump. */
-static usize emit_cond_jump_if_false(struct oak_compiler_t* c,
-                                     const struct oak_ast_node_t* cond)
+static usize emit_cond_jump_if_false(oak_compiler_t* c,
+                                     const oak_ast_node_t* cond)
 {
   oak_compiler_compile_node(c, cond);
   if (c->has_error)
-    return c->chunk->count;
+    return oak_chunk_size(c->chunk);
 
   u8 fused;
   switch (cond->kind)
@@ -37,31 +37,35 @@ static usize emit_cond_jump_if_false(struct oak_compiler_t* c,
    * so anything that ever breaks that assumption falls back to a plain branch
    * rather than corrupting the stream. */
   const u8 cmp_op = oak_binop_for_node(cond->kind);
-  const usize last = c->chunk->count - 1;
-  if (c->chunk->count == 0 || c->chunk->bytecode[last] != cmp_op)
+  if (oak_chunk_size(c->chunk) == 0)
     return oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
 
-  c->chunk->bytecode[last] = fused;
+  u8* const code = OAK_DATA(u8, c->chunk->code);
+  const usize last = oak_chunk_size(c->chunk) - 1;
+  if (code[last] != cmp_op)
+    return oak_compiler_emit_jump(c, OAK_OP_JUMP_IF_FALSE, OAK_LOC_SYNTHETIC);
+
+  code[last] = fused;
   oak_compiler_emit_byte(c, 0xff, OAK_LOC_SYNTHETIC);
   oak_compiler_emit_byte(c, 0xff, OAK_LOC_SYNTHETIC);
   /* The comparison's stack effect was already applied when it compiled; account
    * for the extra operand the fused op pops (its effect is one lower). */
   c->scope.stack_depth +=
       oak_op_info[fused].stack_effect - oak_op_info[cmp_op].stack_effect;
-  return c->chunk->count - 2;
+  return oak_chunk_size(c->chunk) - 2;
 }
 
-void oak_compiler_compile_block(struct oak_compiler_t* c,
-                                const struct oak_ast_node_t* block)
+void oak_compiler_compile_block(oak_compiler_t* c,
+                                const oak_ast_node_t* block)
 {
   oak_compiler_begin_scope(c);
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &block->children)
   {
     const int saved_stack = c->scope.stack_depth;
     const int saved_locals = c->scope.local_count;
     oak_compiler_compile_node(
-        c, oak_container_of(pos, struct oak_ast_node_t, link));
+        c, oak_container_of(pos, oak_ast_node_t, link));
     /* On statement-level error, record it and continue with the next statement
      * so the compiler can report as many independent errors as possible. */
     if (c->has_error)
@@ -76,21 +80,21 @@ void oak_compiler_compile_block(struct oak_compiler_t* c,
   oak_compiler_end_scope(c);
 }
 
-void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
-                                  const struct oak_ast_node_t* node)
+void oak_compiler_compile_stmt_if(oak_compiler_t* c,
+                                  const oak_ast_node_t* node)
 {
   oak_assert(oak_child_count(node) >= 2u);
 
-  struct oak_list_entry_t* pos = node->children.next;
-  const struct oak_ast_node_t* cond =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  oak_list_entry_t* pos = node->children.next;
+  const oak_ast_node_t* cond =
+      oak_container_of(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const struct oak_ast_node_t* body =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  const oak_ast_node_t* body =
+      oak_container_of(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const struct oak_ast_node_t* else_node =
+  const oak_ast_node_t* else_node =
       (pos != &node->children)
-          ? oak_container_of(pos, struct oak_ast_node_t, link)
+          ? oak_container_of(pos, oak_ast_node_t, link)
           : null;
 
   oak_reject_void(c, cond);
@@ -123,8 +127,8 @@ void oak_compiler_compile_stmt_if(struct oak_compiler_t* c,
   }
 }
 
-void oak_compile_while(struct oak_compiler_t* c,
-                                     const struct oak_ast_node_t* node)
+void oak_compile_while(oak_compiler_t* c,
+                                     const oak_ast_node_t* node)
 {
   if (!node->lhs || !node->rhs)
   {
@@ -132,16 +136,17 @@ void oak_compile_while(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_loop_frame_t loop = {
+  oak_loop_frame_t loop = {
     .enclosing = c->scope.current_loop,
-    .loop_start = c->chunk->count,
+    .loop_start = oak_chunk_size(c->chunk),
     .exit_depth = c->scope.stack_depth,
     .continue_depth = c->scope.stack_depth,
     .break_jumps = null,
     .continue_jumps = null,
   };
-  oak_assert(oak_dynarr_init(c->allocator, &loop.break_jumps, sizeof *loop.break_jumps));
-  oak_assert(oak_dynarr_init(c->allocator, &loop.continue_jumps, sizeof *loop.continue_jumps));
+  loop.break_jumps = oak_vector_new(c->allocator, sizeof(usize));
+  loop.continue_jumps = oak_vector_new(c->allocator, sizeof(usize));
+  oak_assert(loop.break_jumps && loop.continue_jumps);
 
   /* current_loop points at a stack-allocated frame; reset before return. */
   c->scope.current_loop = &loop;
@@ -150,8 +155,8 @@ void oak_compile_while(struct oak_compiler_t* c,
   if (c->has_error)
   {
     c->scope.current_loop = loop.enclosing;
-    oak_dynarr_free(&loop.break_jumps);
-    oak_dynarr_free(&loop.continue_jumps);
+    oak_destroy(loop.break_jumps);
+    oak_destroy(loop.continue_jumps);
     return;
   }
 
@@ -159,12 +164,12 @@ void oak_compile_while(struct oak_compiler_t* c,
 
   oak_compiler_compile_block(c, node->rhs);
 
-  oak_compiler_patch_jumps(c, loop.continue_jumps, oak_dynarr_count(loop.continue_jumps));
+  oak_compiler_patch_jumps(c, loop.continue_jumps);
   oak_compiler_emit_loop(c, loop.loop_start, OAK_LOC_SYNTHETIC);
   oak_compiler_patch_jump(c, exit_jump);
-  oak_compiler_patch_jumps(c, loop.break_jumps, oak_dynarr_count(loop.break_jumps));
+  oak_compiler_patch_jumps(c, loop.break_jumps);
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(&loop.break_jumps);
-  oak_dynarr_free(&loop.continue_jumps);
+  oak_destroy(loop.break_jumps);
+  oak_destroy(loop.continue_jumps);
 }

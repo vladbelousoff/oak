@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 
-int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
+int oak_value_snprint_repr(char* buf, usize size, oak_value_t value)
 {
   if (oak_is_none_like(value))
     return snprintf(buf, size, "none");
@@ -31,7 +31,7 @@ int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
       return snprintf(buf, size, "<map len=%zu>", oak_as_map(value)->length);
     if (oak_is_record(value))
     {
-      const struct oak_obj_record_t* s = oak_as_record(value);
+      const oak_obj_record_t* s = oak_as_record(value);
       return snprintf(buf,
                       size,
                       "<%s fields=%d>",
@@ -40,8 +40,8 @@ int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
     }
     if (oak_is_native_record(value))
     {
-      const struct oak_obj_native_record_t* ns = oak_as_native_record(value);
-      const struct oak_bind_type_t* t = ns->type;
+      const oak_obj_native_record_t* ns = oak_as_native_record(value);
+      const oak_bind_type_t* t = ns->type;
       const char* nm = (t && t->name) ? t->name : "native";
       return snprintf(buf, size, "<%s>", nm);
     }
@@ -54,10 +54,10 @@ int oak_value_snprint_repr(char* buf, usize size, struct oak_value_t value)
   return 0;
 }
 
-struct oak_obj_string_t*
-oak_string_from_value_repr_in_table(struct oak_allocator_t* allocator,
+oak_obj_string_t*
+oak_string_from_value_repr_in_table(oak_allocator_t* allocator,
                                     const u32 table_id,
-                                    struct oak_value_t value)
+                                    oak_value_t value)
 {
   char buf[4096];
   const int n = oak_value_snprint_repr(buf, sizeof(buf), value);
@@ -69,17 +69,17 @@ oak_string_from_value_repr_in_table(struct oak_allocator_t* allocator,
   return oak_string_new_len_in_table(allocator, table_id, buf, len);
 }
 
-struct oak_obj_string_t*
-oak_string_from_value_repr(struct oak_allocator_t* allocator,
-                           struct oak_value_t value)
+oak_obj_string_t*
+oak_string_from_value_repr(oak_allocator_t* allocator,
+                           oak_value_t value)
 {
   return oak_string_from_value_repr_in_table(allocator, 0u, value);
 }
 
-void oak_value_println(struct oak_allocator_t* allocator,
-                       struct oak_value_t value)
+void oak_value_println(oak_allocator_t* allocator,
+                       oak_value_t value)
 {
-  struct oak_obj_string_t* s = oak_value_to_string(allocator, value);
+  oak_obj_string_t* s = oak_value_to_string(allocator, value);
   if (!s)
   {
     fputs("<value unprintable>\n", stdout);

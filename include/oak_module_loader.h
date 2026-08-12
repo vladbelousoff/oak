@@ -5,12 +5,13 @@
 #include "oak_export.h"
 #include "oak_module.h"
 
-struct oak_module_loader_result_t
+typedef struct oak_module_loader_result oak_module_loader_result_t;
+struct oak_module_loader_result
 {
   /* Resolved entry module. May be null on failure. */
-  struct oak_module_t* entry;
+  oak_module_t* entry;
   /* Aggregated diagnostics from any module's parse/compile. */
-  struct oak_diagnostic_t errors[OAK_MAX_DIAGNOSTICS];
+  oak_diagnostic_t errors[OAK_MAX_DIAGNOSTICS];
   int error_count;
 };
 
@@ -22,6 +23,6 @@ struct oak_module_loader_result_t
  * (file I/O, cycle, parse, or compile) with diagnostics in `out->errors`. */
 OAK_API int
 oak_module_loader_load_program(const char* entry_path,
-                               struct oak_compile_options_t* opts,
-                               struct oak_module_registry_t* out_reg,
-                               struct oak_module_loader_result_t* out);
+                               oak_compile_options_t* opts,
+                               oak_module_registry_t* out_reg,
+                               oak_module_loader_result_t* out);

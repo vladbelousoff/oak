@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 
-void oak_compile_expr_fn(struct oak_compiler_t* c,
-                          const struct oak_ast_node_t* node)
+void oak_compile_expr_fn(oak_compiler_t* c,
+                          const oak_ast_node_t* node)
 {
   const int arity = oak_count_fn_params(node);
 
@@ -15,11 +15,11 @@ void oak_compile_expr_fn(struct oak_compiler_t* c,
 
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
-  struct oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, arity, mid);
+  oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, arity, mid);
   fn_obj->name = name_copy;
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
 
-  struct oak_registered_fn_t entry = { 0 };
+  oak_registered_fn_t entry = { 0 };
   entry.name = name_copy;
   entry.const_idx = idx;
   entry.arity = arity;

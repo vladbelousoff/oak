@@ -2,7 +2,8 @@
 
 #include "oak_types.h"
 
-struct oak_net_socket_t
+typedef struct oak_net_socket oak_net_socket_t;
+struct oak_net_socket
 {
   usize handle;
 };
@@ -18,15 +19,15 @@ void oak_net_shutdown(void);
  * selects an available ephemeral port. */
 int oak_net_listen_loopback(int requested_port,
                             int* actual_port,
-                            struct oak_net_socket_t* out);
-int oak_net_accept(struct oak_net_socket_t listener,
-                   struct oak_net_socket_t* out);
-void oak_net_close(struct oak_net_socket_t socket);
+                            oak_net_socket_t* out);
+int oak_net_accept(oak_net_socket_t listener,
+                   oak_net_socket_t* out);
+void oak_net_close(oak_net_socket_t socket);
 
 /* Wait until the socket is readable. timeout_ms < 0 blocks indefinitely;
  * zero polls; positive values wait up to the given duration. */
-int oak_net_wait_readable(struct oak_net_socket_t socket, int timeout_ms);
-int oak_net_recv(struct oak_net_socket_t socket, void* data, usize capacity);
-int oak_net_send_all(struct oak_net_socket_t socket,
+int oak_net_wait_readable(oak_net_socket_t socket, int timeout_ms);
+int oak_net_recv(oak_net_socket_t socket, void* data, usize capacity);
+int oak_net_send_all(oak_net_socket_t socket,
                      const void* data,
                      usize size);

@@ -20,7 +20,7 @@ typedef int oak_native_socket_t;
 #define oak_native_close close
 #endif
 
-static oak_native_socket_t native_socket(const struct oak_net_socket_t socket)
+static oak_native_socket_t native_socket(const oak_net_socket_t socket)
 {
   return (oak_native_socket_t)socket.handle;
 }
@@ -59,7 +59,7 @@ void oak_net_shutdown(void)
 
 int oak_net_listen_loopback(const int requested_port,
                             int* actual_port,
-                            struct oak_net_socket_t* out)
+                            oak_net_socket_t* out)
 {
   const oak_native_socket_t server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #if defined(_WIN32)
@@ -118,8 +118,8 @@ int oak_net_listen_loopback(const int requested_port,
   return 1;
 }
 
-int oak_net_accept(const struct oak_net_socket_t listener,
-                   struct oak_net_socket_t* out)
+int oak_net_accept(const oak_net_socket_t listener,
+                   oak_net_socket_t* out)
 {
   const oak_native_socket_t client =
       accept(native_socket(listener), null, null);
@@ -136,13 +136,13 @@ int oak_net_accept(const struct oak_net_socket_t listener,
   return 1;
 }
 
-void oak_net_close(const struct oak_net_socket_t socket)
+void oak_net_close(const oak_net_socket_t socket)
 {
   if (socket.handle != OAK_NET_INVALID)
     oak_native_close(native_socket(socket));
 }
 
-int oak_net_wait_readable(const struct oak_net_socket_t socket,
+int oak_net_wait_readable(const oak_net_socket_t socket,
                           const int timeout_ms)
 {
   const oak_native_socket_t native = native_socket(socket);
@@ -163,7 +163,7 @@ int oak_net_wait_readable(const struct oak_net_socket_t socket,
   return result;
 }
 
-int oak_net_recv(const struct oak_net_socket_t socket,
+int oak_net_recv(const oak_net_socket_t socket,
                  void* data,
                  const usize capacity)
 {
@@ -173,7 +173,7 @@ int oak_net_recv(const struct oak_net_socket_t socket,
   return result;
 }
 
-int oak_net_send_all(const struct oak_net_socket_t socket,
+int oak_net_send_all(const oak_net_socket_t socket,
                      const void* data,
                      usize size)
 {

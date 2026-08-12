@@ -2,28 +2,28 @@
 
 #include <stdio.h>
 
-static const struct oak_token_t* oak_parser_current_token(
-    const struct oak_parser_t* p)
+static const oak_token_t* oak_parser_current_token(
+    const oak_parser_t* p)
 {
   if (!p || p->curr == p->head)
     return null;
-  return oak_container_of(p->curr, struct oak_token_t, link);
+  return oak_container_of(p->curr, oak_token_t, link);
 }
 
-static const struct oak_token_t* oak_parser_last_token(
-    const struct oak_parser_t* p)
+static const oak_token_t* oak_parser_last_token(
+    const oak_parser_t* p)
 {
   if (!p || p->head->prev == p->head)
     return null;
-  return oak_container_of(p->head->prev, struct oak_token_t, link);
+  return oak_container_of(p->head->prev, oak_token_t, link);
 }
 
-static int oak_parser_token_offset_or_eof(const struct oak_parser_t* p,
-                                          const struct oak_token_t* token)
+static int oak_parser_token_offset_or_eof(const oak_parser_t* p,
+                                          const oak_token_t* token)
 {
   if (token)
     return oak_token_offset(token);
-  const struct oak_token_t* last = oak_parser_last_token(p);
+  const oak_token_t* last = oak_parser_last_token(p);
   if (!last)
     return 0;
   const int size = oak_token_size(last);
@@ -31,8 +31,8 @@ static int oak_parser_token_offset_or_eof(const struct oak_parser_t* p,
 }
 
 static int oak_parser_should_replace_detail(
-    const struct oak_parser_t* p,
-    const struct oak_token_t* token)
+    const oak_parser_t* p,
+    const oak_token_t* token)
 {
   if (!p->detail_valid)
     return 1;
@@ -41,7 +41,7 @@ static int oak_parser_should_replace_detail(
 }
 
 static const char* oak_parser_token_kind_display(
-    const enum oak_token_kind_t token_kind)
+    const oak_token_kind_t token_kind)
 {
   switch (token_kind)
   {
@@ -177,7 +177,7 @@ static const char* oak_parser_token_kind_display(
   return "a token";
 }
 
-static const char* oak_parser_token_display(const struct oak_token_t* token)
+static const char* oak_parser_token_display(const oak_token_t* token)
 {
   if (!token)
     return "end of input";
@@ -186,7 +186,7 @@ static const char* oak_parser_token_display(const struct oak_token_t* token)
   return oak_parser_token_kind_display(oak_token_kind(token));
 }
 
-static const char* oak_parser_node_display(const enum oak_node_kind_t kind)
+static const char* oak_parser_node_display(const oak_node_kind_t kind)
 {
   switch (kind)
   {
@@ -330,12 +330,12 @@ static const char* oak_parser_node_display(const enum oak_node_kind_t kind)
   }
 }
 
-static void oak_parser_set_detail(struct oak_parser_t* p,
-                                  const enum oak_node_kind_t context,
-                                  const enum oak_token_kind_t expected_token,
-                                  const enum oak_node_kind_t expected_node)
+static void oak_parser_set_detail(oak_parser_t* p,
+                                  const oak_node_kind_t context,
+                                  const oak_token_kind_t expected_token,
+                                  const oak_node_kind_t expected_node)
 {
-  const struct oak_token_t* token = oak_parser_current_token(p);
+  const oak_token_t* token = oak_parser_current_token(p);
   if (!oak_parser_should_replace_detail(p, token))
     return;
   p->detail_token = token;
@@ -346,30 +346,30 @@ static void oak_parser_set_detail(struct oak_parser_t* p,
   p->detail_context = context;
 }
 
-void oak_parser_detail_expected_token(struct oak_parser_t* p,
-                                      const enum oak_node_kind_t context,
-                                      const enum oak_token_kind_t expected)
+void oak_parser_detail_expected_token(oak_parser_t* p,
+                                      const oak_node_kind_t context,
+                                      const oak_token_kind_t expected)
 {
   oak_parser_set_detail(p, context, expected, OAK_NODE_NONE);
 }
 
-void oak_parser_detail_expected_node(struct oak_parser_t* p,
-                                     const enum oak_node_kind_t context,
-                                     const enum oak_node_kind_t expected)
+void oak_parser_detail_expected_node(oak_parser_t* p,
+                                     const oak_node_kind_t context,
+                                     const oak_node_kind_t expected)
 {
-  oak_parser_set_detail(p, context, (enum oak_token_kind_t)0, expected);
+  oak_parser_set_detail(p, context, (oak_token_kind_t)0, expected);
 }
 
-static void oak_parser_emit_detail(struct oak_parser_t* parser,
-                                   struct oak_parser_result_t* out)
+static void oak_parser_emit_detail(oak_parser_t* parser,
+                                   oak_parser_result_t* out)
 {
   if (out->error_count >= OAK_MAX_DIAGNOSTICS)
     return;
 
-  const struct oak_token_t* token =
+  const oak_token_t* token =
       parser->detail_valid ? parser->detail_token
                            : oak_parser_current_token(parser);
-  struct oak_diagnostic_t* d = &out->errors[out->error_count++];
+  oak_diagnostic_t* d = &out->errors[out->error_count++];
   if (token)
   {
     d->line = oak_token_line(token);
@@ -377,7 +377,7 @@ static void oak_parser_emit_detail(struct oak_parser_t* parser,
   }
   else
   {
-    const struct oak_token_t* last = oak_parser_last_token(parser);
+    const oak_token_t* last = oak_parser_last_token(parser);
     d->line = last ? oak_token_line(last) : 0;
     if (last)
     {
@@ -418,8 +418,8 @@ static void oak_parser_emit_detail(struct oak_parser_t* parser,
            oak_parser_token_display(token));
 }
 
-struct oak_ast_node_t* oak_parser_parse_rule(struct oak_parser_t* p,
-                                             const enum oak_node_kind_t kind)
+oak_ast_node_t* oak_parser_parse_rule(oak_parser_t* p,
+                                             const oak_node_kind_t kind)
 {
   if (kind == OAK_NODE_NONE)
     return null;
@@ -442,15 +442,15 @@ struct oak_ast_node_t* oak_parser_parse_rule(struct oak_parser_t* p,
   return null;
 }
 
-void oak_parse(const struct oak_lexer_result_t* lexer,
-               const enum oak_node_kind_t kind,
-               struct oak_parser_result_t* out,
-               struct oak_allocator_t* allocator)
+void oak_parse(const oak_lexer_result_t* lexer,
+               const oak_node_kind_t kind,
+               oak_parser_result_t* out,
+               oak_allocator_t* allocator)
 {
   oak_arena_init(&out->arena, 0, allocator);
 
-  const struct oak_list_entry_t* tokens = oak_lexer_tokens(lexer);
-  struct oak_parser_t parser = {
+  const oak_list_entry_t* tokens = oak_lexer_tokens(lexer);
+  oak_parser_t parser = {
     .head = tokens,
     .curr = tokens->next,
     .arena = &out->arena,
@@ -465,23 +465,23 @@ void oak_parse(const struct oak_lexer_result_t* lexer,
   }
 }
 
-struct oak_ast_node_t* oak_parser_root(const struct oak_parser_result_t* result)
+oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result)
 {
   return result ? result->root : null;
 }
 
-int oak_parser_error_count(const struct oak_parser_result_t* result)
+int oak_parser_error_count(const oak_parser_result_t* result)
 {
   return result ? result->error_count : 0;
 }
 
-const struct oak_diagnostic_t*
-oak_parser_errors(const struct oak_parser_result_t* result)
+const oak_diagnostic_t*
+oak_parser_errors(const oak_parser_result_t* result)
 {
   return result ? result->errors : null;
 }
 
-void oak_parser_free(struct oak_parser_result_t* result)
+void oak_parser_free(oak_parser_result_t* result)
 {
   if (!result)
     return;

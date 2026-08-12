@@ -4,17 +4,18 @@
 #include "oak_count_of.h"
 #include <oak_parser.h>
 
-struct oak_parser_t
+typedef struct oak_parser oak_parser_t;
+struct oak_parser
 {
-  const struct oak_list_entry_t* head;
-  struct oak_list_entry_t* curr;
-  struct oak_arena_t* arena;
+  const oak_list_entry_t* head;
+  oak_list_entry_t* curr;
+  oak_arena_t* arena;
   int detail_valid;
-  const struct oak_token_t* detail_token;
+  const oak_token_t* detail_token;
   int detail_has_expected_token;
-  enum oak_token_kind_t detail_expected_token;
-  enum oak_node_kind_t detail_expected_node;
-  enum oak_node_kind_t detail_context;
+  oak_token_kind_t detail_expected_token;
+  oak_node_kind_t detail_expected_node;
+  oak_node_kind_t detail_context;
 };
 
 #define OAK_RULE_TOKEN    ((unsigned short)(1 << 15))
@@ -31,7 +32,8 @@ struct oak_parser_t
   ((unsigned short)~(OAK_RULE_TOKEN | OAK_RULE_REPEAT | OAK_RULE_OPTIONAL |    \
                      OAK_RULE_COMMA_SEP | OAK_RULE_DOT_SEP))
 
-enum oak_grammar_op_t
+typedef enum oak_grammar_op oak_grammar_op_t;
+enum oak_grammar_op
 {
   OAK_GRAMMAR_SEQUENCE, // Match all children in order (default)
   OAK_GRAMMAR_TOKEN,    // Match one specific token (terminal)
@@ -41,7 +43,8 @@ enum oak_grammar_op_t
   OAK_GRAMMAR_UNARY,    // Produce unary node (single child)
 };
 
-enum oak_pratt_op_t
+typedef enum oak_pratt_op oak_pratt_op_t;
+enum oak_pratt_op
 {
   OAK_PRATT_END,
   OAK_PRATT_OP,
@@ -51,63 +54,65 @@ enum oak_pratt_op_t
   OAK_PRATT_CAST,
 };
 
-struct oak_pratt_rule_t
+typedef struct oak_pratt_rule oak_pratt_rule_t;
+struct oak_pratt_rule
 {
-  enum oak_pratt_op_t kind;
-  enum oak_token_kind_t trigger_token;
+  oak_pratt_op_t kind;
+  oak_token_kind_t trigger_token;
   int l_bp;
   int r_bp;
-  enum oak_node_kind_t node_kind;
-  enum oak_token_kind_t close_token;
-  enum oak_node_kind_t arg_rule;
+  oak_node_kind_t node_kind;
+  oak_token_kind_t close_token;
+  oak_node_kind_t arg_rule;
 };
 
-struct oak_grammar_entry_t
+typedef struct oak_grammar_entry oak_grammar_entry_t;
+struct oak_grammar_entry
 {
-  enum oak_grammar_op_t op;
+  oak_grammar_op_t op;
   union
   {
     unsigned short rules[16];
-    enum oak_token_kind_t token_kind;
+    oak_token_kind_t token_kind;
     struct
     {
-      enum oak_node_kind_t primary_rule;
-      const struct oak_pratt_rule_t* prefix;
-      const struct oak_pratt_rule_t* infix;
+      oak_node_kind_t primary_rule;
+      const oak_pratt_rule_t* prefix;
+      const oak_pratt_rule_t* infix;
     } pratt;
   };
 };
 
-extern struct oak_grammar_entry_t oak_grammar[];
+extern oak_grammar_entry_t oak_grammar[];
 
 /* Top-level dispatcher (defined in oak_parser.c). */
-struct oak_ast_node_t* oak_parser_parse_rule(struct oak_parser_t* p,
-                                             enum oak_node_kind_t kind);
+oak_ast_node_t* oak_parser_parse_rule(oak_parser_t* p,
+                                             oak_node_kind_t kind);
 
 /* Sub-parsers (one per grammar op). */
-struct oak_ast_node_t* oak_parser_parse_token(struct oak_parser_t* p,
-                                              enum oak_node_kind_t kind);
+oak_ast_node_t* oak_parser_parse_token(oak_parser_t* p,
+                                              oak_node_kind_t kind);
 
-struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
-                                              enum oak_node_kind_t kind);
+oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
+                                              oak_node_kind_t kind);
 
-struct oak_ast_node_t* oak_parser_parse_choice(struct oak_parser_t* p,
-                                               enum oak_node_kind_t kind);
+oak_ast_node_t* oak_parser_parse_choice(oak_parser_t* p,
+                                               oak_node_kind_t kind);
 
-struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
-                                              enum oak_node_kind_t kind,
+oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
+                                              oak_node_kind_t kind,
                                               int min_bp);
 
 /* Shared helpers. */
-int oak_parser_try_skip_token(struct oak_parser_t* p,
-                              enum oak_token_kind_t token_kind);
+int oak_parser_try_skip_token(oak_parser_t* p,
+                              oak_token_kind_t token_kind);
 
-usize oak_parser_grammar_rule_count(const struct oak_grammar_entry_t* entry);
+usize oak_parser_grammar_rule_count(const oak_grammar_entry_t* entry);
 
-void oak_parser_detail_expected_token(struct oak_parser_t* p,
-                                      enum oak_node_kind_t context,
-                                      enum oak_token_kind_t expected);
+void oak_parser_detail_expected_token(oak_parser_t* p,
+                                      oak_node_kind_t context,
+                                      oak_token_kind_t expected);
 
-void oak_parser_detail_expected_node(struct oak_parser_t* p,
-                                     enum oak_node_kind_t context,
-                                     enum oak_node_kind_t expected);
+void oak_parser_detail_expected_node(oak_parser_t* p,
+                                     oak_node_kind_t context,
+                                     oak_node_kind_t expected);

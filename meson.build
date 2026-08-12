@@ -19,7 +19,16 @@ is_debug = get_option('buildtype') == 'debug'
 is_release = get_option('buildtype') == 'release'
 install_oak = get_option('install')
 
-warning_args = is_msvc ? ['/wd4200'] : ['-Wno-unused-function']
+# Promote two diagnostics to errors. Both are silent-corruption bugs in C, not
+# style issues: an implicitly declared function links against whatever symbol
+# happens to match, and an incompatible pointer assignment reinterprets memory.
+# Passing the wrong pointer type to a void*-taking API (or calling a function
+# whose header is no longer included) otherwise compiles and fails at runtime.
+strict_args = is_msvc ? ['/we4013', '/we4133'] : [
+  '-Werror=implicit-function-declaration',
+  '-Werror=incompatible-pointer-types',
+]
+warning_args = (is_msvc ? ['/wd4200'] : ['-Wno-unused-function']) + strict_args
 debug_defines = is_debug ? ['-DOAK_TRACK_MEMORY', '-DOAK_DEBUG_LOGGING'] : []
 platform_defines = is_msvc ? ['-D_CRT_SECURE_NO_WARNINGS'] : ['-D_XOPEN_SOURCE=700']
 release_symbol_args = []
@@ -114,16 +123,20 @@ test_inc = include_directories('tests/common')
 oak_core_sources = files(
   'src/common/oak_allocator.c',
   'src/common/oak_arena.c',
-  'src/common/oak_dynarr.c',
+  'src/common/oak_container.c',
   'src/common/oak_file_map.c',
-  'src/common/oak_htable.c',
+  'src/common/oak_hash_map.c',
+  'src/common/oak_hash_set.c',
+  'src/common/oak_hash_table.c',
   'src/common/oak_log.c',
   'src/common/oak_module_loader.c',
   'src/common/oak_module_loader_compile.c',
   'src/common/oak_module_loader_native.c',
   'src/common/oak_module_loader_path.c',
   'src/common/oak_net.c',
+  'src/common/oak_object.c',
   'src/common/oak_run.c',
+  'src/common/oak_vector.c',
   'src/compiler/oak_compiler.c',
   'src/compiler/oak_compiler_builtins.c',
   'src/compiler/oak_compiler_call_arg.c',
@@ -299,7 +312,7 @@ else
   )
 
   test_sources = {
-    'dynarr': 'tests/common/dynarr.c',
+    'containers': 'tests/common/containers.c',
     'compiler_anon_fn': 'tests/compiler/compiler_anon_fn.c',
     'compiler_const_mut_binding': 'tests/compiler/compiler_const_mut_binding.c',
     'compiler_cycles': 'tests/compiler/compiler_cycles.c',

@@ -37,7 +37,8 @@
 OAK_API const char* oak_path_basename(const char* path);
 OAK_NORETURN OAK_API void oak_panic(void);
 
-enum oak_log_level_t
+typedef enum oak_log_level oak_log_level_t;
+enum oak_log_level
 {
   OAK_LOG_INFO,
   OAK_LOG_DEBUG,
@@ -45,7 +46,7 @@ enum oak_log_level_t
   OAK_LOG_ERROR,
 };
 
-OAK_API void _oak_log_printf(enum oak_log_level_t lvl,
+OAK_API void _oak_log_printf(oak_log_level_t lvl,
 #ifdef OAK_DEBUG_LOGGING
                      const char* file,
                      unsigned line,

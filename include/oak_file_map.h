@@ -3,7 +3,8 @@
 #include "oak_export.h"
 #include "oak_types.h"
 
-struct oak_file_map_t
+typedef struct oak_file_map oak_file_map_t;
+struct oak_file_map
 {
   char* data;
   usize size;
@@ -14,5 +15,5 @@ struct oak_file_map_t
 #endif
 };
 
-OAK_API int oak_file_map(const char* path, struct oak_file_map_t* out);
-OAK_API void oak_file_unmap(struct oak_file_map_t* map);
+OAK_API int oak_file_map(const char* path, oak_file_map_t* out);
+OAK_API void oak_file_unmap(oak_file_map_t* map);

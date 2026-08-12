@@ -37,17 +37,17 @@ static void write_file(const char* path, const char* contents)
  * compiled, and the entry chunk ran to OAK_VM_OK. */
 static int load_and_run(const char* entry_path)
 {
-  struct oak_allocator_t* a = oak_test_allocator();
+  oak_allocator_t* a = oak_test_allocator();
 
-  struct oak_compile_options_t opts;
+  oak_compile_options_t opts;
   oak_compile_options_init(&opts, a);
   opts.source_name = entry_path;
   opts.emit_debug_info = 0;
   oak_stdlib_register(&opts);
 
-  struct oak_module_registry_t registry;
+  oak_module_registry_t registry;
   oak_module_registry_init(&registry, a);
-  struct oak_module_loader_result_t lr = { 0 };
+  oak_module_loader_result_t lr = { 0 };
 
   const int load_rc =
       oak_module_loader_load_program(entry_path, &opts, &registry, &lr);
@@ -55,7 +55,7 @@ static int load_and_run(const char* entry_path)
   int rc = -1;
   if (load_rc == 0 && lr.entry && lr.entry->chunk)
   {
-    struct oak_vm_t vm;
+    oak_vm_t vm;
     oak_vm_init(&vm, a);
     oak_vm_set_module_registry(&vm, &registry);
     rc = oak_vm_run(&vm, lr.entry->chunk) == OAK_VM_OK ? 0 : -1;
@@ -380,7 +380,7 @@ int main(const int argc, char* argv[])
 {
   (void)argc;
   (void)argv;
-  static struct oak_test_t tests[] = {
+  static oak_test_t tests[] = {
     OAK_TEST_ENTRY(ImportLoadRunsAndIsRepeatable),
     OAK_TEST_ENTRY(ImportCollisionIsRejected),
     OAK_TEST_ENTRY(CrossModuleInterfaceDispatch),

@@ -30,20 +30,22 @@
  * interfaces, which rule 2 removes from the strong graph entirely.
  */
 
-static int record_index_by_id(const struct oak_record_registry_t* r,
+static int record_index_by_id(const oak_record_registry_t* r,
                               oak_type_id_t type_id)
 {
   if (type_id == OAK_TYPE_VOID)
     return -1;
-  for (int i = 0; i < oak_dynarr_count(r->entries); ++i)
+  const oak_registered_record_t* entries =
+      OAK_CDATA(oak_registered_record_t, r->entries);
+  for (usize i = 0; i < oak_size(r->entries); ++i)
   {
-    if (r->entries[i].type_id == type_id && !r->entries[i].is_value)
-      return i;
+    if (entries[i].type_id == type_id && !entries[i].is_value)
+      return (int)i;
   }
   return -1;
 }
 
-static int type_is_interface_id(const struct oak_compiler_t* c, oak_type_id_t id)
+static int type_is_interface_id(const oak_compiler_t* c, oak_type_id_t id)
 {
   return oak_interface_find_by_id(&c->interfaces, id) != null;
 }
@@ -51,8 +53,8 @@ static int type_is_interface_id(const struct oak_compiler_t* c, oak_type_id_t id
 /* True if a strong slot of this type holds an interface object, directly or as a
  * container element/key. Covers fields declared before their (local) interface
  * was registered, which lower as SCALAR with the interface's interned id. */
-static int type_holds_interface(const struct oak_compiler_t* c,
-                            const struct oak_type_t* t)
+static int type_holds_interface(const oak_compiler_t* c,
+                            const oak_type_t* t)
 {
   if (t->kind == OAK_TYPE_KIND_FN)
     return 0;
@@ -67,8 +69,8 @@ static int type_holds_interface(const struct oak_compiler_t* c,
  * the scalar/element/value type, plus the key type for maps. Returns the
  * count (0, 1, or 2). Leaves (numbers, strings, enums, fns, value types)
  * and interfaces contribute nothing. */
-static int type_record_targets(const struct oak_compiler_t* c,
-                               const struct oak_type_t* t,
+static int type_record_targets(const oak_compiler_t* c,
+                               const oak_type_t* t,
                                int out[2])
 {
   int n = 0;
@@ -89,38 +91,38 @@ static int type_record_targets(const struct oak_compiler_t* c,
 /* Finds the type node token of field `field_name` on the program's local
  * declaration of record `record_name`, for error locations. Returns null for
  * imported and native records. */
-static const struct oak_token_t*
-field_decl_token(const struct oak_ast_node_t* program,
+static const oak_token_t*
+field_decl_token(const oak_ast_node_t* program,
                  const char* record_name,
                  const char* field_name)
 {
   if (!program)
     return null;
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item = oak_unwrap_decl(
-        oak_container_of(pos, struct oak_ast_node_t, link));
+    const oak_ast_node_t* item = oak_unwrap_decl(
+        oak_container_of(pos, oak_ast_node_t, link));
     if (!item || item->kind != OAK_NODE_RECORD_DECL || !item->lhs || !item->rhs)
       continue;
 
-    const struct oak_ast_node_t* name_ident = item->lhs;
+    const oak_ast_node_t* name_ident = item->lhs;
     if (name_ident->kind == OAK_NODE_TYPE_NAME)
     {
-      const struct oak_list_entry_t* first = name_ident->children.next;
+      const oak_list_entry_t* first = name_ident->children.next;
       if (first == &name_ident->children)
         continue;
-      name_ident = oak_container_of(first, struct oak_ast_node_t, link);
+      name_ident = oak_container_of(first, oak_ast_node_t, link);
     }
     if (name_ident->kind != OAK_NODE_IDENT ||
         strcmp(oak_token_text(name_ident->token), record_name) != 0)
       continue;
 
-    struct oak_list_entry_t* fpos;
+    oak_list_entry_t* fpos;
     oak_list_for_each(fpos, &item->rhs->children)
     {
-      const struct oak_ast_node_t* fdecl =
-          oak_container_of(fpos, struct oak_ast_node_t, link);
+      const oak_ast_node_t* fdecl =
+          oak_container_of(fpos, oak_ast_node_t, link);
       if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs)
         continue;
       if (fdecl->lhs->kind == OAK_NODE_IDENT &&
@@ -132,10 +134,10 @@ field_decl_token(const struct oak_ast_node_t* program,
   return null;
 }
 
-void oak_compiler_check_cycles(struct oak_compiler_t* c,
-                               const struct oak_ast_node_t* program)
+void oak_compiler_check_cycles(oak_compiler_t* c,
+                               const oak_ast_node_t* program)
 {
-  const int n = oak_dynarr_count(c->records.entries);
+  const int n = (int)oak_size(c->records.entries);
   c->cycle_reach = null;
   c->cycle_reach_count = n;
   if (n == 0)
@@ -146,15 +148,19 @@ void oak_compiler_check_cycles(struct oak_compiler_t* c,
   c->cycle_reach = reach;
 
   /* Direct strong edges, plus the interface-ownership rule. */
+  const oak_registered_record_t* records =
+      OAK_CDATA(oak_registered_record_t, c->records.entries);
   for (int i = 0; i < n; ++i)
   {
-    const struct oak_registered_record_t* sd = &c->records.entries[i];
+    const oak_registered_record_t* sd = &records[i];
     if (sd->is_value)
       continue;
     reach[i * n + i] = 1;
-    for (int fi = 0; fi < oak_dynarr_count(sd->fields); ++fi)
+    const oak_record_field_t* fields =
+        OAK_CDATA(oak_record_field_t, sd->fields);
+    for (usize fi = 0; fi < oak_size(sd->fields); ++fi)
     {
-      const struct oak_record_field_t* f = &sd->fields[fi];
+      const oak_record_field_t* f = &fields[fi];
       if (f->type.is_weak)
         continue;
 
@@ -193,14 +199,18 @@ void oak_compiler_check_cycles(struct oak_compiler_t* c,
     }
 
   /* A strong field is write-once when its target can own its owner back. */
+  oak_registered_record_t* mut_records =
+      OAK_DATA(oak_registered_record_t, c->records.entries);
   for (int i = 0; i < n; ++i)
   {
-    struct oak_registered_record_t* sd = &c->records.entries[i];
+    oak_registered_record_t* sd = &mut_records[i];
     if (sd->is_value)
       continue;
-    for (int fi = 0; fi < oak_dynarr_count(sd->fields); ++fi)
+    oak_record_field_t* fields =
+        OAK_DATA(oak_record_field_t, sd->fields);
+    for (usize fi = 0; fi < oak_size(sd->fields); ++fi)
     {
-      struct oak_record_field_t* f = &sd->fields[fi];
+      oak_record_field_t* f = &fields[fi];
       if (f->type.is_weak)
         continue;
       int targets[2];
@@ -217,7 +227,7 @@ void oak_compiler_check_cycles(struct oak_compiler_t* c,
   }
 }
 
-void oak_compiler_free_cycles(struct oak_compiler_t* c)
+void oak_compiler_free_cycles(oak_compiler_t* c)
 {
   if (c->cycle_reach)
     OAK_FREE(c->allocator, c->cycle_reach);
@@ -227,8 +237,8 @@ void oak_compiler_free_cycles(struct oak_compiler_t* c)
 
 /* True if `field` strongly owns a container with the same base type as
  * `coll` (weak container fields do not own their target). */
-static int field_owns_container(const struct oak_record_field_t* field,
-                                const struct oak_type_t* coll)
+static int field_owns_container(const oak_record_field_t* field,
+                                const oak_type_t* coll)
 {
   if (field->type.is_weak)
     return 0;
@@ -239,8 +249,8 @@ static int field_owns_container(const struct oak_record_field_t* field,
   return 1;
 }
 
-int oak_container_store_locked(struct oak_compiler_t* c,
-                               const struct oak_type_t* coll)
+int oak_container_store_locked(oak_compiler_t* c,
+                               const oak_type_t* coll)
 {
   if (coll->kind != OAK_TYPE_KIND_ARRAY && coll->kind != OAK_TYPE_KIND_MAP)
     return 0;
@@ -254,6 +264,8 @@ int oak_container_store_locked(struct oak_compiler_t* c,
    * reach a record that strongly owns a container of this exact type. */
   int targets[2];
   const int tc = type_record_targets(c, coll, targets);
+  const oak_registered_record_t* records =
+      OAK_CDATA(oak_registered_record_t, c->records.entries);
   for (int t = 0; t < tc; ++t)
   {
     const u8* row = c->cycle_reach + (usize)targets[t] * (usize)n;
@@ -261,11 +273,13 @@ int oak_container_store_locked(struct oak_compiler_t* c,
     {
       if (!row[k])
         continue;
-      const struct oak_registered_record_t* sd = &c->records.entries[k];
+      const oak_registered_record_t* sd = &records[k];
       if (sd->is_value)
         continue;
-      for (int fi = 0; fi < oak_dynarr_count(sd->fields); ++fi)
-        if (field_owns_container(&sd->fields[fi], coll))
+      const oak_record_field_t* fields =
+          OAK_CDATA(oak_record_field_t, sd->fields);
+      for (usize fi = 0; fi < oak_size(sd->fields); ++fi)
+        if (field_owns_container(&fields[fi], coll))
           return 1;
     }
   }

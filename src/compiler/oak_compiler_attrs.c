@@ -1,6 +1,6 @@
 #include "internal/oak_compiler.h"
 
-const struct oak_ast_node_t* oak_unwrap_decl(const struct oak_ast_node_t* item)
+const oak_ast_node_t* oak_unwrap_decl(const oak_ast_node_t* item)
 {
   if (!item)
     return item;
@@ -14,19 +14,19 @@ const struct oak_ast_node_t* oak_unwrap_decl(const struct oak_ast_node_t* item)
   /* ATTR_DECL is a sequence node whose children are:
    *   ATTR ATTR* <declaration>
    * Walk the children and return the first non-ATTR child. */
-  const struct oak_ast_node_t* decl = null;
-  struct oak_list_entry_t* pos;
+  const oak_ast_node_t* decl = null;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &item->children)
   {
-    const struct oak_ast_node_t* child =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* child =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
       return oak_unwrap_decl(child);
   }
   return decl;
 }
 
-int oak_decl_is_exported(const struct oak_ast_node_t* item)
+int oak_decl_is_exported(const oak_ast_node_t* item)
 {
   if (!item)
     return 0;
@@ -34,19 +34,19 @@ int oak_decl_is_exported(const struct oak_ast_node_t* item)
     return 1;
   if (item->kind != OAK_NODE_ATTR_DECL)
     return 0;
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &item->children)
   {
-    const struct oak_ast_node_t* child =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* child =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
       return oak_decl_is_exported(child);
   }
   return 0;
 }
 
-const char** oak_extract_attrs(struct oak_allocator_t* allocator,
-                                const struct oak_ast_node_t* item,
+const char** oak_extract_attrs(oak_allocator_t* allocator,
+                                const oak_ast_node_t* item,
                                 int* out_count)
 {
   *out_count = 0;
@@ -56,11 +56,11 @@ const char** oak_extract_attrs(struct oak_allocator_t* allocator,
     return null;
 
   int count = 0;
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &item->children)
   {
-    const struct oak_ast_node_t* child =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* child =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (child->kind == OAK_NODE_ATTR)
       ++count;
   }
@@ -75,8 +75,8 @@ const char** oak_extract_attrs(struct oak_allocator_t* allocator,
   int i = 0;
   oak_list_for_each(pos, &item->children)
   {
-    const struct oak_ast_node_t* child =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* child =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
       break;
     arr[i++] = oak_token_text(child->child->token);
@@ -86,7 +86,7 @@ const char** oak_extract_attrs(struct oak_allocator_t* allocator,
   return arr;
 }
 
-const char** oak_alloc_attrs(struct oak_allocator_t* allocator,
+const char** oak_alloc_attrs(oak_allocator_t* allocator,
                               const char* const* names,
                               int count)
 {
@@ -100,14 +100,14 @@ const char** oak_alloc_attrs(struct oak_allocator_t* allocator,
   return arr;
 }
 
-void oak_compiler_dispatch_attr_cbs(struct oak_compiler_t* c,
+void oak_compiler_dispatch_attr_cbs(oak_compiler_t* c,
                                     const char** attrs,
                                     int attr_count,
                                     const char* decl_name,
-                                    enum oak_attr_target_t target,
-                                    const struct oak_attr_param_info_t* params,
+                                    oak_attr_target_t target,
+                                    const oak_attr_param_info_t* params,
                                     int param_count,
-                                    const struct oak_attr_field_info_t* fields,
+                                    const oak_attr_field_info_t* fields,
                                     int field_count,
                                     int const_index)
 {
@@ -123,9 +123,9 @@ void oak_compiler_dispatch_attr_cbs(struct oak_compiler_t* c,
     oak_register_native_fns(c, c->opts);
 }
 
-void oak_apply_runtime_attr_hook(struct oak_compiler_t* c,
-                                  struct oak_obj_fn_t* fn_obj,
-                                  struct oak_obj_native_fn_t* native_obj,
+void oak_apply_runtime_attr_hook(oak_compiler_t* c,
+                                  oak_obj_fn_t* fn_obj,
+                                  oak_obj_native_fn_t* native_obj,
                                   const char** attrs,
                                   int attr_count)
 {

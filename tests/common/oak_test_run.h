@@ -4,24 +4,24 @@
 #include "oak_log.h"
 #include "oak_test.h"
 
-static struct oak_allocator_t* g_test_allocator;
+static oak_allocator_t* g_test_allocator;
 
-static struct oak_allocator_t* oak_test_allocator(void)
+static oak_allocator_t* oak_test_allocator(void)
 {
   return g_test_allocator;
 }
 
-static int oak_test_run(const struct oak_test_t* tests, const int count)
+static int oak_test_run(const oak_test_t* tests, const int count)
 {
-  struct oak_allocator_t allocator;
+  oak_allocator_t allocator;
   oak_tracking_allocator_init(&allocator);
   g_test_allocator = &allocator;
 
-  enum oak_test_status_t result = OAK_TEST_OK;
+  oak_test_status_t result = OAK_TEST_OK;
 
   for (int i = 0; i < count; ++i)
   {
-    const struct oak_test_t* t = &tests[i];
+    const oak_test_t* t = &tests[i];
     oak_log(OAK_LOG_INFO, "running %s...", t->name);
     result = t->fn();
     if (result != OAK_TEST_OK)
@@ -44,7 +44,7 @@ static int oak_test_run(const struct oak_test_t* tests, const int count)
   {                                                                            \
     (void)argc;                                                                \
     (void)argv;                                                                \
-    static struct oak_test_t t[] = {                                           \
+    static oak_test_t t[] = {                                           \
       OAK_TEST_ENTRY(label),                                                   \
     };                                                                         \
     return oak_test_run(t, 1);                                                 \

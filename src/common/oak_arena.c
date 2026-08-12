@@ -2,9 +2,10 @@
 
 #include <string.h>
 
-struct oak_arena_block_t
+typedef struct oak_arena_block oak_arena_block_t;
+struct oak_arena_block
 {
-  struct oak_arena_block_t* next;
+  oak_arena_block_t* next;
   usize capacity;
   usize used;
   char data[];
@@ -18,11 +19,11 @@ static usize align_up(usize n)
   return (n + mask) & ~mask;
 }
 
-static struct oak_arena_block_t* arena_new_block(struct oak_allocator_t* a,
+static oak_arena_block_t* arena_new_block(oak_allocator_t* a,
                                                  usize capacity)
 {
-  struct oak_arena_block_t* block =
-      OAK_ALLOC(a, sizeof(struct oak_arena_block_t) + capacity);
+  oak_arena_block_t* block =
+      OAK_ALLOC(a, sizeof(oak_arena_block_t) + capacity);
   if (!block)
     return null;
   block->next = null;
@@ -31,26 +32,26 @@ static struct oak_arena_block_t* arena_new_block(struct oak_allocator_t* a,
   return block;
 }
 
-void oak_arena_init(struct oak_arena_t* arena,
+void oak_arena_init(oak_arena_t* arena,
                     usize block_size,
-                    struct oak_allocator_t* allocator)
+                    oak_allocator_t* allocator)
 {
   arena->block_size = block_size ? block_size : OAK_ARENA_DEFAULT_BLOCK_SIZE;
   arena->current = null;
   arena->allocator = allocator;
 }
 
-void* oak_arena_alloc(struct oak_arena_t* arena, usize size)
+void* oak_arena_alloc(oak_arena_t* arena, usize size)
 {
   const usize aligned = align_up(size);
-  struct oak_arena_block_t* cur = arena->current;
+  oak_arena_block_t* cur = arena->current;
 
   if (!cur || cur->used + aligned > cur->capacity)
   {
     usize cap = arena->block_size;
     if (aligned > cap)
       cap = aligned;
-    struct oak_arena_block_t* block = arena_new_block(arena->allocator, cap);
+    oak_arena_block_t* block = arena_new_block(arena->allocator, cap);
     if (!block)
       return null;
     block->next = arena->current;
@@ -64,12 +65,12 @@ void* oak_arena_alloc(struct oak_arena_t* arena, usize size)
   return ptr;
 }
 
-void oak_arena_free(struct oak_arena_t* arena)
+void oak_arena_free(oak_arena_t* arena)
 {
-  struct oak_arena_block_t* block = arena->current;
+  oak_arena_block_t* block = arena->current;
   while (block)
   {
-    struct oak_arena_block_t* next = block->next;
+    oak_arena_block_t* next = block->next;
     OAK_FREE(arena->allocator, block);
     block = next;
   }

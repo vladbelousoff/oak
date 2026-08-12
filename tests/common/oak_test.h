@@ -3,9 +3,10 @@
 #include "oak_log.h"
 #include "oak_test_status.h"
 
-struct oak_test_t
+typedef struct oak_test oak_test_t;
+struct oak_test
 {
-  enum oak_test_status_t (*fn)(void);
+  oak_test_status_t (*fn)(void);
   const char* name;
 };
 
@@ -19,7 +20,7 @@ struct oak_test_t
  * Example (test_main.c registry):
  *   OAK_TEST_ENTRY(EmptyString),
  */
-#define OAK_TEST_DECL(fn_name) enum oak_test_status_t fn_name(void)
+#define OAK_TEST_DECL(fn_name) oak_test_status_t fn_name(void)
 
 #define OAK_TEST_ENTRY(label)                                                  \
   {                                                                            \

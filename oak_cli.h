@@ -2,7 +2,8 @@
 
 #include <stdio.h>
 
-struct oak_cli_args_t
+typedef struct oak_cli_args oak_cli_args_t;
+struct oak_cli_args
 {
   int allow_synthetic_modules;
   int disassemble;
@@ -26,6 +27,6 @@ struct oak_cli_args_t
  */
 int oak_cli_parse(int argc,
                   const char* const* argv,
-                  struct oak_cli_args_t* args);
+                  oak_cli_args_t* args);
 
 void oak_cli_usage(FILE* out);

@@ -11,7 +11,7 @@
 
 int main(void)
 {
-  struct oak_cli_args_t args;
+  oak_cli_args_t args;
 
   const char* no_debug_symbols[] = { "oak", "--no-debug-symbols", "main.oak" };
   CHECK(oak_cli_parse(3, no_debug_symbols, &args) == 0);

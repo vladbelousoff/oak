@@ -1,10 +1,10 @@
 #include "internal/oak_parser.h"
 
-static const struct oak_pratt_rule_t*
-find_pratt_rule(const struct oak_pratt_rule_t* rules,
-                const enum oak_token_kind_t token_kind)
+static const oak_pratt_rule_t*
+find_pratt_rule(const oak_pratt_rule_t* rules,
+                const oak_token_kind_t token_kind)
 {
-  for (const struct oak_pratt_rule_t* r = rules; r->kind != OAK_PRATT_END; r++)
+  for (const oak_pratt_rule_t* r = rules; r->kind != OAK_PRATT_END; r++)
   {
     if (token_kind == r->trigger_token)
       return r;
@@ -12,19 +12,19 @@ find_pratt_rule(const struct oak_pratt_rule_t* rules,
   return null;
 }
 
-static struct oak_ast_node_t*
-parse_pratt_unary(struct oak_parser_t* p,
-                  const enum oak_node_kind_t kind,
-                  const struct oak_pratt_rule_t* rule)
+static oak_ast_node_t*
+parse_pratt_unary(oak_parser_t* p,
+                  const oak_node_kind_t kind,
+                  const oak_pratt_rule_t* rule)
 {
-  struct oak_ast_node_t* operand = oak_parser_parse_pratt(p, kind, rule->r_bp);
+  oak_ast_node_t* operand = oak_parser_parse_pratt(p, kind, rule->r_bp);
   if (!operand)
   {
     oak_parser_detail_expected_node(p, rule->node_kind, kind);
     return null;
   }
-  struct oak_ast_node_t* node =
-      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+  oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
     return null;
   node->kind = rule->node_kind;
@@ -32,20 +32,20 @@ parse_pratt_unary(struct oak_parser_t* p,
   return node;
 }
 
-static struct oak_ast_node_t*
-parse_pratt_binary(struct oak_parser_t* p,
-                   const enum oak_node_kind_t kind,
-                   const struct oak_pratt_rule_t* rule,
-                   struct oak_ast_node_t* lhs)
+static oak_ast_node_t*
+parse_pratt_binary(oak_parser_t* p,
+                   const oak_node_kind_t kind,
+                   const oak_pratt_rule_t* rule,
+                   oak_ast_node_t* lhs)
 {
-  struct oak_ast_node_t* rhs = oak_parser_parse_pratt(p, kind, rule->r_bp);
+  oak_ast_node_t* rhs = oak_parser_parse_pratt(p, kind, rule->r_bp);
   if (!rhs)
   {
     oak_parser_detail_expected_node(p, rule->node_kind, kind);
     return null;
   }
-  struct oak_ast_node_t* node =
-      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+  oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
     return null;
   node->kind = rule->node_kind;
@@ -54,18 +54,18 @@ parse_pratt_binary(struct oak_parser_t* p,
   return node;
 }
 
-struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
-                                              const enum oak_node_kind_t kind,
+oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
+                                              const oak_node_kind_t kind,
                                               const int min_bp)
 {
-  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
-  struct oak_ast_node_t* lhs = null;
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
+  oak_ast_node_t* lhs = null;
 
   if (p->curr != p->head && entry->pratt.prefix)
   {
-    const struct oak_token_t* token =
-        oak_container_of(p->curr, struct oak_token_t, link);
-    const struct oak_pratt_rule_t* r =
+    const oak_token_t* token =
+        oak_container_of(p->curr, oak_token_t, link);
+    const oak_pratt_rule_t* r =
         find_pratt_rule(entry->pratt.prefix, oak_token_kind(token));
     if (r)
     {
@@ -108,10 +108,10 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
   {
     if (p->curr == p->head)
       break;
-    const struct oak_token_t* token =
-        oak_container_of(p->curr, struct oak_token_t, link);
+    const oak_token_t* token =
+        oak_container_of(p->curr, oak_token_t, link);
 
-    const struct oak_pratt_rule_t* rule =
+    const oak_pratt_rule_t* rule =
         find_pratt_rule(entry->pratt.infix, oak_token_kind(token));
     if (!rule || rule->l_bp < min_bp)
       break;
@@ -122,8 +122,8 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
     {
       case OAK_PRATT_CALL:
       {
-        struct oak_ast_node_t* call =
-            oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+        oak_ast_node_t* call =
+            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         if (!call)
           return null;
         call->kind = rule->node_kind;
@@ -132,11 +132,11 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
 
         while (p->curr != p->head)
         {
-          const struct oak_token_t* peek =
-              oak_container_of(p->curr, struct oak_token_t, link);
+          const oak_token_t* peek =
+              oak_container_of(p->curr, oak_token_t, link);
           if (oak_token_kind(peek) == rule->close_token)
             break;
-          struct oak_ast_node_t* arg = oak_parser_parse_rule(p, rule->arg_rule);
+          oak_ast_node_t* arg = oak_parser_parse_rule(p, rule->arg_rule);
           if (!arg)
           {
             oak_parser_detail_expected_node(p, rule->node_kind, rule->arg_rule);
@@ -156,7 +156,7 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
       }
       case OAK_PRATT_INDEX:
       {
-        struct oak_ast_node_t* index_expr = oak_parser_parse_pratt(p, kind, 0);
+        oak_ast_node_t* index_expr = oak_parser_parse_pratt(p, kind, 0);
         if (!index_expr)
         {
           oak_parser_detail_expected_node(p, rule->node_kind, kind);
@@ -167,8 +167,8 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
           oak_parser_detail_expected_token(p, rule->node_kind, rule->close_token);
           return null;
         }
-        struct oak_ast_node_t* node =
-            oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+        oak_ast_node_t* node =
+            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         if (!node)
           return null;
         node->kind = rule->node_kind;
@@ -179,15 +179,15 @@ struct oak_ast_node_t* oak_parser_parse_pratt(struct oak_parser_t* p,
       }
       case OAK_PRATT_CAST:
       {
-        struct oak_ast_node_t* type_node =
+        oak_ast_node_t* type_node =
             oak_parser_parse_rule(p, OAK_NODE_TYPE_NAME);
         if (!type_node)
         {
           oak_parser_detail_expected_node(p, rule->node_kind, OAK_NODE_TYPE_NAME);
           return null;
         }
-        struct oak_ast_node_t* node =
-            oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+        oak_ast_node_t* node =
+            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         if (!node)
           return null;
         node->kind = rule->node_kind;

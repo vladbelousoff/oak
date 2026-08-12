@@ -83,7 +83,7 @@ int main(const int argc, char* argv[])
 {
   (void)argc;
   (void)argv;
-  static struct oak_test_t tests[] = {
+  static oak_test_t tests[] = {
     OAK_TEST_ENTRY(QualifiedVariantAccessOk),
     OAK_TEST_ENTRY(SpaceSeparatedVariantsRejected),
     OAK_TEST_ENTRY(TrailingCommaOk),

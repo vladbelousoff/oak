@@ -13,25 +13,27 @@
 #define DAP_BUFFER_SIZE 65536
 #define DAP_VALUE_REFS  512
 
-struct dap_value_ref_t
+typedef struct dap_value_ref dap_value_ref_t;
+struct dap_value_ref
 {
-  struct oak_value_t value;
+  oak_value_t value;
 };
 
-struct oak_dap_t
+typedef struct oak_dap oak_dap_t;
+struct oak_dap
 {
-  struct oak_net_socket_t client;
+  oak_net_socket_t client;
   int outgoing_seq;
   int configured;
   int stopped;
   char input[DAP_BUFFER_SIZE];
   usize input_len;
-  struct dap_value_ref_t refs[DAP_VALUE_REFS];
+  dap_value_ref_t refs[DAP_VALUE_REFS];
   int ref_count;
-  const struct oak_chunk_t* program;
+  const oak_chunk_t* program;
 };
 
-static void send_doc(struct oak_dap_t* dap, yyjson_mut_doc* doc)
+static void send_doc(oak_dap_t* dap, yyjson_mut_doc* doc)
 {
   size_t len = 0;
   char* json = yyjson_mut_write(doc, 0, &len);
@@ -48,7 +50,7 @@ static void send_doc(struct oak_dap_t* dap, yyjson_mut_doc* doc)
 }
 
 static yyjson_mut_doc*
-message_doc(struct oak_dap_t* dap, const char* type, yyjson_mut_val** out)
+message_doc(oak_dap_t* dap, const char* type, yyjson_mut_val** out)
 {
   yyjson_mut_doc* doc = yyjson_mut_doc_new(null);
   yyjson_mut_val* root = yyjson_mut_obj(doc);
@@ -59,7 +61,7 @@ message_doc(struct oak_dap_t* dap, const char* type, yyjson_mut_val** out)
   return doc;
 }
 
-static void send_event(struct oak_dap_t* dap,
+static void send_event(oak_dap_t* dap,
                        const char* event,
                        yyjson_mut_val* body,
                        yyjson_mut_doc* doc)
@@ -71,7 +73,7 @@ static void send_event(struct oak_dap_t* dap,
   send_doc(dap, doc);
 }
 
-static yyjson_mut_doc* response_doc(struct oak_dap_t* dap,
+static yyjson_mut_doc* response_doc(oak_dap_t* dap,
                                     int request_seq,
                                     const char* command,
                                     yyjson_mut_val** root)
@@ -83,7 +85,7 @@ static yyjson_mut_doc* response_doc(struct oak_dap_t* dap,
   return doc;
 }
 
-static void send_response(struct oak_dap_t* dap,
+static void send_response(oak_dap_t* dap,
                           int request_seq,
                           const char* command,
                           yyjson_mut_val* body,
@@ -98,7 +100,7 @@ static void send_response(struct oak_dap_t* dap,
 }
 
 static void
-send_empty_response(struct oak_dap_t* dap, int request_seq, const char* command)
+send_empty_response(oak_dap_t* dap, int request_seq, const char* command)
 {
   yyjson_mut_val* root;
   yyjson_mut_doc* doc = response_doc(dap, request_seq, command, &root);
@@ -152,13 +154,13 @@ static int source_matches(const char* a, const char* b)
   return *a == *b;
 }
 
-static int value_expandable(const struct oak_value_t value)
+static int value_expandable(const oak_value_t value)
 {
   return oak_is_array(value) || oak_is_map(value) || oak_is_record(value) ||
          oak_is_interface_object(value);
 }
 
-static const char* value_type(const struct oak_value_t value)
+static const char* value_type(const oak_value_t value)
 {
   if (oak_is_none_like(value))
     return "none";
@@ -179,7 +181,7 @@ static const char* value_type(const struct oak_value_t value)
   return "value";
 }
 
-static int add_value_ref(struct oak_dap_t* dap, struct oak_value_t value)
+static int add_value_ref(oak_dap_t* dap, oak_value_t value)
 {
   if (!value_expandable(value) || dap->ref_count >= DAP_VALUE_REFS)
     return 0;
@@ -187,11 +189,11 @@ static int add_value_ref(struct oak_dap_t* dap, struct oak_value_t value)
   return ++dap->ref_count;
 }
 
-static void add_variable(struct oak_dap_t* dap,
+static void add_variable(oak_dap_t* dap,
                          yyjson_mut_doc* doc,
                          yyjson_mut_val* vars,
                          const char* name,
-                         struct oak_value_t value)
+                         oak_value_t value)
 {
   char repr[256];
   oak_value_snprint_repr(repr, sizeof(repr), value);
@@ -204,27 +206,28 @@ static void add_variable(struct oak_dap_t* dap,
   yyjson_mut_arr_add_val(vars, var);
 }
 
-struct dap_frame_t
+typedef struct dap_frame dap_frame_t;
+struct dap_frame
 {
-  const struct oak_chunk_t* chunk;
+  const oak_chunk_t* chunk;
   usize offset;
   usize stack_base;
   const char* name;
 };
 
-static int frame_at(const struct oak_vm_t* vm, int id, struct dap_frame_t* out)
+static int frame_at(const oak_vm_t* vm, int id, dap_frame_t* out)
 {
   if (id < 0 || id > vm->frame_count)
     return 0;
   if (id == 0)
   {
     out->chunk = vm->chunk;
-    out->offset = (usize)(vm->ip - vm->chunk->bytecode);
+    out->offset = (usize)(vm->ip - oak_chunk_code(vm->chunk));
     out->stack_base = vm->stack_base;
     out->name = "<current>";
     if (vm->frame_count > 0)
     {
-      const struct oak_call_frame_t* fr = &vm->frames[vm->frame_count - 1];
+      const oak_call_frame_t* fr = &vm->frames[vm->frame_count - 1];
       if (fr->fn_slot < OAK_STACK_MAX && oak_is_fn(vm->stack[fr->fn_slot]))
       {
         const char* name = oak_as_fn(vm->stack[fr->fn_slot])->name;
@@ -236,16 +239,16 @@ static int frame_at(const struct oak_vm_t* vm, int id, struct dap_frame_t* out)
   }
 
   const int idx = vm->frame_count - id;
-  const struct oak_call_frame_t* fr = &vm->frames[idx];
+  const oak_call_frame_t* fr = &vm->frames[idx];
   out->chunk = fr->return_chunk;
-  out->offset = (usize)(fr->return_ip - out->chunk->bytecode);
+  out->offset = (usize)(fr->return_ip - oak_chunk_code(out->chunk));
   if (out->offset > 0)
     --out->offset;
   out->stack_base = fr->caller_stack_base;
   out->name = "<caller>";
   if (idx > 0)
   {
-    const struct oak_call_frame_t* caller = &vm->frames[idx - 1];
+    const oak_call_frame_t* caller = &vm->frames[idx - 1];
     if (caller->fn_slot < OAK_STACK_MAX &&
         oak_is_fn(vm->stack[caller->fn_slot]))
     {
@@ -257,21 +260,21 @@ static int frame_at(const struct oak_vm_t* vm, int id, struct dap_frame_t* out)
   return 1;
 }
 
-static void add_frame_locals(struct oak_dap_t* dap,
-                             const struct oak_vm_t* vm,
+static void add_frame_locals(oak_dap_t* dap,
+                             const oak_vm_t* vm,
                              int frame_id,
                              yyjson_mut_doc* doc,
                              yyjson_mut_val* vars,
                              const char* only_name)
 {
-  struct dap_frame_t frame;
+  dap_frame_t frame;
   if (!frame_at(vm, frame_id, &frame) || !frame.chunk->debug)
     return;
-  const struct oak_chunk_debug_t* d = frame.chunk->debug;
+  const oak_chunk_debug_t* d = frame.chunk->debug;
   int printed[OAK_STACK_MAX] = { 0 };
-  for (usize i = d->debug_count; i > 0; --i)
+  for (usize i = oak_size(d->debug_locals); i > 0; --i)
   {
-    const struct oak_debug_local_t* local = &d->debug_locals[i - 1];
+    const oak_debug_local_t* local = (const oak_debug_local_t*)oak_cget(d->debug_locals, i - 1);
     if (local->slot < 0 || local->slot >= OAK_STACK_MAX ||
         local->offset > frame.offset ||
         (local->end_offset != (usize)-1 && frame.offset >= local->end_offset) ||
@@ -286,9 +289,9 @@ static void add_frame_locals(struct oak_dap_t* dap,
   }
 }
 
-static void handle_set_breakpoints(struct oak_dap_t* dap,
-                                   struct oak_debugger_t* dbg,
-                                   const struct oak_vm_t* vm,
+static void handle_set_breakpoints(oak_dap_t* dap,
+                                   oak_debugger_t* dbg,
+                                   const oak_vm_t* vm,
                                    int seq,
                                    const char* command,
                                    yyjson_val* args)
@@ -309,19 +312,21 @@ static void handle_set_breakpoints(struct oak_dap_t* dap,
     const int line = obj_int(item, "line");
     int executable = 0;
     const int module_count =
-        vm->modules ? oak_dynarr_count(vm->modules->modules) : 0;
+        vm->modules ? (int)oak_size(vm->modules->modules) : 0;
+    oak_module_t* const* modules =
+        vm->modules ? OAK_DATA(oak_module_t*, vm->modules->modules)
+                    : null;
     for (int module_idx = -1; module_idx < module_count && !executable;
          ++module_idx)
     {
-      const struct oak_chunk_t* chunk =
-          module_idx < 0 ? dap->program
-                         : vm->modules->modules[module_idx]->chunk;
+      const oak_chunk_t* chunk =
+          module_idx < 0 ? dap->program : modules[module_idx]->chunk;
       if (!chunk || !chunk->debug || !chunk->debug->source_name ||
           !source_matches(chunk->debug->source_name, path))
         continue;
-      for (usize off = 0; off < chunk->count; ++off)
+      for (usize off = 0; off < oak_chunk_size(chunk); ++off)
       {
-        if (chunk->debug->locations[off].line == line)
+        if (oak_chunk_loc(chunk, off).line == line)
         {
           executable = 1;
           break;
@@ -339,8 +344,8 @@ static void handle_set_breakpoints(struct oak_dap_t* dap,
   send_response(dap, seq, command, body, doc, root);
 }
 
-static void handle_stack_trace(struct oak_dap_t* dap,
-                               const struct oak_vm_t* vm,
+static void handle_stack_trace(oak_dap_t* dap,
+                               const oak_vm_t* vm,
                                int seq,
                                const char* command)
 {
@@ -350,16 +355,16 @@ static void handle_stack_trace(struct oak_dap_t* dap,
   yyjson_mut_val* frames = yyjson_mut_obj_add_arr(doc, body, "stackFrames");
   for (int id = 0; id <= vm->frame_count; ++id)
   {
-    struct dap_frame_t frame;
+    dap_frame_t frame;
     if (!frame_at(vm, id, &frame))
       continue;
     int line = 0;
     int column = 1;
     const char* source = null;
-    if (frame.chunk->debug && frame.offset < frame.chunk->count)
+    if (frame.chunk->debug && frame.offset < oak_chunk_size(frame.chunk))
     {
-      line = frame.chunk->debug->locations[frame.offset].line;
-      column = frame.chunk->debug->locations[frame.offset].column;
+      line = oak_chunk_loc(frame.chunk, frame.offset).line;
+      column = oak_chunk_loc(frame.chunk, frame.offset).column;
       source = frame.chunk->debug->source_name;
     }
     yyjson_mut_val* f = yyjson_mut_obj(doc);
@@ -379,8 +384,8 @@ static void handle_stack_trace(struct oak_dap_t* dap,
   send_response(dap, seq, command, body, doc, root);
 }
 
-static void handle_variables(struct oak_dap_t* dap,
-                             const struct oak_vm_t* vm,
+static void handle_variables(oak_dap_t* dap,
+                             const oak_vm_t* vm,
                              int seq,
                              const char* command,
                              yyjson_val* args)
@@ -395,10 +400,10 @@ static void handle_variables(struct oak_dap_t* dap,
     add_frame_locals(dap, vm, ref - 1000, doc, vars, null);
   else if (ref > 0 && ref <= dap->ref_count)
   {
-    const struct oak_value_t value = dap->refs[ref - 1].value;
+    const oak_value_t value = dap->refs[ref - 1].value;
     if (oak_is_array(value))
     {
-      const struct oak_obj_array_t* a = oak_as_array(value);
+      const oak_obj_array_t* a = oak_as_array(value);
       for (usize i = 0; i < a->length; ++i)
       {
         char name[32];
@@ -408,7 +413,7 @@ static void handle_variables(struct oak_dap_t* dap,
     }
     else if (oak_is_map(value))
     {
-      const struct oak_obj_map_t* map = oak_as_map(value);
+      const oak_obj_map_t* map = oak_as_map(value);
       for (usize i = 0; i < map->length; ++i)
       {
         char name[256];
@@ -418,7 +423,7 @@ static void handle_variables(struct oak_dap_t* dap,
     }
     else if (oak_is_record(value))
     {
-      const struct oak_obj_record_t* rec = oak_as_record(value);
+      const oak_obj_record_t* rec = oak_as_record(value);
       for (int i = 0; i < rec->field_count; ++i)
       {
         char fallback[32];
@@ -436,9 +441,9 @@ static void handle_variables(struct oak_dap_t* dap,
   send_response(dap, seq, command, body, doc, root);
 }
 
-static void handle_request(struct oak_dap_t* dap,
-                           struct oak_debugger_t* dbg,
-                           struct oak_vm_t* vm,
+static void handle_request(oak_dap_t* dap,
+                           oak_debugger_t* dbg,
+                           oak_vm_t* vm,
                            yyjson_val* request)
 {
   const int seq = obj_int(request, "seq");
@@ -548,8 +553,8 @@ static void handle_request(struct oak_dap_t* dap,
       dbg->mode = OAK_DEBUG_MODE_FINISH;
     if (vm->chunk && vm->chunk->debug && vm->ip)
     {
-      const usize off = (usize)(vm->ip - vm->chunk->bytecode);
-      dbg->step_line = vm->chunk->debug->locations[off].line;
+      const usize off = (usize)(vm->ip - oak_chunk_code(vm->chunk));
+      dbg->step_line = oak_chunk_loc(vm->chunk, off).line;
       dbg->step_source = vm->chunk->debug->source_name;
       dbg->step_frame_count = vm->frame_count;
     }
@@ -572,9 +577,9 @@ static void handle_request(struct oak_dap_t* dap,
     send_empty_response(dap, seq, command);
 }
 
-static int process_messages(struct oak_dap_t* dap,
-                            struct oak_debugger_t* dbg,
-                            struct oak_vm_t* vm)
+static int process_messages(oak_dap_t* dap,
+                            oak_debugger_t* dbg,
+                            oak_vm_t* vm)
 {
   int processed = 0;
   for (;;)
@@ -609,9 +614,9 @@ static int process_messages(struct oak_dap_t* dap,
   }
 }
 
-static int receive_messages(struct oak_dap_t* dap,
-                            struct oak_debugger_t* dbg,
-                            struct oak_vm_t* vm,
+static int receive_messages(oak_dap_t* dap,
+                            oak_debugger_t* dbg,
+                            oak_vm_t* vm,
                             int block)
 {
   const int ready = oak_net_wait_readable(dap->client, block ? -1 : 0);
@@ -628,20 +633,20 @@ static int receive_messages(struct oak_dap_t* dap,
   return process_messages(dap, dbg, vm);
 }
 
-void oak_dap_poll(struct oak_debugger_t* dbg, struct oak_vm_t* vm)
+void oak_dap_poll(oak_debugger_t* dbg, oak_vm_t* vm)
 {
-  struct oak_dap_t* dap = dbg->dap_ctx;
+  oak_dap_t* dap = dbg->dap_ctx;
   if (!dap)
     return;
   if (receive_messages(dap, dbg, vm, 0) < 0)
     dbg->quit_requested = 1;
 }
 
-void oak_dap_stopped(struct oak_debugger_t* dbg,
-                     struct oak_vm_t* vm,
+void oak_dap_stopped(oak_debugger_t* dbg,
+                     oak_vm_t* vm,
                      const char* reason)
 {
-  struct oak_dap_t* dap = dbg->dap_ctx;
+  oak_dap_t* dap = dbg->dap_ctx;
   dap->stopped = 1;
   dap->ref_count = 0;
   yyjson_mut_val* root;
@@ -658,13 +663,13 @@ void oak_dap_stopped(struct oak_debugger_t* dbg,
   }
 }
 
-enum oak_vm_result_t oak_dap_serve(struct oak_debugger_t* dbg,
-                                   struct oak_vm_t* vm,
-                                   struct oak_chunk_t* chunk,
+oak_vm_result_t oak_dap_serve(oak_debugger_t* dbg,
+                                   oak_vm_t* vm,
+                                   oak_chunk_t* chunk,
                                    int port)
 {
   int actual_port = port;
-  struct oak_net_socket_t server = { OAK_NET_INVALID };
+  oak_net_socket_t server = { OAK_NET_INVALID };
   if (!oak_net_init())
     return OAK_VM_RUNTIME_ERROR;
   if (!oak_net_listen_loopback(port, &actual_port, &server))
@@ -675,7 +680,7 @@ enum oak_vm_result_t oak_dap_serve(struct oak_debugger_t* dbg,
   fprintf(stderr, "OAK_DAP_PORT=%d\n", actual_port);
   fflush(stderr);
 
-  struct oak_dap_t dap;
+  oak_dap_t dap;
   memset(&dap, 0, sizeof(dap));
   dap.client.handle = OAK_NET_INVALID;
   dap.program = chunk;
@@ -696,7 +701,7 @@ enum oak_vm_result_t oak_dap_serve(struct oak_debugger_t* dbg,
       dbg->quit_requested = 1;
   }
 
-  enum oak_vm_result_t result = OAK_VM_DEBUG_HALT;
+  oak_vm_result_t result = OAK_VM_DEBUG_HALT;
   if (!dbg->quit_requested)
     result = oak_vm_run(vm, chunk);
 

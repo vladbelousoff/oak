@@ -1,13 +1,13 @@
 #include "internal/oak_module_loader.h"
 #include "internal/oak_lexer.h"
 
-void loader_error(struct oak_module_loader_result_t* out,
+void loader_error(oak_module_loader_result_t* out,
                   const char* fmt,
                   ...)
 {
   if (out->error_count >= OAK_MAX_DIAGNOSTICS)
     return;
-  struct oak_diagnostic_t* d = &out->errors[out->error_count++];
+  oak_diagnostic_t* d = &out->errors[out->error_count++];
   d->line = 0;
   d->column = 0;
   va_list ap;
@@ -16,14 +16,14 @@ void loader_error(struct oak_module_loader_result_t* out,
   va_end(ap);
 }
 
-void loader_propagate_diagnostics(struct oak_module_loader_result_t* out,
+void loader_propagate_diagnostics(oak_module_loader_result_t* out,
                                   const char* mod_label,
-                                  const struct oak_diagnostic_t* src,
+                                  const oak_diagnostic_t* src,
                                   int src_count)
 {
   for (int i = 0; i < src_count && out->error_count < OAK_MAX_DIAGNOSTICS; ++i)
   {
-    struct oak_diagnostic_t* d = &out->errors[out->error_count++];
+    oak_diagnostic_t* d = &out->errors[out->error_count++];
     d->line = src[i].line;
     d->column = src[i].column;
     snprintf(d->message,
@@ -34,26 +34,25 @@ void loader_propagate_diagnostics(struct oak_module_loader_result_t* out,
   }
 }
 
-const struct oak_token_t* loader_import_alias_token(
-    const struct loader_import_t* imp)
+const oak_token_t* loader_import_alias_token(
+    const loader_import_t* imp)
 {
   if (imp->alias_node)
     return imp->alias_node->token;
   return null;
 }
 
-int collect_imports(const struct oak_module_t* mod,
-                    struct loader_import_t** out)
+int collect_imports(const oak_module_t* mod, oak_container_t* out)
 {
-  const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
+  const oak_ast_node_t* root = oak_parser_root(&mod->parser);
   if (!root)
     return 0;
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &root->children)
   {
-    const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    struct loader_import_t imp = { 0 };
+    const oak_ast_node_t* item =
+        oak_container_of(pos, oak_ast_node_t, link);
+    loader_import_t imp = { 0 };
     if (item->kind == OAK_NODE_IMPORT_SELECTIVE)
     {
       imp.path = item->rhs;
@@ -73,22 +72,22 @@ int collect_imports(const struct oak_module_t* mod,
     {
       continue;
     }
-    oak_assert(oak_dynarr_push(out, &imp));
+    oak_assert(oak_push_back(out, &imp));
   }
-  return oak_dynarr_count(*out);
+  return (int)oak_size(out);
 }
 
 static int validate_imported_module_body(
-    struct oak_module_loader_result_t* out,
-    const struct oak_module_t* mod,
-    const struct oak_ast_node_t* root)
+    oak_module_loader_result_t* out,
+    const oak_module_t* mod,
+    const oak_ast_node_t* root)
 {
   int ok = 1;
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &root->children)
   {
-    const struct oak_ast_node_t* item =
-        loader_unwrap_decl(oak_container_of(pos, struct oak_ast_node_t, link));
+    const oak_ast_node_t* item =
+        loader_unwrap_decl(oak_container_of(pos, oak_ast_node_t, link));
     if (!item)
       continue;
     switch (item->kind)
@@ -115,12 +114,12 @@ static int validate_imported_module_body(
   return ok;
 }
 
-int compile_module(struct oak_module_t* mod,
-                   struct oak_compile_options_t* base_opts,
-                   struct oak_module_registry_t* reg,
-                   struct oak_module_loader_result_t* out)
+int compile_module(oak_module_t* mod,
+                   oak_compile_options_t* base_opts,
+                   oak_module_registry_t* reg,
+                   oak_module_loader_result_t* out)
 {
-  struct oak_compile_options_t opts = *base_opts;
+  oak_compile_options_t opts = *base_opts;
   opts.source_name = mod->canonical_path;
   opts.module_registry = reg;
   opts.current_module = mod;
@@ -133,7 +132,7 @@ int compile_module(struct oak_module_t* mod,
     return -1;
   }
 
-  struct oak_compile_result_t cr = { 0 };
+  oak_compile_result_t cr = { 0 };
   oak_compile_ex(oak_parser_root(&mod->parser), &opts, &cr);
 
   if (cr.error_count > 0)
@@ -157,15 +156,15 @@ int compile_module(struct oak_module_t* mod,
   return 0;
 }
 
-struct oak_module_t* parse_or_get_module(
-    struct oak_module_registry_t* reg,
+oak_module_t* parse_or_get_module(
+    oak_module_registry_t* reg,
     const char* canonical_path,
     const char* dotted_name,
     int is_entry,
-    struct oak_module_loader_result_t* out,
+    oak_module_loader_result_t* out,
     int* created)
 {
-  struct oak_module_t* existing =
+  oak_module_t* existing =
       oak_module_registry_find_by_path(reg, canonical_path);
   if (existing)
   {
@@ -173,8 +172,8 @@ struct oak_module_t* parse_or_get_module(
     return existing;
   }
   *created = 1;
-  struct oak_module_t* mod =
-      oak_module_registry_create(reg, canonical_path, dotted_name);
+  oak_module_t* mod =
+      oak_module_registry_new(reg, canonical_path, dotted_name);
   if (!mod)
   {
     loader_error(out, "out of memory creating module '%s'", canonical_path);
@@ -195,8 +194,8 @@ struct oak_module_t* parse_or_get_module(
                   out->error_count < OAK_MAX_DIAGNOSTICS;
        ++i)
   {
-    const struct oak_diagnostic_t* d = &oak_parser_errors(&mod->parser)[i];
-    struct oak_diagnostic_t* dst = &out->errors[out->error_count++];
+    const oak_diagnostic_t* d = &oak_parser_errors(&mod->parser)[i];
+    oak_diagnostic_t* dst = &out->errors[out->error_count++];
     dst->line = d->line;
     dst->column = d->column;
     snprintf(dst->message,
@@ -206,7 +205,7 @@ struct oak_module_t* parse_or_get_module(
              d->message);
   }
 
-  const struct oak_ast_node_t* root = oak_parser_root(&mod->parser);
+  const oak_ast_node_t* root = oak_parser_root(&mod->parser);
   if (!root)
     return null;
   if (!is_entry && !validate_imported_module_body(out, mod, root))

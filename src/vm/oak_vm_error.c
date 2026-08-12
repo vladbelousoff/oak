@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-const char* oak_vm_value_kind_desc(const struct oak_value_t v)
+const char* oak_vm_value_kind_desc(const oak_value_t v)
 {
   if (oak_is_none_like(v))
     return "none";
@@ -29,7 +29,7 @@ const char* oak_vm_value_kind_desc(const struct oak_value_t v)
   return "value";
 }
 
-void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
+void oak_vm_runtime_error(const oak_vm_t* vm, const char* fmt, ...)
 {
   static _Thread_local char buf[512];
   va_list ap;
@@ -37,7 +37,7 @@ void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
-  const struct oak_chunk_t* chunk = vm->chunk;
+  const oak_chunk_t* chunk = vm->chunk;
   if (!chunk || !chunk->debug || !chunk->debug->locations)
   {
     oak_log(OAK_LOG_ERROR, "error: %s", buf);
@@ -48,15 +48,15 @@ void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
    * trampoline outside this chunk; mapping it to a source location would
    * index the locations array out of bounds. */
   const uintptr_t ip = (uintptr_t)vm->ip;
-  const uintptr_t code = (uintptr_t)chunk->bytecode;
-  if (ip <= code || ip > code + chunk->count)
+  const uintptr_t code = (uintptr_t)oak_chunk_code(chunk);
+  if (ip <= code || ip > code + oak_chunk_size(chunk))
   {
     oak_log(OAK_LOG_ERROR, "error: %s", buf);
     return;
   }
 
   const usize offset = (usize)(ip - code) - 1u;
-  const struct oak_code_loc_t loc = chunk->debug->locations[offset];
+  const oak_code_loc_t loc = oak_chunk_loc(chunk, offset);
   int col = loc.column;
   if (col < 1)
     col = 1;
@@ -64,7 +64,7 @@ void oak_vm_runtime_error(const struct oak_vm_t* vm, const char* fmt, ...)
   oak_log(OAK_LOG_ERROR, "%d:%d: error: %s", loc.line, col, buf);
 }
 
-void oak_vm_report_stack_overflow(const struct oak_vm_t* vm)
+void oak_vm_report_stack_overflow(const oak_vm_t* vm)
 {
   oak_vm_runtime_error(vm, "stack overflow (max %d values)", OAK_STACK_MAX);
 }

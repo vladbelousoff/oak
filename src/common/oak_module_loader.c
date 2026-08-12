@@ -1,17 +1,20 @@
 #include "internal/oak_module_loader.h"
 
 
-struct loader_frame_t
+typedef struct loader_frame loader_frame_t;
+struct loader_frame
 {
-  struct oak_module_t* mod;
-  struct loader_import_t* imports;
-  int next_import_idx;
+  oak_module_t* mod;
+  /* loader_import_t */
+  oak_container_t* imports;
+  usize next_import_idx;
 };
 
 /* Where stdlib_resolve found (or committed to) a base directory. Anything other
  * than FALLBACK is authoritative: on a miss the caller must report an error
  * rather than degrade to a synthetic native module or a different stdlib. */
-enum stdlib_origin_t
+typedef enum stdlib_origin stdlib_origin_t;
+enum stdlib_origin
 {
   STDLIB_ORIGIN_FALLBACK = 0, /* baked source dir / CWD; miss may be native */
   STDLIB_ORIGIN_OVERRIDE,     /* $OAK_STDLIB_DIR */
@@ -49,8 +52,8 @@ enum stdlib_origin_t
  * existing candidate, or the chosen authoritative / last-resort path so the
  * caller's error reporting stays sensible. The returned string is owned by the
  * caller. */
-static char* stdlib_resolve(struct oak_allocator_t* a, const char* dotted,
-                            enum stdlib_origin_t* origin)
+static char* stdlib_resolve(oak_allocator_t* a, const char* dotted,
+                            stdlib_origin_t* origin)
 {
   *origin = STDLIB_ORIGIN_FALLBACK;
 
@@ -94,69 +97,64 @@ static char* stdlib_resolve(struct oak_allocator_t* a, const char* dotted,
 
 
 int oak_module_loader_load_program(const char* entry_path,
-                                   struct oak_compile_options_t* opts,
-                                   struct oak_module_registry_t* out_reg,
-                                   struct oak_module_loader_result_t* out)
+                                   oak_compile_options_t* opts,
+                                   oak_module_registry_t* out_reg,
+                                   oak_module_loader_result_t* out)
 {
   out->entry = null;
   out->error_count = 0;
-  struct oak_allocator_t* a = out_reg->allocator;
+  oak_allocator_t* a = out_reg->allocator;
 
   char* entry_canonical = path_canonicalize(a, entry_path);
 
   int created = 0;
-  struct oak_module_t* entry = parse_or_get_module(
+  oak_module_t* entry = parse_or_get_module(
       out_reg, entry_canonical, "<entry>", 1, out, &created);
   OAK_FREE(a, entry_canonical);
   if (!entry || out->error_count > 0)
     return -1;
 
-  struct loader_frame_t* stack;
-  oak_assert(oak_dynarr_init(a, &stack, sizeof *stack));
-  struct oak_module_t** topo;
-  oak_assert(oak_dynarr_init(a, &topo, sizeof *topo));
-  char* visiting;
-  oak_assert(oak_dynarr_init(a, &visiting, sizeof *visiting));
-  char* visited;
-  oak_assert(oak_dynarr_init(a, &visited, sizeof *visited));
+  oak_container_t* stack = oak_vector_new(a, sizeof(loader_frame_t));
+  oak_container_t* topo = oak_vector_new(a, sizeof(oak_module_t*));
+  /* Per-module-id DFS colours, indexed by module_id. */
+  oak_container_t* visiting = oak_vector_new(a, sizeof(char));
+  oak_container_t* visited = oak_vector_new(a, sizeof(char));
+  oak_assert(stack && topo && visiting && visited);
 
 #define ENSURE_FLAGS(_id)                                                      \
   do                                                                           \
   {                                                                            \
-    while (oak_dynarr_count(visiting) <= (int)(_id))                           \
-    {                                                                          \
-      char _zz = 0;                                                            \
-      oak_assert(oak_dynarr_push(&visiting, &_zz));                            \
-    }                                                                          \
-    while (oak_dynarr_count(visited) <= (int)(_id))                            \
-    {                                                                          \
-      char _zz = 0;                                                            \
-      oak_assert(oak_dynarr_push(&visited, &_zz));                             \
-    }                                                                          \
+    /* Grow only. oak_resize would truncate, losing colours, if a lower       \
+     * module id turned up later; new slots are zero-filled. */               \
+    if (oak_size(visiting) <= (usize)(_id))                                   \
+      oak_assert(oak_resize(visiting, (usize)(_id) + 1u));                    \
+    if (oak_size(visited) <= (usize)(_id))                                    \
+      oak_assert(oak_resize(visited, (usize)(_id) + 1u));                     \
   } while (0)
 
   ENSURE_FLAGS(entry->module_id);
-  visiting[entry->module_id] = 1;
+  OAK_DATA(char, visiting)[entry->module_id] = 1;
   {
-    struct loader_frame_t entry_frame;
+    loader_frame_t entry_frame;
     entry_frame.mod = entry;
-    oak_assert(
-        oak_dynarr_init(a, &entry_frame.imports, sizeof *entry_frame.imports));
-    collect_imports(entry, &entry_frame.imports);
+    entry_frame.imports = oak_vector_new(a, sizeof(loader_import_t));
+    oak_assert(entry_frame.imports);
+    collect_imports(entry, entry_frame.imports);
     entry_frame.next_import_idx = 0;
-    oak_assert(oak_dynarr_push(&stack, &entry_frame));
+    oak_assert(oak_push_back(stack, &entry_frame));
   }
 
 #define RECORD_ALIAS(_parent_mod, _imp, _dep_id)                               \
   do                                                                           \
   {                                                                            \
-    const struct oak_token_t* _atk = loader_import_alias_token(_imp);          \
+    const oak_token_t* _atk = loader_import_alias_token(_imp);          \
     if (_atk)                                                                  \
     {                                                                          \
       const char* _a = oak_token_text(_atk);                                   \
       const int _al = oak_token_size(_atk);                                \
-      if (oak_htable_get(&(_parent_mod)->imports, _a, _al) < 0)                \
-        oak_htable_insert(&(_parent_mod)->imports, _a, _al, (int)(_dep_id));   \
+      const usize _mid = (usize)(_dep_id);                                    \
+      if (!oak_contains((_parent_mod)->imports, _a, (usize)_al))               \
+        oak_put((_parent_mod)->imports, _a, (usize)_al, &_mid);                \
       else                                                                     \
       {                                                                        \
         loader_error(out,                                                      \
@@ -170,21 +168,21 @@ int oak_module_loader_load_program(const char* entry_path,
   } while (0)
 
   int rc = 0;
-  while (oak_dynarr_count(stack) > 0 && rc == 0)
+  while (oak_size(stack) > 0 && rc == 0)
   {
-    struct loader_frame_t* top = &stack[oak_dynarr_count(stack) - 1];
-    if (top->next_import_idx >= oak_dynarr_count(top->imports))
+    loader_frame_t* top = oak_get(stack, oak_size(stack) - 1);
+    if (top->next_import_idx >= oak_size(top->imports))
     {
-      visiting[top->mod->module_id] = 0;
-      visited[top->mod->module_id] = 1;
-      oak_assert(oak_dynarr_push(&topo, &top->mod));
-      oak_dynarr_free(&top->imports);
-      oak_assert(oak_dynarr_pop(&stack, null));
+      OAK_DATA(char, visiting)[top->mod->module_id] = 0;
+      OAK_DATA(char, visited)[top->mod->module_id] = 1;
+      oak_assert(oak_push_back(topo, &top->mod));
+      oak_destroy(top->imports);
+      oak_assert(oak_pop_back(stack, null));
       continue;
     }
 
-    const struct loader_import_t* imp =
-        &top->imports[top->next_import_idx++];
+    const loader_import_t* imp =
+        oak_cget(top->imports, top->next_import_idx++);
     if (!imp->path)
     {
       loader_error(out, "%s: malformed import", top->mod->dotted_name);
@@ -205,7 +203,7 @@ int oak_module_loader_load_program(const char* entry_path,
        * error: report the path rather than degrading to a synthetic native
        * module (which would silently drop stub-only declarations) or to a
        * different stdlib. */
-      enum stdlib_origin_t origin = STDLIB_ORIGIN_FALLBACK;
+      stdlib_origin_t origin = STDLIB_ORIGIN_FALLBACK;
       file_path = stdlib_resolve(a, dotted, &origin);
       if (origin != STDLIB_ORIGIN_FALLBACK && !path_exists(file_path))
       {
@@ -249,7 +247,7 @@ int oak_module_loader_load_program(const char* entry_path,
         rc = -1;
         break;
       }
-      struct oak_module_t* dep =
+      oak_module_t* dep =
           create_native_module(out_reg, opts, dotted, out);
       if (!dep || out->error_count > 0)
       {
@@ -257,12 +255,12 @@ int oak_module_loader_load_program(const char* entry_path,
         rc = -1;
         break;
       }
-      const struct oak_token_t* atk = loader_import_alias_token(imp);
+      const oak_token_t* atk = loader_import_alias_token(imp);
       if (atk)
       {
         const char* alias = oak_token_text(atk);
         const int alen = oak_token_size(atk);
-        if (oak_htable_get(&top->mod->imports, alias, alen) >= 0)
+        if (oak_contains(top->mod->imports, alias, (usize)alen))
         {
           loader_error(out,
                        "%s: duplicate import alias '%.*s'",
@@ -273,11 +271,12 @@ int oak_module_loader_load_program(const char* entry_path,
           rc = -1;
           break;
         }
-        oak_htable_insert(&top->mod->imports, alias, alen, (int)dep->module_id);
+        const usize dep_module_id = dep->module_id;
+        oak_put(top->mod->imports, alias, (usize)alen, &dep_module_id);
       }
-      oak_assert(oak_dynarr_push(&top->mod->import_modules, &dep->module_id));
+      oak_assert(oak_push_back(top->mod->import_modules, &dep->module_id));
       ENSURE_FLAGS(dep->module_id);
-      visited[dep->module_id] = 1;
+      OAK_DATA(char, visited)[dep->module_id] = 1;
       OAK_FREE(a, dotted);
       OAK_FREE(a, file_path);
       continue;
@@ -285,16 +284,17 @@ int oak_module_loader_load_program(const char* entry_path,
 
     char* canonical = path_canonicalize(a, file_path);
 
-    struct oak_module_t* found =
+    oak_module_t* found =
         oak_module_registry_find_by_path(out_reg, canonical);
-    if (found && (int)found->module_id < oak_dynarr_count(visiting) &&
-        visiting[found->module_id])
+    if (found && (usize)found->module_id < oak_size(visiting) &&
+        OAK_CDATA(char, visiting)[found->module_id])
     {
       char buf[256];
       usize w = 0;
-      for (int i = 0; i < oak_dynarr_count(stack) && w < sizeof(buf) - 8; ++i)
+      const loader_frame_t* const frames = OAK_CDATA(loader_frame_t, stack);
+      for (usize i = 0; i < oak_size(stack) && w < sizeof(buf) - 8; ++i)
       {
-        const char* nm = stack[i].mod->dotted_name;
+        const char* nm = frames[i].mod->dotted_name;
         const usize nl = strlen(nm);
         if (w + nl + 4 >= sizeof(buf))
           break;
@@ -318,8 +318,8 @@ int oak_module_loader_load_program(const char* entry_path,
       break;
     }
 
-    if (found && (int)found->module_id < oak_dynarr_count(visited) &&
-        visited[found->module_id])
+    if (found && (usize)found->module_id < oak_size(visited) &&
+        OAK_CDATA(char, visited)[found->module_id])
     {
       RECORD_ALIAS(top->mod, imp, found->module_id);
       if (rc != 0)
@@ -329,7 +329,7 @@ int oak_module_loader_load_program(const char* entry_path,
         OAK_FREE(a, canonical);
         break;
       }
-      oak_assert(oak_dynarr_push(&top->mod->import_modules, &found->module_id));
+      oak_assert(oak_push_back(top->mod->import_modules, &found->module_id));
       OAK_FREE(a, dotted);
       OAK_FREE(a, file_path);
       OAK_FREE(a, canonical);
@@ -337,7 +337,7 @@ int oak_module_loader_load_program(const char* entry_path,
     }
 
     int dep_created = 0;
-    struct oak_module_t* dep =
+    oak_module_t* dep =
         parse_or_get_module(out_reg, canonical, dotted, 0, out, &dep_created);
     if (!dep || out->error_count > 0)
     {
@@ -349,12 +349,12 @@ int oak_module_loader_load_program(const char* entry_path,
     }
 
     {
-      const struct oak_token_t* atk = loader_import_alias_token(imp);
+      const oak_token_t* atk = loader_import_alias_token(imp);
       if (atk)
       {
         const char* alias = oak_token_text(atk);
         const int alen = oak_token_size(atk);
-        if (oak_htable_get(&top->mod->imports, alias, alen) >= 0)
+        if (oak_contains(top->mod->imports, alias, (usize)alen))
         {
           loader_error(out,
                        "%s: duplicate import alias '%.*s'",
@@ -367,50 +367,61 @@ int oak_module_loader_load_program(const char* entry_path,
           rc = -1;
           break;
         }
-        oak_htable_insert(&top->mod->imports, alias, alen, (int)dep->module_id);
+        const usize dep_module_id = dep->module_id;
+        oak_put(top->mod->imports, alias, (usize)alen, &dep_module_id);
       }
     }
-    oak_assert(oak_dynarr_push(&top->mod->import_modules, &dep->module_id));
+    oak_assert(oak_push_back(top->mod->import_modules, &dep->module_id));
 
     OAK_FREE(a, dotted);
     OAK_FREE(a, file_path);
     OAK_FREE(a, canonical);
 
     ENSURE_FLAGS(dep->module_id);
-    if (visiting[dep->module_id] || visited[dep->module_id])
+    if (OAK_CDATA(char, visiting)[dep->module_id] ||
+        OAK_CDATA(char, visited)[dep->module_id])
       continue;
-    visiting[dep->module_id] = 1;
+    OAK_DATA(char, visiting)[dep->module_id] = 1;
     {
-      struct loader_frame_t f;
+      loader_frame_t f;
       f.mod = dep;
-      oak_assert(oak_dynarr_init(a, &f.imports, sizeof *f.imports));
-      collect_imports(dep, &f.imports);
+      f.imports = oak_vector_new(a, sizeof(loader_import_t));
+      oak_assert(f.imports);
+      collect_imports(dep, f.imports);
       f.next_import_idx = 0;
-      oak_assert(oak_dynarr_push(&stack, &f));
+      oak_assert(oak_push_back(stack, &f));
     }
   }
 
-  for (int i = 0; i < oak_dynarr_count(stack); ++i)
-    oak_dynarr_free(&stack[i].imports);
+  {
+    const loader_frame_t* const frames = OAK_CDATA(loader_frame_t, stack);
+    for (usize i = 0; i < oak_size(stack); ++i)
+      oak_destroy(frames[i].imports);
+  }
 
-  oak_dynarr_free(&stack);
-  oak_dynarr_free(&visiting);
-  oak_dynarr_free(&visited);
+  oak_destroy(stack);
+  oak_destroy(visiting);
+  oak_destroy(visited);
 
 #undef RECORD_ALIAS
 
   if (rc != 0)
   {
-    oak_dynarr_free(&topo);
+    oak_destroy(topo);
     return rc;
   }
 
-  for (int i = 0; i < oak_dynarr_count(topo) && rc == 0; ++i)
   {
-    if (compile_module(topo[i], opts, out_reg, out) != 0)
-      rc = -1;
+    /* OAK_DATA, not OAK_CDATA: with a pointer element type the const in
+     * OAK_CDATA binds to the pointee rather than the pointer. */
+    oak_module_t** const mods = OAK_DATA(oak_module_t*, topo);
+    for (usize i = 0; i < oak_size(topo) && rc == 0; ++i)
+    {
+      if (compile_module(mods[i], opts, out_reg, out) != 0)
+        rc = -1;
+    }
   }
-  oak_dynarr_free(&topo);
+  oak_destroy(topo);
 
   if (rc == 0)
     out->entry = entry;

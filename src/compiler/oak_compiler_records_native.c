@@ -6,15 +6,17 @@
  * oak_registered_*_t that is registered from the C binding API. */
 
 /* Find a compiled module by its dotted name (linear scan). */
-static const struct oak_module_t*
-find_module_by_dotted(const struct oak_module_registry_t* reg,
+static const oak_module_t*
+find_module_by_dotted(const oak_module_registry_t* reg,
                       const char* dotted)
 {
   if (!reg || !dotted)
     return null;
-  for (int i = 0; i < oak_dynarr_count(reg->modules); ++i)
+  oak_module_t* const* modules =
+      OAK_DATA(oak_module_t*, reg->modules);
+  for (usize i = 0; i < oak_size(reg->modules); ++i)
   {
-    const struct oak_module_t* m = reg->modules[i];
+    const oak_module_t* m = modules[i];
     if (m && m->dotted_name && strcmp(m->dotted_name, dotted) == 0)
       return m;
   }
@@ -22,19 +24,21 @@ find_module_by_dotted(const struct oak_module_registry_t* reg,
 }
 
 /* Find a method export entry by name in a record export. */
-static const struct oak_module_export_record_method_t*
-find_method_export(const struct oak_module_export_record_t* rec,
+static const oak_module_export_record_method_t*
+find_method_export(const oak_module_export_record_t* rec,
                    const char* name)
 {
-  for (int i = 0; i < oak_dynarr_count(rec->methods); ++i)
-    if (strcmp(rec->methods[i].name, name) == 0)
-      return &rec->methods[i];
+  const oak_module_export_record_method_t* methods =
+      OAK_CDATA(oak_module_export_record_method_t, rec->methods);
+  for (usize i = 0; i < oak_size(rec->methods); ++i)
+    if (strcmp(methods[i].name, name) == 0)
+      return &methods[i];
   return null;
 }
 
 /* Lower a public oak_bind_type_ref_t into an internal oak_type_t. */
-static void lower_bind_ref(const struct oak_bind_type_ref_t* r,
-                           struct oak_type_t* out)
+static void lower_bind_ref(const oak_bind_type_ref_t* r,
+                           oak_type_t* out)
 {
   oak_type_clear(out);
   out->kind = r->kind;
@@ -45,17 +49,21 @@ static void lower_bind_ref(const struct oak_bind_type_ref_t* r,
 
 
 void oak_register_native_types(
-    struct oak_compiler_t* c, const struct oak_compile_options_t* opts)
+    oak_compiler_t* c, const oak_compile_options_t* opts)
 {
-  if (!opts || oak_dynarr_count(opts->native_types) == 0)
+  if (!opts || oak_size(opts->native_types) == 0)
     return;
+
+  oak_bind_type_t** native_types =
+      OAK_DATA(oak_bind_type_t*, opts->native_types);
 
   /* Assign every descriptor first so fields/signatures may reference a type
    * registered later in the binding list. */
-  for (int i = c->native_types_cursor; i < oak_dynarr_count(opts->native_types);
+  for (usize i = (usize)c->native_types_cursor;
+       i < oak_size(opts->native_types);
        ++i)
   {
-    struct oak_bind_type_t* nt = opts->native_types[i];
+    oak_bind_type_t* nt = native_types[i];
     if (!nt)
       continue;
     nt->resolved_type_id = oak_type_registry_intern(&c->types, nt->name);
@@ -63,9 +71,11 @@ void oak_register_native_types(
 
   /* Resume from the cursor: entries before it were registered by an earlier
    * pass (see oak_compiler_t.native_types_cursor). */
-  for (int i = c->native_types_cursor; i < oak_dynarr_count(opts->native_types); ++i)
+  for (usize i = (usize)c->native_types_cursor;
+       i < oak_size(opts->native_types);
+       ++i)
   {
-    struct oak_bind_type_t* nt = opts->native_types[i];
+    oak_bind_type_t* nt = native_types[i];
     if (!nt)
       continue;
 
@@ -89,65 +99,74 @@ void oak_register_native_types(
                             nt->name);
       return;
     }
-    struct oak_registered_record_t proto = { 0 };
+    oak_registered_record_t proto = { 0 };
     proto.name = nt->name;
     proto.type_id = tid;
     proto.source_module_id = OAK_MODULE_ID_NONE;
-    oak_assert(oak_dynarr_init(c->allocator, &proto.fields, sizeof *proto.fields));
-    oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
+    proto.fields =
+        oak_vector_new(c->allocator, sizeof(oak_record_field_t));
+    proto.methods =
+        oak_vector_new(c->allocator, sizeof(oak_registered_fn_t));
+    oak_assert(proto.fields && proto.methods);
     proto.attrs = null;
     proto.attr_count = 0;
     proto.is_value = (nt->kind == OAK_BIND_TYPE_VALUE);
 
-    for (int fi = 0; fi < oak_dynarr_count(nt->fields); ++fi)
+    const oak_bind_field_t* nt_fields =
+        OAK_CDATA(oak_bind_field_t, nt->fields);
+    for (usize fi = 0; fi < oak_size(nt->fields); ++fi)
     {
-      const struct oak_bind_field_t* nf = &nt->fields[fi];
-      struct oak_record_field_t sf = {
+      const oak_bind_field_t* nf = &nt_fields[fi];
+      oak_record_field_t sf = {
         .name = nf->name,
       };
       lower_bind_ref(&nf->type, &sf.type);
-      oak_assert(oak_dynarr_push(&proto.fields, &sf));
+      oak_assert(oak_push_back(proto.fields, &sf));
     }
 
     if (!oak_compiler_declare_symbol(
             c, null, proto.name, OAK_SYMBOL_RECORD,
-            oak_dynarr_count(c->records.entries), OAK_MODULE_ID_NONE, 0))
+            (int)oak_size(c->records.entries), OAK_MODULE_ID_NONE, 0))
       return;
     oak_record_registry_insert(&c->records, &proto);
     if (c->has_error)
       return;
   }
 
-  c->native_types_cursor = oak_dynarr_count(opts->native_types);
+  c->native_types_cursor = (int)oak_size(opts->native_types);
 }
 
 
-static void record_append_method(struct oak_registered_record_t* sd,
-                                 const struct oak_registered_fn_t* m)
+static void record_append_method(oak_registered_record_t* sd,
+                                 const oak_registered_fn_t* m)
 {
-  oak_assert(oak_dynarr_push(&sd->methods, m));
+  oak_assert(oak_push_back(sd->methods, m));
 }
 
-void oak_register_native_fns(struct oak_compiler_t* c,
-                                      const struct oak_compile_options_t* opts)
+void oak_register_native_fns(oak_compiler_t* c,
+                                      const oak_compile_options_t* opts)
 {
   if (!opts)
     return;
 
   /* Both loops resume from their cursors so a second registration pass only
    * sees bindings added since the first (see native_*_cursor). */
-  for (int i = c->native_global_fns_cursor; i < oak_dynarr_count(opts->native_global_fns); ++i)
+  const oak_bind_global_fn_t* global_fns =
+      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
+  for (usize i = (usize)c->native_global_fns_cursor;
+       i < oak_size(opts->native_global_fns);
+       ++i)
   {
-    const struct oak_bind_global_fn_t* b = &opts->native_global_fns[i];
+    const oak_bind_global_fn_t* b = &global_fns[i];
     if (!b->name || !b->impl || b->module_name)
       continue;
 
-    struct oak_obj_native_fn_t* native = oak_native_fn_new(
+    oak_obj_native_fn_t* native = oak_native_fn_new(
         c->allocator, b->impl, b->arity, b->name, b->user_data);
     const u16 idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
-    struct oak_registered_fn_t entry = { 0 };
+    oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
     entry.const_idx = idx;
     entry.arity = b->arity;
@@ -159,7 +178,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     if (b->param_types && b->arity > 0)
     {
       entry.param_types = OAK_ALLOC(
-          c->allocator, (usize)b->arity * sizeof(struct oak_type_t));
+          c->allocator, (usize)b->arity * sizeof(oak_type_t));
       for (int pi = 0; pi < b->arity; ++pi)
         lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
     }
@@ -171,44 +190,48 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     }
     if (!oak_compiler_declare_symbol(
             c, null, entry.name, OAK_SYMBOL_FUNCTION,
-            oak_dynarr_count(c->fns.entries), OAK_MODULE_ID_NONE, 0))
+            (int)oak_size(c->fns.entries), OAK_MODULE_ID_NONE, 0))
       return;
     oak_fn_registry_insert(&c->fns, &entry);
     if (c->has_error)
       return;
   }
 
-  c->native_global_fns_cursor = oak_dynarr_count(opts->native_global_fns);
+  c->native_global_fns_cursor = (int)oak_size(opts->native_global_fns);
 
-  for (int i = c->native_fns_cursor; i < oak_dynarr_count(opts->native_fns); ++i)
+  const oak_bind_fn_t* native_fns =
+      OAK_CDATA(oak_bind_fn_t, opts->native_fns);
+  for (usize i = (usize)c->native_fns_cursor;
+       i < oak_size(opts->native_fns);
+       ++i)
   {
-    const struct oak_bind_fn_t* b = &opts->native_fns[i];
+    const oak_bind_fn_t* b = &native_fns[i];
     if (!b->name || !b->impl)
       continue;
 
     const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
                              ? b->arity + 1
                              : b->arity;
-    struct oak_obj_native_fn_t* native = oak_native_fn_new(
+    oak_obj_native_fn_t* native = oak_native_fn_new(
         c->allocator, b->impl, vm_arity, b->name, b->user_data);
 
     /* Apply runtime attribute hooks from the module stub, if the receiver type
      * belongs to a module that has a compiled stub with attributed methods. */
     if (c->module_registry && c->opts)
     {
-      const struct oak_bind_type_t* bind_type = b->receiver_type;
+      const oak_bind_type_t* bind_type = b->receiver_type;
       if (bind_type && bind_type->module_name)
       {
-        const struct oak_module_t* stub_mod =
+        const oak_module_t* stub_mod =
             find_module_by_dotted(c->module_registry, bind_type->module_name);
         if (stub_mod)
         {
-          const struct oak_module_export_record_t* rec_exp =
+          const oak_module_export_record_t* rec_exp =
               oak_module_find_export_record(
                   stub_mod, bind_type->name);
           if (rec_exp)
           {
-            const struct oak_module_export_record_method_t* mexp =
+            const oak_module_export_record_method_t* mexp =
                 find_method_export(rec_exp, b->name);
             if (mexp && mexp->stub_attr_count > 0)
               oak_apply_attr_hooks(c->opts,
@@ -224,7 +247,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     const u16 idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
-    struct oak_registered_fn_t entry = { 0 };
+    oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type->resolved_type_id;
@@ -234,8 +257,8 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
 
-    struct oak_registered_record_t* sd =
-        (struct oak_registered_record_t*)oak_records_find_by_id(
+    oak_registered_record_t* sd =
+        (oak_registered_record_t*)oak_records_find_by_id(
             &c->records, entry.receiver_type_id);
     if (!sd)
     {
@@ -255,7 +278,7 @@ void oak_register_native_fns(struct oak_compiler_t* c,
     if (b->param_types && vm_arity > 0)
     {
       entry.param_types =
-          OAK_ALLOC(c->allocator, (usize)vm_arity * sizeof(struct oak_type_t));
+          OAK_ALLOC(c->allocator, (usize)vm_arity * sizeof(oak_type_t));
       int slot = 0;
       if (!is_static)
       {
@@ -266,9 +289,11 @@ void oak_register_native_fns(struct oak_compiler_t* c,
       for (int pi = 0; pi < b->arity; ++pi, ++slot)
         lower_bind_ref(&b->param_types[pi], &entry.param_types[slot]);
     }
-    for (int j = 0; j < oak_dynarr_count(sd->methods); ++j)
+    const oak_registered_fn_t* methods =
+        OAK_CDATA(oak_registered_fn_t, sd->methods);
+    for (usize j = 0; j < oak_size(sd->methods); ++j)
     {
-      if (strcmp(sd->methods[j].name, b->name) == 0)
+      if (strcmp(methods[j].name, b->name) == 0)
       {
         oak_compiler_error_at(c,
                               null,
@@ -287,5 +312,5 @@ void oak_register_native_fns(struct oak_compiler_t* c,
       return;
   }
 
-  c->native_fns_cursor = oak_dynarr_count(opts->native_fns);
+  c->native_fns_cursor = (int)oak_size(opts->native_fns);
 }

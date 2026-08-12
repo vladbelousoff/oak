@@ -1,7 +1,8 @@
 #pragma once
 
 /** Status of a unit test or test helper (oak_test / AST / token checks). */
-enum oak_test_status_t
+typedef enum oak_test_status oak_test_status_t;
+enum oak_test_status
 {
   OAK_TEST_OK = 0,
 

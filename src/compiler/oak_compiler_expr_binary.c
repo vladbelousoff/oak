@@ -1,7 +1,7 @@
 #include "internal/oak_compiler.h"
 
-void oak_compiler_reject_binary_void(struct oak_compiler_t* c,
-                                     const struct oak_ast_node_t* node)
+void oak_compiler_reject_binary_void(oak_compiler_t* c,
+                                     const oak_ast_node_t* node)
 {
   oak_reject_void(c, node->lhs);
   if (c->has_error)
@@ -10,23 +10,25 @@ void oak_compiler_reject_binary_void(struct oak_compiler_t* c,
 }
 
 /* Returns 1 if `t` is a registered enum type. */
-static int type_is_enum(struct oak_compiler_t* c, const struct oak_type_t* t)
+static int type_is_enum(oak_compiler_t* c, const oak_type_t* t)
 {
   if (!t || t->kind != OAK_TYPE_KIND_SCALAR)
     return 0;
-  for (int i = 0; i < oak_dynarr_count(c->enums.enums); ++i)
-    if (c->enums.enums[i].type_id == t->id)
+  const oak_registered_enum_t* enums =
+      OAK_CDATA(oak_registered_enum_t, c->enums.enums);
+  for (usize i = 0; i < oak_size(c->enums.enums); ++i)
+    if (enums[i].type_id == t->id)
       return 1;
   return 0;
 }
 
 /* Returns 1 if `t` is an inline native value type (OAK_BIND_TYPE_VALUE). */
-static int type_is_native_value(struct oak_compiler_t* c,
-                                const struct oak_type_t* t)
+static int type_is_native_value(oak_compiler_t* c,
+                                const oak_type_t* t)
 {
   if (!t || t->kind != OAK_TYPE_KIND_SCALAR || t->id < OAK_TYPE_FIRST_USER)
     return 0;
-  const struct oak_registered_record_t* r =
+  const oak_registered_record_t* r =
       oak_records_find_by_id(&c->records, t->id);
   return r && r->is_value;
 }
@@ -35,10 +37,10 @@ static int type_is_native_value(struct oak_compiler_t* c,
  * the raw payload, so comparisons must be restricted to identical value types
  * and arithmetic/relational operators are unsupported. */
 static void oak_compiler_reject_binary_value_misuse(
-    struct oak_compiler_t* c, const struct oak_ast_node_t* node)
+    oak_compiler_t* c, const oak_ast_node_t* node)
 {
-  struct oak_type_t lt;
-  struct oak_type_t rt;
+  oak_type_t lt;
+  oak_type_t rt;
   oak_infer_type(c, node->lhs, &lt);
   oak_infer_type(c, node->rhs, &rt);
   const int lv = type_is_native_value(c, &lt);
@@ -46,9 +48,9 @@ static void oak_compiler_reject_binary_value_misuse(
   if (!lv && !rv)
     return;
 
-  const enum oak_node_kind_t k = node->kind;
+  const oak_node_kind_t k = node->kind;
   const int is_eq = (k == OAK_NODE_BINARY_EQ || k == OAK_NODE_BINARY_NEQ);
-  const struct oak_token_t* tok = node->lhs ? node->lhs->token : node->token;
+  const oak_token_t* tok = node->lhs ? node->lhs->token : node->token;
 
   if (is_eq)
   {
@@ -67,19 +69,19 @@ static void oak_compiler_reject_binary_value_misuse(
 }
 
 /* Static type check for binary operators applied to enum operands. */
-void oak_compiler_reject_binary_enum_misuse(struct oak_compiler_t* c,
-                                            const struct oak_ast_node_t* node)
+void oak_compiler_reject_binary_enum_misuse(oak_compiler_t* c,
+                                            const oak_ast_node_t* node)
 {
-  struct oak_type_t lt;
-  struct oak_type_t rt;
+  oak_type_t lt;
+  oak_type_t rt;
   oak_infer_type(c, node->lhs, &lt);
   oak_infer_type(c, node->rhs, &rt);
   const int le = type_is_enum(c, &lt);
   const int re = type_is_enum(c, &rt);
 
-  const enum oak_node_kind_t k = node->kind;
+  const oak_node_kind_t k = node->kind;
   const int is_eq = (k == OAK_NODE_BINARY_EQ || k == OAK_NODE_BINARY_NEQ);
-  const struct oak_token_t* tok = node->lhs ? node->lhs->token : node->token;
+  const oak_token_t* tok = node->lhs ? node->lhs->token : node->token;
 
   if (is_eq)
   {
@@ -106,8 +108,8 @@ void oak_compiler_reject_binary_enum_misuse(struct oak_compiler_t* c,
   }
 }
 
-void oak_compiler_compile_binary_op(struct oak_compiler_t* c,
-                                    const struct oak_ast_node_t* node)
+void oak_compiler_compile_binary_op(oak_compiler_t* c,
+                                    const oak_ast_node_t* node)
 {
   oak_compiler_reject_binary_void(c, node);
   if (c->has_error)
@@ -126,8 +128,8 @@ void oak_compiler_compile_binary_op(struct oak_compiler_t* c,
       oak_compiler_loc_from_token(node->lhs->token));
 }
 
-void oak_compiler_compile_binary_and(struct oak_compiler_t* c,
-                                     const struct oak_ast_node_t* node)
+void oak_compiler_compile_binary_and(oak_compiler_t* c,
+                                     const oak_ast_node_t* node)
 {
   oak_compiler_reject_binary_void(c, node);
   if (c->has_error)
@@ -141,7 +143,7 @@ void oak_compiler_compile_binary_and(struct oak_compiler_t* c,
    *   [false_branch]: FALSE
    *   [end]:
    */
-  const struct oak_code_loc_t loc =
+  const oak_code_loc_t loc =
       node->lhs ? oak_compiler_loc_from_token(node->lhs->token)
                 : OAK_LOC_SYNTHETIC;
   oak_compiler_compile_node(c, node->lhs);
@@ -161,8 +163,8 @@ void oak_compiler_compile_binary_and(struct oak_compiler_t* c,
   oak_compiler_patch_jump(c, end_jump);
 }
 
-void oak_compiler_compile_binary_or(struct oak_compiler_t* c,
-                                    const struct oak_ast_node_t* node)
+void oak_compiler_compile_binary_or(oak_compiler_t* c,
+                                    const oak_ast_node_t* node)
 {
   oak_compiler_reject_binary_void(c, node);
   if (c->has_error)
@@ -176,7 +178,7 @@ void oak_compiler_compile_binary_or(struct oak_compiler_t* c,
    *   [true_branch]: TRUE
    *   [end]:
    */
-  const struct oak_code_loc_t loc =
+  const oak_code_loc_t loc =
       node->lhs ? oak_compiler_loc_from_token(node->lhs->token)
                 : OAK_LOC_SYNTHETIC;
   oak_compiler_compile_node(c, node->lhs);

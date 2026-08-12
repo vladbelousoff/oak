@@ -24,20 +24,20 @@ The pipeline is `source → lexer → parser → compiler → chunk → VM`:
 #include "oak_parser.h"
 #include "oak_vm.h"
 
-struct oak_allocator_t allocator_storage;
+oak_allocator_t allocator_storage;
 oak_system_allocator_init(&allocator_storage);
-struct oak_allocator_t* allocator = &allocator_storage;
+oak_allocator_t* allocator = &allocator_storage;
 
-struct oak_compile_options_t opts;
+oak_compile_options_t opts;
 oak_compile_options_init(&opts, allocator);
 /* ... register bindings on &opts (see below) ... */
 
-struct oak_lexer_result_t* lexer =
+oak_lexer_result_t* lexer =
     oak_lexer_tokenize("print(add(20, 22));", allocator);
-struct oak_parser_result_t parsed = { 0 };
+oak_parser_result_t parsed = { 0 };
 oak_parse(lexer, OAK_NODE_PROGRAM, &parsed, allocator);
 
-struct oak_compile_result_t compiled = { 0 };
+oak_compile_result_t compiled = { 0 };
 oak_compile_ex(oak_parser_root(&parsed), &opts, &compiled);
 if (compiled.chunk == null)
 {
@@ -45,9 +45,9 @@ if (compiled.chunk == null)
 }
 else
 {
-  struct oak_vm_t vm;
+  oak_vm_t vm;
   oak_vm_init(&vm, allocator);
-  enum oak_vm_result_t r = oak_vm_run(&vm, compiled.chunk);
+  oak_vm_result_t r = oak_vm_run(&vm, compiled.chunk);
   oak_vm_free(&vm);
 }
 
@@ -61,7 +61,7 @@ To route Oak through another allocator, initialize it with any
 `malloc`/`realloc`/`free`-compatible functions instead:
 
 ```c
-struct oak_allocator_t allocator_storage;
+oak_allocator_t allocator_storage;
 oak_allocator_init(&allocator_storage, my_malloc, my_realloc, my_free);
 ```
 
@@ -73,8 +73,8 @@ VM ownership is explicit rather than thread-local. Use the `oak_vm_*_new()`
 family when a heap value should belong to a particular VM; for example:
 
 ```c
-struct oak_obj_string_t* message = oak_vm_string_new(&vm, "hello");
-struct oak_obj_array_t* items = oak_vm_array_new(&vm);
+oak_obj_string_t* message = oak_vm_string_new(&vm, "hello");
+oak_obj_array_t* items = oak_vm_array_new(&vm);
 ```
 
 The plain `oak_string_new()`, `oak_array_new()`, and related constructors make
@@ -89,10 +89,10 @@ Every native callable — global function, instance method, static method —
 has the same C signature:
 
 ```c
-static enum oak_fn_call_result_t add(struct oak_native_ctx_t* ctx,
-                                     const struct oak_value_t* args,
+static oak_fn_call_result_t add(oak_native_ctx_t* ctx,
+                                     const oak_value_t* args,
                                      int argc,
-                                     struct oak_value_t* out)
+                                     oak_value_t* out)
 {
   (void)ctx;
   if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
@@ -109,12 +109,12 @@ binding descriptor.
 Register it as a global (or module-scoped) function:
 
 ```c
-static struct oak_bind_type_ref_t params[2];
+static oak_bind_type_ref_t params[2];
 params[0] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
 params[1] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
 
 oak_bind_fn_global(&opts,
-                   &(struct oak_bind_global_fn_t){
+                   &(oak_bind_global_fn_t){
                        .name = "add",
                        .impl = add,
                        .arity = 2,
@@ -155,15 +155,15 @@ typedef struct Vec2
   float y;
 } Vec2;
 
-static struct oak_value_t vec2_get_x(struct oak_value_t self, void* user_data)
+static oak_value_t vec2_get_x(oak_value_t self, void* user_data)
 {
   (void)user_data;
   Vec2* v = oak_native_instance(self);
   return OAK_VALUE_F32(v->x);
 }
 
-static void vec2_set_x(struct oak_value_t self,
-                       struct oak_value_t value,
+static void vec2_set_x(oak_value_t self,
+                       oak_value_t value,
                        void* user_data)
 {
   (void)user_data;
@@ -178,12 +178,12 @@ static void vec2_free(void* instance)
   free(instance);
 }
 
-struct oak_bind_type_t* vec2 =
+oak_bind_type_t* vec2 =
     oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Vec2");
 vec2->destructor = vec2_free;
 
 oak_bind_field(vec2,
-               &(struct oak_bind_field_t){
+               &(oak_bind_field_t){
                    .name = "x",
                    .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                    .getter = vec2_get_x,
@@ -199,10 +199,10 @@ Instances are created inside a native callback (typically a factory function
 or static method) with `oak_vm_native_record_new()`:
 
 ```c
-static enum oak_fn_call_result_t make_vec2(struct oak_native_ctx_t* ctx,
-                                           const struct oak_value_t* args,
+static oak_fn_call_result_t make_vec2(oak_native_ctx_t* ctx,
+                                           const oak_value_t* args,
                                            int argc,
-                                           struct oak_value_t* out)
+                                           oak_value_t* out)
 {
   Vec2* v = malloc(sizeof(Vec2));
   v->x = oak_as_f32(args[0]);
@@ -224,7 +224,7 @@ the embedder (useful for values that point into host-owned memory).
 
 ```c
 oak_bind_fn(&opts,
-            &(struct oak_bind_fn_t){
+            &(oak_bind_fn_t){
                 .kind = OAK_BIND_FN_INSTANCE_METHOD,
                 .receiver_type = vec2,
                 .name = "length",
@@ -253,7 +253,7 @@ Wrap and unwrap the opaque payload with `oak_native_value_new()` /
 ## Enums
 
 ```c
-struct oak_bind_enum_t* color = oak_bind_enum(&opts, "Color");
+oak_bind_enum_t* color = oak_bind_enum(&opts, "Color");
 oak_bind_enum_variant(color, "Red", 0);
 oak_bind_enum_variant(color, "Green", 1);
 oak_bind_enum_variant(color, "Blue", 2);
@@ -290,7 +290,7 @@ work together:
    ([`src/stdlib/oak_stdlib_file.c`](../src/stdlib/oak_stdlib_file.c)):
 
    ```c
-   struct oak_bind_type_t* file =
+   oak_bind_type_t* file =
        oak_bind_type_in_module(&opts, "io", OAK_BIND_TYPE_RECORD, "File");
    ```
 

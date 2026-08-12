@@ -1,21 +1,21 @@
 #include "internal/oak_compiler.h"
 
-int oak_compiler_declare_symbol(struct oak_compiler_t* c,
-                                const struct oak_token_t* token,
+int oak_compiler_declare_symbol(oak_compiler_t* c,
+                                const oak_token_t* token,
                                 const char* name,
-                                enum oak_symbol_kind_t kind,
+                                oak_symbol_kind_t kind,
                                 int payload_index,
                                 u16 owner_module_id,
                                 int is_imported)
 {
-  const struct oak_symbol_t* existing =
+  const oak_symbol_t* existing =
       oak_symbol_registry_find(&c->symbols, name);
   if (existing)
   {
     oak_compiler_error_at(c, token, "duplicate top-level symbol '%s'", name);
     return 0;
   }
-  struct oak_symbol_t symbol = {
+  oak_symbol_t symbol = {
     .name = name,
     .kind = kind,
     .owner_module_id = owner_module_id,
@@ -27,11 +27,11 @@ int oak_compiler_declare_symbol(struct oak_compiler_t* c,
   return 1;
 }
 
-void oak_compiler_mark_symbol_exported(struct oak_compiler_t* c,
+void oak_compiler_mark_symbol_exported(oak_compiler_t* c,
                                        const char* name)
 {
-  struct oak_symbol_t* symbol =
-      (struct oak_symbol_t*)oak_symbol_registry_find(&c->symbols, name);
+  oak_symbol_t* symbol =
+      (oak_symbol_t*)oak_symbol_registry_find(&c->symbols, name);
   if (!symbol || symbol->is_imported ||
       symbol->owner_module_id == OAK_MODULE_ID_NONE ||
       symbol->kind == OAK_SYMBOL_GLOBAL ||

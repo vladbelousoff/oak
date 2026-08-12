@@ -11,7 +11,7 @@
 
 /* ===== Small helpers ===== */
 
-static int number_as_i32(const struct oak_value_t value)
+static int number_as_i32(const oak_value_t value)
 {
   return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
 }
@@ -36,12 +36,12 @@ static long find_sub(const char* hay,
 }
 
 /* Emit `out` as a freshly-allocated Oak string owning `len` bytes of `src`. */
-static void make_string(struct oak_native_ctx_t* ctx,
+static void make_string(oak_native_ctx_t* ctx,
                         const char* src,
                         usize len,
-                        struct oak_value_t* out)
+                        oak_value_t* out)
 {
-  struct oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, src, len);
+  oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, src, len);
   *out = OAK_VALUE_OBJ(&s->obj);
 }
 
@@ -70,15 +70,15 @@ static int starts_word(const char* s, usize len, usize i)
 
 /* ===== Case ===== */
 
-static enum oak_fn_call_result_t map_case(struct oak_native_ctx_t* ctx,
-                                          const struct oak_value_t* args,
+static oak_fn_call_result_t map_case(oak_native_ctx_t* ctx,
+                                          const oak_value_t* args,
                                           int argc,
-                                          struct oak_value_t* out,
+                                          oak_value_t* out,
                                           int upper)
 {
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
   const usize len = self->length;
   if (len == 0)
   {
@@ -96,30 +96,30 @@ static enum oak_fn_call_result_t map_case(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-enum oak_fn_call_result_t oak_str_upper(struct oak_native_ctx_t* ctx,
-                                        const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_upper(oak_native_ctx_t* ctx,
+                                        const oak_value_t* args,
                                         int argc,
-                                        struct oak_value_t* out)
+                                        oak_value_t* out)
 {
   return map_case(ctx, args, argc, out, 1);
 }
 
-enum oak_fn_call_result_t oak_str_lower(struct oak_native_ctx_t* ctx,
-                                        const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_lower(oak_native_ctx_t* ctx,
+                                        const oak_value_t* args,
                                         int argc,
-                                        struct oak_value_t* out)
+                                        oak_value_t* out)
 {
   return map_case(ctx, args, argc, out, 0);
 }
 
-enum oak_fn_call_result_t oak_str_trim(struct oak_native_ctx_t* ctx,
-                                       const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_trim(oak_native_ctx_t* ctx,
+                                       const oak_value_t* args,
                                        int argc,
-                                       struct oak_value_t* out)
+                                       oak_value_t* out)
 {
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
   const char* s = self->chars;
   usize start = 0;
   usize end = self->length;
@@ -133,47 +133,47 @@ enum oak_fn_call_result_t oak_str_trim(struct oak_native_ctx_t* ctx,
 
 /* ===== Search / predicates ===== */
 
-enum oak_fn_call_result_t oak_str_contains(struct oak_native_ctx_t* ctx,
-                                           const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_contains(oak_native_ctx_t* ctx,
+                                           const oak_value_t* args,
                                            int argc,
-                                           struct oak_value_t* out)
+                                           oak_value_t* out)
 {
   (void)ctx;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
-  const struct oak_obj_string_t* sub = oak_as_string(args[1]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* sub = oak_as_string(args[1]);
   const long at = find_sub(self->chars, self->length, sub->chars, sub->length);
   *out = OAK_VALUE_BOOL(at >= 0);
   return OAK_FN_CALL_OK;
 }
 
-enum oak_fn_call_result_t oak_str_starts_with(struct oak_native_ctx_t* ctx,
-                                              const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_starts_with(oak_native_ctx_t* ctx,
+                                              const oak_value_t* args,
                                               int argc,
-                                              struct oak_value_t* out)
+                                              oak_value_t* out)
 {
   (void)ctx;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
-  const struct oak_obj_string_t* pre = oak_as_string(args[1]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* pre = oak_as_string(args[1]);
   const int ok = pre->length <= self->length &&
                  memcmp(self->chars, pre->chars, pre->length) == 0;
   *out = OAK_VALUE_BOOL(ok);
   return OAK_FN_CALL_OK;
 }
 
-enum oak_fn_call_result_t oak_str_ends_with(struct oak_native_ctx_t* ctx,
-                                            const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_ends_with(oak_native_ctx_t* ctx,
+                                            const oak_value_t* args,
                                             int argc,
-                                            struct oak_value_t* out)
+                                            oak_value_t* out)
 {
   (void)ctx;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
-  const struct oak_obj_string_t* suf = oak_as_string(args[1]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* suf = oak_as_string(args[1]);
   const int ok =
       suf->length <= self->length &&
       memcmp(self->chars + (self->length - suf->length), suf->chars,
@@ -182,16 +182,16 @@ enum oak_fn_call_result_t oak_str_ends_with(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-enum oak_fn_call_result_t oak_str_index_of(struct oak_native_ctx_t* ctx,
-                                           const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_index_of(oak_native_ctx_t* ctx,
+                                           const oak_value_t* args,
                                            int argc,
-                                           struct oak_value_t* out)
+                                           oak_value_t* out)
 {
   (void)ctx;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
-  const struct oak_obj_string_t* sub = oak_as_string(args[1]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* sub = oak_as_string(args[1]);
   const long at = find_sub(self->chars, self->length, sub->chars, sub->length);
   *out = OAK_VALUE_I32((int)at);
   return OAK_FN_CALL_OK;
@@ -199,17 +199,17 @@ enum oak_fn_call_result_t oak_str_index_of(struct oak_native_ctx_t* ctx,
 
 /* ===== Transforms ===== */
 
-enum oak_fn_call_result_t oak_str_replace(struct oak_native_ctx_t* ctx,
-                                          const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_replace(oak_native_ctx_t* ctx,
+                                          const oak_value_t* args,
                                           int argc,
-                                          struct oak_value_t* out)
+                                          oak_value_t* out)
 {
   if (argc != 3 || !oak_is_string(args[0]) || !oak_is_string(args[1]) ||
       !oak_is_string(args[2]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
-  const struct oak_obj_string_t* from = oak_as_string(args[1]);
-  const struct oak_obj_string_t* to = oak_as_string(args[2]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* from = oak_as_string(args[1]);
+  const oak_obj_string_t* to = oak_as_string(args[2]);
 
   /* An empty needle would match everywhere; return the string unchanged rather
    * than loop forever. */
@@ -261,14 +261,14 @@ enum oak_fn_call_result_t oak_str_replace(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-enum oak_fn_call_result_t oak_str_repeat(struct oak_native_ctx_t* ctx,
-                                         const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_repeat(oak_native_ctx_t* ctx,
+                                         const oak_value_t* args,
                                          int argc,
-                                         struct oak_value_t* out)
+                                         oak_value_t* out)
 {
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_number(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
   const int n = number_as_i32(args[1]);
   if (n <= 0 || self->length == 0)
   {
@@ -286,15 +286,15 @@ enum oak_fn_call_result_t oak_str_repeat(struct oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-enum oak_fn_call_result_t oak_str_substring(struct oak_native_ctx_t* ctx,
-                                            const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_substring(oak_native_ctx_t* ctx,
+                                            const oak_value_t* args,
                                             int argc,
-                                            struct oak_value_t* out)
+                                            oak_value_t* out)
 {
   if (argc != 3 || !oak_is_string(args[0]) || !oak_is_number(args[1]) ||
       !oak_is_number(args[2]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
   const long len = (long)self->length;
   long start = number_as_i32(args[1]);
   long end = number_as_i32(args[2]);
@@ -315,14 +315,14 @@ enum oak_fn_call_result_t oak_str_substring(struct oak_native_ctx_t* ctx,
 /* Convert to snake_case: word boundaries (separators and case transitions)
  * become a single underscore and every letter is lowercased.
  * "HelloWorld" / "hello world" / "hello-world" -> "hello_world". */
-enum oak_fn_call_result_t oak_str_to_snake_case(struct oak_native_ctx_t* ctx,
-                                               const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_to_snake_case(oak_native_ctx_t* ctx,
+                                               const oak_value_t* args,
                                                int argc,
-                                               struct oak_value_t* out)
+                                               oak_value_t* out)
 {
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
   const char* s = self->chars;
   const usize len = self->length;
   if (len == 0)
@@ -361,14 +361,14 @@ enum oak_fn_call_result_t oak_str_to_snake_case(struct oak_native_ctx_t* ctx,
 /* Convert to (lower) camelCase: separators are dropped, the first letter of
  * each following word is uppercased, and the very first letter is lowercased.
  * "hello_world" / "hello world" / "HelloWorld" -> "helloWorld". */
-enum oak_fn_call_result_t oak_str_to_camel_case(struct oak_native_ctx_t* ctx,
-                                               const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_to_camel_case(oak_native_ctx_t* ctx,
+                                               const oak_value_t* args,
                                                int argc,
-                                               struct oak_value_t* out)
+                                               oak_value_t* out)
 {
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
   const char* s = self->chars;
   const usize len = self->length;
   if (len == 0)
@@ -413,25 +413,25 @@ enum oak_fn_call_result_t oak_str_to_camel_case(struct oak_native_ctx_t* ctx,
 
 /* ===== Global char / parse builtins ===== */
 
-enum oak_fn_call_result_t oak_str_ord(struct oak_native_ctx_t* ctx,
-                                      const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_ord(oak_native_ctx_t* ctx,
+                                      const oak_value_t* args,
                                       int argc,
-                                      struct oak_value_t* out)
+                                      oak_value_t* out)
 {
   (void)ctx;
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const struct oak_obj_string_t* self = oak_as_string(args[0]);
+  const oak_obj_string_t* self = oak_as_string(args[0]);
   if (self->length == 0)
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_I32((int)(unsigned char)self->chars[0]);
   return OAK_FN_CALL_OK;
 }
 
-enum oak_fn_call_result_t oak_str_chr(struct oak_native_ctx_t* ctx,
-                                      const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_chr(oak_native_ctx_t* ctx,
+                                      const oak_value_t* args,
                                       int argc,
-                                      struct oak_value_t* out)
+                                      oak_value_t* out)
 {
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
@@ -455,10 +455,10 @@ static int only_trailing_space(const char* endp)
 /* Parse a string into a number. A token containing '.', 'e', or 'E' is read as
  * a float; otherwise it is read as a base-10 integer. Surrounding whitespace is
  * ignored; anything left over (or an out-of-range integer) is a runtime error. */
-enum oak_fn_call_result_t oak_str_parse_number(struct oak_native_ctx_t* ctx,
-                                               const struct oak_value_t* args,
+oak_fn_call_result_t oak_str_parse_number(oak_native_ctx_t* ctx,
+                                               const oak_value_t* args,
                                                int argc,
-                                               struct oak_value_t* out)
+                                               oak_value_t* out)
 {
   (void)ctx;
   if (argc != 1 || !oak_is_string(args[0]))

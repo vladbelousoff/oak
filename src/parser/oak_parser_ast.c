@@ -2,22 +2,22 @@
 
 #include "oak_list.h"
 
-int oak_node_is_unary_op(const enum oak_node_kind_t kind)
+int oak_node_is_unary_op(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_UNARY;
 }
 
-int oak_node_is_binary_op(const enum oak_node_kind_t kind)
+int oak_node_is_binary_op(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_BINARY;
 }
 
-int oak_node_is_token_terminal(const enum oak_node_kind_t kind)
+int oak_node_is_token_terminal(const oak_node_kind_t kind)
 {
   return oak_grammar[kind].op == OAK_GRAMMAR_TOKEN;
 }
 
-usize oak_ast_node_child_count(const struct oak_ast_node_t* node)
+usize oak_ast_node_child_count(const oak_ast_node_t* node)
 {
   if (!node)
     return 0;
@@ -34,7 +34,7 @@ usize oak_ast_node_child_count(const struct oak_ast_node_t* node)
   return oak_list_length(&node->children);
 }
 
-struct oak_ast_node_t* oak_ast_node_child_at(const struct oak_ast_node_t* node,
+oak_ast_node_t* oak_ast_node_child_at(const oak_ast_node_t* node,
                                              const usize index)
 {
   if (!node)
@@ -64,16 +64,16 @@ struct oak_ast_node_t* oak_ast_node_child_at(const struct oak_ast_node_t* node,
     return null;
 
   usize i;
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each_indexed(i, pos, &node->children)
   {
     if (i == index)
-      return oak_container_of(pos, struct oak_ast_node_t, link);
+      return oak_container_of(pos, oak_ast_node_t, link);
   }
   return null;
 }
 
-const char* oak_ast_node_kind_name(const enum oak_node_kind_t kind)
+const char* oak_ast_node_kind_name(const oak_node_kind_t kind)
 {
   switch (kind)
   {

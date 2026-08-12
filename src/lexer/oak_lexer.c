@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void oak_lexer_advance_cursor(struct oak_lexer_cur_t* cur,
+void oak_lexer_advance_cursor(oak_lexer_cur_t* cur,
                               const int n,
                               const int bytes)
 {
@@ -20,21 +20,21 @@ void oak_lexer_advance_cursor(struct oak_lexer_cur_t* cur,
   cur->pos += n;
 }
 
-void oak_lexer_new_line(struct oak_lexer_cur_t* cur)
+void oak_lexer_new_line(oak_lexer_cur_t* cur)
 {
   cur->line++;
   cur->column = 0;
 }
 
-void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
-                          const struct oak_lexer_cur_t* cur,
-                          const enum oak_token_kind_t token_kind,
+void oak_lexer_save_token(oak_lexer_result_t* lexer,
+                          const oak_lexer_cur_t* cur,
+                          const oak_token_kind_t token_kind,
                           const char* buffer,
                           const usize buffer_size)
 {
   oak_assert(buffer_size <= (usize)INT_MAX);
 
-  usize token_size = sizeof(struct oak_token_t);
+  usize token_size = sizeof(oak_token_t);
   if (buffer_size > 0)
   {
     token_size += buffer_size + 1;
@@ -44,7 +44,7 @@ void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
     token_size += 1;
   }
 
-  struct oak_token_t* token = oak_arena_alloc(&lexer->arena, token_size);
+  oak_token_t* token = oak_arena_alloc(&lexer->arena, token_size);
   token->kind = token_kind;
   token->line = cur->line;
   token->column = cur->column;
@@ -69,10 +69,10 @@ void oak_lexer_save_token(struct oak_lexer_result_t* lexer,
 }
 
 
-static enum oak_lex_status_t scan_ws(const struct oak_lexer_ctx_t* ctx,
+static oak_lex_status_t scan_ws(const oak_lexer_ctx_t* ctx,
                                      const char* input)
 {
-  struct oak_lexer_cur_t* cur = ctx->cur;
+  oak_lexer_cur_t* cur = ctx->cur;
   const int start = cur->buf_pos;
   for (;;)
   {
@@ -105,10 +105,10 @@ static enum oak_lex_status_t scan_ws(const struct oak_lexer_ctx_t* ctx,
   return cur->buf_pos != start ? OAK_LEX_OK : OAK_LEX_NO_MATCH;
 }
 
-static enum oak_lex_status_t scan_block_comment(
-    const struct oak_lexer_ctx_t* ctx, const char* input)
+static oak_lex_status_t scan_block_comment(
+    const oak_lexer_ctx_t* ctx, const char* input)
 {
-  struct oak_lexer_cur_t* cur = ctx->cur;
+  oak_lexer_cur_t* cur = ctx->cur;
   if ((usize)cur->buf_pos + 1u >= ctx->input_len)
     return OAK_LEX_NO_MATCH;
   if (input[cur->buf_pos] != '/' || input[cur->buf_pos + 1] != '*')
@@ -135,19 +135,21 @@ static enum oak_lex_status_t scan_block_comment(
   return OAK_LEX_UNTERMINATED_COMMENT;
 }
 
-struct two_char_op_t
+typedef struct two_char_op two_char_op_t;
+struct two_char_op
 {
   char a, b;
-  enum oak_token_kind_t token;
+  oak_token_kind_t token;
 };
 
-struct single_char_op_t
+typedef struct single_char_op single_char_op_t;
+struct single_char_op
 {
   char c;
-  enum oak_token_kind_t token;
+  oak_token_kind_t token;
 };
 
-static const struct two_char_op_t two_char_ops[] = {
+static const two_char_op_t two_char_ops[] = {
   { '=', '=', OAK_TOKEN_EQUAL_EQUAL },  { '!', '=', OAK_TOKEN_BANG_EQUAL },
   { '-', '>', OAK_TOKEN_ARROW },        { '&', '&', OAK_TOKEN_AND },
   { '|', '|', OAK_TOKEN_OR },           { '>', '=', OAK_TOKEN_GREATER_EQUAL },
@@ -157,7 +159,7 @@ static const struct two_char_op_t two_char_ops[] = {
   { '/', '/', OAK_TOKEN_DOUBLE_SLASH },
 };
 
-static const struct single_char_op_t single_char_ops[] = {
+static const single_char_op_t single_char_ops[] = {
   { ':', OAK_TOKEN_COLON },     { ',', OAK_TOKEN_COMMA },
   { ';', OAK_TOKEN_SEMICOLON }, { '=', OAK_TOKEN_ASSIGN },
   { '!', OAK_TOKEN_BANG },      { '-', OAK_TOKEN_MINUS },
@@ -171,17 +173,17 @@ static const struct single_char_op_t single_char_ops[] = {
   { '@', OAK_TOKEN_AT },
 };
 
-static enum oak_lex_status_t scan_op(const struct oak_lexer_ctx_t* ctx,
+static oak_lex_status_t scan_op(const oak_lexer_ctx_t* ctx,
                                      const char* input)
 {
-  struct oak_lexer_cur_t* cur = ctx->cur;
+  oak_lexer_cur_t* cur = ctx->cur;
   if ((usize)cur->buf_pos >= ctx->input_len)
     return OAK_LEX_NO_MATCH;
 
   const char* p = &input[cur->buf_pos];
   const char c1 = p[0];
   const char c2 = (usize)cur->buf_pos + 1 < ctx->input_len ? p[1] : '\0';
-  const struct oak_lexer_cur_t sav_cur = *cur;
+  const oak_lexer_cur_t sav_cur = *cur;
 
   for (usize i = 0; i < oak_count_of(two_char_ops); ++i)
   {
@@ -207,20 +209,20 @@ static enum oak_lex_status_t scan_op(const struct oak_lexer_ctx_t* ctx,
   return OAK_LEX_NO_MATCH;
 }
 
-static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
+static oak_lex_status_t scan_string(const oak_lexer_ctx_t* ctx,
                                          const char* input)
 {
-  struct oak_lexer_cur_t* cur = ctx->cur;
+  oak_lexer_cur_t* cur = ctx->cur;
   const char* start = &input[cur->buf_pos];
 
   if (*start != '\'')
     return OAK_LEX_NO_MATCH;
 
-  const struct oak_lexer_cur_t sav_cur = *cur;
+  const oak_lexer_cur_t sav_cur = *cur;
   oak_lexer_advance_cursor(cur, 1, 1);
 
   char tls[OAK_LEXER_TLS_BUF];
-  struct oak_growable_buf_t gb;
+  oak_growable_buf_t gb;
   oak_growable_buf_init(&gb, tls, ctx->lexer->allocator);
 
   const char* const end = input + ctx->input_len;
@@ -283,7 +285,7 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
     }
 
     {
-      const enum oak_lex_status_t st =
+      const oak_lex_status_t st =
           oak_growable_buf_reserve(&gb, gb.len + 4u);
       if (st != OAK_LEX_OK)
       {
@@ -314,12 +316,12 @@ static enum oak_lex_status_t scan_string(const struct oak_lexer_ctx_t* ctx,
   return OAK_LEX_UNTERMINATED_STRING;
 }
 
-static enum oak_lex_status_t scan_number(const struct oak_lexer_ctx_t* ctx,
+static oak_lex_status_t scan_number(const oak_lexer_ctx_t* ctx,
                                          const char* input)
 {
-  struct oak_lexer_cur_t* cur = ctx->cur;
+  oak_lexer_cur_t* cur = ctx->cur;
   const char* start = &input[cur->buf_pos];
-  const struct oak_lexer_cur_t sav_cur = *cur;
+  const oak_lexer_cur_t sav_cur = *cur;
 
   const char* const end = input + ctx->input_len;
   const char* p = start;
@@ -407,12 +409,12 @@ static enum oak_lex_status_t scan_number(const struct oak_lexer_ctx_t* ctx,
   return OAK_LEX_OK;
 }
 
-static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
+static oak_lex_status_t scan_ident(const oak_lexer_ctx_t* ctx,
                                         const char* input)
 {
-  struct oak_lexer_cur_t* cur = ctx->cur;
+  oak_lexer_cur_t* cur = ctx->cur;
   const char* start = &input[cur->buf_pos];
-  const struct oak_lexer_cur_t sav_cur = *cur;
+  const oak_lexer_cur_t sav_cur = *cur;
 
   const char* const end = input + ctx->input_len;
   if (start >= end)
@@ -428,7 +430,7 @@ static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
 
   const char* p = start;
   char tls[OAK_LEXER_TLS_BUF];
-  struct oak_growable_buf_t gb;
+  oak_growable_buf_t gb;
   oak_growable_buf_init(&gb, tls, ctx->lexer->allocator);
 
   while (p < end)
@@ -441,7 +443,7 @@ static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
       break;
 
     {
-      const enum oak_lex_status_t st =
+      const oak_lex_status_t st =
           oak_growable_buf_reserve(&gb, gb.len + (usize)n);
       if (st != OAK_LEX_OK)
       {
@@ -463,7 +465,7 @@ static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
     return OAK_LEX_NO_MATCH;
   }
 
-  const enum oak_token_kind_t kind = oak_keyword_lookup(gb.data);
+  const oak_token_kind_t kind = oak_keyword_lookup(gb.data);
   oak_lexer_save_token(ctx->lexer,
                        &sav_cur,
                        kind,
@@ -475,19 +477,19 @@ static enum oak_lex_status_t scan_ident(const struct oak_lexer_ctx_t* ctx,
 }
 
 
-typedef enum oak_lex_status_t (*scan_fn_t)(const struct oak_lexer_ctx_t* ctx,
-                                           const char* input);
+typedef oak_lex_status_t (*scan_fn_t)(const oak_lexer_ctx_t* ctx,
+                                      const char* input);
 
 static const scan_fn_t scanners[] = {
   scan_ws, scan_block_comment, scan_op, scan_string, scan_number, scan_ident,
 };
 
-static enum oak_lex_status_t try_scan(const struct oak_lexer_ctx_t* ctx,
+static oak_lex_status_t try_scan(const oak_lexer_ctx_t* ctx,
                                       const char* input)
 {
   for (usize i = 0; i < oak_count_of(scanners); ++i)
   {
-    const enum oak_lex_status_t r = scanners[i](ctx, input);
+    const oak_lex_status_t r = scanners[i](ctx, input);
     if (r == OAK_LEX_OK)
       return OAK_LEX_OK;
     if (r != OAK_LEX_NO_MATCH)
@@ -497,21 +499,21 @@ static enum oak_lex_status_t try_scan(const struct oak_lexer_ctx_t* ctx,
   return OAK_LEX_NO_MATCH;
 }
 
-struct oak_lexer_result_t* oak_lexer_tokenize_len(
-    const char* input, const usize len, struct oak_allocator_t* allocator)
+oak_lexer_result_t* oak_lexer_tokenize_len(
+    const char* input, const usize len, oak_allocator_t* allocator)
 {
   if (len > 0 && !input)
     return null;
 
-  struct oak_lexer_result_t* result =
-      OAK_ALLOC(allocator, sizeof(struct oak_lexer_result_t));
+  oak_lexer_result_t* result =
+      OAK_ALLOC(allocator, sizeof(oak_lexer_result_t));
   if (!result)
     return null;
 
-  struct oak_lexer_cur_t cur = {
+  oak_lexer_cur_t cur = {
     .buf_pos = 0, .pos = 1, .line = 1, .column = 1
   };
-  const struct oak_lexer_ctx_t ctx = { .lexer = result,
+  const oak_lexer_ctx_t ctx = { .lexer = result,
                                        .cur = &cur,
                                        .input_len = len };
   oak_list_init(&result->tokens);
@@ -524,7 +526,7 @@ struct oak_lexer_result_t* oak_lexer_tokenize_len(
     if (input[cur.buf_pos] == '\0')
       break;
 
-    const enum oak_lex_status_t step = try_scan(&ctx, input);
+    const oak_lex_status_t step = try_scan(&ctx, input);
     if (step == OAK_LEX_OK)
       continue;
 
@@ -556,30 +558,30 @@ struct oak_lexer_result_t* oak_lexer_tokenize_len(
   return result;
 }
 
-struct oak_lexer_result_t* oak_lexer_tokenize(
-    const char* input, struct oak_allocator_t* allocator)
+oak_lexer_result_t* oak_lexer_tokenize(
+    const char* input, oak_allocator_t* allocator)
 {
   if (!input)
     return null;
   return oak_lexer_tokenize_len(input, strlen(input), allocator);
 }
 
-const struct oak_list_entry_t*
-oak_lexer_tokens(const struct oak_lexer_result_t* result)
+const oak_list_entry_t*
+oak_lexer_tokens(const oak_lexer_result_t* result)
 {
   return result ? &result->tokens : null;
 }
 
-int oak_lexer_error_count(const struct oak_lexer_result_t* result)
+int oak_lexer_error_count(const oak_lexer_result_t* result)
 {
   return result ? result->error_count : 0;
 }
 
-void oak_lexer_free(struct oak_lexer_result_t* result)
+void oak_lexer_free(oak_lexer_result_t* result)
 {
   if (!result)
     return;
-  struct oak_allocator_t* a = result->allocator;
+  oak_allocator_t* a = result->allocator;
   oak_arena_free(&result->arena);
   OAK_FREE(a, result);
 }

@@ -11,7 +11,7 @@
 #include <unistd.h>
 #endif
 
-int oak_file_map(const char* path, struct oak_file_map_t* out)
+int oak_file_map(const char* path, oak_file_map_t* out)
 {
   out->data = null;
   out->size = 0;
@@ -114,7 +114,7 @@ int oak_file_map(const char* path, struct oak_file_map_t* out)
 #endif
 }
 
-void oak_file_unmap(struct oak_file_map_t* map)
+void oak_file_unmap(oak_file_map_t* map)
 {
   if (!map || !map->data)
     return;

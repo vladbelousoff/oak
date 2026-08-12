@@ -26,7 +26,7 @@ enum
   OAK_BP_MEMBER_R      = 18,
 };
 
-static const struct oak_pratt_rule_t expr_prefix[] = {
+static const oak_pratt_rule_t expr_prefix[] = {
   {
       .kind = OAK_PRATT_OP,
       .trigger_token = OAK_TOKEN_MINUS,
@@ -47,7 +47,7 @@ static const struct oak_pratt_rule_t expr_prefix[] = {
   { 0 },
 };
 
-static const struct oak_pratt_rule_t expr_infix[] = {
+static const oak_pratt_rule_t expr_infix[] = {
   {
       .kind = OAK_PRATT_OP,
       .trigger_token = OAK_TOKEN_OR,
@@ -171,7 +171,7 @@ static const struct oak_pratt_rule_t expr_infix[] = {
   { 0 },
 };
 
-struct oak_grammar_entry_t oak_grammar[] = {
+oak_grammar_entry_t oak_grammar[] = {
   // PROGRAM -> PROGRAM_ITEM*
   [OAK_NODE_PROGRAM] = {
     .rules = {

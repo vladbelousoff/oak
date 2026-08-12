@@ -1,31 +1,31 @@
 #include "internal/oak_compiler.h"
 
-static int register_record_field_decls(struct oak_compiler_t* c,
-                                       struct oak_registered_record_t* slot,
-                                       const struct oak_ast_node_t* fields_wrap,
+static int register_record_field_decls(oak_compiler_t* c,
+                                       oak_registered_record_t* slot,
+                                       const oak_ast_node_t* fields_wrap,
                                        const char* record_name,
-                                       const struct oak_token_t* err_ctx_token);
+                                       const oak_token_t* err_ctx_token);
 
 /* Walk all top-level record declarations and register each in the compiler's
  * record registry. The record's type id is interned into the type registry so
  * later passes (function param types, record literals) can resolve them. */
 /* Resolve the TYPE_NAME child to an IDENT for a record declaration. */
-static const struct oak_ast_node_t* record_decl_name_ident(
-    struct oak_compiler_t* c,
-    const struct oak_ast_node_t* item,
-    const struct oak_ast_node_t* type_name_node)
+static const oak_ast_node_t* record_decl_name_ident(
+    oak_compiler_t* c,
+    const oak_ast_node_t* item,
+    const oak_ast_node_t* type_name_node)
 {
-  const struct oak_ast_node_t* name_ident = type_name_node;
+  const oak_ast_node_t* name_ident = type_name_node;
   if (name_ident->kind == OAK_NODE_TYPE_NAME)
   {
-    const struct oak_list_entry_t* tn_first = name_ident->children.next;
+    const oak_list_entry_t* tn_first = name_ident->children.next;
     if (tn_first == &name_ident->children)
     {
       oak_compiler_error_at(
           c, item->token, "record type name must be an identifier");
       return null;
     }
-    name_ident = oak_container_of(tn_first, struct oak_ast_node_t, link);
+    name_ident = oak_container_of(tn_first, oak_ast_node_t, link);
   }
   if (name_ident->kind != OAK_NODE_IDENT)
   {
@@ -36,15 +36,17 @@ static const struct oak_ast_node_t* record_decl_name_ident(
   return name_ident;
 }
 
-static const struct oak_bind_type_t* native_record_binding(
-    const struct oak_compiler_t* c,
+static const oak_bind_type_t* native_record_binding(
+    const oak_compiler_t* c,
     const char* name)
 {
   if (!c->opts)
     return null;
-  for (int i = 0; i < oak_dynarr_count(c->opts->native_types); ++i)
+  oak_bind_type_t** native_types =
+      OAK_DATA(oak_bind_type_t*, c->opts->native_types);
+  for (usize i = 0; i < oak_size(c->opts->native_types); ++i)
   {
-    const struct oak_bind_type_t* native = c->opts->native_types[i];
+    const oak_bind_type_t* native = native_types[i];
     if (!native || native->kind != OAK_BIND_TYPE_RECORD || !native->name)
       continue;
     if (strcmp(native->name, name) == 0)
@@ -53,9 +55,9 @@ static const struct oak_bind_type_t* native_record_binding(
   return null;
 }
 
-static struct oak_type_t native_field_type(const struct oak_bind_field_t* field)
+static oak_type_t native_field_type(const oak_bind_field_t* field)
 {
-  struct oak_type_t type;
+  oak_type_t type;
   oak_type_clear(&type);
   type.kind = field->type.kind;
   type.id = field->type.id;
@@ -64,28 +66,30 @@ static struct oak_type_t native_field_type(const struct oak_bind_field_t* field)
   return type;
 }
 
-static const struct oak_bind_field_t* native_record_field(
-    const struct oak_bind_type_t* native,
+static const oak_bind_field_t* native_record_field(
+    const oak_bind_type_t* native,
     const char* name)
 {
-  for (int i = 0; i < oak_dynarr_count(native->fields); ++i)
+  const oak_bind_field_t* fields =
+      OAK_CDATA(oak_bind_field_t, native->fields);
+  for (usize i = 0; i < oak_size(native->fields); ++i)
   {
-    const struct oak_bind_field_t* field = &native->fields[i];
+    const oak_bind_field_t* field = &fields[i];
     if (strcmp(field->name, name) == 0)
       return field;
   }
   return null;
 }
 
-static int native_record_decl_matches(struct oak_compiler_t* c,
-                                      const struct oak_bind_type_t* native,
-                                      const struct oak_ast_node_t* item,
-                                      const struct oak_ast_node_t* name_ident)
+static int native_record_decl_matches(oak_compiler_t* c,
+                                      const oak_bind_type_t* native,
+                                      const oak_ast_node_t* item,
+                                      const oak_ast_node_t* name_ident)
 {
   if (item->kind == OAK_NODE_RECORD_DECL_EMPTY)
     return 1;
 
-  const struct oak_ast_node_t* fields_wrap = item->rhs;
+  const oak_ast_node_t* fields_wrap = item->rhs;
   if (!fields_wrap || fields_wrap->kind != OAK_NODE_RECORD_FIELDS)
   {
     oak_compiler_error_at(c, item->token, "malformed record declaration");
@@ -93,12 +97,12 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
   }
 
   int field_count = 0;
-  for (struct oak_list_entry_t* fpos = fields_wrap->children.next;
+  for (oak_list_entry_t* fpos = fields_wrap->children.next;
        fpos != &fields_wrap->children;
        fpos = fpos->next)
     ++field_count;
 
-  if (field_count != oak_dynarr_count(native->fields))
+  if ((usize)field_count != oak_size(native->fields))
   {
     oak_compiler_error_at(c,
                           name_ident->token,
@@ -106,16 +110,16 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
                           "but binding has %d",
                           native->name,
                           field_count,
-                          oak_dynarr_count(native->fields));
+                          (int)oak_size(native->fields));
     return 0;
   }
 
-  for (struct oak_list_entry_t* fpos = fields_wrap->children.next;
+  for (oak_list_entry_t* fpos = fields_wrap->children.next;
        fpos != &fields_wrap->children;
        fpos = fpos->next)
   {
-    const struct oak_ast_node_t* fdecl =
-        oak_container_of(fpos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* fdecl =
+        oak_container_of(fpos, oak_ast_node_t, link);
     if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs ||
         !fdecl->rhs)
     {
@@ -130,7 +134,7 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
     }
 
     const char* field_name = oak_token_text(fdecl->lhs->token);
-    const struct oak_bind_field_t* native_field =
+    const oak_bind_field_t* native_field =
         native_record_field(native, field_name);
     if (!native_field)
     {
@@ -142,12 +146,12 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
       return 0;
     }
 
-    struct oak_type_t declared_type;
+    oak_type_t declared_type;
     oak_type_clear(&declared_type);
     oak_lower_type_node(c, fdecl->rhs, &declared_type);
     if (c->has_error)
       return 0;
-    const struct oak_type_t bound_type = native_field_type(native_field);
+    const oak_type_t bound_type = native_field_type(native_field);
     if (!oak_type_equal(&declared_type, &bound_type))
     {
       oak_compiler_error_at(c,
@@ -164,15 +168,15 @@ static int native_record_decl_matches(struct oak_compiler_t* c,
   return 1;
 }
 
-void oak_register_program_records(struct oak_compiler_t* c,
-                                           const struct oak_ast_node_t* program)
+void oak_register_program_records(oak_compiler_t* c,
+                                           const oak_ast_node_t* program)
 {
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* raw_item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
-    const struct oak_ast_node_t* item = oak_unwrap_decl(raw_item);
+    const oak_ast_node_t* raw_item =
+        oak_container_of(pos, oak_ast_node_t, link);
+    const oak_ast_node_t* item = oak_unwrap_decl(raw_item);
 
     const int is_empty = item && item->kind == OAK_NODE_RECORD_DECL_EMPTY;
     if (!item || (item->kind != OAK_NODE_RECORD_DECL && !is_empty))
@@ -180,7 +184,7 @@ void oak_register_program_records(struct oak_compiler_t* c,
 
     /* RECORD_DECL_EMPTY: child = TYPE_NAME
      * RECORD_DECL:       lhs   = TYPE_NAME, rhs = RECORD_FIELDS */
-    const struct oak_ast_node_t* type_name_node =
+    const oak_ast_node_t* type_name_node =
         is_empty ? item->child : item->lhs;
     if (!type_name_node || (!is_empty && !item->rhs))
     {
@@ -188,17 +192,17 @@ void oak_register_program_records(struct oak_compiler_t* c,
       return;
     }
 
-    const struct oak_ast_node_t* name_ident =
+    const oak_ast_node_t* name_ident =
         record_decl_name_ident(c, item, type_name_node);
     if (!name_ident || c->has_error)
       return;
 
     const char* name = oak_token_text(name_ident->token);
-    const struct oak_registered_record_t* existing =
+    const oak_registered_record_t* existing =
         oak_records_find(&c->records, name);
     if (existing)
     {
-      const struct oak_bind_type_t* native =
+      const oak_bind_type_t* native =
           native_record_binding(c, name);
       if (native && existing->type_id == native->resolved_type_id)
       {
@@ -220,31 +224,34 @@ void oak_register_program_records(struct oak_compiler_t* c,
       return;
     }
 
-    struct oak_registered_record_t proto = { 0 };
+    oak_registered_record_t proto = { 0 };
     proto.name = name;
     proto.type_id = oak_type_registry_intern(&c->types, name);
-    oak_assert(oak_dynarr_init(c->allocator, &proto.fields, sizeof *proto.fields));
-    oak_assert(oak_dynarr_init(c->allocator, &proto.methods, sizeof *proto.methods));
+    proto.fields =
+        oak_vector_new(c->allocator, sizeof(oak_record_field_t));
+    proto.methods =
+        oak_vector_new(c->allocator, sizeof(oak_registered_fn_t));
+    oak_assert(proto.fields && proto.methods);
     proto.attrs = oak_extract_attrs(c->allocator, raw_item, &proto.attr_count);
 
     /* Pre-scan fields for attribute callbacks. */
-    struct oak_attr_field_info_t* finfo = null;
+    oak_attr_field_info_t* finfo = null;
     int finfo_count = 0;
     if (proto.attr_count > 0 && !is_empty && item->rhs &&
         item->rhs->kind == OAK_NODE_RECORD_FIELDS)
     {
-      const struct oak_ast_node_t* fw = item->rhs;
-      struct oak_list_entry_t* fp;
+      const oak_ast_node_t* fw = item->rhs;
+      oak_list_entry_t* fp;
       oak_list_for_each(fp, &fw->children) { ++finfo_count; }
       if (finfo_count > 0)
       {
         finfo = OAK_ALLOC(c->allocator,
-                          (usize)finfo_count * sizeof(struct oak_attr_field_info_t));
+                          (usize)finfo_count * sizeof(oak_attr_field_info_t));
         int fi = 0;
         oak_list_for_each(fp, &fw->children)
         {
-          const struct oak_ast_node_t* fd =
-              oak_container_of(fp, struct oak_ast_node_t, link);
+          const oak_ast_node_t* fd =
+              oak_container_of(fp, oak_ast_node_t, link);
           if (fd->kind == OAK_NODE_RECORD_FIELD_DECL && fd->lhs && fd->rhs)
           {
             finfo[fi].name = oak_token_text(fd->lhs->token);
@@ -281,17 +288,17 @@ void oak_register_program_records(struct oak_compiler_t* c,
         c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
     if (!oak_compiler_declare_symbol(
             c, name_ident->token, name, OAK_SYMBOL_RECORD,
-            oak_dynarr_count(c->records.entries), owner_module_id, 0))
+            (int)oak_size(c->records.entries), owner_module_id, 0))
       return;
     if (oak_decl_is_exported(raw_item))
       oak_compiler_mark_symbol_exported(c, name);
-    struct oak_registered_record_t* slot =
+    oak_registered_record_t* slot =
         oak_record_registry_insert(&c->records, &proto);
 
     if (is_empty)
       continue; /* no fields to register */
 
-    const struct oak_ast_node_t* fields_wrap = item->rhs;
+    const oak_ast_node_t* fields_wrap = item->rhs;
     if (fields_wrap->kind != OAK_NODE_RECORD_FIELDS)
     {
       oak_compiler_error_at(c, item->token, "malformed record declaration");
@@ -316,25 +323,25 @@ void oak_register_program_records(struct oak_compiler_t* c,
 }
 
 /* Collect field declarations in source order. */
-static int register_record_field_decls(struct oak_compiler_t* c,
-                                       struct oak_registered_record_t* slot,
-                                       const struct oak_ast_node_t* fields_wrap,
+static int register_record_field_decls(oak_compiler_t* c,
+                                       oak_registered_record_t* slot,
+                                       const oak_ast_node_t* fields_wrap,
                                        const char* record_name,
-                                       const struct oak_token_t* err_ctx_token)
+                                       const oak_token_t* err_ctx_token)
 {
-  for (struct oak_list_entry_t* fpos = fields_wrap->children.next;
+  for (oak_list_entry_t* fpos = fields_wrap->children.next;
        fpos != &fields_wrap->children;
        fpos = fpos->next)
   {
-    const struct oak_ast_node_t* fdecl =
-        oak_container_of(fpos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* fdecl =
+        oak_container_of(fpos, oak_ast_node_t, link);
     if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs || !fdecl->rhs)
     {
       oak_compiler_error_at(c, err_ctx_token, "malformed record field");
       return 0;
     }
-    const struct oak_ast_node_t* fname = fdecl->lhs;
-    const struct oak_ast_node_t* ftype = fdecl->rhs;
+    const oak_ast_node_t* fname = fdecl->lhs;
+    const oak_ast_node_t* ftype = fdecl->rhs;
     if (fname->kind != OAK_NODE_IDENT)
     {
       oak_compiler_error_at(
@@ -343,9 +350,11 @@ static int register_record_field_decls(struct oak_compiler_t* c,
     }
 
     const char* fn_name = oak_token_text(fname->token);
-    for (int i = 0; i < oak_dynarr_count(slot->fields); ++i)
+    const oak_record_field_t* existing =
+        OAK_CDATA(oak_record_field_t, slot->fields);
+    for (usize i = 0; i < oak_size(slot->fields); ++i)
     {
-      if (strcmp(slot->fields[i].name, fn_name) == 0)
+      if (strcmp(existing[i].name, fn_name) == 0)
       {
         oak_compiler_error_at(c,
                               fname->token,
@@ -356,7 +365,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
       }
     }
 
-    struct oak_record_field_t f = {
+    oak_record_field_t f = {
       .name = fn_name,
     };
     oak_type_clear(&f.type);
@@ -370,7 +379,7 @@ static int register_record_field_decls(struct oak_compiler_t* c,
           "record field must be 'name : type'");
       return 0;
     }
-    oak_assert(oak_dynarr_push(&slot->fields, &f));
+    oak_assert(oak_push_back(slot->fields, &f));
   }
   return 1;
 }

@@ -2,7 +2,7 @@
 
 #define OAK_MAX_LOCALS 256
 
-#define OAK_LOC_SYNTHETIC ((struct oak_code_loc_t){ .line = 0, .column = 1 })
+#define OAK_LOC_SYNTHETIC ((oak_code_loc_t){ .line = 0, .column = 1 })
 
 /* Bail out of the current (void) function on the first compilation error. */
 #define CHECK_ERROR(c)                                                         \

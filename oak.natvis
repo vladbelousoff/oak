@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-    <Type Name="_oak_token_t">
+    <Type Name="oak_token">
         <DisplayString Condition="kind == OAK_TOKEN_INT_NUM">{kind} {*(int*)buf}</DisplayString>
         <DisplayString Condition="kind == OAK_TOKEN_FLOAT_NUM">{kind} {*(float*)buf}</DisplayString>
         <DisplayString Condition="size > 0">{kind} {(char*)buf,s8}</DisplayString>
@@ -21,7 +21,7 @@
         </Expand>
     </Type>
 
-    <Type Name="oak_lexer_result_t">
+    <Type Name="oak_lexer_result">
         <DisplayString>tokens</DisplayString>
         <Expand HideRawView="true">
             <CustomListItems>
@@ -37,7 +37,7 @@
         </Expand>
     </Type>
 
-    <Type Name="oak_value_t">
+    <Type Name="oak_value">
         <DisplayString Condition="(bits &amp; 7) == 0">i32 {*(int*)((char*)&amp;bits + 4)}</DisplayString>
         <DisplayString Condition="(bits &amp; 7) == 1">f32 {*(float*)((char*)&amp;bits + 4)}</DisplayString>
         <DisplayString Condition="(bits &amp; 7) == 2">bool {(bits >> 32) != 0}</DisplayString>
@@ -57,7 +57,7 @@
         </Expand>
     </Type>
 
-    <Type Name="_oak_ast_node_t">
+    <Type Name="oak_ast_node">
         <Intrinsic Name="op_token" Expression="oak_grammar[kind].op == OAK_GRAMMAR_TOKEN">
             <Parameter Name="kind" Type="oak_node_kind_t"/>
         </Intrinsic>

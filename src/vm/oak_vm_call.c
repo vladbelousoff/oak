@@ -1,12 +1,12 @@
 #include "internal/oak_vm.h"
 
-static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
+static oak_vm_result_t vm_call_native(oak_vm_t* vm,
                                            const u8 argc,
                                            const usize fn_slot,
-                                           struct oak_value_t* arg_base,
-                                           const struct oak_value_t fn_val)
+                                           oak_value_t* arg_base,
+                                           const oak_value_t fn_val)
 {
-  struct oak_obj_native_fn_t* native = oak_as_native_fn(fn_val);
+  oak_obj_native_fn_t* native = oak_as_native_fn(fn_val);
   if ((int)argc != native->arity)
   {
     oak_vm_runtime_error(vm,
@@ -18,8 +18,8 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
 
   for (int hi = 0; hi < native->attr_hook_count; ++hi)
   {
-    struct oak_native_ctx_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
-    const enum oak_fn_call_result_t r =
+    oak_native_ctx_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
+    const oak_fn_call_result_t r =
         native->attr_hooks[hi].cb(&hook_ctx,
                                   native->name,
                                   arg_base,
@@ -34,11 +34,11 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
     }
   }
 
-  struct oak_native_ctx_t nctx = { .vm = vm,
+  oak_native_ctx_t nctx = { .vm = vm,
                                    .allocator = vm->allocator,
                                    .user_data = native->user_data };
-  struct oak_value_t result = OAK_VALUE_NONE;
-  const enum oak_fn_call_result_t err =
+  oak_value_t result = OAK_VALUE_NONE;
+  const oak_fn_call_result_t err =
       native->fn(&nctx, arg_base, (int)argc, &result);
   if (err != OAK_FN_CALL_OK)
   {
@@ -64,12 +64,12 @@ static enum oak_vm_result_t vm_call_native(struct oak_vm_t* vm,
   return OAK_VM_OK;
 }
 
-static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
+static oak_vm_result_t vm_call_bytecode(oak_vm_t* vm,
                                              const u8 argc,
                                              const usize fn_slot,
-                                             const struct oak_value_t fn_val)
+                                             const oak_value_t fn_val)
 {
-  struct oak_obj_fn_t* fn = oak_as_fn(fn_val);
+  oak_obj_fn_t* fn = oak_as_fn(fn_val);
   if (fn->arity != (int)argc)
   {
     oak_vm_runtime_error(vm,
@@ -81,9 +81,9 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
 
   for (int hi = 0; hi < fn->attr_hook_count; ++hi)
   {
-    struct oak_value_t* arg_base = vm->stack + fn_slot + 1;
-    struct oak_native_ctx_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
-    const enum oak_fn_call_result_t r = fn->attr_hooks[hi].cb(
+    oak_value_t* arg_base = vm->stack + fn_slot + 1;
+    oak_native_ctx_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
+    const oak_fn_call_result_t r = fn->attr_hooks[hi].cb(
         &hook_ctx, fn->name, arg_base, (int)argc, fn->attr_hooks[hi].ud);
     if (r != OAK_FN_CALL_OK)
     {
@@ -102,11 +102,11 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
   /* Cross-module call?  If the fn's owning module differs from the currently
    * executing chunk, switch chunks and remember the original on the frame so
    * OP_RETURN can restore it. */
-  struct oak_chunk_t* target_chunk = vm->chunk;
+  oak_chunk_t* target_chunk = vm->chunk;
   if (vm->modules && fn->module_id != 0xFFFFu &&
       fn->module_id != vm->chunk->module_id)
   {
-    struct oak_module_t* target_mod =
+    oak_module_t* target_mod =
         oak_module_registry_get(vm->modules, fn->module_id);
     if (!target_mod || !target_mod->chunk)
     {
@@ -117,18 +117,18 @@ static enum oak_vm_result_t vm_call_bytecode(struct oak_vm_t* vm,
     target_chunk = target_mod->chunk;
   }
 
-  struct oak_call_frame_t* frame = &vm->frames[vm->frame_count++];
+  oak_call_frame_t* frame = &vm->frames[vm->frame_count++];
   frame->return_ip = vm->ip;
   frame->caller_stack_base = vm->stack_base;
   frame->fn_slot = fn_slot;
   frame->return_chunk = vm->chunk;
   vm->stack_base = fn_slot + 1u;
   vm->chunk = target_chunk;
-  vm->ip = target_chunk->bytecode + fn->code_offset;
+  vm->ip = OAK_DATA(u8, target_chunk->code) + fn->code_offset;
   return OAK_VM_OK;
 }
 
-enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
+oak_vm_result_t oak_vm_op_call_virtual(oak_vm_t* vm)
 {
   const u8 vtable_slot = oak_vm_read_u8(vm);
   const u8 arity = oak_vm_read_u8(vm); /* includes self */
@@ -143,7 +143,7 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
 
   /* The interface object is at the receiver position (sp - arity). */
   const usize recv_pos = depth - (usize)arity;
-  const struct oak_value_t interface_obj_val = vm->stack[recv_pos];
+  const oak_value_t interface_obj_val = vm->stack[recv_pos];
   if (!oak_is_interface_object(interface_obj_val))
   {
     oak_vm_runtime_error(
@@ -152,7 +152,7 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
         oak_vm_value_kind_desc(interface_obj_val));
     return OAK_VM_RUNTIME_ERROR;
   }
-  const struct oak_obj_interface_object_t* to =
+  const oak_obj_interface_object_t* to =
       oak_as_interface_object(interface_obj_val);
   if ((usize)vtable_slot >= to->vtable->length)
   {
@@ -161,8 +161,8 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
     return OAK_VM_RUNTIME_ERROR;
   }
 
-  const struct oak_value_t fn_val = to->vtable->items[vtable_slot];
-  const struct oak_value_t concrete_val = to->value;
+  const oak_value_t fn_val = to->vtable->items[vtable_slot];
+  const oak_value_t concrete_val = to->value;
 
   if (!oak_is_fn(fn_val))
   {
@@ -197,13 +197,13 @@ enum oak_vm_result_t oak_vm_op_call_virtual(struct oak_vm_t* vm)
 
   /* Now dispatch exactly like OP_CALL with fn at recv_pos. */
   const usize fn_slot = recv_pos;
-  struct oak_value_t* arg_base = &vm->stack[fn_slot + 1u];
+  oak_value_t* arg_base = &vm->stack[fn_slot + 1u];
   if (oak_is_native_fn(fn_val))
     return vm_call_native(vm, arity, fn_slot, arg_base, fn_val);
   return vm_call_bytecode(vm, arity, fn_slot, fn_val);
 }
 
-enum oak_vm_result_t oak_vm_op_call_with_argc(struct oak_vm_t* vm,
+oak_vm_result_t oak_vm_op_call_with_argc(oak_vm_t* vm,
                                               const u8 argc)
 {
   const usize depth = (usize)(vm->sp - vm->stack);
@@ -214,8 +214,8 @@ enum oak_vm_result_t oak_vm_op_call_with_argc(struct oak_vm_t* vm,
   }
 
   const usize fn_slot = depth - (usize)argc - 1u;
-  const struct oak_value_t fn_val = vm->stack[fn_slot];
-  struct oak_value_t* arg_base = &vm->stack[fn_slot + 1u];
+  const oak_value_t fn_val = vm->stack[fn_slot];
+  oak_value_t* arg_base = &vm->stack[fn_slot + 1u];
 
   if (oak_is_native_fn(fn_val))
     return vm_call_native(vm, argc, fn_slot, arg_base, fn_val);
@@ -227,18 +227,18 @@ enum oak_vm_result_t oak_vm_op_call_with_argc(struct oak_vm_t* vm,
   return vm_call_bytecode(vm, argc, fn_slot, fn_val);
 }
 
-enum oak_vm_result_t oak_vm_op_call(struct oak_vm_t* vm)
+oak_vm_result_t oak_vm_op_call(oak_vm_t* vm)
 {
   return oak_vm_op_call_with_argc(vm, oak_vm_read_u8(vm));
 }
 
 static u8 halt_trampoline[] = { 0 /* OAK_OP_HALT */ };
 
-static enum oak_vm_result_t oak_vm_call_impl(struct oak_vm_t* vm,
-                                             struct oak_value_t fn_val,
-                                             const struct oak_value_t* args,
+static oak_vm_result_t oak_vm_call_impl(oak_vm_t* vm,
+                                             oak_value_t fn_val,
+                                             const oak_value_t* args,
                                              int argc,
-                                             struct oak_value_t* out_result)
+                                             oak_value_t* out_result)
 {
   if (!vm->chunk)
   {
@@ -247,15 +247,15 @@ static enum oak_vm_result_t oak_vm_call_impl(struct oak_vm_t* vm,
   }
 
   u8* saved_ip = vm->ip;
-  struct oak_chunk_t* saved_chunk = vm->chunk;
+  oak_chunk_t* saved_chunk = vm->chunk;
   usize saved_stack_base = vm->stack_base;
-  struct oak_value_t* const entry_sp = vm->sp;
+  oak_value_t* const entry_sp = vm->sp;
 
   /* Point IP at the halt trampoline so that when the called function returns,
    * the VM sees HALT and oak_vm_resume returns OAK_VM_OK. */
   vm->ip = halt_trampoline;
 
-  enum oak_vm_result_t r = oak_vm_push(vm, fn_val);
+  oak_vm_result_t r = oak_vm_push(vm, fn_val);
   for (int i = 0; r == OAK_VM_OK && i < argc; ++i)
     r = oak_vm_push(vm, args[i]);
   if (r == OAK_VM_OK)
@@ -289,16 +289,16 @@ static enum oak_vm_result_t oak_vm_call_impl(struct oak_vm_t* vm,
   return r;
 }
 
-enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
-                                 struct oak_value_t fn_val,
-                                 const struct oak_value_t* args,
+oak_vm_result_t oak_vm_call(oak_vm_t* vm,
+                                 oak_value_t fn_val,
+                                 const oak_value_t* args,
                                  int argc,
-                                 struct oak_value_t* out_result)
+                                 oak_value_t* out_result)
 {
   return oak_vm_call_impl(vm, fn_val, args, argc, out_result);
 }
 
-enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)
+oak_vm_result_t oak_vm_op_return(oak_vm_t* vm)
 {
   if (vm->frame_count == 0)
   {
@@ -313,8 +313,8 @@ enum oak_vm_result_t oak_vm_op_return(struct oak_vm_t* vm)
     return OAK_VM_RUNTIME_ERROR;
   }
 
-  struct oak_value_t result = oak_vm_pop(vm);
-  struct oak_call_frame_t* frame = &vm->frames[--vm->frame_count];
+  oak_value_t result = oak_vm_pop(vm);
+  oak_call_frame_t* frame = &vm->frames[--vm->frame_count];
   const usize fn_slot = frame->fn_slot;
 
   for (usize i = fn_slot; i < depth_before - 1u; ++i)

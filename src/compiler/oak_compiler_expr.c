@@ -1,7 +1,7 @@
 #include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
-usize oak_child_count(const struct oak_ast_node_t* node)
+usize oak_child_count(const oak_ast_node_t* node)
 {
   if (oak_node_is_unary_op(node->kind))
     return node->child ? 1u : 0u;
@@ -10,14 +10,14 @@ usize oak_child_count(const struct oak_ast_node_t* node)
   return oak_list_length(&node->children);
 }
 
-int oak_is_int_literal(const struct oak_ast_node_t* node,
+int oak_is_int_literal(const oak_ast_node_t* node,
                                     const int value)
 {
   return node && node->kind == OAK_NODE_INT &&
          oak_token_as_i32(node->token) == value;
 }
 
-u8 oak_binop_for_node(const enum oak_node_kind_t kind)
+u8 oak_binop_for_node(const oak_node_kind_t kind)
 {
   switch (kind)
   {
@@ -56,7 +56,7 @@ u8 oak_binop_for_node(const enum oak_node_kind_t kind)
   }
 }
 
-u8 oak_op_for_node(const enum oak_node_kind_t kind)
+u8 oak_op_for_node(const oak_node_kind_t kind)
 {
   switch (kind)
   {
@@ -70,8 +70,8 @@ u8 oak_op_for_node(const enum oak_node_kind_t kind)
   }
 }
 
-void oak_compiler_compile_node(struct oak_compiler_t* c,
-                               const struct oak_ast_node_t* node)
+void oak_compiler_compile_node(oak_compiler_t* c,
+                               const oak_ast_node_t* node)
 {
   if (!node || c->has_error)
     return;
@@ -90,7 +90,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_INT:
     {
       const int value = oak_token_as_i32(node->token);
-      const struct oak_code_loc_t loc =
+      const oak_code_loc_t loc =
           oak_compiler_loc_from_token(node->token);
       if (value >= -128 && value <= 127)
       {
@@ -116,7 +116,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     {
       const char* chars = oak_token_text(node->token);
       const int len = oak_token_size(node->token);
-      struct oak_obj_string_t* str = oak_string_new_len(c->allocator, chars, len);
+      oak_obj_string_t* str = oak_string_new_len(c->allocator, chars, len);
       const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(str));
       oak_compiler_emit_constant(
           c, idx, oak_compiler_loc_from_token(node->token));
@@ -146,10 +146,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
                              OAK_ARG_U8((u8)slot));
         break;
       }
-      const struct oak_registered_fn_t* fn_entry = oak_find_fn(c, name);
+      const oak_registered_fn_t* fn_entry = oak_find_fn(c, name);
       if (fn_entry)
       {
-        const struct oak_code_loc_t loc =
+        const oak_code_loc_t loc =
             oak_compiler_loc_from_token(node->token);
         if (fn_entry->source_module_id != OAK_MODULE_ID_NONE)
           oak_compiler_emit_op(c,
@@ -223,7 +223,7 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
     case OAK_NODE_STMT_EXPR:
     {
       const int depth_before = c->scope.stack_depth;
-      struct oak_ast_node_t* expr = node->child;
+      oak_ast_node_t* expr = node->child;
       oak_compiler_compile_node(c, expr);
       /* Expression statements must not leave any temporary values on the VM
        * stack. A single OP_POP was insufficient for some call shapes (e.g.
@@ -305,10 +305,10 @@ void oak_compiler_compile_node(struct oak_compiler_t* c,
         oak_compiler_error_at(c, null, "'%s' used outside of a loop", keyword);
         return;
       }
-      struct oak_loop_frame_t* loop = c->scope.current_loop;
+      oak_loop_frame_t* loop = c->scope.current_loop;
       oak_emit_loop_jump(
           c,
-          is_break ? &loop->break_jumps : &loop->continue_jumps,
+          is_break ? loop->break_jumps : loop->continue_jumps,
           is_break ? loop->exit_depth : loop->continue_depth);
       break;
     }

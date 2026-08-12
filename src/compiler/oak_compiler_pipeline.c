@@ -1,23 +1,23 @@
 #include "internal/oak_compiler.h"
 
-static void collect_module_scope_names(struct oak_compiler_t* c,
-                                       const struct oak_ast_node_t* program)
+static void collect_module_scope_names(oak_compiler_t* c,
+                                       const oak_ast_node_t* program)
 {
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* item =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (!item || item->kind != OAK_NODE_STMT_LET_ASSIGNMENT)
       continue;
-    const struct oak_ast_node_t* assign = item->rhs;
+    const oak_ast_node_t* assign = item->rhs;
     if (!assign || assign->kind != OAK_NODE_STMT_ASSIGNMENT)
       continue;
-    const struct oak_ast_node_t* ident = assign->lhs;
+    const oak_ast_node_t* ident = assign->lhs;
     if (!ident || ident->kind != OAK_NODE_IDENT)
       continue;
     const char* name = oak_token_text(ident->token);
-    if (oak_htable_get(&c->module_scope_names, name, strlen(name)) < 0)
+    if (!oak_contains_str(c->module_scope_names, name))
     {
       const u16 owner_module_id =
           c->current_module ? c->current_module->module_id : OAK_MODULE_ID_NONE;
@@ -25,12 +25,12 @@ static void collect_module_scope_names(struct oak_compiler_t* c,
               c, ident->token, name, OAK_SYMBOL_GLOBAL, -1,
               owner_module_id, 0))
         return;
-      oak_htable_insert(&c->module_scope_names, name, strlen(name), 1);
+      oak_add_str(c->module_scope_names, name);
     }
   }
 }
 
-static int item_emits_top_level_code(const struct oak_ast_node_t* item)
+static int item_emits_top_level_code(const oak_ast_node_t* item)
 {
   switch (item->kind)
   {
@@ -51,14 +51,14 @@ static int item_emits_top_level_code(const struct oak_ast_node_t* item)
   }
 }
 
-static void compile_program_items(struct oak_compiler_t* c,
-                                  const struct oak_ast_node_t* program)
+static void compile_program_items(oak_compiler_t* c,
+                                  const oak_ast_node_t* program)
 {
-  struct oak_list_entry_t* pos;
+  oak_list_entry_t* pos;
   oak_list_for_each(pos, &program->children)
   {
-    const struct oak_ast_node_t* item =
-        oak_container_of(pos, struct oak_ast_node_t, link);
+    const oak_ast_node_t* item =
+        oak_container_of(pos, oak_ast_node_t, link);
     if (!item_emits_top_level_code(item))
       continue;
 
@@ -71,7 +71,7 @@ static void compile_program_items(struct oak_compiler_t* c,
   }
 }
 
-static void register_builtin_symbols(struct oak_compiler_t* c)
+static void register_builtin_symbols(oak_compiler_t* c)
 {
   oak_register_native_builtins(c);
   CHECK_ERROR(c);
@@ -88,8 +88,8 @@ static void register_builtin_symbols(struct oak_compiler_t* c)
   oak_register_record_methods(c);
 }
 
-static void register_type_symbols(struct oak_compiler_t* c,
-                                  const struct oak_ast_node_t* program)
+static void register_type_symbols(oak_compiler_t* c,
+                                  const oak_ast_node_t* program)
 {
   oak_resolve_new_style_imports(c, program);
   CHECK_ERROR(c);
@@ -105,8 +105,8 @@ static void register_type_symbols(struct oak_compiler_t* c,
   oak_register_program_records(c, program);
 }
 
-static void register_callable_symbols(struct oak_compiler_t* c,
-                                      const struct oak_ast_node_t* program)
+static void register_callable_symbols(oak_compiler_t* c,
+                                      const oak_ast_node_t* program)
 {
   oak_register_program_fns(c, program);
   CHECK_ERROR(c);
@@ -115,8 +115,8 @@ static void register_callable_symbols(struct oak_compiler_t* c,
   oak_register_method_decls(c, program);
 }
 
-static void emit_deferred_bodies(struct oak_compiler_t* c,
-                                 const struct oak_ast_node_t* program)
+static void emit_deferred_bodies(oak_compiler_t* c,
+                                 const oak_ast_node_t* program)
 {
   for (int i = 0; i < c->scope.local_count; ++i)
     oak_chunk_end_debug_local(c->chunk, c->scope.locals[i].slot);
@@ -128,27 +128,28 @@ static void emit_deferred_bodies(struct oak_compiler_t* c,
   oak_compile_method_decl_bodies(c, program);
 }
 
-int oak_compiler_register_native_options(struct oak_compiler_t* c,
-                                 const struct oak_compile_options_t* opts)
+int oak_compiler_register_native_options(oak_compiler_t* c,
+                                 const oak_compile_options_t* opts)
 {
   if (!opts)
     return 1;
 
-  if (oak_dynarr_count(opts->native_types) > 0)
+  if (oak_size(opts->native_types) > 0)
   {
     oak_register_native_types(c, opts);
     if (c->has_error)
       return 0;
   }
 
-  if (oak_dynarr_count(opts->native_fns) > 0 || oak_dynarr_count(opts->native_global_fns) > 0)
+  if (oak_size(opts->native_fns) > 0 ||
+      oak_size(opts->native_global_fns) > 0)
   {
     oak_register_native_fns(c, opts);
     if (c->has_error)
       return 0;
   }
 
-  if (oak_dynarr_count(opts->native_enums) > 0)
+  if (oak_size(opts->native_enums) > 0)
   {
     oak_register_native_enums(c, opts);
     if (c->has_error)
@@ -158,8 +159,8 @@ int oak_compiler_register_native_options(struct oak_compiler_t* c,
   return 1;
 }
 
-void oak_compiler_compile_program(struct oak_compiler_t* c,
-                          const struct oak_ast_node_t* program)
+void oak_compiler_compile_program(oak_compiler_t* c,
+                          const oak_ast_node_t* program)
 {
   register_builtin_symbols(c);
   CHECK_ERROR(c);

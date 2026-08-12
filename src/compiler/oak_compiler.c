@@ -1,20 +1,20 @@
 #include "internal/oak_compiler.h"
 #include "oak_allocator.h"
 
-void oak_compile(const struct oak_ast_node_t* root,
-                 struct oak_compile_result_t* out)
+void oak_compile(const oak_ast_node_t* root,
+                 oak_compile_result_t* out)
 {
   oak_compile_ex(root, null, out);
 }
 
-void oak_compile_ex(const struct oak_ast_node_t* root,
-                    const struct oak_compile_options_t* opts,
-                    struct oak_compile_result_t* out)
+void oak_compile_ex(const oak_ast_node_t* root,
+                    const oak_compile_options_t* opts,
+                    oak_compile_result_t* out)
 {
-  struct oak_compiler_t compiler = { 0 };
-  struct oak_allocator_t* allocator =
+  oak_compiler_t compiler = { 0 };
+  oak_allocator_t* allocator =
       (opts && opts->allocator) ? opts->allocator : &oak_system_allocator;
-  struct oak_chunk_t* chunk = oak_compiler_init(&compiler, out, allocator);
+  oak_chunk_t* chunk = oak_compiler_init(&compiler, out, allocator);
 
   oak_compiler_configure(&compiler, opts);
   if (!opts || opts->emit_debug_info)
@@ -46,7 +46,7 @@ void oak_compile_ex(const struct oak_ast_node_t* root,
   out->chunk = chunk;
 }
 
-void oak_compile_result_free(struct oak_compile_result_t* result)
+void oak_compile_result_free(oak_compile_result_t* result)
 {
   if (result && result->chunk)
   {

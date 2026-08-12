@@ -6,7 +6,8 @@
  * does not apply — the driver tries the next scanner. Other values indicate
  * failure conditions (invalid input, allocation, etc.).
  */
-enum oak_lex_status_t
+typedef enum oak_lex_status oak_lex_status_t;
+enum oak_lex_status
 {
   OAK_LEX_OK = 0,
   OAK_LEX_NO_MATCH = 1,

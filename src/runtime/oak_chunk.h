@@ -1,9 +1,11 @@
 #pragma once
 
+#include "oak_container.h"
 #include "oak_export.h"
 #include "oak_value.h"
 
-enum oak_opcode_t
+typedef enum oak_opcode oak_opcode_t;
+enum oak_opcode
 {
   OAK_OP_HALT,
   /* Push constants[idx] (16-bit big-endian index). */
@@ -85,7 +87,8 @@ enum oak_opcode_t
 };
 
 /* Binary operation selector (used internally by the compiler). */
-enum oak_binop_t
+typedef enum oak_binop oak_binop_t;
+enum oak_binop
 {
   OAK_BINOP_ADD,
   OAK_BINOP_SUBTRACT,
@@ -103,7 +106,8 @@ enum oak_binop_t
 
 OAK_API const char* oak_binop_name(u8 binop);
 
-enum oak_op_format_t
+typedef enum oak_op_format oak_op_format_t;
+enum oak_op_format
 {
   OAK_OP_FMT_NONE,
   OAK_OP_FMT_CONSTANT, /* 16-bit (big-endian) constant index */
@@ -126,6 +130,7 @@ enum oak_op_format_t
 
 /* Deduplicated per-chunk: declaration-order field names for a user record
  * type, referenced when constructing record instances. */
+typedef struct oak_chunk_field_layout oak_chunk_field_layout_t;
 struct oak_chunk_field_layout
 {
   int field_count;
@@ -133,26 +138,29 @@ struct oak_chunk_field_layout
   char* name_blob;
 };
 
-struct oak_op_info_t
+typedef struct oak_op_info oak_op_info_t;
+struct oak_op_info
 {
   const char* name;
-  enum oak_op_format_t format;
+  oak_op_format_t format;
   int stack_effect;
 };
 
-OAK_API extern const struct oak_op_info_t oak_op_info[];
+OAK_API extern const oak_op_info_t oak_op_info[];
 
-OAK_API const struct oak_op_info_t* oak_op_get_info(u8 op);
+OAK_API const oak_op_info_t* oak_op_get_info(u8 op);
 
 /* Source coordinates (from lexer tokens at compile time; stored per bytecode
  * byte). */
-struct oak_code_loc_t
+typedef struct oak_code_loc oak_code_loc_t;
+struct oak_code_loc
 {
   int line;
   int column;
 };
 
-struct oak_debug_local_t
+typedef struct oak_debug_local oak_debug_local_t;
+struct oak_debug_local
 {
   int slot;
   usize offset;
@@ -163,61 +171,101 @@ struct oak_debug_local_t
 /* Debug-only state of a chunk. Optional: when null, the VM still executes
  * normally but produces error messages without source line/column and the
  * disassembler prints a sparse listing. */
-struct oak_chunk_debug_t
+typedef struct oak_chunk_debug oak_chunk_debug_t;
+struct oak_chunk_debug
 {
   /* Optional: path/label for the Oak source (borrowed). Not owned by chunk. */
   const char* source_name;
-  /* One entry per byte in chunk->bytecode. */
-  struct oak_code_loc_t* locations;
-  usize debug_count;
-  usize debug_capacity;
-  struct oak_debug_local_t* debug_locals;
+  /* oak_code_loc_t — one entry per byte in chunk->code. Kept in step
+   * with the code vector by oak_chunk_write, which appends to both. */
+  oak_container_t* locations;
+  /* oak_debug_local_t */
+  oak_container_t* debug_locals;
 };
 
-struct oak_allocator_t;
+typedef struct oak_allocator oak_allocator_t;
 
-struct oak_chunk_t
+typedef struct oak_chunk oak_chunk_t;
+struct oak_chunk
 {
-  struct oak_allocator_t* allocator;
-  usize count;
-  usize capacity;
-  u8* bytecode;
-  usize const_count;
-  usize const_capacity;
-  struct oak_value_t* constants;
-  struct oak_chunk_field_layout* field_layouts;
-  int field_layout_count;
-  int field_layout_capacity;
+  oak_allocator_t* allocator;
+  /* u8 — the bytecode. */
+  oak_container_t* code;
+  /* oak_value_t */
+  oak_container_t* constants;
+  /* oak_chunk_field_layout_t */
+  oak_container_t* field_layouts;
   /* Optional debug section; null when stripped. */
-  struct oak_chunk_debug_t* debug;
+  oak_chunk_debug_t* debug;
   /* The module that owns this chunk.  OAK_MODULE_ID_NONE (0xFFFF) when the
    * chunk is part of a single-file (no-import) compile. */
   u16 module_id;
 };
 
-OAK_API void oak_chunk_init(struct oak_chunk_t* chunk,
-                            struct oak_allocator_t* allocator);
-OAK_API void oak_chunk_free(struct oak_chunk_t* chunk);
+/* Sugar for the two things every reader of a chunk needs. The code vector is
+ * only appended to during compilation, so a pointer hoisted before execution
+ * stays valid for the life of the run. */
+static inline usize oak_chunk_size(const oak_chunk_t* chunk)
+{
+  return oak_size(chunk->code);
+}
+
+static inline const u8* oak_chunk_code(const oak_chunk_t* chunk)
+{
+  return OAK_CDATA(u8, chunk->code);
+}
+
+/* Source location of the byte at `offset`, or {0,0} when the chunk carries no
+ * debug section or the offset is past the end. */
+static inline oak_code_loc_t oak_chunk_loc(const oak_chunk_t* chunk,
+                                           const usize offset)
+{
+  /* Written without compound literals and with explicit casts off the void*
+   * returns: this header is also compiled as C++ via oak.hpp. */
+  oak_code_loc_t none;
+  none.line = 0;
+  none.column = 0;
+  if (!chunk->debug)
+    return none;
+  const oak_code_loc_t* const loc =
+      (const oak_code_loc_t*)oak_cget(chunk->debug->locations, offset);
+  return loc ? *loc : none;
+}
+
+/* Bounds-checked single-constant read. Callers that touch the pool in a loop
+ * while it can still grow must use this rather than hoisting a data pointer:
+ * compiling a function body appends constants and may reallocate. */
+static inline oak_value_t oak_chunk_constant(const oak_chunk_t* chunk,
+                                             const usize index)
+{
+  const oak_value_t* const value =
+      (const oak_value_t*)oak_cget(chunk->constants, index);
+  return value ? *value : oak_value_none();
+}
+
+OAK_API void oak_chunk_init(oak_chunk_t* chunk,
+                            oak_allocator_t* allocator);
+OAK_API void oak_chunk_free(oak_chunk_t* chunk);
 
 /* Allocate and attach an empty debug section to the chunk. Idempotent. */
-OAK_API void oak_chunk_enable_debug(struct oak_chunk_t* chunk,
+OAK_API void oak_chunk_enable_debug(oak_chunk_t* chunk,
                                     const char* source_name);
 
 /* Intern a field-name layout. Returns a stable id >= 0, or -1 on failure. */
-OAK_API int oak_chunk_add_field_layout(struct oak_chunk_t* chunk,
+OAK_API int oak_chunk_add_field_layout(oak_chunk_t* chunk,
                                        int field_count,
                                        const char* const* names);
 
-OAK_API void oak_chunk_write(struct oak_chunk_t* chunk,
+OAK_API void oak_chunk_write(oak_chunk_t* chunk,
                              u8 byte,
-                             struct oak_code_loc_t loc);
+                             oak_code_loc_t loc);
 
-OAK_API usize oak_chunk_add_constant(struct oak_chunk_t* chunk,
-                                     struct oak_value_t value);
-OAK_API void oak_chunk_add_debug_local(struct oak_chunk_t* chunk,
+OAK_API usize oak_chunk_add_constant(oak_chunk_t* chunk,
+                                     oak_value_t value);
+OAK_API void oak_chunk_add_debug_local(oak_chunk_t* chunk,
                                        int slot,
                                        const char* name);
-OAK_API void oak_chunk_end_debug_local(struct oak_chunk_t* chunk, int slot);
-OAK_API void oak_chunk_disassemble(const struct oak_chunk_t* chunk);
-OAK_API usize oak_chunk_disassemble_instruction(const struct oak_chunk_t* chunk,
+OAK_API void oak_chunk_end_debug_local(oak_chunk_t* chunk, int slot);
+OAK_API void oak_chunk_disassemble(const oak_chunk_t* chunk);
+OAK_API usize oak_chunk_disassemble_instruction(const oak_chunk_t* chunk,
                                                 usize offset);

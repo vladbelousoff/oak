@@ -10,7 +10,8 @@
 
 /* Outcome of a VM run / call.  COMPILE_ERROR is reported when the chunk
  * passed to oak_vm_run was produced from a failed compile. */
-enum oak_vm_result_t
+typedef enum oak_vm_result oak_vm_result_t;
+enum oak_vm_result
 {
   OAK_VM_OK,
   OAK_VM_COMPILE_ERROR,
@@ -19,46 +20,50 @@ enum oak_vm_result_t
 };
 
 /* Action returned by a debug hook to the VM execution loop. */
-enum oak_debug_action_t
+typedef enum oak_debug_action oak_debug_action_t;
+enum oak_debug_action
 {
   OAK_DEBUG_CONTINUE,
   OAK_DEBUG_HALT,
 };
 
-struct oak_call_frame_t
+typedef struct oak_call_frame oak_call_frame_t;
+struct oak_call_frame
 {
   u8* return_ip;
   usize caller_stack_base;
   usize fn_slot;
   /* Chunk to restore on return.  When the call did not switch chunks
    * (intra-module), this is the same as the caller's chunk. */
-  struct oak_chunk_t* return_chunk;
+  oak_chunk_t* return_chunk;
 };
 
-struct oak_module_registry_t;
+typedef struct oak_module_registry oak_module_registry_t;
 
 /* Debug hook descriptor.  Allocated and owned by the caller; the VM borrows
  * a pointer and never frees it.  Defined here so the struct can be extended
  * in the future without changing the size of oak_vm_t. */
-struct oak_vm_debug_hook_t
+typedef struct oak_vm_debug_hook oak_vm_debug_hook_t;
+struct oak_vm_debug_hook
 {
-  enum oak_debug_action_t (*fn)(struct oak_vm_t* vm, void* ctx);
+  oak_debug_action_t (*fn)(oak_vm_t* vm, void* ctx);
   void* ctx;
 };
 
-struct oak_vm_t
+typedef struct oak_vm oak_vm_t;
+struct oak_vm
 {
-  struct oak_chunk_t* chunk;
+  oak_chunk_t* chunk;
   u8* ip;
-  struct oak_value_t stack[OAK_STACK_MAX];
-  struct oak_value_t* sp;
+  oak_value_t stack[OAK_STACK_MAX];
+  oak_value_t* sp;
   usize stack_base;
-  struct oak_call_frame_t frames[OAK_FRAMES_MAX];
+  oak_call_frame_t frames[OAK_FRAMES_MAX];
   int frame_count;
   /* Optional: when set, the VM can resolve cross-module references via
    * OP_GET_MODULE_FN and switch chunks on cross-module CALL/RETURN. */
-  struct oak_module_registry_t* modules;
-  struct oak_allocator_t* allocator;
+  oak_module_registry_t* modules;
+  oak_allocator_t* allocator;
   /* Optional embedder context. Borrowed, never freed by the VM. Native
    * callbacks can recover their owning embedder via ctx->vm->user_data,
    * which lets multiple independent VMs coexist without sharing embedder
@@ -66,7 +71,7 @@ struct oak_vm_t
   void* user_data;
   /* Opaque debug hook; null when no debugger is attached.  Installed via
    * oak_vm_set_debug_hook.  Borrowed, never freed by the VM. */
-  struct oak_vm_debug_hook_t* debug_hook;
+  oak_vm_debug_hook_t* debug_hook;
   /* This VM's object table.  oak_vm_* allocation functions create objects in
 
    * * oak_obj_tables[object_table].  Acquired by oak_vm_init, detached by
@@ -79,8 +84,8 @@ struct oak_vm_t
 
 /* Zero-initialize a VM and wire it to an allocator.  The allocator pointer
  * is borrowed for the lifetime of the VM; it is not freed by oak_vm_free. */
-OAK_API void oak_vm_init(struct oak_vm_t* vm,
-                         struct oak_allocator_t* allocator);
+OAK_API void oak_vm_init(oak_vm_t* vm,
+                         oak_allocator_t* allocator);
 
 /* Allocate values owned by `vm`, independently of which thread makes the
  *
@@ -89,58 +94,58 @@ OAK_API void oak_vm_init(struct oak_vm_t* vm,
  * and its values must not be accessed concurrently.  The plain oak_*_new
  *
  * constructors create process-shared table-0 values instead. */
-OAK_API struct oak_obj_string_t* oak_vm_string_new(struct oak_vm_t* vm,
+OAK_API oak_obj_string_t* oak_vm_string_new(oak_vm_t* vm,
                                                    const char* chars);
-OAK_API struct oak_obj_string_t*
-oak_vm_string_new_len(struct oak_vm_t* vm, const char* chars, usize length);
-OAK_API struct oak_obj_string_t*
-oak_vm_string_concat(struct oak_vm_t* vm,
-                     const struct oak_obj_string_t* left,
-                     const struct oak_obj_string_t* right);
-OAK_API struct oak_obj_array_t* oak_vm_array_new(struct oak_vm_t* vm);
-OAK_API struct oak_obj_map_t* oak_vm_map_new(struct oak_vm_t* vm);
-OAK_API struct oak_obj_record_t*
-oak_vm_record_new(struct oak_vm_t* vm,
+OAK_API oak_obj_string_t*
+oak_vm_string_new_len(oak_vm_t* vm, const char* chars, usize length);
+OAK_API oak_obj_string_t*
+oak_vm_string_concat(oak_vm_t* vm,
+                     const oak_obj_string_t* left,
+                     const oak_obj_string_t* right);
+OAK_API oak_obj_array_t* oak_vm_array_new(oak_vm_t* vm);
+OAK_API oak_obj_map_t* oak_vm_map_new(oak_vm_t* vm);
+OAK_API oak_obj_record_t*
+oak_vm_record_new(oak_vm_t* vm,
                   int field_count,
                   const char* type_name,
                   const char* const* field_names);
-OAK_API struct oak_value_t oak_vm_native_record_new(
-    struct oak_vm_t* vm, const struct oak_bind_type_t* type, void* instance);
-OAK_API struct oak_obj_string_t*
-oak_vm_value_to_string(struct oak_vm_t* vm, struct oak_value_t value);
-OAK_API struct oak_obj_string_t*
-oak_vm_string_from_value_repr(struct oak_vm_t* vm, struct oak_value_t value);
+OAK_API oak_value_t oak_vm_native_record_new(
+    oak_vm_t* vm, const oak_bind_type_t* type, void* instance);
+OAK_API oak_obj_string_t*
+oak_vm_value_to_string(oak_vm_t* vm, oak_value_t value);
+OAK_API oak_obj_string_t*
+oak_vm_string_from_value_repr(oak_vm_t* vm, oak_value_t value);
 
 /* Release any heap state owned by the VM.  Does not free chunks (those are
  * owned by their oak_compile_result_t / oak_module_t). */
-OAK_API void oak_vm_free(struct oak_vm_t* vm);
+OAK_API void oak_vm_free(oak_vm_t* vm);
 
 /* Attach a module registry so cross-module CALL / GET_MODULE_FN opcodes can
  * resolve.  May be called before oak_vm_run; the pointer is borrowed. */
-OAK_API void oak_vm_set_module_registry(struct oak_vm_t* vm,
-                                        struct oak_module_registry_t* modules);
+OAK_API void oak_vm_set_module_registry(oak_vm_t* vm,
+                                        oak_module_registry_t* modules);
 
 /* Attach a debug hook.  The hook is called before every instruction dispatch
  * when non-null.  The pointer is borrowed; the caller retains ownership. */
-OAK_API void oak_vm_set_debug_hook(struct oak_vm_t* vm,
-                                   struct oak_vm_debug_hook_t* hook);
+OAK_API void oak_vm_set_debug_hook(oak_vm_t* vm,
+                                   oak_vm_debug_hook_t* hook);
 
 /* Execute `chunk` from its entry point.  `chunk` is borrowed; the caller
  * retains ownership.  Returns OAK_VM_OK on a clean halt. */
-OAK_API enum oak_vm_result_t oak_vm_run(struct oak_vm_t* vm,
-                                        struct oak_chunk_t* chunk);
+OAK_API oak_vm_result_t oak_vm_run(oak_vm_t* vm,
+                                        oak_chunk_t* chunk);
 
 /* Resume execution from the VM's current IP.  Use after a previous run
  * suspended (e.g. via a yielding native fn). */
-OAK_API enum oak_vm_result_t oak_vm_resume(struct oak_vm_t* vm);
+OAK_API oak_vm_result_t oak_vm_resume(oak_vm_t* vm);
 
 /* Call an Oak function from C.  Pushes fn_val and args onto the stack, sets up
  * a call frame, and runs the VM until the function returns.
  * out_result receives the return value (may be NULL to discard it).
  * The VM must have been initialized and a chunk must have been run at least
  * once (so that the chunk is set and the IP is valid). */
-OAK_API enum oak_vm_result_t oak_vm_call(struct oak_vm_t* vm,
-                                         struct oak_value_t fn_val,
-                                         const struct oak_value_t* args,
+OAK_API oak_vm_result_t oak_vm_call(oak_vm_t* vm,
+                                         oak_value_t fn_val,
+                                         const oak_value_t* args,
                                          int argc,
-                                         struct oak_value_t* out_result);
+                                         oak_value_t* out_result);

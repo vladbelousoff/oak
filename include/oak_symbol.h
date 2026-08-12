@@ -1,15 +1,18 @@
 #pragma once
 
-#include "oak_htable.h"
+#include "oak_container.h"
+#include "oak_hash_map.h"
 #include "oak_types.h"
+#include "oak_vector.h"
 
-struct oak_allocator_t;
-struct oak_module_export_fn_t;
-struct oak_module_export_record_t;
-struct oak_module_export_enum_t;
-struct oak_module_export_interface_t;
+typedef struct oak_allocator oak_allocator_t;
+typedef struct oak_module_export_fn oak_module_export_fn_t;
+typedef struct oak_module_export_record oak_module_export_record_t;
+typedef struct oak_module_export_enum oak_module_export_enum_t;
+typedef struct oak_module_export_interface oak_module_export_interface_t;
 
-enum oak_symbol_kind_t
+typedef enum oak_symbol_kind oak_symbol_kind_t;
+enum oak_symbol_kind
 {
   OAK_SYMBOL_FUNCTION,
   OAK_SYMBOL_RECORD,
@@ -19,79 +22,82 @@ enum oak_symbol_kind_t
   OAK_SYMBOL_MODULE_ALIAS,
 };
 
-struct oak_symbol_t
+typedef struct oak_symbol oak_symbol_t;
+struct oak_symbol
 {
   const char* name;
-  enum oak_symbol_kind_t kind;
+  oak_symbol_kind_t kind;
   u16 owner_module_id;
   int payload_index;
   int is_exported;
   int is_imported;
 };
 
-struct oak_symbol_registry_t
+typedef struct oak_symbol_registry oak_symbol_registry_t;
+struct oak_symbol_registry
 {
-  struct oak_allocator_t* allocator;
-  struct oak_htable_t by_name;
-  struct oak_symbol_t* symbols;
+  oak_allocator_t* allocator;
+  oak_container_t* by_name; /* name → usize index into symbols */
+  oak_container_t* symbols; /* vector of oak_symbol_t */
 
-  struct oak_module_export_fn_t* fns;
-  struct oak_module_export_record_t* records;
-  struct oak_module_export_enum_t* enums;
-  struct oak_module_export_interface_t* interfaces;
+  /* Payload vectors, indexed by oak_symbol_t.payload_index. */
+  oak_container_t* fns;        /* oak_module_export_fn_t        */
+  oak_container_t* records;    /* oak_module_export_record_t    */
+  oak_container_t* enums;      /* oak_module_export_enum_t      */
+  oak_container_t* interfaces; /* oak_module_export_interface_t */
 };
 
-void oak_symbol_registry_init(struct oak_symbol_registry_t* registry,
-                              struct oak_allocator_t* allocator);
-void oak_symbol_registry_free(struct oak_symbol_registry_t* registry);
+void oak_symbol_registry_init(oak_symbol_registry_t* registry,
+                              oak_allocator_t* allocator);
+void oak_symbol_registry_free(oak_symbol_registry_t* registry);
 
 /* Inserts a symbol into the module namespace. Returns null on collision. */
-struct oak_symbol_t* oak_symbol_registry_insert(
-    struct oak_symbol_registry_t* registry, const struct oak_symbol_t* symbol);
+oak_symbol_t* oak_symbol_registry_insert(
+    oak_symbol_registry_t* registry, const oak_symbol_t* symbol);
 
-const struct oak_symbol_t* oak_symbol_registry_find(
-    const struct oak_symbol_registry_t* registry, const char* name);
+const oak_symbol_t* oak_symbol_registry_find(
+    const oak_symbol_registry_t* registry, const char* name);
 
 /* Typed insert: appends payload to the internal array and inserts a symbol
  * with payload_index set automatically. Returns stored payload, null on
  * collision. */
-struct oak_module_export_fn_t*
-oak_symbol_registry_insert_fn(struct oak_symbol_registry_t* registry,
+oak_module_export_fn_t*
+oak_symbol_registry_insert_fn(oak_symbol_registry_t* registry,
                               const char* name,
                               u16 owner_module_id,
-                              const struct oak_module_export_fn_t* fn);
+                              const oak_module_export_fn_t* fn);
 
-struct oak_module_export_record_t*
-oak_symbol_registry_insert_record(struct oak_symbol_registry_t* registry,
+oak_module_export_record_t*
+oak_symbol_registry_insert_record(oak_symbol_registry_t* registry,
                                   const char* name,
                                   u16 owner_module_id,
-                                  const struct oak_module_export_record_t* rec);
+                                  const oak_module_export_record_t* rec);
 
-struct oak_module_export_enum_t*
-oak_symbol_registry_insert_enum(struct oak_symbol_registry_t* registry,
+oak_module_export_enum_t*
+oak_symbol_registry_insert_enum(oak_symbol_registry_t* registry,
                                 const char* name,
                                 u16 owner_module_id,
-                                const struct oak_module_export_enum_t* en);
+                                const oak_module_export_enum_t* en);
 
-struct oak_module_export_interface_t*
-oak_symbol_registry_insert_interface(struct oak_symbol_registry_t* registry,
+oak_module_export_interface_t*
+oak_symbol_registry_insert_interface(oak_symbol_registry_t* registry,
                                  const char* name,
                                  u16 owner_module_id,
-                                 const struct oak_module_export_interface_t* tr);
+                                 const oak_module_export_interface_t* tr);
 
 /* Typed find: name lookup + kind check + payload dereference. */
-const struct oak_module_export_fn_t*
-oak_symbol_registry_find_fn(const struct oak_symbol_registry_t* registry,
+const oak_module_export_fn_t*
+oak_symbol_registry_find_fn(const oak_symbol_registry_t* registry,
                             const char* name);
 
-const struct oak_module_export_record_t*
-oak_symbol_registry_find_record(const struct oak_symbol_registry_t* registry,
+const oak_module_export_record_t*
+oak_symbol_registry_find_record(const oak_symbol_registry_t* registry,
                                 const char* name);
 
-const struct oak_module_export_enum_t*
-oak_symbol_registry_find_enum(const struct oak_symbol_registry_t* registry,
+const oak_module_export_enum_t*
+oak_symbol_registry_find_enum(const oak_symbol_registry_t* registry,
                               const char* name);
 
-const struct oak_module_export_interface_t*
-oak_symbol_registry_find_interface(const struct oak_symbol_registry_t* registry,
+const oak_module_export_interface_t*
+oak_symbol_registry_find_interface(const oak_symbol_registry_t* registry,
                                const char* name);

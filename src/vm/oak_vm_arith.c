@@ -4,7 +4,7 @@
 
 /* Convert a number to i32 for '//'. Fails on NaN and on floats outside the
  * i32 range, where a plain cast would be undefined behavior. */
-static inline int checked_i32(const struct oak_value_t v, int* out)
+static inline int checked_i32(const oak_value_t v, int* out)
 {
   if (oak_is_i32(v))
   {
@@ -18,15 +18,15 @@ static inline int checked_i32(const struct oak_value_t v, int* out)
   return 1;
 }
 
-static inline float coerce_f32(const struct oak_value_t v)
+static inline float coerce_f32(const oak_value_t v)
 {
   return oak_is_f32(v) ? oak_as_f32(v) : (float)oak_as_i32(v);
 }
 
-enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
+oak_vm_result_t oak_vm_numeric_binary(oak_vm_t* vm,
                                            const u8 binop,
-                                           const struct oak_value_t a,
-                                           const struct oak_value_t b)
+                                           const oak_value_t a,
+                                           const oak_value_t b)
 {
   if (binop == OAK_BINOP_INT_DIVIDE)
   {
@@ -141,10 +141,10 @@ enum oak_vm_result_t oak_vm_numeric_binary(struct oak_vm_t* vm,
   return OAK_VM_RUNTIME_ERROR;
 }
 
-enum oak_vm_result_t oak_vm_numeric_compare(struct oak_vm_t* vm,
+oak_vm_result_t oak_vm_numeric_compare(oak_vm_t* vm,
                                             const u8 binop,
-                                            const struct oak_value_t a,
-                                            const struct oak_value_t b)
+                                            const oak_value_t a,
+                                            const oak_value_t b)
 {
   if (!(oak_is_number(a) && oak_is_number(b)))
   {

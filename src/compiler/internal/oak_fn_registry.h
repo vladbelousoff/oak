@@ -1,9 +1,10 @@
 #pragma once
 
-#include "oak_type.h"
+#include "oak_container.h"
+#include "oak_hash_map.h"
 #include "oak_str.h"
-#include "oak_htable.h"
-#include "oak_dynarr.h"
+#include "oak_type.h"
+#include "oak_vector.h"
 #include <oak_compiler.h>
 
 /* decl is null for native (C) functions/methods registered at compile time.
@@ -12,7 +13,8 @@
  * return_type_id == OAK_TYPE_VOID means void (or inferred from decl).
  * is_static distinguishes static methods (no implicit self) from instance
  * methods (implicit self at slot 0); ignored for global fns. */
-struct oak_registered_fn_t
+typedef struct oak_registered_fn oak_registered_fn_t;
+struct oak_registered_fn
 {
   const char* name;
   u16 const_idx;
@@ -21,13 +23,13 @@ struct oak_registered_fn_t
    * (so user writes N args, stored as N+1). */
   int arity;
   oak_type_id_t receiver_type_id; /* OAK_TYPE_VOID = global function */
-  struct oak_type_t return_type; /* void when inferred from decl */
+  oak_type_t return_type; /* void when inferred from decl */
   int is_static;   /* 1 = static method, 0 = instance/global */
   int is_exported;
-  const struct oak_ast_node_t* decl; /* null for native and imported fns */
+  const oak_ast_node_t* decl; /* null for native and imported fns */
   /* Per-parameter resolved types and mutability for imported functions (decl is
    * null).  NULL when the function has no parameters or is locally declared. */
-  struct oak_type_t* param_types;
+  oak_type_t* param_types;
   u8* param_mut_flags;
   /* Attribute names (e.g. "Native", "Deprecated").
    * Always heap-allocated; freed by registry_free. */
@@ -37,28 +39,27 @@ struct oak_registered_fn_t
   u16 source_const_idx;
 };
 
-/* Concrete dynamic-array type for registered functions. */
-
 /* Unbounded registry of user-declared and native fns.
- * Lookup is O(1) via the hash table; entries owns the storage. */
-struct oak_fn_registry_t
+ * Lookup is O(1) via the hash map; entries owns the storage. */
+typedef struct oak_fn_registry oak_fn_registry_t;
+struct oak_fn_registry
 {
-  struct oak_allocator_t* allocator;
-  struct oak_htable_t by_name; /* name bytes → index into entries */
-  struct oak_registered_fn_t* entries;
+  oak_allocator_t* allocator;
+  oak_container_t* by_name; /* name → usize index into entries */
+  oak_container_t* entries; /* vector of oak_registered_fn_t */
 };
 
 
-void oak_fn_registry_init(struct oak_fn_registry_t* r,
-                          struct oak_allocator_t* allocator);
-void oak_fn_registry_free(struct oak_fn_registry_t* r);
+void oak_fn_registry_init(oak_fn_registry_t* r,
+                          oak_allocator_t* allocator);
+void oak_fn_registry_free(oak_fn_registry_t* r);
 
 
 /* Appends fn and indexes it by name. Returns pointer to the stored entry. */
-struct oak_registered_fn_t*
-oak_fn_registry_insert(struct oak_fn_registry_t* r,
-                       const struct oak_registered_fn_t* fn);
+oak_registered_fn_t*
+oak_fn_registry_insert(oak_fn_registry_t* r,
+                       const oak_registered_fn_t* fn);
 
 /* O(1) lookup by name. Returns null if not found. */
-const struct oak_registered_fn_t* oak_fn_registry_find(
-    const struct oak_fn_registry_t* r, const char* name);
+const oak_registered_fn_t* oak_fn_registry_find(
+    const oak_fn_registry_t* r, const char* name);

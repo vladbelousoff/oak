@@ -1,11 +1,11 @@
 #include "internal/oak_compiler.h"
 #include "oak_compiler_modules.h"
 
-void oak_compiler_compile_member_access(struct oak_compiler_t* c,
-                                        const struct oak_ast_node_t* node)
+void oak_compiler_compile_member_access(oak_compiler_t* c,
+                                        const oak_ast_node_t* node)
 {
-  const struct oak_ast_node_t* recv = node->lhs;
-  const struct oak_ast_node_t* fname = node->rhs;
+  const oak_ast_node_t* recv = node->lhs;
+  const oak_ast_node_t* fname = node->rhs;
   if (!recv || !fname || fname->kind != OAK_NODE_IDENT)
   {
     oak_compiler_error_at(
@@ -15,12 +15,12 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
 
   /* Cross-module enum variant: alias.EnumName.Variant */
   {
-    const struct oak_token_t* ename_tok = null;
+    const oak_token_t* ename_tok = null;
     if (oak_compiler_match_module_member(c, recv, &ename_tok))
     {
       const char* ename = oak_token_text(ename_tok);
       const char* vname = oak_token_text(fname->token);
-      const struct oak_enum_variant_t* ev = oak_enums_find_qualified(
+      const oak_enum_variant_t* ev = oak_enums_find_qualified(
           &c->enums, ename, vname);
       if (!ev)
       {
@@ -41,7 +41,7 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
     if (oak_is_enum_name(&c->enums, recv_name))
     {
       const char* vname = oak_token_text(fname->token);
-      const struct oak_enum_variant_t* ev = oak_enums_find_qualified(
+      const oak_enum_variant_t* ev = oak_enums_find_qualified(
           &c->enums, recv_name, vname);
       if (!ev)
       {
@@ -61,7 +61,7 @@ void oak_compiler_compile_member_access(struct oak_compiler_t* c,
   oak_reject_void(c, recv);
   if (c->has_error)
     return;
-  const struct oak_registered_record_t* sd = null;
+  const oak_registered_record_t* sd = null;
   const int idx = oak_require_record_field(c, recv, fname, 0, &sd);
   (void)sd;
   if (idx < 0)

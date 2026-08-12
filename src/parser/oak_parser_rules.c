@@ -1,19 +1,19 @@
 #include "internal/oak_parser.h"
 
-int oak_parser_try_skip_token(struct oak_parser_t* p,
-                              const enum oak_token_kind_t token_kind)
+int oak_parser_try_skip_token(oak_parser_t* p,
+                              const oak_token_kind_t token_kind)
 {
   if (p->curr == p->head)
     return 0;
-  const struct oak_token_t* token =
-      oak_container_of(p->curr, struct oak_token_t, link);
+  const oak_token_t* token =
+      oak_container_of(p->curr, oak_token_t, link);
   if (oak_token_kind(token) != token_kind)
     return 0;
   p->curr = p->curr->next;
   return 1;
 }
 
-usize oak_parser_grammar_rule_count(const struct oak_grammar_entry_t* entry)
+usize oak_parser_grammar_rule_count(const oak_grammar_entry_t* entry)
 {
   usize n = 0;
   while (n < oak_count_of(entry->rules) && entry->rules[n] != 0)
@@ -21,19 +21,19 @@ usize oak_parser_grammar_rule_count(const struct oak_grammar_entry_t* entry)
   return n;
 }
 
-struct oak_ast_node_t* oak_parser_parse_token(struct oak_parser_t* p,
-                                              const enum oak_node_kind_t kind)
+oak_ast_node_t* oak_parser_parse_token(oak_parser_t* p,
+                                              const oak_node_kind_t kind)
 {
   oak_assert(p);
   oak_assert(p->curr);
   oak_assert(p->curr->next);
-  const struct oak_token_t* token =
-      oak_container_of(p->curr, struct oak_token_t, link);
-  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
+  const oak_token_t* token =
+      oak_container_of(p->curr, oak_token_t, link);
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
   if (oak_token_kind(token) != entry->token_kind)
     return null;
-  struct oak_ast_node_t* node =
-      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+  oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
     return null;
   node->kind = kind;
@@ -42,18 +42,18 @@ struct oak_ast_node_t* oak_parser_parse_token(struct oak_parser_t* p,
   return node;
 }
 
-struct oak_ast_node_t* oak_parser_parse_choice(struct oak_parser_t* p,
-                                               const enum oak_node_kind_t kind)
+oak_ast_node_t* oak_parser_parse_choice(oak_parser_t* p,
+                                               const oak_node_kind_t kind)
 {
-  struct oak_list_entry_t* saved = p->curr;
-  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
+  oak_list_entry_t* saved = p->curr;
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
 
   const usize choice_count = oak_parser_grammar_rule_count(entry);
   for (usize i = 0; i < choice_count; ++i)
   {
     p->curr = saved;
-    struct oak_ast_node_t* child =
-        oak_parser_parse_rule(p, (enum oak_node_kind_t)entry->rules[i]);
+    oak_ast_node_t* child =
+        oak_parser_parse_rule(p, (oak_node_kind_t)entry->rules[i]);
     if (child)
       return child;
   }
@@ -62,23 +62,23 @@ struct oak_ast_node_t* oak_parser_parse_choice(struct oak_parser_t* p,
   return null;
 }
 
-struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
-                                              const enum oak_node_kind_t kind)
+oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
+                                              const oak_node_kind_t kind)
 {
-  struct oak_list_entry_t* saved = p->curr;
-  const struct oak_grammar_entry_t* entry = &oak_grammar[kind];
+  oak_list_entry_t* saved = p->curr;
+  const oak_grammar_entry_t* entry = &oak_grammar[kind];
   const int is_binary = entry->op == OAK_GRAMMAR_BINARY;
   const int is_unary = entry->op == OAK_GRAMMAR_UNARY;
   const int is_fixed = is_binary || is_unary;
 
-  struct oak_list_entry_t collected;
+  oak_list_entry_t collected;
   oak_list_init(&collected);
 
   /* For UNARY/BINARY nodes every non-token rule maps to a positional slot
    * (child for UNARY; lhs/rhs for BINARY). Optional rules that don't match
    * still occupy their slot, storing null so the shape of the node is
    * stable regardless of whether the optional was present. */
-  struct oak_ast_node_t* slots[2] = { null, null };
+  oak_ast_node_t* slots[2] = { null, null };
   usize slot_count = 0;
   const usize max_slots = is_binary ? 2u : (is_unary ? 1u : 0u);
 
@@ -91,8 +91,8 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
 
     if (rule & OAK_RULE_TOKEN)
     {
-      const enum oak_token_kind_t tok =
-          (enum oak_token_kind_t)(rule & OAK_RULE_KIND_MASK);
+      const oak_token_kind_t tok =
+          (oak_token_kind_t)(rule & OAK_RULE_KIND_MASK);
       if (is_repeat)
       {
         while (oak_parser_try_skip_token(p, tok))
@@ -116,8 +116,8 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
 
     const int is_comma_sep = rule & OAK_RULE_COMMA_SEP;
     const int is_dot_sep = rule & OAK_RULE_DOT_SEP;
-    const enum oak_node_kind_t child_kind =
-        (enum oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
+    const oak_node_kind_t child_kind =
+        (oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
     if (is_repeat)
     {
       oak_assert(!is_fixed);
@@ -138,7 +138,7 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
           if (!oak_parser_try_skip_token(p, OAK_TOKEN_DOT))
             break;
         }
-        struct oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
+        oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
         if (!child)
           break;
         oak_list_add_tail(&collected, &child->link);
@@ -147,7 +147,7 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
       continue;
     }
 
-    struct oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
+    oak_ast_node_t* child = oak_parser_parse_rule(p, child_kind);
     if (!child && !is_optional)
     {
       oak_parser_detail_expected_node(p, kind, child_kind);
@@ -173,8 +173,8 @@ struct oak_ast_node_t* oak_parser_parse_rules(struct oak_parser_t* p,
     return null;
   }
 
-  struct oak_ast_node_t* node =
-      oak_arena_alloc(p->arena, sizeof(struct oak_ast_node_t));
+  oak_ast_node_t* node =
+      oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
   {
     p->curr = saved;

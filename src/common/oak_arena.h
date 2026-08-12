@@ -6,23 +6,24 @@
 
 #define OAK_ARENA_DEFAULT_BLOCK_SIZE 4096
 
-struct oak_arena_block_t;
+typedef struct oak_arena_block oak_arena_block_t;
 
-struct oak_arena_t
+typedef struct oak_arena oak_arena_t;
+struct oak_arena
 {
-  struct oak_arena_block_t* current;
+  oak_arena_block_t* current;
   usize block_size;
-  struct oak_allocator_t* allocator;
+  oak_allocator_t* allocator;
 };
 
 /* block_size 0 selects OAK_ARENA_DEFAULT_BLOCK_SIZE. Safe to call again after
  * free. */
-OAK_API void oak_arena_init(struct oak_arena_t* arena,
+OAK_API void oak_arena_init(oak_arena_t* arena,
                             usize block_size,
-                            struct oak_allocator_t* allocator);
+                            oak_allocator_t* allocator);
 
 /* Returns zero-filled storage, aligned to 2 * sizeof(usize). Null on allocation
  * failure. */
-OAK_API void* oak_arena_alloc(struct oak_arena_t* arena, usize size);
+OAK_API void* oak_arena_alloc(oak_arena_t* arena, usize size);
 
-OAK_API void oak_arena_free(struct oak_arena_t* arena);
+OAK_API void oak_arena_free(oak_arena_t* arena);

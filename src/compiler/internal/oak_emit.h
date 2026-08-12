@@ -4,9 +4,9 @@
 #include "oak_chunk.h"
 
 
-void oak_compiler_emit_byte(const struct oak_compiler_t* c,
+void oak_compiler_emit_byte(const oak_compiler_t* c,
                             u8 byte,
-                            struct oak_code_loc_t loc);
+                            oak_code_loc_t loc);
 
 typedef enum
 {
@@ -22,9 +22,9 @@ typedef struct
 #define OAK_ARG_U8(v)  ((oak_emit_arg_t){ OAK_EMIT_U8, (u16)(v) })
 #define OAK_ARG_U16(v) ((oak_emit_arg_t){ OAK_EMIT_U16, (v) })
 
-void oak_compiler_emit_op_impl(struct oak_compiler_t* c,
+void oak_compiler_emit_op_impl(oak_compiler_t* c,
                                u8 op,
-                               struct oak_code_loc_t loc,
+                               oak_code_loc_t loc,
                                const oak_emit_arg_t* args,
                                int n_args);
 
@@ -39,31 +39,31 @@ void oak_compiler_emit_op_impl(struct oak_compiler_t* c,
             sizeof(oak_emit_arg_t)) -                                          \
           1)
 
-u16 oak_compiler_intern_constant(struct oak_compiler_t* c,
-                                 struct oak_value_t value);
+u16 oak_compiler_intern_constant(oak_compiler_t* c,
+                                 oak_value_t value);
 
-void oak_compiler_emit_constant(struct oak_compiler_t* c,
+void oak_compiler_emit_constant(oak_compiler_t* c,
                                 u16 idx,
-                                struct oak_code_loc_t loc);
+                                oak_code_loc_t loc);
 
-usize oak_compiler_emit_jump(struct oak_compiler_t* c,
+usize oak_compiler_emit_jump(oak_compiler_t* c,
                              u8 op,
-                             struct oak_code_loc_t loc);
+                             oak_code_loc_t loc);
 
-void oak_compiler_patch_jump(struct oak_compiler_t* c, usize offset);
+void oak_compiler_patch_jump(oak_compiler_t* c, usize offset);
 
-void oak_compiler_patch_jumps(struct oak_compiler_t* c,
-                              const usize* jumps,
-                              int count);
+/* Patches every jump offset held in `jumps` (a vector of usize). */
+void oak_compiler_patch_jumps(oak_compiler_t* c,
+                              const oak_container_t* jumps);
 
-void oak_compiler_emit_loop(struct oak_compiler_t* c,
+void oak_compiler_emit_loop(oak_compiler_t* c,
                             usize loop_start,
-                            struct oak_code_loc_t loc);
+                            oak_code_loc_t loc);
 
-void oak_compiler_emit_pops(struct oak_compiler_t* c,
+void oak_compiler_emit_pops(oak_compiler_t* c,
                             int count,
-                            struct oak_code_loc_t loc);
+                            oak_code_loc_t loc);
 
-void oak_emit_loop_jump(struct oak_compiler_t* c,
-                         usize** jumps,
+void oak_emit_loop_jump(oak_compiler_t* c,
+                         oak_container_t* jumps,
                          int target_depth);

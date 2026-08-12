@@ -3,7 +3,7 @@
 #include "oak_export.h"
 #include "oak_value.h"
 
-struct oak_compile_options_t;
+typedef struct oak_compile_options oak_compile_options_t;
 
 /* String built-ins.
  *
@@ -14,20 +14,20 @@ struct oak_compile_options_t;
  * builtins; there is no separate `string` module to import. */
 
 /* Instance methods (receiver is args[0]). */
-OAK_API enum oak_fn_call_result_t oak_str_upper(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_lower(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_trim(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_contains(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_starts_with(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_ends_with(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_index_of(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_replace(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_repeat(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_substring(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_to_snake_case(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_to_camel_case(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_upper(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_lower(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_trim(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_contains(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_starts_with(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_ends_with(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_index_of(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_replace(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_repeat(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_substring(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_to_snake_case(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_to_camel_case(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
 
 /* Global builtins. */
-OAK_API enum oak_fn_call_result_t oak_str_ord(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_chr(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
-OAK_API enum oak_fn_call_result_t oak_str_parse_number(struct oak_native_ctx_t* ctx, const struct oak_value_t* args, int argc, struct oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_ord(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_chr(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);
+OAK_API oak_fn_call_result_t oak_str_parse_number(oak_native_ctx_t* ctx, const oak_value_t* args, int argc, oak_value_t* out);

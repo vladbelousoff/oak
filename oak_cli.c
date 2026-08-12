@@ -11,7 +11,7 @@ static int is_long_option(const char* s)
 
 int oak_cli_parse(int argc,
                   const char* const* argv,
-                  struct oak_cli_args_t* args)
+                  oak_cli_args_t* args)
 {
   memset(args, 0, sizeof(*args));
 

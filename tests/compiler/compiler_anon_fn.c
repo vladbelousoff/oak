@@ -91,7 +91,7 @@ OAK_TEST_DECL(AnonFnMultipleDecls)
 
 int main(void)
 {
-  const struct oak_test_t tests[] = {
+  const oak_test_t tests[] = {
     OAK_TEST_ENTRY(AnonFnLetAssign),
     OAK_TEST_ENTRY(AnonFnVoid),
     OAK_TEST_ENTRY(NamedFnAsValue),

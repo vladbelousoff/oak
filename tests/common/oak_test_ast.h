@@ -8,20 +8,20 @@
 
 #define OAK_LEX(S) oak_lexer_tokenize((S), oak_test_allocator())
 
-static struct oak_ast_node_t*
-oak_test_ast_child(const struct oak_ast_node_t* node, const usize index)
+static oak_ast_node_t*
+oak_test_ast_child(const oak_ast_node_t* node, const usize index)
 {
   return oak_ast_node_child_at(node, index);
 }
 
-static usize oak_test_ast_child_count(const struct oak_ast_node_t* node)
+static usize oak_test_ast_child_count(const oak_ast_node_t* node)
 {
   return oak_ast_node_child_count(node);
 }
 
-static enum oak_test_status_t
-oak_test_ast_kind(const struct oak_ast_node_t* node,
-                  const enum oak_node_kind_t expected)
+static oak_test_status_t
+oak_test_ast_kind(const oak_ast_node_t* node,
+                  const oak_node_kind_t expected)
 {
   if (!node)
     return OAK_TEST_AST_KIND;

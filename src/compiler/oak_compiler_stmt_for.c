@@ -1,22 +1,22 @@
 #include "internal/oak_compiler.h"
 
-void oak_compile_for_from(struct oak_compiler_t* c,
-                                        const struct oak_ast_node_t* node)
+void oak_compile_for_from(oak_compiler_t* c,
+                                        const oak_ast_node_t* node)
 {
   oak_assert(oak_child_count(node) >= 4u);
 
-  struct oak_list_entry_t* pos = node->children.next;
-  const struct oak_ast_node_t* ident =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  oak_list_entry_t* pos = node->children.next;
+  const oak_ast_node_t* ident =
+      oak_container_of(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const struct oak_ast_node_t* from_expr =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  const oak_ast_node_t* from_expr =
+      oak_container_of(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const struct oak_ast_node_t* to_expr =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  const oak_ast_node_t* to_expr =
+      oak_container_of(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const struct oak_ast_node_t* body =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  const oak_ast_node_t* body =
+      oak_container_of(pos, oak_ast_node_t, link);
 
   oak_compiler_begin_scope(c);
 
@@ -33,7 +33,7 @@ void oak_compile_for_from(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_type_t from_ty;
+  oak_type_t from_ty;
   oak_infer_type(c, from_expr, &from_ty);
   if (!oak_type_is_known(&from_ty))
     from_ty.id = OAK_TYPE_NUMBER;
@@ -46,7 +46,7 @@ void oak_compile_for_from(struct oak_compiler_t* c,
                          1,
                          from_ty);
 
-  struct oak_type_t to_ty;
+  oak_type_t to_ty;
   oak_infer_type(c, to_expr, &to_ty);
   if (!oak_type_is_known(&to_ty))
     to_ty.id = OAK_TYPE_NUMBER;
@@ -55,21 +55,22 @@ void oak_compile_for_from(struct oak_compiler_t* c,
   const int limit_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c, "", limit_slot, 0, to_ty);
 
-  struct oak_loop_frame_t loop = {
+  oak_loop_frame_t loop = {
     .enclosing = c->scope.current_loop,
-    .loop_start = c->chunk->count,
+    .loop_start = oak_chunk_size(c->chunk),
     .exit_depth = c->scope.stack_depth - 2,
     .continue_depth = c->scope.stack_depth,
     .break_jumps = null,
     .continue_jumps = null,
   };
-  oak_assert(oak_dynarr_init(c->allocator, &loop.break_jumps, sizeof *loop.break_jumps));
-  oak_assert(oak_dynarr_init(c->allocator, &loop.continue_jumps, sizeof *loop.continue_jumps));
+  loop.break_jumps = oak_vector_new(c->allocator, sizeof(usize));
+  loop.continue_jumps = oak_vector_new(c->allocator, sizeof(usize));
+  oak_assert(loop.break_jumps && loop.continue_jumps);
 
   c->scope.current_loop = &loop;
 
   {
-    const struct oak_code_loc_t ident_loc =
+    const oak_code_loc_t ident_loc =
         oak_compiler_loc_from_token(ident->token);
     oak_compiler_emit_op(
         c, OAK_OP_GET_LOCAL_GET_LOCAL, ident_loc,
@@ -82,12 +83,12 @@ void oak_compile_for_from(struct oak_compiler_t* c,
     oak_compiler_compile_block(c, body);
     c->scope.stack_depth = merge_stack_depth;
 
-    oak_compiler_patch_jumps(c, loop.continue_jumps, oak_dynarr_count(loop.continue_jumps));
+    oak_compiler_patch_jumps(c, loop.continue_jumps);
 
     {
       oak_compiler_emit_byte(c, OAK_OP_INC_LOCAL_LOOP, ident_loc);
       oak_compiler_emit_byte(c, (u8)loop_var_slot, ident_loc);
-      const usize jump = c->chunk->count - loop.loop_start + 2;
+      const usize jump = oak_chunk_size(c->chunk) - loop.loop_start + 2;
       if (jump > 0xFFFFu)
       {
         oak_compiler_error_at(
@@ -107,11 +108,11 @@ void oak_compile_for_from(struct oak_compiler_t* c,
 
   oak_compiler_end_scope(c);
 
-  oak_compiler_patch_jumps(c, loop.break_jumps, oak_dynarr_count(loop.break_jumps));
+  oak_compiler_patch_jumps(c, loop.break_jumps);
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(&loop.break_jumps);
-  oak_dynarr_free(&loop.continue_jumps);
+  oak_destroy(loop.break_jumps);
+  oak_destroy(loop.continue_jumps);
 }
 
 /* Iterates over an array or map.
@@ -125,9 +126,9 @@ void oak_compile_for_from(struct oak_compiler_t* c,
  * the length up-front means inserts during a map iteration won't be seen,
  * and deletes can shift remaining entries (the map stores them densely). */
 
-static void for_in_init_hidden_state(struct oak_compiler_t* c,
-                                     const struct oak_code_loc_t loc,
-                                     const struct oak_method_binding_t* len_m,
+static void for_in_init_hidden_state(oak_compiler_t* c,
+                                     const oak_code_loc_t loc,
+                                     const oak_method_binding_t* len_m,
                                      const int coll_slot,
                                      int* out_idx_slot,
                                      int* out_limit_slot)
@@ -135,7 +136,7 @@ static void for_in_init_hidden_state(struct oak_compiler_t* c,
   oak_compiler_emit_constant(
       c, oak_compiler_intern_constant(c, OAK_VALUE_I32(0)), loc);
   *out_idx_slot = c->scope.stack_depth - 1;
-  const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
+  const oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
   oak_compiler_add_local(c, "$i", *out_idx_slot, 1, num_ty);
 
   oak_compiler_emit_constant(c, len_m->const_idx, loc);
@@ -146,13 +147,13 @@ static void for_in_init_hidden_state(struct oak_compiler_t* c,
   oak_compiler_add_local(c, "$n", *out_limit_slot, 0, num_ty);
 }
 
-static void for_in_bind_loop_idents(struct oak_compiler_t* c,
-                                    const struct oak_code_loc_t loc,
-                                    const struct oak_type_t* coll_ty,
+static void for_in_bind_loop_idents(oak_compiler_t* c,
+                                    const oak_code_loc_t loc,
+                                    const oak_type_t* coll_ty,
                                     const int coll_slot,
                                     const int idx_slot,
-                                    const struct oak_ast_node_t* k_ident,
-                                    const struct oak_ast_node_t* v_ident)
+                                    const oak_ast_node_t* k_ident,
+                                    const oak_ast_node_t* v_ident)
 {
   if (k_ident)
   {
@@ -161,7 +162,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
       oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
       oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
       oak_compiler_emit_op(c, OAK_OP_MAP_KEY_AT, loc);
-      const struct oak_type_t key_ty = { .id = coll_ty->key_id };
+      const oak_type_t key_ty = { .id = coll_ty->key_id };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
                              c->scope.stack_depth - 1,
@@ -171,7 +172,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
     else
     {
       oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
-      const struct oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
+      const oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
                              c->scope.stack_depth - 1,
@@ -187,7 +188,7 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
                          coll_ty->kind == OAK_TYPE_KIND_MAP ? OAK_OP_MAP_VAL_AT
                                                             : OAK_OP_GET_INDEX,
                          loc);
-    struct oak_type_t val_ty = { .id = coll_ty->id };
+    oak_type_t val_ty = { .id = coll_ty->id };
     if (coll_ty->kind == OAK_TYPE_KIND_ARRAY &&
         oak_interface_find_by_id(&c->interfaces, coll_ty->id))
       val_ty.kind = OAK_TYPE_KIND_INTERFACE;
@@ -199,8 +200,8 @@ static void for_in_bind_loop_idents(struct oak_compiler_t* c,
   }
 }
 
-void oak_compile_for_in(struct oak_compiler_t* c,
-                                      const struct oak_ast_node_t* node)
+void oak_compile_for_in(oak_compiler_t* c,
+                                      const oak_ast_node_t* node)
 {
   const usize child_count = oak_child_count(node);
   if (child_count != 3 && child_count != 4)
@@ -209,26 +210,26 @@ void oak_compile_for_in(struct oak_compiler_t* c,
     return;
   }
 
-  struct oak_list_entry_t* pos = node->children.next;
-  const struct oak_ast_node_t* first_ident =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  oak_list_entry_t* pos = node->children.next;
+  const oak_ast_node_t* first_ident =
+      oak_container_of(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const struct oak_ast_node_t* second_ident = null;
+  const oak_ast_node_t* second_ident = null;
   if (child_count == 4)
   {
-    second_ident = oak_container_of(pos, struct oak_ast_node_t, link);
+    second_ident = oak_container_of(pos, oak_ast_node_t, link);
     pos = pos->next;
   }
-  const struct oak_ast_node_t* coll_expr =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  const oak_ast_node_t* coll_expr =
+      oak_container_of(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const struct oak_ast_node_t* body =
-      oak_container_of(pos, struct oak_ast_node_t, link);
+  const oak_ast_node_t* body =
+      oak_container_of(pos, oak_ast_node_t, link);
 
-  const struct oak_code_loc_t loc =
+  const oak_code_loc_t loc =
       oak_compiler_loc_from_token(first_ident->token);
 
-  struct oak_type_t coll_ty;
+  oak_type_t coll_ty;
   oak_infer_type(c, coll_expr, &coll_ty);
   if (!oak_type_is_known(&coll_ty) || coll_ty.kind == OAK_TYPE_KIND_SCALAR)
   {
@@ -241,7 +242,7 @@ void oak_compile_for_in(struct oak_compiler_t* c,
   }
 
   /* Look up the receiver's size() binding so we can snapshot length once. */
-  const struct oak_method_binding_t* len_m =
+  const oak_method_binding_t* len_m =
       coll_ty.kind == OAK_TYPE_KIND_MAP
           ? oak_find_map_method(c, "size")
           : oak_find_array_method(c, "size");
@@ -256,8 +257,8 @@ void oak_compile_for_in(struct oak_compiler_t* c,
 
   /* Names of the loop variables. Two-var form binds both; one-var form binds
    * only the value (k for maps, v for arrays). */
-  const struct oak_ast_node_t* k_ident = null;
-  const struct oak_ast_node_t* v_ident = null;
+  const oak_ast_node_t* k_ident = null;
+  const oak_ast_node_t* v_ident = null;
   if (second_ident)
   {
     k_ident = first_ident;
@@ -284,16 +285,17 @@ void oak_compile_for_in(struct oak_compiler_t* c,
   int limit_slot;
   for_in_init_hidden_state(c, loc, len_m, coll_slot, &idx_slot, &limit_slot);
 
-  struct oak_loop_frame_t loop = {
+  oak_loop_frame_t loop = {
     .enclosing = c->scope.current_loop,
-    .loop_start = c->chunk->count,
+    .loop_start = oak_chunk_size(c->chunk),
     .exit_depth = base_depth,
     .continue_depth = base_depth + 3,
     .break_jumps = null,
     .continue_jumps = null,
   };
-  oak_assert(oak_dynarr_init(c->allocator, &loop.break_jumps, sizeof *loop.break_jumps));
-  oak_assert(oak_dynarr_init(c->allocator, &loop.continue_jumps, sizeof *loop.continue_jumps));
+  loop.break_jumps = oak_vector_new(c->allocator, sizeof(usize));
+  loop.continue_jumps = oak_vector_new(c->allocator, sizeof(usize));
+  oak_assert(loop.break_jumps && loop.continue_jumps);
   c->scope.current_loop = &loop;
 
   /* Loop condition: idx < limit (fused compare+branch). */
@@ -315,7 +317,7 @@ void oak_compile_for_in(struct oak_compiler_t* c,
   oak_compiler_end_scope(c);
 
   /* `continue` lands here (after k/v are popped). */
-  oak_compiler_patch_jumps(c, loop.continue_jumps, oak_dynarr_count(loop.continue_jumps));
+  oak_compiler_patch_jumps(c, loop.continue_jumps);
 
   oak_compiler_emit_op(c, OAK_OP_INC_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
   oak_compiler_emit_loop(c, loop.loop_start, loc);
@@ -325,9 +327,9 @@ void oak_compile_for_in(struct oak_compiler_t* c,
   oak_compiler_end_scope(c);
 
   /* `break` lands here, after all iterator state is popped. */
-  oak_compiler_patch_jumps(c, loop.break_jumps, oak_dynarr_count(loop.break_jumps));
+  oak_compiler_patch_jumps(c, loop.break_jumps);
 
   c->scope.current_loop = loop.enclosing;
-  oak_dynarr_free(&loop.break_jumps);
-  oak_dynarr_free(&loop.continue_jumps);
+  oak_destroy(loop.break_jumps);
+  oak_destroy(loop.continue_jumps);
 }

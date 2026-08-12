@@ -12,7 +12,7 @@
  * missing key spin forever. */
 OAK_TEST_DECL(MapChurnKeepsProbesTerminating)
 {
-  struct oak_obj_map_t* map = oak_map_new(oak_test_allocator());
+  oak_obj_map_t* map = oak_map_new(oak_test_allocator());
 
   for (int i = 0; i < 10000; ++i)
   {
@@ -30,10 +30,10 @@ OAK_TEST_DECL(MapChurnKeepsProbesTerminating)
 /* +0.0 and -0.0 compare equal, so they must hash to the same map entry. */
 OAK_TEST_DECL(MapZeroFloatKeysAreOneEntry)
 {
-  struct oak_obj_map_t* map = oak_map_new(oak_test_allocator());
+  oak_obj_map_t* map = oak_map_new(oak_test_allocator());
 
   OAK_CHECK(oak_map_set(map, oak_value_f32(-0.0f), oak_value_i32(1)));
-  struct oak_value_t out = oak_value_none();
+  oak_value_t out = oak_value_none();
   OAK_CHECK(oak_map_get(map, oak_value_f32(0.0f), &out) == 1);
   OAK_CHECK(oak_is_i32(out) && oak_as_i32(out) == 1);
 
@@ -49,7 +49,7 @@ OAK_TEST_DECL(MapZeroFloatKeysAreOneEntry)
  * entry that can never be looked up or deleted. */
 OAK_TEST_DECL(MapRejectsNanKeys)
 {
-  struct oak_obj_map_t* map = oak_map_new(oak_test_allocator());
+  oak_obj_map_t* map = oak_map_new(oak_test_allocator());
 
   OAK_CHECK(oak_map_set(map, oak_value_f32(NAN), oak_value_i32(1)) == 0);
   OAK_CHECK(oak_map_get(map, oak_value_f32(NAN), null) == 0);
@@ -65,7 +65,7 @@ int main(const int argc, char* argv[])
 {
   (void)argc;
   (void)argv;
-  static struct oak_test_t tests[] = {
+  static oak_test_t tests[] = {
     OAK_TEST_ENTRY(MapChurnKeepsProbesTerminating),
     OAK_TEST_ENTRY(MapZeroFloatKeysAreOneEntry),
     OAK_TEST_ENTRY(MapRejectsNanKeys),

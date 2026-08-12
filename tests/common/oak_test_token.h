@@ -10,9 +10,10 @@
 
 #define OAK_LEX(S) oak_lexer_tokenize((S), oak_test_allocator())
 
-struct oak_expected_token_t
+typedef struct oak_expected_token oak_expected_token_t;
+struct oak_expected_token
 {
-  enum oak_token_kind_t kind;
+  oak_token_kind_t kind;
   int line;
   int column;
   int offset;
@@ -30,9 +31,9 @@ struct oak_expected_token_t
     .column = (position),                                                      \
     .offset = (position) }
 
-static enum oak_test_status_t
-oak_test_token(const struct oak_token_t* token,
-               const struct oak_expected_token_t* expected,
+static oak_test_status_t
+oak_test_token(const oak_token_t* token,
+               const oak_expected_token_t* expected,
                const usize index)
 {
   if (oak_token_kind(token) != expected->kind)
@@ -118,13 +119,13 @@ oak_test_token(const struct oak_token_t* token,
   return OAK_TEST_OK;
 }
 
-static enum oak_test_status_t
-oak_test_tokens(const struct oak_lexer_result_t* lexer,
-                const struct oak_expected_token_t* expected_tokens,
+static oak_test_status_t
+oak_test_tokens(const oak_lexer_result_t* lexer,
+                const oak_expected_token_t* expected_tokens,
                 const usize count)
 {
   usize token_index;
-  struct oak_list_entry_t* token_entry;
+  oak_list_entry_t* token_entry;
 
   oak_list_for_each_indexed(token_index, token_entry, oak_lexer_tokens(lexer))
   {
@@ -137,11 +138,11 @@ oak_test_tokens(const struct oak_lexer_result_t* lexer,
       return OAK_TEST_TOKENS_EXTRA;
     }
 
-    const struct oak_token_t* token =
-        oak_container_of(token_entry, struct oak_token_t, link);
-    const struct oak_expected_token_t* expected = &expected_tokens[token_index];
+    const oak_token_t* token =
+        oak_container_of(token_entry, oak_token_t, link);
+    const oak_expected_token_t* expected = &expected_tokens[token_index];
 
-    const enum oak_test_status_t step =
+    const oak_test_status_t step =
         oak_test_token(token, expected, token_index);
     if (step != OAK_TEST_OK)
       return step;

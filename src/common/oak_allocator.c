@@ -21,7 +21,7 @@ static void oom_abort(const usize size, const char* file, const int line)
 }
 
 
-static void* custom_alloc(struct oak_allocator_t* self,
+static void* custom_alloc(oak_allocator_t* self,
                           usize size,
                           const char* file,
                           int line)
@@ -32,7 +32,7 @@ static void* custom_alloc(struct oak_allocator_t* self,
   return ptr;
 }
 
-static void* custom_realloc(struct oak_allocator_t* self,
+static void* custom_realloc(oak_allocator_t* self,
                             void* ptr,
                             usize new_size,
                             const char* file,
@@ -44,7 +44,7 @@ static void* custom_realloc(struct oak_allocator_t* self,
   return new_ptr;
 }
 
-static void custom_free(struct oak_allocator_t* self,
+static void custom_free(oak_allocator_t* self,
                         void* ptr,
                         const char* file,
                         int line)
@@ -54,13 +54,13 @@ static void custom_free(struct oak_allocator_t* self,
   self->free_fn(ptr);
 }
 
-static int sys_shutdown(struct oak_allocator_t* self)
+static int sys_shutdown(oak_allocator_t* self)
 {
   (void)self;
   return 0;
 }
 
-struct oak_allocator_t oak_system_allocator = {
+oak_allocator_t oak_system_allocator = {
   .alloc = custom_alloc,
   .realloc = custom_realloc,
   .free = custom_free,
@@ -71,7 +71,7 @@ struct oak_allocator_t oak_system_allocator = {
   .free_fn = free,
 };
 
-void oak_allocator_init(struct oak_allocator_t* a,
+void oak_allocator_init(oak_allocator_t* a,
                         oak_malloc_fn malloc_fn,
                         oak_realloc_fn realloc_fn,
                         oak_free_fn free_fn)
@@ -86,7 +86,7 @@ void oak_allocator_init(struct oak_allocator_t* a,
   a->free_fn = free_fn;
 }
 
-void oak_system_allocator_init(struct oak_allocator_t* a)
+void oak_system_allocator_init(oak_allocator_t* a)
 {
   *a = oak_system_allocator;
 }
@@ -95,47 +95,49 @@ void oak_system_allocator_init(struct oak_allocator_t* a)
 #define TRACK_SIG 0xdeadbeef
 #define TRACK_SMB 0x77
 
-struct oak_track_header_t
+typedef struct oak_track_header oak_track_header_t;
+struct oak_track_header
 {
   unsigned signature;
-  struct oak_list_entry_t link;
+  oak_list_entry_t link;
   const char* file;
   int line;
   usize size;
 };
 
-struct oak_tracking_state_t
+typedef struct oak_tracking_state oak_tracking_state_t;
+struct oak_tracking_state
 {
-  struct oak_list_entry_t allocations;
+  oak_list_entry_t allocations;
 };
 
-static inline struct oak_track_header_t* header_of(void* ptr)
+static inline oak_track_header_t* header_of(void* ptr)
 {
-  return (struct oak_track_header_t*)((char*)ptr -
-                                     sizeof(struct oak_track_header_t));
+  return (oak_track_header_t*)((char*)ptr -
+                                     sizeof(oak_track_header_t));
 }
 
-static void* track_alloc(struct oak_allocator_t* self,
+static void* track_alloc(oak_allocator_t* self,
                          usize size,
                          const char* file,
                          int line)
 {
-  struct oak_tracking_state_t* st = self->state;
-  char* data = malloc(sizeof(struct oak_track_header_t) + size);
+  oak_tracking_state_t* st = self->state;
+  char* data = malloc(sizeof(oak_track_header_t) + size);
   if (!data)
     oom_abort(size, file, line);
 
-  struct oak_track_header_t* header = (struct oak_track_header_t*)data;
+  oak_track_header_t* header = (oak_track_header_t*)data;
   header->signature = TRACK_SIG;
   header->file = file;
   header->line = line;
   header->size = size;
   oak_list_add_tail(&st->allocations, &header->link);
-  memset(data + sizeof(struct oak_track_header_t), TRACK_SMB, size);
-  return data + sizeof(struct oak_track_header_t);
+  memset(data + sizeof(oak_track_header_t), TRACK_SMB, size);
+  return data + sizeof(oak_track_header_t);
 }
 
-static void* track_realloc(struct oak_allocator_t* self,
+static void* track_realloc(oak_allocator_t* self,
                            void* ptr,
                            usize new_size,
                            const char* file,
@@ -144,8 +146,8 @@ static void* track_realloc(struct oak_allocator_t* self,
   if (!ptr)
     return track_alloc(self, new_size, file, line);
 
-  struct oak_tracking_state_t* st = self->state;
-  struct oak_track_header_t* old_header = header_of(ptr);
+  oak_tracking_state_t* st = self->state;
+  oak_track_header_t* old_header = header_of(ptr);
   const usize old_size = old_header->size;
 
   if (new_size == 0)
@@ -156,25 +158,25 @@ static void* track_realloc(struct oak_allocator_t* self,
   }
 
   oak_list_remove(&old_header->link);
-  char* data = realloc(old_header, sizeof(struct oak_track_header_t) + new_size);
+  char* data = realloc(old_header, sizeof(oak_track_header_t) + new_size);
   if (!data)
     oom_abort(new_size, file, line);
 
   if (new_size > old_size)
-    memset(data + sizeof(struct oak_track_header_t) + old_size,
+    memset(data + sizeof(oak_track_header_t) + old_size,
            TRACK_SMB,
            new_size - old_size);
 
-  struct oak_track_header_t* header = (struct oak_track_header_t*)data;
+  oak_track_header_t* header = (oak_track_header_t*)data;
   header->signature = TRACK_SIG;
   header->file = file;
   header->line = line;
   header->size = new_size;
   oak_list_add_tail(&st->allocations, &header->link);
-  return data + sizeof(struct oak_track_header_t);
+  return data + sizeof(oak_track_header_t);
 }
 
-static void track_free(struct oak_allocator_t* self,
+static void track_free(oak_allocator_t* self,
                        void* ptr,
                        const char* file,
                        int line)
@@ -182,7 +184,7 @@ static void track_free(struct oak_allocator_t* self,
   (void)self;
   if (!ptr)
     return;
-  struct oak_track_header_t* header = header_of(ptr);
+  oak_track_header_t* header = header_of(ptr);
   if (header->signature != TRACK_SIG)
   {
     const char* at = file ? oak_path_basename(file) : "?";
@@ -198,16 +200,16 @@ static void track_free(struct oak_allocator_t* self,
   }
 }
 
-static int track_shutdown(struct oak_allocator_t* self)
+static int track_shutdown(oak_allocator_t* self)
 {
-  struct oak_tracking_state_t* st = self->state;
+  oak_tracking_state_t* st = self->state;
   int leak_count = 0;
-  struct oak_list_entry_t* entry;
-  struct oak_list_entry_t* safe;
+  oak_list_entry_t* entry;
+  oak_list_entry_t* safe;
   oak_list_for_each_safe(entry, safe, &st->allocations)
   {
-    struct oak_track_header_t* header =
-        oak_container_of(entry, struct oak_track_header_t, link);
+    oak_track_header_t* header =
+        oak_container_of(entry, oak_track_header_t, link);
     const char* at = header->file ? oak_path_basename(header->file) : "?";
     oak_log(OAK_LOG_ERROR,
             "leaked memory: %s:%d, size: %lu",
@@ -223,9 +225,9 @@ static int track_shutdown(struct oak_allocator_t* self)
   return leak_count;
 }
 
-void oak_tracking_allocator_init(struct oak_allocator_t* a)
+void oak_tracking_allocator_init(oak_allocator_t* a)
 {
-  struct oak_tracking_state_t* st = malloc(sizeof(struct oak_tracking_state_t));
+  oak_tracking_state_t* st = malloc(sizeof(oak_tracking_state_t));
   if (!st)
   {
     oak_system_allocator_init(a);
