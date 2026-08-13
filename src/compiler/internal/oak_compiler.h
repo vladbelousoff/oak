@@ -546,6 +546,9 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
  * is written out, and a copy sitting in the consuming .c file silently drifts
  * from the callback contract instead of failing to compile. One copy, in the
  * header both sides include. */
+void oak_compiler_report_bind_errors(oak_compiler_t* c,
+                                     const oak_compile_options_t* opts);
+
 #define OAK_BUILTIN_METHOD(name)                                               \
   oak_fn_call_result_t name(oak_native_call_t* call,                           \
                             const oak_value_t* args,                           \

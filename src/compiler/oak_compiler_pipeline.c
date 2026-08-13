@@ -128,11 +128,33 @@ static void emit_deferred_bodies(oak_compiler_t* c,
   oak_compile_method_decl_bodies(c, program);
 }
 
+/* Surface anything the oak_bind_* calls rejected. Without this a malformed
+ * binding is invisible twice over: the oak_bind_* call returned a bare -1 that
+ * embedders routinely discard, and the registration passes below skip the
+ * malformed entry -- so the first sign of it is an "unknown name" error
+ * pointing at the Oak call site rather than at the binding. */
+void oak_compiler_report_bind_errors(oak_compiler_t* c,
+                                     const oak_compile_options_t* opts)
+{
+  if (!opts || !opts->bind_errors)
+    return;
+  char* const* messages = (char* const*)OAK_CDATA(char*, opts->bind_errors);
+  for (usize i = (usize)c->bind_errors_cursor;
+       i < oak_size(opts->bind_errors);
+       ++i)
+    oak_compiler_error_at(c, null, "native binding: %s", messages[i]);
+  c->bind_errors_cursor = (int)oak_size(opts->bind_errors);
+}
+
 int oak_compiler_register_native_options(oak_compiler_t* c,
                                  const oak_compile_options_t* opts)
 {
   if (!opts)
     return 1;
+
+  oak_compiler_report_bind_errors(c, opts);
+  if (c->has_error)
+    return 0;
 
   if (oak_size(opts->native_types) > 0)
   {

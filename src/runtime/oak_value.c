@@ -179,7 +179,7 @@ static void oak_obj_destroy_payload(oak_obj_t* obj)
   {
     oak_obj_native_record_t* ns = (oak_obj_native_record_t*)obj;
     if (ns->instance && ns->type && ns->type->destructor)
-      ns->type->destructor(ns->instance);
+      ns->type->destructor(ns->instance, ns->type->user_data);
   }
   else if (obj->type == OAK_OBJ_INTERFACE_OBJECT)
   {

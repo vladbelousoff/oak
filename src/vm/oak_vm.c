@@ -43,6 +43,40 @@ oak_obj_string_t* oak_vm_string_new_len(oak_vm_t* vm,
       vm->allocator, vm->object_table, chars, length);
 }
 
+/* The value-returning constructors. Each folds the OAK_VALUE_OBJ(&x->obj) step
+ * into the call and turns an allocation failure into none rather than a null
+ * dereference at the reach-through. */
+static oak_value_t obj_value_or_none(oak_obj_t* obj)
+{
+  return obj ? OAK_VALUE_OBJ(obj) : OAK_VALUE_NONE;
+}
+
+oak_value_t oak_vm_string_value(oak_vm_t* vm, const char* chars)
+{
+  oak_obj_string_t* s = oak_vm_string_new(vm, chars);
+  return obj_value_or_none(s ? &s->obj : null);
+}
+
+oak_value_t oak_vm_string_value_len(oak_vm_t* vm,
+                                    const char* chars,
+                                    const usize length)
+{
+  oak_obj_string_t* s = oak_vm_string_new_len(vm, chars, length);
+  return obj_value_or_none(s ? &s->obj : null);
+}
+
+oak_value_t oak_vm_array_value(oak_vm_t* vm)
+{
+  oak_obj_array_t* a = oak_vm_array_new(vm);
+  return obj_value_or_none(a ? &a->obj : null);
+}
+
+oak_value_t oak_vm_map_value(oak_vm_t* vm)
+{
+  oak_obj_map_t* m = oak_vm_map_new(vm);
+  return obj_value_or_none(m ? &m->obj : null);
+}
+
 oak_obj_string_t*
 oak_vm_string_concat(oak_vm_t* vm,
                      const oak_obj_string_t* left,

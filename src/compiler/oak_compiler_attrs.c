@@ -118,6 +118,9 @@ void oak_compiler_dispatch_attr_cbs(oak_compiler_t* c,
   /* Register whatever the callbacks just bound so the new types/methods are
    * visible to the code that follows. Both passes resume from their cursors,
    * so this only processes bindings added during this dispatch. */
+  oak_compiler_report_bind_errors(c, c->opts);
+  if (c->has_error)
+    return;
   oak_register_native_types(c, c->opts);
   if (!c->has_error)
     oak_register_native_fns(c, c->opts);

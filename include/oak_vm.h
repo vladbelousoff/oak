@@ -119,6 +119,21 @@ oak_vm_record_new(oak_vm_t* vm,
                   const char* const* field_names);
 OAK_API oak_value_t oak_vm_native_record_new(
     oak_vm_t* vm, const oak_bind_type_t* type, void* instance);
+/* Value-returning forms of the constructors above, for the common case of
+ * handing a fresh object straight back from a native callback:
+ *
+ *   *out = oak_vm_string_value_len(call->vm, buf, len);
+ *
+ * rather than taking the object pointer and reaching through it with
+ * OAK_VALUE_OBJ(&s->obj).  The returned reference is the caller's, which is
+ * exactly what a native's out_result must carry.  Each yields OAK_VALUE_NONE
+ * if the allocation fails, so the result is safe to return either way. */
+OAK_API oak_value_t oak_vm_string_value(oak_vm_t* vm, const char* chars);
+OAK_API oak_value_t
+oak_vm_string_value_len(oak_vm_t* vm, const char* chars, usize length);
+OAK_API oak_value_t oak_vm_array_value(oak_vm_t* vm);
+OAK_API oak_value_t oak_vm_map_value(oak_vm_t* vm);
+
 OAK_API oak_obj_string_t*
 oak_vm_value_to_string(oak_vm_t* vm, oak_value_t value);
 OAK_API oak_obj_string_t*

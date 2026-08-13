@@ -6,8 +6,36 @@
 #include "oak_type.h"
 #include "oak_value_impl.h"
 
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
+
+/* Record why a binding was rejected, so oak_compile_ex can report it instead
+ * of the compile failing much later at the first use of the missing name.
+ * Always returns -1, which is what every caller returns. */
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 2, 3)))
+#endif
+static int bind_reject(oak_compile_options_t* opts, const char* fmt, ...)
+{
+  if (!opts || !opts->bind_errors)
+    return -1;
+
+  char buf[256];
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
+  const usize len = strlen(buf) + 1u;
+  char* copy = OAK_ALLOC(opts->allocator, len);
+  if (!copy)
+    return -1;
+  memcpy(copy, buf, len);
+  oak_assert(oak_push_back(opts->bind_errors, &copy));
+  return -1;
+}
 
 void oak_lower_bind_ref(const struct oak_bind_type_ref* r, oak_type_t* out)
 {
@@ -21,6 +49,7 @@ void oak_lower_bind_ref(const struct oak_bind_type_ref* r, oak_type_t* out)
     out->id = r->id;
   if (r->kind == OAK_TYPE_KIND_MAP)
     out->key_id = r->key_type ? r->key_type->resolved_type_id : r->key_id;
+  out->is_weak = r->is_weak;
 }
 
 void oak_compile_options_init(oak_compile_options_t* opts,
@@ -40,9 +69,10 @@ void oak_compile_options_init(oak_compile_options_t* opts,
                                          sizeof(oak_bind_enum_t*));
   opts->native_attrs = oak_vector_new(allocator,
                                          sizeof(oak_bind_attr_t));
+  opts->bind_errors = oak_vector_new(allocator, sizeof(char*));
   oak_assert(opts->native_types && opts->native_fns &&
              opts->native_global_fns && opts->native_enums &&
-             opts->native_attrs);
+             opts->native_attrs && opts->bind_errors);
   opts->emit_debug_info = 1;
   opts->module_registry = null;
   opts->current_module = null;
@@ -83,6 +113,12 @@ void oak_compile_options_free(oak_compile_options_t* opts)
   opts->native_enums = null;
   oak_destroy(opts->native_attrs);
   opts->native_attrs = null;
+
+  char** bind_errors = OAK_DATA(char*, opts->bind_errors);
+  for (usize i = 0; i < oak_size(opts->bind_errors); ++i)
+    OAK_FREE(opts->allocator, bind_errors[i]);
+  oak_destroy(opts->bind_errors);
+  opts->bind_errors = null;
 }
 
 
@@ -111,7 +147,9 @@ oak_bind_type_t* oak_bind_type_in_module(
   t->allocator = opts->allocator;
   t->fields = oak_vector_new(t->allocator, sizeof(oak_bind_field_t));
   oak_assert(t->fields);
+  t->opts = opts;
   t->destructor = null;
+  t->user_data = null;
 
   oak_assert(oak_push_back(opts->native_types, &t));
   return t;
@@ -122,12 +160,19 @@ int oak_bind_field(oak_bind_type_t* type,
 {
   if (!type || !p)
     return -1;
-  if (!p->name || !p->getter)
-    return -1;
+  if (!p->name)
+    return bind_reject(type->opts, "a field on '%s' has no name", type->name);
+  if (!p->getter)
+    return bind_reject(
+        type->opts, "field '%s.%s' has no getter", type->name, p->name);
   /* Inline value types have no runtime type identity, so field access cannot
    * be dispatched on them; they expose data through methods only. */
   if (type->kind == OAK_BIND_TYPE_VALUE)
-    return -1;
+    return bind_reject(type->opts,
+                       "value type '%s' cannot declare the field '%s'; "
+                       "value types expose data through methods only",
+                       type->name,
+                       p->name);
 
   /* Reject duplicate field names. */
   const oak_bind_field_t* fields =
@@ -135,7 +180,8 @@ int oak_bind_field(oak_bind_type_t* type,
   for (usize i = 0; i < oak_size(type->fields); ++i)
   {
     if (strcmp(fields[i].name, p->name) == 0)
-      return -1;
+      return bind_reject(
+          type->opts, "duplicate field '%s.%s'", type->name, p->name);
   }
 
   const usize len = strlen(p->name) + 1u;
@@ -160,10 +206,22 @@ int oak_bind_fn_global(oak_compile_options_t* opts,
 {
   if (!opts || !p)
     return -1;
-  if (!p->name || !p->impl || p->arity < 0)
-    return -1;
+  if (!p->name)
+    return bind_reject(opts, "a global native function has no name");
+  if (!p->impl)
+    return bind_reject(opts, "native function '%s' has no implementation",
+                       p->name);
+  if (p->arity < 0)
+    return bind_reject(
+        opts, "native function '%s' has a negative arity (%d)", p->name,
+        p->arity);
   if (p->param_types && p->param_count != p->arity)
-    return -1;
+    return bind_reject(opts,
+                       "native function '%s' declares arity %d but %d "
+                       "parameter types; use OAK_BIND_PARAMS to state it once",
+                       p->name,
+                       p->arity,
+                       p->param_count);
   oak_bind_global_fn_t entry = *p;
   oak_assert(oak_push_back(opts->native_global_fns, &entry));
   return 0;
@@ -174,15 +232,28 @@ int oak_bind_fn(oak_compile_options_t* opts,
 {
   if (!opts || !p)
     return -1;
-  if (!p->name || !p->impl || p->arity < 0)
-    return -1;
+  if (!p->name)
+    return bind_reject(opts, "a native method has no name");
+  if (!p->impl)
+    return bind_reject(opts, "native method '%s' has no implementation",
+                       p->name);
+  if (p->arity < 0)
+    return bind_reject(opts, "native method '%s' has a negative arity (%d)",
+                       p->name, p->arity);
   if (p->param_types && p->param_count != p->arity)
-    return -1;
+    return bind_reject(opts,
+                       "native method '%s' declares arity %d but %d parameter "
+                       "types; use OAK_BIND_PARAMS to state it once",
+                       p->name,
+                       p->arity,
+                       p->param_count);
   if (p->kind != OAK_BIND_FN_INSTANCE_METHOD &&
       p->kind != OAK_BIND_FN_STATIC_METHOD)
-    return -1;
+    return bind_reject(
+        opts, "native method '%s' has an unknown binding kind", p->name);
   if (!p->receiver_type)
-    return -1;
+    return bind_reject(
+        opts, "native method '%s' names no receiver type", p->name);
 
   oak_bind_fn_t copy = *p;
   oak_assert(oak_push_back(opts->native_fns, &copy));
@@ -208,6 +279,7 @@ oak_bind_enum_t* oak_bind_enum_in_module(
   e->module_name = module_name;
   e->name = name;
   e->resolved_type_id = OAK_TYPE_VOID;
+  e->opts = opts;
   e->allocator = opts->allocator;
   e->variants =
       oak_vector_new(e->allocator, sizeof(oak_bind_enum_variant_t));
@@ -229,7 +301,8 @@ int oak_bind_enum_variant(oak_bind_enum_t* e,
   for (usize i = 0; i < oak_size(e->variants); ++i)
   {
     if (strcmp(variants[i].name, name) == 0)
-      return -1;
+      return bind_reject(
+          e->opts, "duplicate variant '%s.%s'", e->name, name);
   }
 
   oak_bind_enum_variant_t v = {

@@ -170,10 +170,29 @@ int main(void)
   };
   CHECK(oak_bind_enum_variants(colour, colours, (int)oak_count_of(colours)) ==
         0);
-  /* Duplicate names are rejected; duplicate values are not. */
-  CHECK(oak_bind_enum_variant(colour, "Red", 7) == -1);
-  CHECK(oak_bind_enum_variants(colour, colours, (int)oak_count_of(colours)) ==
-        -1);
+
+  /* Rejected bindings are probed on a throwaway options struct, because a
+   * rejection is recorded and then fails the compile: the whole point is that
+   * a mis-registered binding cannot be silently dropped just because the
+   * embedder ignored the -1. Duplicate names are rejected; duplicate values
+   * are not. */
+  {
+    oak_compile_options_t probe;
+    oak_compile_options_init(&probe, &allocator);
+    oak_bind_enum_t* dup = oak_bind_enum(&probe, "Colour");
+    CHECK(dup != null);
+    CHECK(oak_bind_enum_variants(dup, colours, (int)oak_count_of(colours)) == 0);
+    CHECK(oak_bind_enum_variant(dup, "Red", 7) == -1);
+    CHECK(oak_bind_enum_variants(dup, colours, (int)oak_count_of(colours)) ==
+          -1);
+
+    /* And the rejection is reportable rather than silent. */
+    oak_program_t bad_binding;
+    CHECK(oak_program_compile(&bad_binding, "let x = 1;\n", &probe) == 0);
+    CHECK(oak_program_error_count(&bad_binding) > 0);
+    oak_program_free(&bad_binding);
+    oak_compile_options_free(&probe);
+  }
 
   CHECK(oak_bind_attr(&opts,
                       &(oak_bind_attr_t){

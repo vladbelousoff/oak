@@ -104,6 +104,10 @@ struct oak_compiler
    * native types/methods (e.g. component views) without re-processing — and
    * erroring on — entries registered in the first pass. */
   int native_types_cursor;
+  /* How many of opts->bind_errors have been reported (see
+   * oak_compiler_report_bind_errors): attribute callbacks bind more
+   * mid-compile, and each message must surface exactly once. */
+  int bind_errors_cursor;
   int native_global_fns_cursor;
   int native_fns_cursor;
   /* Strong-ownership reachability over record registry entries, computed by

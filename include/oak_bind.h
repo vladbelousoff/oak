@@ -2,6 +2,7 @@
 
 #include "oak_compiler.h"
 #include "oak_container.h"
+#include "oak_count_of.h"
 #include "oak_export.h"
 #include "oak_native.h"
 #include "oak_parser.h"
@@ -59,6 +60,8 @@ struct oak_bind_type_ref
   /* Native enum element/value type.  Mutually exclusive with `type`. */
   const oak_bind_enum_t* enum_type;
   oak_type_kind_t kind; /* SCALAR / ARRAY / MAP */
+  /* Non-owning reference; set with OAK_BIND_WEAK.  Zero (owning) by default. */
+  int is_weak;
 };
 
 /* Constructor helper for oak_bind_type_ref_t. Implemented as a function rather
@@ -79,6 +82,7 @@ static inline oak_bind_type_ref_t oak_bind_type_ref_make(
   ref.key_type = null;
   ref.enum_type = null;
   ref.kind = kind;
+  ref.is_weak = 0;
   return ref;
 }
 
@@ -148,6 +152,25 @@ static inline oak_bind_type_ref_t oak_bind_type_ref_enum_make(
 #define OAK_BIND_MAP_INIT(k, v)                                                \
   { .id = (v), .key_id = (k), .kind = OAK_TYPE_KIND_MAP }
 
+/* A non-owning reference, for a field or parameter that must not keep its
+ * target alive.  Wraps any of the constructors above:
+ *
+ *   .type = OAK_BIND_WEAK(OAK_BIND_NATIVE(node_type))
+ *
+ * This is how a native binding stays inside the acyclicity rule the compiler
+ * enforces (see src/compiler/oak_compiler_cycles.c): Oak has no cycle
+ * collector, so a back-pointer that would close a strong ownership loop has to
+ * be declared weak, exactly as it would in Oak source.  A weak field takes part
+ * in the same analysis as a declared one. */
+static inline oak_bind_type_ref_t oak_bind_type_ref_weaken(
+    oak_bind_type_ref_t ref)
+{
+  ref.is_weak = 1;
+  return ref;
+}
+
+#define OAK_BIND_WEAK(ref) oak_bind_type_ref_weaken((ref))
+
 
 /* Returns the field value for the native record instance `self`.
  * The returned value is owned by the caller (the VM): for object values the
@@ -161,14 +184,23 @@ typedef oak_value_t (*oak_bind_field_getter_t)(oak_value_t self,
 /* Writes `value` into the native record instance `self`.
  * `user_data` is the oak_bind_field_t::user_data pointer for this field.
  * A NULL setter makes the field read-only; the VM will emit a runtime error
- * if Oak code attempts to assign to such a field. */
+ * if Oak code attempts to assign to such a field.
+ *
+ * `value` is *borrowed*: the VM releases it as soon as the setter returns, so
+ * a setter that stores an object value must oak_value_incref it first.  This
+ * is the mirror image of the getter above, which returns an owned reference. */
 typedef void (*oak_bind_field_setter_t)(oak_value_t self,
                                         oak_value_t value,
                                         void* user_data);
 
 /* Optional: frees heap data owned by `instance` when the native record's
- * refcount reaches zero. If NULL, only the wrapper object is freed (legacy). */
-typedef void (*oak_bind_destructor_t)(void* instance);
+ * refcount reaches zero.  If NULL, only the wrapper object is freed and
+ * `instance` is the embedder's to manage.
+ *
+ * `user_data` is oak_bind_type_t::user_data, and is how a destructor reaches
+ * the allocator that made `instance` -- it runs during refcount teardown, with
+ * no VM and no call in scope, so there is nowhere else for that to come from. */
+typedef void (*oak_bind_destructor_t)(void* instance, void* user_data);
 
 
 typedef struct oak_bind_field oak_bind_field_t;
@@ -198,7 +230,13 @@ struct oak_bind_type
    * registry. Embedders should reference the descriptor, not this value. */
   oak_type_id_t resolved_type_id; /* private */
   oak_container_t* fields; /* vector of oak_bind_field_t */
+  /* The options this descriptor was registered on, so oak_bind_field can
+   * record a rejection there.  Borrowed. */
+  struct oak_compile_options* opts; /* private */
   oak_bind_destructor_t destructor;
+  /* Passed to `destructor`; borrowed, and must outlive every instance of this
+   * type.  Typically the allocator that instances were made with. */
+  void* user_data;
   oak_allocator_t* allocator;
 };
 
@@ -276,6 +314,8 @@ struct oak_bind_enum
    * not this value. */
   oak_type_id_t resolved_type_id; /* private */
   oak_container_t* variants; /* vector of oak_bind_enum_variant_t */
+  /* As oak_bind_type_t::opts, for oak_bind_enum_variant.  Borrowed. */
+  struct oak_compile_options* opts; /* private */
   oak_allocator_t* allocator;
 };
 
@@ -390,6 +430,18 @@ struct oak_compile_options
   /* Named attribute bindings (owned; populated by oak_bind_attr). */
   oak_container_t* native_attrs; /* vector of oak_bind_attr_t */
 
+  /* Messages from oak_bind_* calls that rejected their input (owned).
+   *
+   * A rejected binding used to vanish twice over: the oak_bind_* call returned
+   * a bare -1 with no reason, and the compiler's registration pass then skipped
+   * the malformed entry. The method simply was not there, and the first sign of
+   * it was an "unknown method" error in Oak source, pointing at the call rather
+   * than the binding. oak_compile_ex reports these as diagnostics before it
+   * starts, so a mis-registered binding fails the compile and says why.
+   *
+   * Append-only: attribute callbacks register further bindings mid-compile. */
+  oak_container_t* bind_errors; /* vector of char* */
+
   /* When non-zero (default), the compiler attaches a debug section to the
    * chunk: per-byte source line/column and local-variable names. Set to 0 to
    * skip these allocations and produce a minimal runtime-only chunk. */
@@ -418,6 +470,17 @@ struct oak_compile_options
   int allow_synthetic_native_modules;
 };
 
+
+/*
+ * Every oak_bind_* function below returns 0 on success and -1 on rejection.
+ *
+ * A rejection is also recorded on the options and reported by oak_compile_ex
+ * as a diagnostic, so a binding that failed to register cannot be silently
+ * dropped just because the -1 was not checked -- the compile fails and names
+ * the binding. That means these calls are not for probing what the API will
+ * accept: use a throwaway oak_compile_options_t if you want to test a
+ * rejection without failing the compile.
+ */
 
 OAK_API void oak_compile_options_init(oak_compile_options_t* opts,
                                       oak_allocator_t* allocator);
@@ -480,6 +543,20 @@ OAK_API int oak_bind_field(oak_bind_type_t* type,
  * Note the table cannot be `static const` when it references a descriptor
  * returned at run time by oak_bind_type; make it a local array in that case.
  */
+/* Fills arity, param_types and param_count from one array, so the three cannot
+ * disagree.  oak_bind_fn does reject a mismatch, but only after you have
+ * written the count twice:
+ *
+ *   { .kind = OAK_BIND_FN_INSTANCE_METHOD, .receiver_type = t,
+ *     .name = "write", .impl = file_write, OAK_BIND_PARAMS(write_params),
+ *     .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) },
+ *
+ * For an instance method the array lists the explicit parameters only; the
+ * implicit self is not one of them. */
+#define OAK_BIND_PARAMS(arr)                                                   \
+  .arity = (int)oak_count_of(arr), .param_types = (arr),                       \
+  .param_count = (int)oak_count_of(arr)
+
 OAK_API int oak_bind_fields(oak_bind_type_t* type,
                             const oak_bind_field_t* fields,
                             int count);

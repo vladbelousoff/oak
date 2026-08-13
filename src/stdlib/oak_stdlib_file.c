@@ -26,21 +26,23 @@ struct oak_file_handle
   /* The mode the stream was opened in. eof() needs it because a write-only
    * stream has no readable position to compare against. */
   oak_file_mode_t mode;
-  /* Kept so the destructor can free the handle without a native call. */
-  oak_allocator_t* allocator;
 };
 
 /* Runs when the File record's refcount hits zero: closes a still-open
  * stream (file dropped without close()) and frees the handle. close()
- * only nulls fp so the record can outlive it safely. */
-static void file_destroy(void* instance)
+ * only nulls fp so the record can outlive it safely.
+ *
+ * The allocator arrives as the descriptor's user_data rather than being
+ * stashed in every handle: teardown happens with no VM and no call in scope,
+ * so there is nowhere else for it to come from. */
+static void file_destroy(void* instance, void* user_data)
 {
   oak_file_handle_t* h = instance;
   if (!h)
     return;
   if (h->fp)
     fclose(h->fp);
-  OAK_FREE(h->allocator, h);
+  OAK_FREE((oak_allocator_t*)user_data, h);
 }
 
 /* Compile-time signature for open(). Built in oak_stdlib_register_file rather
@@ -97,7 +99,6 @@ static oak_fn_call_result_t file_open(oak_native_call_t* call,
   }
   h->fp = fp;
   h->mode = requested;
-  h->allocator = call->allocator;
   *out = oak_vm_native_record_new(call->vm, file_type_of(call), h);
   return OAK_FN_CALL_OK;
 }
@@ -134,13 +135,10 @@ static oak_fn_call_result_t file_read(oak_native_call_t* call,
   char buf[4096];
   if (!fgets(buf, sizeof buf, h->fp))
   {
-    oak_obj_string_t* s = oak_vm_string_new_len(call->vm, "", 0);
-    *out = OAK_VALUE_OBJ(&s->obj);
+    *out = oak_vm_string_value_len(call->vm, "", 0);
     return OAK_FN_CALL_OK;
   }
-  const usize len = strlen(buf);
-  oak_obj_string_t* s = oak_vm_string_new_len(call->vm, buf, len);
-  *out = OAK_VALUE_OBJ(&s->obj);
+  *out = oak_vm_string_value_len(call->vm, buf, strlen(buf));
   return OAK_FN_CALL_OK;
 }
 
@@ -164,8 +162,7 @@ static oak_fn_call_result_t file_read_all(oak_native_call_t* call,
   const size_t n = (size_t)(end - pos);
   if (n == 0)
   {
-    oak_obj_string_t* s = oak_vm_string_new_len(call->vm, "", 0);
-    *out = OAK_VALUE_OBJ(&s->obj);
+    *out = oak_vm_string_value_len(call->vm, "", 0);
     return OAK_FN_CALL_OK;
   }
   char* buf = OAK_ALLOC(call->allocator, n + 1u);
@@ -173,9 +170,8 @@ static oak_fn_call_result_t file_read_all(oak_native_call_t* call,
     return oak_native_error(call, "out of memory reading %zu bytes", n);
   const size_t got = fread(buf, 1u, n, f);
   buf[got] = '\0';
-  oak_obj_string_t* s = oak_vm_string_new_len(call->vm, buf, got);
+  *out = oak_vm_string_value_len(call->vm, buf, got);
   OAK_FREE(call->allocator, buf);
-  *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
 
@@ -285,6 +281,7 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
   if (!t)
     return;
   t->destructor = file_destroy;
+  t->user_data = opts->allocator;
 
   oak_bind_enum_t* mode = oak_bind_enum_in_module(opts, "io", "FileMode");
   if (mode)
@@ -344,10 +341,8 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .receiver_type = t,
       .name = "write",
       .impl = file_write,
-      .arity = 1,
-      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
-      .param_types = file_write_params,
-      .param_count = (int)oak_count_of(file_write_params) },
+      OAK_BIND_PARAMS(file_write_params),
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "eof",
