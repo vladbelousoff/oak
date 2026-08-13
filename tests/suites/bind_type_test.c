@@ -355,25 +355,25 @@ UTEST_F(bind_type, assigning_to_a_read_only_native_field_is_rejected)
  * A "Handle" value type: the payload lives inline in the value word, so
  * instances are produced by a native factory and read back through a method.
  */
-static oak_fn_call_result_t make_handle(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t make_handle(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   (void)args;
   (void)argc;
   *out_result = oak_native_value_new((void*)(intptr_t)42);
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t handle_id(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t handle_id(oak_native_call_t* call,
                                       const oak_value_t* args,
                                       int argc,
                                       oak_value_t* out_result)
 {
   const intptr_t payload = (intptr_t)oak_native_value(args[0]);
-  (void)ctx;
+  (void)call;
   (void)argc;
   *out_result = OAK_VALUE_I32((i32)payload);
   return OAK_FN_CALL_OK;

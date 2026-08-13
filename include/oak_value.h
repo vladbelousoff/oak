@@ -511,7 +511,7 @@ struct oak_obj_fn
   int attr_hook_count;
 };
 
-typedef struct oak_native_ctx oak_native_ctx_t;
+typedef struct oak_native_call oak_native_call_t;
 
 typedef enum oak_fn_call_result oak_fn_call_result_t;
 enum oak_fn_call_result
@@ -521,7 +521,7 @@ enum oak_fn_call_result
 };
 
 typedef oak_fn_call_result_t (*oak_attr_runtime_cb_t)(
-    oak_native_ctx_t* ctx,
+    oak_native_call_t* call,
     const char* fn_name,
     const oak_value_t* args,
     int argc,
@@ -534,7 +534,7 @@ struct oak_attr_hook_entry
 };
 
 typedef oak_fn_call_result_t (*oak_native_fn_t)(
-    oak_native_ctx_t* ctx,
+    oak_native_call_t* call,
     const oak_value_t* args,
     int argc,
     oak_value_t* out_result);
@@ -546,7 +546,7 @@ struct oak_obj_native_fn
   oak_native_fn_t fn;
   int arity;
   const char* name;
-  /* Forwarded to the callback through oak_native_ctx_t::user_data. */
+  /* Forwarded to the callback through oak_native_call_t::user_data. */
   void* user_data;
   oak_attr_hook_entry_t* attr_hooks;
   int attr_hook_count;
@@ -616,7 +616,7 @@ struct oak_obj_interface_object
 
 typedef struct oak_vm oak_vm_t;
 
-struct oak_native_ctx
+struct oak_native_call
 {
   oak_vm_t* vm;
   oak_allocator_t* allocator;

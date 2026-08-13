@@ -34,12 +34,12 @@ static long find_sub(const char* hay,
 }
 
 /* Emit `out` as a freshly-allocated Oak string owning `len` bytes of `src`. */
-static void make_string(oak_native_ctx_t* ctx,
+static void make_string(oak_native_call_t* call,
                         const char* src,
                         usize len,
                         oak_value_t* out)
 {
-  oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, src, len);
+  oak_obj_string_t* s = oak_vm_string_new_len(call->vm, src, len);
   *out = OAK_VALUE_OBJ(&s->obj);
 }
 
@@ -66,7 +66,7 @@ static int starts_word(const char* s, usize len, usize i)
   return 0;
 }
 
-static oak_fn_call_result_t map_case(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t map_case(oak_native_call_t* call,
                                           const oak_value_t* args,
                                           int argc,
                                           oak_value_t* out,
@@ -78,37 +78,37 @@ static oak_fn_call_result_t map_case(oak_native_ctx_t* ctx,
   const usize len = self->length;
   if (len == 0)
   {
-    make_string(ctx, "", 0, out);
+    make_string(call, "", 0, out);
     return OAK_FN_CALL_OK;
   }
-  char* buf = OAK_ALLOC(ctx->allocator, len);
+  char* buf = OAK_ALLOC(call->allocator, len);
   for (usize i = 0; i < len; ++i)
   {
     const unsigned char c = (unsigned char)self->chars[i];
     buf[i] = (char)(upper ? toupper(c) : tolower(c));
   }
-  make_string(ctx, buf, len, out);
-  OAK_FREE(ctx->allocator, buf);
+  make_string(call, buf, len, out);
+  OAK_FREE(call->allocator, buf);
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_upper(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_upper(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out)
 {
-  return map_case(ctx, args, argc, out, 1);
+  return map_case(call, args, argc, out, 1);
 }
 
-oak_fn_call_result_t oak_str_lower(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_lower(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out)
 {
-  return map_case(ctx, args, argc, out, 0);
+  return map_case(call, args, argc, out, 0);
 }
 
-oak_fn_call_result_t oak_str_trim(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_trim(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
@@ -123,16 +123,16 @@ oak_fn_call_result_t oak_str_trim(oak_native_ctx_t* ctx,
     ++start;
   while (end > start && isspace((unsigned char)s[end - 1]))
     --end;
-  make_string(ctx, s + start, end - start, out);
+  make_string(call, s + start, end - start, out);
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_contains(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_contains(oak_native_call_t* call,
                                            const oak_value_t* args,
                                            int argc,
                                            oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const oak_obj_string_t* self = oak_as_string(args[0]);
@@ -142,12 +142,12 @@ oak_fn_call_result_t oak_str_contains(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_starts_with(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_starts_with(oak_native_call_t* call,
                                               const oak_value_t* args,
                                               int argc,
                                               oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const oak_obj_string_t* self = oak_as_string(args[0]);
@@ -158,12 +158,12 @@ oak_fn_call_result_t oak_str_starts_with(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_ends_with(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_ends_with(oak_native_call_t* call,
                                             const oak_value_t* args,
                                             int argc,
                                             oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const oak_obj_string_t* self = oak_as_string(args[0]);
@@ -176,12 +176,12 @@ oak_fn_call_result_t oak_str_ends_with(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_index_of(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_index_of(oak_native_call_t* call,
                                            const oak_value_t* args,
                                            int argc,
                                            oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const oak_obj_string_t* self = oak_as_string(args[0]);
@@ -191,7 +191,7 @@ oak_fn_call_result_t oak_str_index_of(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_replace(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_replace(oak_native_call_t* call,
                                           const oak_value_t* args,
                                           int argc,
                                           oak_value_t* out)
@@ -207,7 +207,7 @@ oak_fn_call_result_t oak_str_replace(oak_native_ctx_t* ctx,
    * than loop forever. */
   if (from->length == 0)
   {
-    make_string(ctx, self->chars, self->length, out);
+    make_string(call, self->chars, self->length, out);
     return OAK_FN_CALL_OK;
   }
 
@@ -225,13 +225,13 @@ oak_fn_call_result_t oak_str_replace(oak_native_ctx_t* ctx,
   }
   if (count == 0)
   {
-    make_string(ctx, self->chars, self->length, out);
+    make_string(call, self->chars, self->length, out);
     return OAK_FN_CALL_OK;
   }
 
   const usize result_len =
       self->length - count * from->length + count * to->length;
-  char* buf = OAK_ALLOC(ctx->allocator, result_len == 0 ? 1 : result_len);
+  char* buf = OAK_ALLOC(call->allocator, result_len == 0 ? 1 : result_len);
 
   /* Pass 2: build the result. */
   usize w = 0;
@@ -248,12 +248,12 @@ oak_fn_call_result_t oak_str_replace(oak_native_ctx_t* ctx,
       buf[w++] = self->chars[i++];
   }
 
-  make_string(ctx, buf, result_len, out);
-  OAK_FREE(ctx->allocator, buf);
+  make_string(call, buf, result_len, out);
+  OAK_FREE(call->allocator, buf);
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_repeat(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_repeat(oak_native_call_t* call,
                                          const oak_value_t* args,
                                          int argc,
                                          oak_value_t* out)
@@ -264,21 +264,21 @@ oak_fn_call_result_t oak_str_repeat(oak_native_ctx_t* ctx,
   const int n = number_as_i32(args[1]);
   if (n <= 0 || self->length == 0)
   {
-    make_string(ctx, "", 0, out);
+    make_string(call, "", 0, out);
     return OAK_FN_CALL_OK;
   }
   if ((usize)n > (usize)-1 / self->length)
     return OAK_FN_CALL_RUNTIME_ERROR; /* overflow guard */
   const usize total = self->length * (usize)n;
-  char* buf = OAK_ALLOC(ctx->allocator, total);
+  char* buf = OAK_ALLOC(call->allocator, total);
   for (int i = 0; i < n; ++i)
     memcpy(buf + (usize)i * self->length, self->chars, self->length);
-  make_string(ctx, buf, total, out);
-  OAK_FREE(ctx->allocator, buf);
+  make_string(call, buf, total, out);
+  OAK_FREE(call->allocator, buf);
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_substring(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_substring(oak_native_call_t* call,
                                             const oak_value_t* args,
                                             int argc,
                                             oak_value_t* out)
@@ -298,14 +298,14 @@ oak_fn_call_result_t oak_str_substring(oak_native_ctx_t* ctx,
     end = start;
   if (end > len)
     end = len;
-  make_string(ctx, self->chars + start, (usize)(end - start), out);
+  make_string(call, self->chars + start, (usize)(end - start), out);
   return OAK_FN_CALL_OK;
 }
 
 /* Convert to snake_case: word boundaries (separators and case transitions)
  * become a single underscore and every letter is lowercased.
  * "HelloWorld" / "hello world" / "hello-world" -> "hello_world". */
-oak_fn_call_result_t oak_str_to_snake_case(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_to_snake_case(oak_native_call_t* call,
                                                const oak_value_t* args,
                                                int argc,
                                                oak_value_t* out)
@@ -317,12 +317,12 @@ oak_fn_call_result_t oak_str_to_snake_case(oak_native_ctx_t* ctx,
   const usize len = self->length;
   if (len == 0)
   {
-    make_string(ctx, "", 0, out);
+    make_string(call, "", 0, out);
     return OAK_FN_CALL_OK;
   }
 
   /* At most one underscore per source char, plus the char itself. */
-  char* buf = OAK_ALLOC(ctx->allocator, len * 2);
+  char* buf = OAK_ALLOC(call->allocator, len * 2);
   usize w = 0;
   int pending = 0; /* a separator boundary awaits the next word char */
   for (usize i = 0; i < len; ++i)
@@ -343,15 +343,15 @@ oak_fn_call_result_t oak_str_to_snake_case(oak_native_ctx_t* ctx,
     buf[w++] = (char)tolower((unsigned char)c);
   }
 
-  make_string(ctx, buf, w, out);
-  OAK_FREE(ctx->allocator, buf);
+  make_string(call, buf, w, out);
+  OAK_FREE(call->allocator, buf);
   return OAK_FN_CALL_OK;
 }
 
 /* Convert to (lower) camelCase: separators are dropped, the first letter of
  * each following word is uppercased, and the very first letter is lowercased.
  * "hello_world" / "hello world" / "HelloWorld" -> "helloWorld". */
-oak_fn_call_result_t oak_str_to_camel_case(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_to_camel_case(oak_native_call_t* call,
                                                const oak_value_t* args,
                                                int argc,
                                                oak_value_t* out)
@@ -363,12 +363,12 @@ oak_fn_call_result_t oak_str_to_camel_case(oak_native_ctx_t* ctx,
   const usize len = self->length;
   if (len == 0)
   {
-    make_string(ctx, "", 0, out);
+    make_string(call, "", 0, out);
     return OAK_FN_CALL_OK;
   }
 
   /* Separators are removed, so the result never grows past the input. */
-  char* buf = OAK_ALLOC(ctx->allocator, len);
+  char* buf = OAK_ALLOC(call->allocator, len);
   usize w = 0;
   int cap_next = 0; /* uppercase the next word char (after a separator) */
   int started = 0;  /* has the first word char been emitted yet */
@@ -396,17 +396,17 @@ oak_fn_call_result_t oak_str_to_camel_case(oak_native_ctx_t* ctx,
       buf[w++] = (char)tolower((unsigned char)c);
   }
 
-  make_string(ctx, buf, w, out);
-  OAK_FREE(ctx->allocator, buf);
+  make_string(call, buf, w, out);
+  OAK_FREE(call->allocator, buf);
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_ord(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_ord(oak_native_call_t* call,
                                       const oak_value_t* args,
                                       int argc,
                                       oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const oak_obj_string_t* self = oak_as_string(args[0]);
@@ -416,7 +416,7 @@ oak_fn_call_result_t oak_str_ord(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_str_chr(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_chr(oak_native_call_t* call,
                                       const oak_value_t* args,
                                       int argc,
                                       oak_value_t* out)
@@ -427,7 +427,7 @@ oak_fn_call_result_t oak_str_chr(oak_native_ctx_t* ctx,
   if (code < 0 || code > 255)
     return OAK_FN_CALL_RUNTIME_ERROR;
   const char c = (char)(unsigned char)code;
-  make_string(ctx, &c, 1, out);
+  make_string(call, &c, 1, out);
   return OAK_FN_CALL_OK;
 }
 
@@ -443,12 +443,12 @@ static int only_trailing_space(const char* endp)
 /* Parse a string into a number. A token containing '.', 'e', or 'E' is read as
  * a float; otherwise it is read as a base-10 integer. Surrounding whitespace is
  * ignored; anything left over (or an out-of-range integer) is a runtime error. */
-oak_fn_call_result_t oak_str_parse_number(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_str_parse_number(oak_native_call_t* call,
                                                const oak_value_t* args,
                                                int argc,
                                                oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_string(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const char* s = oak_as_cstring(args[0]);

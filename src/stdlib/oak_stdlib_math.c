@@ -13,12 +13,12 @@ static float number_as_f32(const oak_value_t value)
   return oak_is_f32(value) ? oak_as_f32(value) : (float)oak_as_i32(value);
 }
 
-oak_fn_call_result_t oak_math_sqrt(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_sqrt(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const float value = number_as_f32(args[0]);
@@ -28,48 +28,48 @@ oak_fn_call_result_t oak_math_sqrt(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_sin(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_sin(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_F32(sinf(number_as_f32(args[0])));
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_cos(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_cos(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_F32(cosf(number_as_f32(args[0])));
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_tan(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_tan(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_F32(tanf(number_as_f32(args[0])));
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_abs(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_abs(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   if (oak_is_i32(args[0]))
@@ -82,24 +82,24 @@ oak_fn_call_result_t oak_math_abs(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_fmod(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_fmod(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_F32(fmodf(number_as_f32(args[0]), number_as_f32(args[1])));
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_min(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_min(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   float a = number_as_f32(args[0]);
@@ -108,12 +108,12 @@ oak_fn_call_result_t oak_math_min(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_max(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_max(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   float a = number_as_f32(args[0]);
@@ -122,12 +122,12 @@ oak_fn_call_result_t oak_math_max(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_random(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_random(oak_native_call_t* call,
                                           const oak_value_t* args,
                                           int argc,
                                           oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   (void)args;
   (void)argc;
   if (!s_rand_seeded)
@@ -139,12 +139,12 @@ oak_fn_call_result_t oak_math_random(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_floor(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_floor(oak_native_call_t* call,
                                          const oak_value_t* args,
                                          int argc,
                                          oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   if (oak_is_i32(args[0]))
@@ -154,12 +154,12 @@ oak_fn_call_result_t oak_math_floor(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_ceil(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_ceil(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   if (oak_is_i32(args[0]))
@@ -169,12 +169,12 @@ oak_fn_call_result_t oak_math_ceil(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_round(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_round(oak_native_call_t* call,
                                          const oak_value_t* args,
                                          int argc,
                                          oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   if (oak_is_i32(args[0]))
@@ -184,24 +184,24 @@ oak_fn_call_result_t oak_math_round(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_pow(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_pow(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_F32(powf(number_as_f32(args[0]), number_as_f32(args[1])));
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_log(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_log(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const float value = number_as_f32(args[0]);
@@ -211,36 +211,36 @@ oak_fn_call_result_t oak_math_log(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_exp(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_exp(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_F32(expf(number_as_f32(args[0])));
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_atan2(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_atan2(oak_native_call_t* call,
                                          const oak_value_t* args,
                                          int argc,
                                          oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_F32(atan2f(number_as_f32(args[0]), number_as_f32(args[1])));
   return OAK_FN_CALL_OK;
 }
 
-oak_fn_call_result_t oak_math_sign(oak_native_ctx_t* ctx,
+oak_fn_call_result_t oak_math_sign(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const float value = number_as_f32(args[0]);

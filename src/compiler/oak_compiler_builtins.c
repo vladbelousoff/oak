@@ -37,14 +37,14 @@ static void register_native_fn(oak_compiler_t* c,
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
-static oak_fn_call_result_t builtin_print(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t builtin_print(oak_native_call_t* call,
                                                const oak_value_t* args,
                                                int argc,
                                                oak_value_t* out_result)
 {
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_value_println(ctx->allocator, args[0]);
+  oak_value_println(call->allocator, args[0]);
   *out_result = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
@@ -59,48 +59,48 @@ static float builtin_number_as_f32(const oak_value_t value)
   return oak_is_f32(value) ? oak_as_f32(value) : (float)oak_as_i32(value);
 }
 
-static oak_fn_call_result_t builtin_to_int(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t builtin_to_int(oak_native_call_t* call,
                                                 const oak_value_t* args,
                                                 int argc,
                                                 oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out_result = OAK_VALUE_I32(builtin_number_as_i32(args[0]));
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t builtin_to_float(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t builtin_to_float(oak_native_call_t* call,
                                                   const oak_value_t* args,
                                                   int argc,
                                                   oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_number(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out_result = OAK_VALUE_F32(builtin_number_as_f32(args[0]));
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t builtin_is_int(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t builtin_is_int(oak_native_call_t* call,
                                                 const oak_value_t* args,
                                                 int argc,
                                                 oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out_result = OAK_VALUE_BOOL(oak_is_i32(args[0]));
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t builtin_is_float(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t builtin_is_float(oak_native_call_t* call,
                                                   const oak_value_t* args,
                                                   int argc,
                                                   oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1)
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out_result = OAK_VALUE_BOOL(oak_is_f32(args[0]));

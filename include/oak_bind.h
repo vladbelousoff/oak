@@ -221,7 +221,7 @@ struct oak_bind_global_fn
    * embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
   int param_count;
-  /* Optional pointer surfaced to `impl` as oak_native_ctx_t::user_data;
+  /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
    * borrowed and must outlive every chunk compiled with this binding. */
   void* user_data;
 };
@@ -249,7 +249,7 @@ struct oak_bind_fn
    * embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
   int param_count;
-  /* Optional pointer surfaced to `impl` as oak_native_ctx_t::user_data;
+  /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
    * borrowed and must outlive every chunk compiled with this binding. */
   void* user_data;
 };
@@ -614,7 +614,7 @@ OAK_API int oak_value_matches(oak_value_t value, oak_bind_type_ref_t ref);
  *   static const oak_bind_type_ref_t params[] = {
  *     OAK_BIND_SCALAR(OAK_TYPE_STRING), OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
  *   };
- *   static oak_fn_call_result_t my_fn(oak_native_ctx_t* ctx,
+ *   static oak_fn_call_result_t my_fn(oak_native_call_t* call,
  *                                     const oak_value_t* args, int argc,
  *                                     oak_value_t* out)
  *   {

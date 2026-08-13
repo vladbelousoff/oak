@@ -137,12 +137,12 @@ static const oak_bind_type_ref_t add_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
 };
 
-static oak_fn_call_result_t add(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t add(oak_native_call_t* call,
                                 const oak_value_t* args,
                                 int argc,
                                 oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (!oak_native_args_match(args, argc, add_params, 2))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_I32(oak_as_i32(args[0]) + oak_as_i32(args[1]));
@@ -151,7 +151,7 @@ static oak_fn_call_result_t add(oak_native_ctx_t* ctx,
 ```
 
 Returning `OAK_FN_CALL_RUNTIME_ERROR` aborts the script with a runtime error.
-`ctx` provides the VM, the allocator, and the `user_data` pointer from the
+`call` provides the VM, the allocator, and the `user_data` pointer from the
 binding descriptor.
 
 Register it as a global (or module-scoped) function:
@@ -277,7 +277,7 @@ Instances are created inside a native callback (typically a factory function
 or static method) with `oak_vm_native_record_new()`:
 
 ```c
-static oak_fn_call_result_t make_vec2(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t make_vec2(oak_native_call_t* call,
                                            const oak_value_t* args,
                                            int argc,
                                            oak_value_t* out)
@@ -286,7 +286,7 @@ static oak_fn_call_result_t make_vec2(oak_native_ctx_t* ctx,
   v->x = oak_as_f32(args[0]);
   v->y = oak_as_f32(args[1]);
   /* user_data carries the type descriptor (set it on the binding) */
-  *out = oak_vm_native_record_new(ctx->vm, ctx->user_data, v);
+  *out = oak_vm_native_record_new(call->vm, call->user_data, v);
   return OAK_FN_CALL_OK;
 }
 ```

@@ -53,12 +53,12 @@ static const oak_bind_type_ref_t add_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
 };
 
-static oak_fn_call_result_t native_add(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t native_add(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (!oak_native_args_match(
           args, argc, add_params, (int)oak_count_of(add_params)))
     return OAK_FN_CALL_RUNTIME_ERROR;
@@ -93,7 +93,7 @@ static void counter_set_value(oak_value_t self, oak_value_t v, void* user_data)
 
 /* Returns the descriptor through user_data rather than a file static, so two
  * option sets in one process stay independent. */
-static oak_fn_call_result_t counter_bump(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t counter_bump(oak_native_call_t* call,
                                          const oak_value_t* args,
                                          int argc,
                                          oak_value_t* out)
@@ -104,7 +104,7 @@ static oak_fn_call_result_t counter_bump(oak_native_ctx_t* ctx,
   if (!c)
     return OAK_FN_CALL_RUNTIME_ERROR;
   ++c->value;
-  (void)ctx;
+  (void)call;
   *out = OAK_VALUE_I32(c->value);
   return OAK_FN_CALL_OK;
 }

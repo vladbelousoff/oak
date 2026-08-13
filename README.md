@@ -309,12 +309,12 @@ checks. The API is descriptor-based: describe the bindings on
 `oak_compile_options_t`, then compile with `oak_compile_ex()`.
 
 ```c
-static oak_fn_call_result_t native_add(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t native_add(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_I32(oak_as_i32(args[0]) + oak_as_i32(args[1]));

@@ -26,7 +26,7 @@ struct oak_file_handle
   /* The mode the stream was opened in. eof() needs it because a write-only
    * stream has no readable position to compare against. */
   oak_file_mode_t mode;
-  /* Kept so the destructor can free the handle without a native ctx. */
+  /* Kept so the destructor can free the handle without a native call. */
   oak_allocator_t* allocator;
 };
 
@@ -58,7 +58,7 @@ static const oak_bind_type_ref_t file_write_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
 };
 
-static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t file_open(oak_native_call_t* call,
                                            const oak_value_t* args,
                                            int argc,
                                            oak_value_t* out)
@@ -87,7 +87,7 @@ static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
   FILE* fp = fopen(oak_as_cstring(args[0]), mode);
   if (!fp)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_file_handle_t* h = OAK_ALLOC(ctx->allocator, sizeof *h);
+  oak_file_handle_t* h = OAK_ALLOC(call->allocator, sizeof *h);
   if (!h)
   {
     fclose(fp);
@@ -95,15 +95,15 @@ static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
   }
   h->fp = fp;
   h->mode = requested;
-  h->allocator = ctx->allocator;
+  h->allocator = call->allocator;
   /* The io.File descriptor travels through user_data rather than a file
    * static, so two oak_compile_options_t in one process stay independent. */
   *out = oak_vm_native_record_new(
-      ctx->vm, (const oak_bind_type_t*)ctx->user_data, h);
+      call->vm, (const oak_bind_type_t*)call->user_data, h);
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t file_read(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t file_read(oak_native_call_t* call,
                                            const oak_value_t* args,
                                            int argc,
                                            oak_value_t* out)
@@ -116,17 +116,17 @@ static oak_fn_call_result_t file_read(oak_native_ctx_t* ctx,
   char buf[4096];
   if (!fgets(buf, sizeof buf, h->fp))
   {
-    oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, "", 0);
+    oak_obj_string_t* s = oak_vm_string_new_len(call->vm, "", 0);
     *out = OAK_VALUE_OBJ(&s->obj);
     return OAK_FN_CALL_OK;
   }
   const usize len = strlen(buf);
-  oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, buf, len);
+  oak_obj_string_t* s = oak_vm_string_new_len(call->vm, buf, len);
   *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t file_read_all(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t file_read_all(oak_native_call_t* call,
                                                const oak_value_t* args,
                                                int argc,
                                                oak_value_t* out)
@@ -148,27 +148,27 @@ static oak_fn_call_result_t file_read_all(oak_native_ctx_t* ctx,
   const size_t n = (size_t)(end - pos);
   if (n == 0)
   {
-    oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, "", 0);
+    oak_obj_string_t* s = oak_vm_string_new_len(call->vm, "", 0);
     *out = OAK_VALUE_OBJ(&s->obj);
     return OAK_FN_CALL_OK;
   }
-  char* buf = OAK_ALLOC(ctx->allocator, n + 1u);
+  char* buf = OAK_ALLOC(call->allocator, n + 1u);
   if (!buf)
     return OAK_FN_CALL_RUNTIME_ERROR;
   const size_t got = fread(buf, 1u, n, f);
   buf[got] = '\0';
-  oak_obj_string_t* s = oak_vm_string_new_len(ctx->vm, buf, got);
-  OAK_FREE(ctx->allocator, buf);
+  oak_obj_string_t* s = oak_vm_string_new_len(call->vm, buf, got);
+  OAK_FREE(call->allocator, buf);
   *out = OAK_VALUE_OBJ(&s->obj);
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t file_write(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t file_write(oak_native_call_t* call,
                                             const oak_value_t* args,
                                             int argc,
                                             oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   /* args[0] is the receiver; param_types covers only explicit parameters. */
   if (argc != 2 || !oak_is_native_record(args[0]) ||
       !oak_native_args_match(args + 1,
@@ -185,12 +185,12 @@ static oak_fn_call_result_t file_write(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t file_eof(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t file_eof(oak_native_call_t* call,
                                           const oak_value_t* args,
                                           int argc,
                                           oak_value_t* out)
 {
-  (void)ctx;
+  (void)call;
   if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
@@ -244,14 +244,14 @@ static oak_fn_call_result_t file_eof(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t file_close(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t file_close(oak_native_call_t* call,
                                             const oak_value_t* args,
                                             int argc,
                                             oak_value_t* out)
 {
   if (argc != 1 || !oak_is_native_record(args[0]))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  (void)ctx;
+  (void)call;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
     return OAK_FN_CALL_RUNTIME_ERROR;

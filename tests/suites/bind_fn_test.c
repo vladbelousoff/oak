@@ -20,34 +20,34 @@
 
 OAK_TEST_SUITE(bind_fn);
 
-static oak_fn_call_result_t native_add(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t native_add(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        int argc,
                                        oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   *out_result = OAK_VALUE_I32(argc == 2 ? oak_as_i32(args[0]) +
                                               oak_as_i32(args[1])
                                         : 0);
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t native_double(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t native_double(oak_native_call_t* call,
                                           const oak_value_t* args,
                                           int argc,
                                           oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   *out_result = OAK_VALUE_I32(argc == 1 ? oak_as_i32(args[0]) * 2 : 0);
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t native_answer(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t native_answer(oak_native_call_t* call,
                                           const oak_value_t* args,
                                           int argc,
                                           oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   (void)args;
   (void)argc;
   *out_result = OAK_VALUE_I32(42);
@@ -55,12 +55,12 @@ static oak_fn_call_result_t native_answer(oak_native_ctx_t* ctx,
 }
 
 /* A void native leaves out_result untouched; the VM must supply none. */
-static oak_fn_call_result_t native_void(oak_native_ctx_t* ctx,
+static oak_fn_call_result_t native_void(oak_native_call_t* call,
                                         const oak_value_t* args,
                                         int argc,
                                         oak_value_t* out_result)
 {
-  (void)ctx;
+  (void)call;
   (void)args;
   (void)argc;
   (void)out_result;

@@ -18,7 +18,7 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
 
   for (int hi = 0; hi < native->attr_hook_count; ++hi)
   {
-    oak_native_ctx_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
+    oak_native_call_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
     const oak_fn_call_result_t r =
         native->attr_hooks[hi].cb(&hook_ctx,
                                   native->name,
@@ -34,7 +34,7 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
     }
   }
 
-  oak_native_ctx_t nctx = { .vm = vm,
+  oak_native_call_t nctx = { .vm = vm,
                                    .allocator = vm->allocator,
                                    .user_data = native->user_data };
   oak_value_t result = OAK_VALUE_NONE;
@@ -82,7 +82,7 @@ static oak_vm_result_t vm_call_bytecode(oak_vm_t* vm,
   for (int hi = 0; hi < fn->attr_hook_count; ++hi)
   {
     oak_value_t* arg_base = vm->stack + fn_slot + 1;
-    oak_native_ctx_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
+    oak_native_call_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
     const oak_fn_call_result_t r = fn->attr_hooks[hi].cb(
         &hook_ctx, fn->name, arg_base, (int)argc, fn->attr_hooks[hi].ud);
     if (r != OAK_FN_CALL_OK)

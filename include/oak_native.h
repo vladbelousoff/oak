@@ -14,7 +14,7 @@
  * What lives here conceptually:
  *
  *   oak_native_fn_t        the callback signature
- *   oak_native_ctx_t       what the callback receives (vm, allocator, user_data)
+ *   oak_native_call_t      what the callback receives (vm, allocator, user_data)
  *   oak_fn_call_result_t   OAK_FN_CALL_OK / OAK_FN_CALL_RUNTIME_ERROR
  *   oak_attr_runtime_cb_t  the pre-call hook signature for bound attributes
  *
