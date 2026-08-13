@@ -1,32 +1,6 @@
 #include "internal/oak_compiler.h"
 #include "oak_stdlib_string.h"
 
-/* Implemented in oak_compiler_method_builtins.c */
-oak_fn_call_result_t builtin_size(oak_native_call_t*,
-                                       const oak_value_t*,
-                                       int,
-                                       oak_value_t*);
-oak_fn_call_result_t builtin_push(oak_native_call_t*,
-                                       const oak_value_t*,
-                                       int,
-                                       oak_value_t*);
-oak_fn_call_result_t builtin_has(oak_native_call_t*,
-                                      const oak_value_t*,
-                                      int,
-                                      oak_value_t*);
-oak_fn_call_result_t builtin_delete(oak_native_call_t*,
-                                         const oak_value_t*,
-                                         int,
-                                         oak_value_t*);
-oak_fn_call_result_t builtin_to_string(oak_native_call_t*,
-                                            const oak_value_t*,
-                                            int,
-                                            oak_value_t*);
-oak_fn_call_result_t builtin_string_format(oak_native_call_t*,
-                                                const oak_value_t*,
-                                                int,
-                                                oak_value_t*);
-
 static const oak_token_t*
 first_arg_error_token(const oak_ast_node_t* expr,
                       const oak_token_t* fallback)

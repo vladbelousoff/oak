@@ -536,3 +536,25 @@ void oak_compiler_compile_new_map(oak_compiler_t* c,
 
 void oak_compiler_compile_record_literal(oak_compiler_t* c,
                                          const oak_ast_node_t* node);
+
+
+/* Builtin methods on the primitive types, implemented in
+ * oak_compiler_method_builtins.c and installed by oak_compiler_method_table.c.
+ *
+ * Declared here rather than at the top of the table that uses them: C cannot
+ * declare a function *through* the oak_native_fn_t typedef, so each signature
+ * is written out, and a copy sitting in the consuming .c file silently drifts
+ * from the callback contract instead of failing to compile. One copy, in the
+ * header both sides include. */
+#define OAK_BUILTIN_METHOD(name)                                               \
+  oak_fn_call_result_t name(oak_native_call_t* call,                           \
+                            const oak_value_t* args,                           \
+                            usize argc,                                        \
+                            oak_value_t* out)
+
+OAK_BUILTIN_METHOD(builtin_size);
+OAK_BUILTIN_METHOD(builtin_push);
+OAK_BUILTIN_METHOD(builtin_has);
+OAK_BUILTIN_METHOD(builtin_delete);
+OAK_BUILTIN_METHOD(builtin_to_string);
+OAK_BUILTIN_METHOD(builtin_string_format);

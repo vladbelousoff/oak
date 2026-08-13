@@ -3,7 +3,7 @@
 
 oak_fn_call_result_t builtin_size(oak_native_call_t* call,
                                        const oak_value_t* args,
-                                       int argc,
+                                       const usize argc,
                                        oak_value_t* out_result)
 {
   (void)call;
@@ -29,7 +29,7 @@ oak_fn_call_result_t builtin_size(oak_native_call_t* call,
 
 oak_fn_call_result_t builtin_push(oak_native_call_t* call,
                                        const oak_value_t* args,
-                                       int argc,
+                                       const usize argc,
                                        oak_value_t* out_result)
 {
   (void)call;
@@ -43,7 +43,7 @@ oak_fn_call_result_t builtin_push(oak_native_call_t* call,
 
 oak_fn_call_result_t builtin_has(oak_native_call_t* call,
                                       const oak_value_t* args,
-                                      int argc,
+                                      const usize argc,
                                       oak_value_t* out_result)
 {
   (void)call;
@@ -56,7 +56,7 @@ oak_fn_call_result_t builtin_has(oak_native_call_t* call,
 
 oak_fn_call_result_t builtin_delete(oak_native_call_t* call,
                                          const oak_value_t* args,
-                                         int argc,
+                                         const usize argc,
                                          oak_value_t* out_result)
 {
   (void)call;
@@ -69,7 +69,7 @@ oak_fn_call_result_t builtin_delete(oak_native_call_t* call,
 
 oak_fn_call_result_t builtin_to_string(oak_native_call_t* call,
                                             const oak_value_t* args,
-                                            int argc,
+                                            const usize argc,
                                             oak_value_t* out_result)
 {
   if (argc != 1)
@@ -83,7 +83,7 @@ oak_fn_call_result_t builtin_to_string(oak_native_call_t* call,
 
 oak_fn_call_result_t builtin_string_format(oak_native_call_t* call,
                                                 const oak_value_t* args,
-                                                int argc,
+                                                const usize argc,
                                                 oak_value_t* out_result)
 {
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_array(args[1]))

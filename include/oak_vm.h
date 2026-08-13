@@ -160,7 +160,7 @@ OAK_API void oak_vm_prepare(oak_vm_t* vm, oak_chunk_t* chunk);
 OAK_API oak_vm_result_t oak_vm_call(oak_vm_t* vm,
                                     oak_value_t fn_val,
                                     const oak_value_t* args,
-                                    int argc,
+                                    usize argc,
                                     oak_value_t* out_result);
 
 /* The most recent runtime error, or NULL if none has occurred since the last

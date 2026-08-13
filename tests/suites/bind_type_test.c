@@ -365,6 +365,77 @@ UTEST_F(bind_type, descriptor_typed_fields_match_their_record_declaration)
   oak_compile_options_free(&opts);
 }
 
+/*
+ * oak_arg_self checks that the receiver really is the bound type before it
+ * hands back the instance pointer. oak_native_instance only asserts "some
+ * native record" and then reinterprets whatever C struct is behind it, so a
+ * receiver of the wrong bound type used to be read as the wrong struct.
+ *
+ * Oak call sites are type-checked at compile time, so C is the only way to
+ * reach this: oak_vm_call takes arbitrary values.
+ */
+static int s_wrong_self_instance_seen;
+
+static oak_fn_call_result_t reads_own_instance(oak_native_call_t* call,
+                                               const oak_value_t* args,
+                                               const usize argc,
+                                               oak_value_t* out_result)
+{
+  void* instance;
+  if (!oak_arg_self(call, args, argc, &instance))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  s_wrong_self_instance_seen = 1;
+  *out_result = OAK_VALUE_I32(0);
+  return OAK_FN_CALL_OK;
+}
+
+UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* mine;
+  oak_bind_type_t* theirs;
+  oak_vm_t vm;
+  oak_value_t right;
+  oak_value_t wrong;
+  oak_value_t result = OAK_VALUE_NONE;
+  oak_native_call_t call;
+  int mine_instance = 7;
+  int theirs_instance = 9;
+
+  oak_compile_options_init(&opts, OAK_A);
+  mine = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Mine");
+  theirs = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Theirs");
+  ASSERT_TRUE(mine != null && theirs != null);
+
+  /* The receiver check compares descriptors by identity, so nothing here needs
+   * compiling -- only a VM to own the records and carry the error. */
+  oak_vm_init(&vm, OAK_A);
+  right = oak_vm_native_record_new(&vm, mine, &mine_instance);
+  wrong = oak_vm_native_record_new(&vm, theirs, &theirs_instance);
+
+  call.vm = &vm;
+  call.allocator = OAK_A;
+  call.user_data = null;
+  call.fn_name = "peek";
+  call.self_type = mine;
+
+  s_wrong_self_instance_seen = 0;
+  OAK_EXPECT_ENUM(OAK_FN_CALL_RUNTIME_ERROR,
+                  reads_own_instance(&call, &wrong, 1, &result));
+  EXPECT_EQ(0, s_wrong_self_instance_seen);
+  EXPECT_TRUE(oak_vm_last_error(&vm) != null);
+
+  /* The right receiver still goes through, so the check is not a blanket no. */
+  OAK_EXPECT_ENUM(OAK_FN_CALL_OK,
+                  reads_own_instance(&call, &right, 1, &result));
+  EXPECT_EQ(1, s_wrong_self_instance_seen);
+
+  oak_obj_decref(oak_value_obj_resolve(right));
+  oak_obj_decref(oak_value_obj_resolve(wrong));
+  oak_vm_free(&vm);
+  oak_compile_options_free(&opts);
+}
+
 /* A native type with no bound fields cannot be declared with any. */
 UTEST_F(bind_type, a_fieldless_native_type_rejects_a_record_body)
 {
@@ -414,7 +485,7 @@ UTEST_F(bind_type, assigning_to_a_read_only_native_field_is_rejected)
  */
 static oak_fn_call_result_t make_handle(oak_native_call_t* call,
                                         const oak_value_t* args,
-                                        int argc,
+                                        const usize argc,
                                         oak_value_t* out_result)
 {
   (void)call;
@@ -426,7 +497,7 @@ static oak_fn_call_result_t make_handle(oak_native_call_t* call,
 
 static oak_fn_call_result_t handle_id(oak_native_call_t* call,
                                       const oak_value_t* args,
-                                      int argc,
+                                      const usize argc,
                                       oak_value_t* out_result)
 {
   const intptr_t payload = (intptr_t)oak_native_value(args[0]);

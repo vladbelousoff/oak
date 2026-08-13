@@ -527,7 +527,7 @@ typedef oak_fn_call_result_t (*oak_attr_runtime_cb_t)(
     oak_native_call_t* call,
     const char* fn_name,
     const oak_value_t* args,
-    int argc,
+    usize argc,
     void* user_data);
 
 struct oak_attr_hook_entry
@@ -536,10 +536,19 @@ struct oak_attr_hook_entry
   void* ud;
 };
 
+/* A bound C function.  `args` is a borrowed view into the VM stack: the callee
+ * must not decref an argument, and must incref anything it keeps past the call.
+ * The value written to *out_result is *moved* to the VM -- hand back a fresh
+ * reference (which every oak_vm_*_new constructor gives you) and never assign
+ * an object argument straight through, because the VM decrefs the arguments
+ * after taking the result.  Leaving *out_result untouched yields none.
+ *
+ * `argc` always equals the arity the binding was registered with; the VM
+ * rejects a mismatch before dispatching, so a callback need not re-check it. */
 typedef oak_fn_call_result_t (*oak_native_fn_t)(
     oak_native_call_t* call,
     const oak_value_t* args,
-    int argc,
+    usize argc,
     oak_value_t* out_result);
 
 typedef struct oak_obj_native_fn oak_obj_native_fn_t;

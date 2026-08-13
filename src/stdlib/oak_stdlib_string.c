@@ -1,6 +1,7 @@
 #include "oak_stdlib_string.h"
 
 #include "oak_allocator.h"
+#include "oak_bind.h"
 #include "oak_value_impl.h"
 #include "oak_vm.h"
 
@@ -8,11 +9,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-
-static int number_as_i32(const oak_value_t value)
-{
-  return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
-}
 
 /* Naive substring search. Returns the byte index of the first occurrence of
  * `needle` within `hay`, or -1 if absent. An empty needle matches at 0. */
@@ -68,13 +64,13 @@ static int starts_word(const char* s, usize len, usize i)
 
 static oak_fn_call_result_t map_case(oak_native_call_t* call,
                                           const oak_value_t* args,
-                                          int argc,
+                                          const usize argc,
                                           oak_value_t* out,
                                           int upper)
 {
-  if (argc != 1 || !oak_is_string(args[0]))
+  const oak_obj_string_t* self;
+  if (!oak_arg_string(call, args, argc, 0, &self))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
   const usize len = self->length;
   if (len == 0)
   {
@@ -94,7 +90,7 @@ static oak_fn_call_result_t map_case(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_upper(oak_native_call_t* call,
                                         const oak_value_t* args,
-                                        int argc,
+                                        const usize argc,
                                         oak_value_t* out)
 {
   return map_case(call, args, argc, out, 1);
@@ -102,7 +98,7 @@ oak_fn_call_result_t oak_str_upper(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_lower(oak_native_call_t* call,
                                         const oak_value_t* args,
-                                        int argc,
+                                        const usize argc,
                                         oak_value_t* out)
 {
   return map_case(call, args, argc, out, 0);
@@ -110,12 +106,12 @@ oak_fn_call_result_t oak_str_lower(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_trim(oak_native_call_t* call,
                                        const oak_value_t* args,
-                                       int argc,
+                                       const usize argc,
                                        oak_value_t* out)
 {
-  if (argc != 1 || !oak_is_string(args[0]))
+  const oak_obj_string_t* self;
+  if (!oak_arg_string(call, args, argc, 0, &self))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
   const char* s = self->chars;
   usize start = 0;
   usize end = self->length;
@@ -129,14 +125,14 @@ oak_fn_call_result_t oak_str_trim(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_contains(oak_native_call_t* call,
                                            const oak_value_t* args,
-                                           int argc,
+                                           const usize argc,
                                            oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+  const oak_obj_string_t* self;
+  const oak_obj_string_t* sub;
+  if (!oak_arg_string(call, args, argc, 0, &self) ||
+      !oak_arg_string(call, args, argc, 1, &sub))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
-  const oak_obj_string_t* sub = oak_as_string(args[1]);
   const long at = find_sub(self->chars, self->length, sub->chars, sub->length);
   *out = OAK_VALUE_BOOL(at >= 0);
   return OAK_FN_CALL_OK;
@@ -144,14 +140,14 @@ oak_fn_call_result_t oak_str_contains(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_starts_with(oak_native_call_t* call,
                                               const oak_value_t* args,
-                                              int argc,
+                                              const usize argc,
                                               oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+  const oak_obj_string_t* self;
+  const oak_obj_string_t* pre;
+  if (!oak_arg_string(call, args, argc, 0, &self) ||
+      !oak_arg_string(call, args, argc, 1, &pre))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
-  const oak_obj_string_t* pre = oak_as_string(args[1]);
   const int ok = pre->length <= self->length &&
                  memcmp(self->chars, pre->chars, pre->length) == 0;
   *out = OAK_VALUE_BOOL(ok);
@@ -160,14 +156,14 @@ oak_fn_call_result_t oak_str_starts_with(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_ends_with(oak_native_call_t* call,
                                             const oak_value_t* args,
-                                            int argc,
+                                            const usize argc,
                                             oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+  const oak_obj_string_t* self;
+  const oak_obj_string_t* suf;
+  if (!oak_arg_string(call, args, argc, 0, &self) ||
+      !oak_arg_string(call, args, argc, 1, &suf))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
-  const oak_obj_string_t* suf = oak_as_string(args[1]);
   const int ok =
       suf->length <= self->length &&
       memcmp(self->chars + (self->length - suf->length), suf->chars,
@@ -178,14 +174,14 @@ oak_fn_call_result_t oak_str_ends_with(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_index_of(oak_native_call_t* call,
                                            const oak_value_t* args,
-                                           int argc,
+                                           const usize argc,
                                            oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_string(args[1]))
+  const oak_obj_string_t* self;
+  const oak_obj_string_t* sub;
+  if (!oak_arg_string(call, args, argc, 0, &self) ||
+      !oak_arg_string(call, args, argc, 1, &sub))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
-  const oak_obj_string_t* sub = oak_as_string(args[1]);
   const long at = find_sub(self->chars, self->length, sub->chars, sub->length);
   *out = OAK_VALUE_I32((int)at);
   return OAK_FN_CALL_OK;
@@ -193,15 +189,16 @@ oak_fn_call_result_t oak_str_index_of(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_replace(oak_native_call_t* call,
                                           const oak_value_t* args,
-                                          int argc,
+                                          const usize argc,
                                           oak_value_t* out)
 {
-  if (argc != 3 || !oak_is_string(args[0]) || !oak_is_string(args[1]) ||
-      !oak_is_string(args[2]))
+  const oak_obj_string_t* self;
+  const oak_obj_string_t* from;
+  const oak_obj_string_t* to;
+  if (!oak_arg_string(call, args, argc, 0, &self) ||
+      !oak_arg_string(call, args, argc, 1, &from) ||
+      !oak_arg_string(call, args, argc, 2, &to))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
-  const oak_obj_string_t* from = oak_as_string(args[1]);
-  const oak_obj_string_t* to = oak_as_string(args[2]);
 
   /* An empty needle would match everywhere; return the string unchanged rather
    * than loop forever. */
@@ -255,20 +252,23 @@ oak_fn_call_result_t oak_str_replace(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_repeat(oak_native_call_t* call,
                                          const oak_value_t* args,
-                                         int argc,
+                                         const usize argc,
                                          oak_value_t* out)
 {
-  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_number(args[1]))
+  const oak_obj_string_t* self;
+  float count;
+  if (!oak_arg_string(call, args, argc, 0, &self) ||
+      !oak_arg_number(call, args, argc, 1, &count))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
-  const int n = number_as_i32(args[1]);
+  const int n = (int)count;
   if (n <= 0 || self->length == 0)
   {
     make_string(call, "", 0, out);
     return OAK_FN_CALL_OK;
   }
   if ((usize)n > (usize)-1 / self->length)
-    return OAK_FN_CALL_RUNTIME_ERROR; /* overflow guard */
+    return oak_native_error(
+        call, "repeating %zu bytes %d times overflows", self->length, n);
   const usize total = self->length * (usize)n;
   char* buf = OAK_ALLOC(call->allocator, total);
   for (int i = 0; i < n; ++i)
@@ -280,16 +280,19 @@ oak_fn_call_result_t oak_str_repeat(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_substring(oak_native_call_t* call,
                                             const oak_value_t* args,
-                                            int argc,
+                                            const usize argc,
                                             oak_value_t* out)
 {
-  if (argc != 3 || !oak_is_string(args[0]) || !oak_is_number(args[1]) ||
-      !oak_is_number(args[2]))
+  const oak_obj_string_t* self;
+  float from;
+  float to;
+  if (!oak_arg_string(call, args, argc, 0, &self) ||
+      !oak_arg_number(call, args, argc, 1, &from) ||
+      !oak_arg_number(call, args, argc, 2, &to))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
   const long len = (long)self->length;
-  long start = number_as_i32(args[1]);
-  long end = number_as_i32(args[2]);
+  long start = (long)from;
+  long end = (long)to;
   if (start < 0)
     start = 0;
   if (start > len)
@@ -307,12 +310,12 @@ oak_fn_call_result_t oak_str_substring(oak_native_call_t* call,
  * "HelloWorld" / "hello world" / "hello-world" -> "hello_world". */
 oak_fn_call_result_t oak_str_to_snake_case(oak_native_call_t* call,
                                                const oak_value_t* args,
-                                               int argc,
+                                               const usize argc,
                                                oak_value_t* out)
 {
-  if (argc != 1 || !oak_is_string(args[0]))
+  const oak_obj_string_t* self;
+  if (!oak_arg_string(call, args, argc, 0, &self))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
   const char* s = self->chars;
   const usize len = self->length;
   if (len == 0)
@@ -353,12 +356,12 @@ oak_fn_call_result_t oak_str_to_snake_case(oak_native_call_t* call,
  * "hello_world" / "hello world" / "HelloWorld" -> "helloWorld". */
 oak_fn_call_result_t oak_str_to_camel_case(oak_native_call_t* call,
                                                const oak_value_t* args,
-                                               int argc,
+                                               const usize argc,
                                                oak_value_t* out)
 {
-  if (argc != 1 || !oak_is_string(args[0]))
+  const oak_obj_string_t* self;
+  if (!oak_arg_string(call, args, argc, 0, &self))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
   const char* s = self->chars;
   const usize len = self->length;
   if (len == 0)
@@ -403,29 +406,29 @@ oak_fn_call_result_t oak_str_to_camel_case(oak_native_call_t* call,
 
 oak_fn_call_result_t oak_str_ord(oak_native_call_t* call,
                                       const oak_value_t* args,
-                                      int argc,
+                                      const usize argc,
                                       oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_string(args[0]))
+  const oak_obj_string_t* self;
+  if (!oak_arg_string(call, args, argc, 0, &self))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const oak_obj_string_t* self = oak_as_string(args[0]);
   if (self->length == 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "the string is empty");
   *out = OAK_VALUE_I32((int)(unsigned char)self->chars[0]);
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_str_chr(oak_native_call_t* call,
                                       const oak_value_t* args,
-                                      int argc,
+                                      const usize argc,
                                       oak_value_t* out)
 {
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!oak_arg_number(call, args, argc, 0, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const int code = number_as_i32(args[0]);
+  const int code = (int)value;
   if (code < 0 || code > 255)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "%d is not a byte value (0-255)", code);
   const char c = (char)(unsigned char)code;
   make_string(call, &c, 1, out);
   return OAK_FN_CALL_OK;
@@ -445,13 +448,12 @@ static int only_trailing_space(const char* endp)
  * ignored; anything left over (or an out-of-range integer) is a runtime error. */
 oak_fn_call_result_t oak_str_parse_number(oak_native_call_t* call,
                                                const oak_value_t* args,
-                                               int argc,
+                                               const usize argc,
                                                oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_string(args[0]))
+  const char* s;
+  if (!oak_arg_cstring(call, args, argc, 0, &s))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const char* s = oak_as_cstring(args[0]);
 
   const char* p = s;
   while (*p && isspace((unsigned char)*p))
@@ -472,16 +474,16 @@ oak_fn_call_result_t oak_str_parse_number(oak_native_call_t* call,
   {
     const float v = strtof(s, &endp);
     if (endp == s || !only_trailing_space(endp))
-      return OAK_FN_CALL_RUNTIME_ERROR;
+      return oak_native_error(call, "'%s' is not a number", s);
     *out = OAK_VALUE_F32(v);
     return OAK_FN_CALL_OK;
   }
 
   const long v = strtol(s, &endp, 10);
   if (endp == s || errno == ERANGE || !only_trailing_space(endp))
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "'%s' is not a number", s);
   if (v < (long)(-2147483647 - 1) || v > (long)2147483647)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "'%s' does not fit in a 32-bit integer", s);
   *out = OAK_VALUE_I32((int)v);
   return OAK_FN_CALL_OK;
 }

@@ -1,5 +1,6 @@
 #include "oak_stdlib_math.h"
 
+#include "oak_bind.h"
 #include "oak_value_impl.h"
 
 #include <math.h>
@@ -8,124 +9,140 @@
 
 static int s_rand_seeded;
 
-static float number_as_f32(const oak_value_t value)
+/* Reads one numeric argument, or reports which one was wrong and why. The VM
+ * checks arity before dispatching a native, so there is nothing to say here
+ * about the argument count -- only about the types. */
+static int arg1(oak_native_call_t* call,
+                const oak_value_t* args,
+                const usize argc,
+                float* out)
 {
-  return oak_is_f32(value) ? oak_as_f32(value) : (float)oak_as_i32(value);
+  return oak_arg_number(call, args, argc, 0, out);
+}
+
+static int arg2(oak_native_call_t* call,
+                const oak_value_t* args,
+                const usize argc,
+                float* a,
+                float* b)
+{
+  return oak_arg_number(call, args, argc, 0, a) &&
+         oak_arg_number(call, args, argc, 1, b);
 }
 
 oak_fn_call_result_t oak_math_sqrt(oak_native_call_t* call,
-                                        const oak_value_t* args,
-                                        int argc,
-                                        oak_value_t* out)
+                                   const oak_value_t* args,
+                                   const usize argc,
+                                   oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const float value = number_as_f32(args[0]);
   if (value < 0.0f)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "square root of negative %g", (double)value);
   *out = OAK_VALUE_F32(sqrtf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_sin(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_F32(sinf(number_as_f32(args[0])));
+  *out = OAK_VALUE_F32(sinf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_cos(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_F32(cosf(number_as_f32(args[0])));
+  *out = OAK_VALUE_F32(cosf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_tan(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_F32(tanf(number_as_f32(args[0])));
+  *out = OAK_VALUE_F32(tanf(value));
   return OAK_FN_CALL_OK;
 }
 
+/* Preserves the argument's representation: the absolute value of an integer is
+ * an integer, so abs(-3) stays 3 rather than becoming 3.0. */
 oak_fn_call_result_t oak_math_abs(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
   if (oak_is_i32(args[0]))
   {
-    int v = oak_as_i32(args[0]);
+    const int v = oak_as_i32(args[0]);
     *out = OAK_VALUE_I32(v < 0 ? -v : v);
   }
   else
-    *out = OAK_VALUE_F32(fabsf(oak_as_f32(args[0])));
+    *out = OAK_VALUE_F32(fabsf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_fmod(oak_native_call_t* call,
-                                        const oak_value_t* args,
-                                        int argc,
-                                        oak_value_t* out)
+                                   const oak_value_t* args,
+                                   const usize argc,
+                                   oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+  float a;
+  float b;
+  if (!arg2(call, args, argc, &a, &b))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_F32(fmodf(number_as_f32(args[0]), number_as_f32(args[1])));
+  *out = OAK_VALUE_F32(fmodf(a, b));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_min(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+  float a;
+  float b;
+  if (!arg2(call, args, argc, &a, &b))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  float a = number_as_f32(args[0]);
-  float b = number_as_f32(args[1]);
   *out = OAK_VALUE_F32(a < b ? a : b);
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_max(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+  float a;
+  float b;
+  if (!arg2(call, args, argc, &a, &b))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  float a = number_as_f32(args[0]);
-  float b = number_as_f32(args[1]);
   *out = OAK_VALUE_F32(a > b ? a : b);
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_random(oak_native_call_t* call,
-                                          const oak_value_t* args,
-                                          int argc,
-                                          oak_value_t* out)
+                                     const oak_value_t* args,
+                                     const usize argc,
+                                     oak_value_t* out)
 {
   (void)call;
   (void)args;
@@ -139,111 +156,105 @@ oak_fn_call_result_t oak_math_random(oak_native_call_t* call,
   return OAK_FN_CALL_OK;
 }
 
+/* floor/ceil/round answer with an integer, so an integer argument is already
+ * the answer and passes straight through. */
 oak_fn_call_result_t oak_math_floor(oak_native_call_t* call,
-                                         const oak_value_t* args,
-                                         int argc,
-                                         oak_value_t* out)
+                                    const oak_value_t* args,
+                                    const usize argc,
+                                    oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  if (oak_is_i32(args[0]))
-    *out = args[0];
-  else
-    *out = OAK_VALUE_I32((int)floorf(oak_as_f32(args[0])));
+  *out = oak_is_i32(args[0]) ? args[0] : OAK_VALUE_I32((int)floorf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_ceil(oak_native_call_t* call,
-                                        const oak_value_t* args,
-                                        int argc,
-                                        oak_value_t* out)
+                                   const oak_value_t* args,
+                                   const usize argc,
+                                   oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  if (oak_is_i32(args[0]))
-    *out = args[0];
-  else
-    *out = OAK_VALUE_I32((int)ceilf(oak_as_f32(args[0])));
+  *out = oak_is_i32(args[0]) ? args[0] : OAK_VALUE_I32((int)ceilf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_round(oak_native_call_t* call,
-                                         const oak_value_t* args,
-                                         int argc,
-                                         oak_value_t* out)
+                                    const oak_value_t* args,
+                                    const usize argc,
+                                    oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  if (oak_is_i32(args[0]))
-    *out = args[0];
-  else
-    *out = OAK_VALUE_I32((int)roundf(oak_as_f32(args[0])));
+  *out = oak_is_i32(args[0]) ? args[0] : OAK_VALUE_I32((int)roundf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_pow(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+  float base;
+  float exponent;
+  if (!arg2(call, args, argc, &base, &exponent))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_F32(powf(number_as_f32(args[0]), number_as_f32(args[1])));
+  *out = OAK_VALUE_F32(powf(base, exponent));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_log(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const float value = number_as_f32(args[0]);
   if (value <= 0.0f)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(
+        call, "logarithm of non-positive %g", (double)value);
   *out = OAK_VALUE_F32(logf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_exp(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       int argc,
-                                       oak_value_t* out)
+                                  const oak_value_t* args,
+                                  const usize argc,
+                                  oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_F32(expf(number_as_f32(args[0])));
+  *out = OAK_VALUE_F32(expf(value));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_atan2(oak_native_call_t* call,
-                                         const oak_value_t* args,
-                                         int argc,
-                                         oak_value_t* out)
+                                    const oak_value_t* args,
+                                    const usize argc,
+                                    oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+  float y;
+  float x;
+  if (!arg2(call, args, argc, &y, &x))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_F32(atan2f(number_as_f32(args[0]), number_as_f32(args[1])));
+  *out = OAK_VALUE_F32(atan2f(y, x));
   return OAK_FN_CALL_OK;
 }
 
 oak_fn_call_result_t oak_math_sign(oak_native_call_t* call,
-                                        const oak_value_t* args,
-                                        int argc,
-                                        oak_value_t* out)
+                                   const oak_value_t* args,
+                                   const usize argc,
+                                   oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!arg1(call, args, argc, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const float value = number_as_f32(args[0]);
   *out = OAK_VALUE_I32(value > 0.0f ? 1 : (value < 0.0f ? -1 : 0));
   return OAK_FN_CALL_OK;
 }

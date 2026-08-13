@@ -22,7 +22,7 @@ OAK_TEST_SUITE(bind_fn);
 
 static oak_fn_call_result_t native_add(oak_native_call_t* call,
                                        const oak_value_t* args,
-                                       int argc,
+                                       const usize argc,
                                        oak_value_t* out_result)
 {
   (void)call;
@@ -34,7 +34,7 @@ static oak_fn_call_result_t native_add(oak_native_call_t* call,
 
 static oak_fn_call_result_t native_double(oak_native_call_t* call,
                                           const oak_value_t* args,
-                                          int argc,
+                                          const usize argc,
                                           oak_value_t* out_result)
 {
   (void)call;
@@ -44,7 +44,7 @@ static oak_fn_call_result_t native_double(oak_native_call_t* call,
 
 static oak_fn_call_result_t native_answer(oak_native_call_t* call,
                                           const oak_value_t* args,
-                                          int argc,
+                                          const usize argc,
                                           oak_value_t* out_result)
 {
   (void)call;
@@ -58,7 +58,7 @@ static oak_fn_call_result_t native_answer(oak_native_call_t* call,
  * produced on its own. */
 static oak_fn_call_result_t native_explains(oak_native_call_t* call,
                                             const oak_value_t* args,
-                                            int argc,
+                                            const usize argc,
                                             oak_value_t* out_result)
 {
   (void)args;
@@ -70,7 +70,7 @@ static oak_fn_call_result_t native_explains(oak_native_call_t* call,
 /* Fails without saying why, so the VM's generic message still has to appear. */
 static oak_fn_call_result_t native_silent(oak_native_call_t* call,
                                           const oak_value_t* args,
-                                          int argc,
+                                          const usize argc,
                                           oak_value_t* out_result)
 {
   (void)call;
@@ -83,7 +83,7 @@ static oak_fn_call_result_t native_silent(oak_native_call_t* call,
 /* A void native leaves out_result untouched; the VM must supply none. */
 static oak_fn_call_result_t native_void(oak_native_call_t* call,
                                         const oak_value_t* args,
-                                        int argc,
+                                        const usize argc,
                                         oak_value_t* out_result)
 {
   (void)call;

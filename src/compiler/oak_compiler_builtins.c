@@ -37,72 +37,64 @@ static void register_native_fn(oak_compiler_t* c,
   oak_fn_registry_insert(&c->fns, &entry);
 }
 
+/* The VM matches argc against the binding's arity before dispatching, so none
+ * of these re-check the argument count -- only the types they care about. */
 static oak_fn_call_result_t builtin_print(oak_native_call_t* call,
-                                               const oak_value_t* args,
-                                               int argc,
-                                               oak_value_t* out_result)
+                                          const oak_value_t* args,
+                                          const usize argc,
+                                          oak_value_t* out_result)
 {
-  if (argc != 1)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+  (void)argc;
   oak_value_println(call->allocator, args[0]);
   *out_result = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
 
-static int builtin_number_as_i32(const oak_value_t value)
-{
-  return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
-}
-
-static float builtin_number_as_f32(const oak_value_t value)
-{
-  return oak_is_f32(value) ? oak_as_f32(value) : (float)oak_as_i32(value);
-}
-
 static oak_fn_call_result_t builtin_to_int(oak_native_call_t* call,
-                                                const oak_value_t* args,
-                                                int argc,
-                                                oak_value_t* out_result)
+                                           const oak_value_t* args,
+                                           const usize argc,
+                                           oak_value_t* out_result)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!oak_arg_number(call, args, argc, 0, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out_result = OAK_VALUE_I32(builtin_number_as_i32(args[0]));
+  *out_result = OAK_VALUE_I32(oak_is_f32(args[0]) ? (int)value
+                                                  : oak_as_i32(args[0]));
   return OAK_FN_CALL_OK;
 }
 
 static oak_fn_call_result_t builtin_to_float(oak_native_call_t* call,
-                                                  const oak_value_t* args,
-                                                  int argc,
-                                                  oak_value_t* out_result)
+                                             const oak_value_t* args,
+                                             const usize argc,
+                                             oak_value_t* out_result)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_number(args[0]))
+  float value;
+  if (!oak_arg_number(call, args, argc, 0, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out_result = OAK_VALUE_F32(builtin_number_as_f32(args[0]));
+  *out_result = OAK_VALUE_F32(value);
   return OAK_FN_CALL_OK;
 }
 
+/* Type predicates: any value is a valid argument, so there is nothing to
+ * reject -- answering "no" is the whole point. */
 static oak_fn_call_result_t builtin_is_int(oak_native_call_t* call,
-                                                const oak_value_t* args,
-                                                int argc,
-                                                oak_value_t* out_result)
+                                           const oak_value_t* args,
+                                           const usize argc,
+                                           oak_value_t* out_result)
 {
   (void)call;
-  if (argc != 1)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+  (void)argc;
   *out_result = OAK_VALUE_BOOL(oak_is_i32(args[0]));
   return OAK_FN_CALL_OK;
 }
 
 static oak_fn_call_result_t builtin_is_float(oak_native_call_t* call,
-                                                  const oak_value_t* args,
-                                                  int argc,
-                                                  oak_value_t* out_result)
+                                             const oak_value_t* args,
+                                             const usize argc,
+                                             oak_value_t* out_result)
 {
   (void)call;
-  if (argc != 1)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+  (void)argc;
   *out_result = OAK_VALUE_BOOL(oak_is_f32(args[0]));
   return OAK_FN_CALL_OK;
 }

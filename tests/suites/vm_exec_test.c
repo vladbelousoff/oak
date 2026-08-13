@@ -460,13 +460,15 @@ UTEST_F(vm_exec, character_and_number_parsing_builtins)
 /* Bad conversions are errors, not silent zeros. */
 UTEST_F(vm_exec, parsing_builtins_reject_bad_input)
 {
+  /* Each message names the offending input, so the three parse_number rows are
+   * distinguishable from one another rather than all reading alike. */
   static const oak_case_t cases[] = {
-    { "print(parse_number('nope'));\n", "native function 'parse_number' failed" },
-    { "print(parse_number('12x'));\n", "native function 'parse_number' failed" },
-    { "print(parse_number('1.2.3'));\n", "native function 'parse_number' failed" },
-    { "print(ord(''));\n", "native function 'ord' failed" },
-    { "print(chr(-1));\n", "native function 'chr' failed" },
-    { "print(chr(256));\n", "native function 'chr' failed" },
+    { "print(parse_number('nope'));\n", "'nope' is not a number" },
+    { "print(parse_number('12x'));\n", "'12x' is not a number" },
+    { "print(parse_number('1.2.3'));\n", "'1.2.3' is not a number" },
+    { "print(ord(''));\n", "the string is empty" },
+    { "print(chr(-1));\n", "-1 is not a byte value" },
+    { "print(chr(256));\n", "256 is not a byte value" },
   };
 
   OAK_EXPECT_RUNTIME_ERROR_CASES(cases);

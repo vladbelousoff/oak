@@ -43,33 +43,35 @@ static void file_destroy(void* instance)
   OAK_FREE(h->allocator, h);
 }
 
-/* Runtime guard for open(). The compile-time signature is built in
- * oak_stdlib_register_file, where the io.FileMode descriptor is in scope and
- * the mode parameter is typed as that enum via OAK_BIND_ENUM. At run time an
- * enum is just its integer value, so a number check is the right test here. */
-static const oak_bind_type_ref_t file_open_params[] = {
-  OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
-  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
-};
+/* Compile-time signature for open(). Built in oak_stdlib_register_file rather
+ * than here, because typing the mode as the io.FileMode enum needs that
+ * descriptor in scope. At run time an enum is just its integer value, which is
+ * what oak_arg_i32 below checks for. */
 
-/* Declared once and used twice: as param_types, so the compiler checks Oak
- * call sites, and as the callback's own guard against calls arriving from C. */
-static const oak_bind_type_ref_t file_write_params[] = {
-  OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
-};
+/* open() is bound twice -- as the module-level io.open and as the static
+ * method io.File.open -- and only the method has a receiver type. Take the
+ * descriptor from whichever the call supplies, so neither registration needs a
+ * file static that would tie two oak_compile_options_t in one process
+ * together. */
+static const oak_bind_type_t* file_type_of(const oak_native_call_t* call)
+{
+  return call->self_type ? call->self_type
+                         : (const oak_bind_type_t*)call->user_data;
+}
 
 static oak_fn_call_result_t file_open(oak_native_call_t* call,
-                                           const oak_value_t* args,
-                                           int argc,
-                                           oak_value_t* out)
+                                      const oak_value_t* args,
+                                      const usize argc,
+                                      oak_value_t* out)
 {
-  if (!oak_native_args_match(
-          args, argc, file_open_params, (int)oak_count_of(file_open_params)))
+  const char* path;
+  int mode_value;
+  if (!oak_arg_cstring(call, args, argc, 0, &path) ||
+      !oak_arg_i32(call, args, argc, 1, &mode_value))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  if (!oak_is_i32(args[1]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
+
   const char* mode;
-  const oak_file_mode_t requested = (oak_file_mode_t)oak_as_i32(args[1]);
+  const oak_file_mode_t requested = (oak_file_mode_t)mode_value;
   switch (requested)
   {
     case OAK_FILE_MODE_READ:
@@ -82,36 +84,52 @@ static oak_fn_call_result_t file_open(oak_native_call_t* call,
       mode = "a";
       break;
     default:
-      return OAK_FN_CALL_RUNTIME_ERROR;
+      return oak_native_error(call, "unknown file mode %d", mode_value);
   }
-  FILE* fp = fopen(oak_as_cstring(args[0]), mode);
+  FILE* fp = fopen(path, mode);
   if (!fp)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "cannot open '%s' for '%s'", path, mode);
   oak_file_handle_t* h = OAK_ALLOC(call->allocator, sizeof *h);
   if (!h)
   {
     fclose(fp);
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "out of memory opening '%s'", path);
   }
   h->fp = fp;
   h->mode = requested;
   h->allocator = call->allocator;
-  /* The io.File descriptor travels through user_data rather than a file
-   * static, so two oak_compile_options_t in one process stay independent. */
-  *out = oak_vm_native_record_new(
-      call->vm, (const oak_bind_type_t*)call->user_data, h);
+  *out = oak_vm_native_record_new(call->vm, file_type_of(call), h);
   return OAK_FN_CALL_OK;
 }
 
-static oak_fn_call_result_t file_read(oak_native_call_t* call,
-                                           const oak_value_t* args,
-                                           int argc,
-                                           oak_value_t* out)
+/* Every instance method wants the same two things: the receiver's handle, and
+ * for its stream to still be open. close() only nulls fp -- the record outlives
+ * it deliberately -- so a closed File reaches these methods and must be turned
+ * away with a reason rather than by touching a null FILE*. */
+static int file_handle(oak_native_call_t* call,
+                       const oak_value_t* args,
+                       const usize argc,
+                       oak_file_handle_t** out)
 {
-  if (argc != 1 || !oak_is_native_record(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_file_handle_t* h = oak_native_instance(args[0]);
-  if (!h || !h->fp)
+  oak_file_handle_t* h;
+  if (!oak_arg_self(call, args, argc, (void**)&h))
+    return 0;
+  if (!h->fp)
+  {
+    oak_native_error(call, "the file is closed");
+    return 0;
+  }
+  *out = h;
+  return 1;
+}
+
+static oak_fn_call_result_t file_read(oak_native_call_t* call,
+                                      const oak_value_t* args,
+                                      const usize argc,
+                                      oak_value_t* out)
+{
+  oak_file_handle_t* h;
+  if (!file_handle(call, args, argc, &h))
     return OAK_FN_CALL_RUNTIME_ERROR;
   char buf[4096];
   if (!fgets(buf, sizeof buf, h->fp))
@@ -127,24 +145,22 @@ static oak_fn_call_result_t file_read(oak_native_call_t* call,
 }
 
 static oak_fn_call_result_t file_read_all(oak_native_call_t* call,
-                                               const oak_value_t* args,
-                                               int argc,
-                                               oak_value_t* out)
+                                          const oak_value_t* args,
+                                          const usize argc,
+                                          oak_value_t* out)
 {
-  if (argc != 1 || !oak_is_native_record(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_file_handle_t* h = oak_native_instance(args[0]);
-  if (!h || !h->fp)
+  oak_file_handle_t* h;
+  if (!file_handle(call, args, argc, &h))
     return OAK_FN_CALL_RUNTIME_ERROR;
   FILE* const f = h->fp;
   const long pos = ftell(f);
   if (pos < 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "cannot read the file position");
   if (fseek(f, 0, SEEK_END) != 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "cannot seek to the end of the file");
   const long end = ftell(f);
   if (end < 0 || fseek(f, pos, SEEK_SET) != 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "cannot restore the file position");
   const size_t n = (size_t)(end - pos);
   if (n == 0)
   {
@@ -154,7 +170,7 @@ static oak_fn_call_result_t file_read_all(oak_native_call_t* call,
   }
   char* buf = OAK_ALLOC(call->allocator, n + 1u);
   if (!buf)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "out of memory reading %zu bytes", n);
   const size_t got = fread(buf, 1u, n, f);
   buf[got] = '\0';
   oak_obj_string_t* s = oak_vm_string_new_len(call->vm, buf, got);
@@ -164,37 +180,29 @@ static oak_fn_call_result_t file_read_all(oak_native_call_t* call,
 }
 
 static oak_fn_call_result_t file_write(oak_native_call_t* call,
-                                            const oak_value_t* args,
-                                            int argc,
-                                            oak_value_t* out)
+                                       const oak_value_t* args,
+                                       const usize argc,
+                                       oak_value_t* out)
 {
-  (void)call;
-  /* args[0] is the receiver; param_types covers only explicit parameters. */
-  if (argc != 2 || !oak_is_native_record(args[0]) ||
-      !oak_native_args_match(args + 1,
-                             argc - 1,
-                             file_write_params,
-                             (int)oak_count_of(file_write_params)))
+  oak_file_handle_t* h;
+  const char* text;
+  /* args[0] is the receiver, so the explicit parameter is at index 1. */
+  if (!file_handle(call, args, argc, &h) ||
+      !oak_arg_cstring(call, args, argc, 1, &text))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_file_handle_t* h = oak_native_instance(args[0]);
-  if (!h || !h->fp)
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  if (fputs(oak_as_cstring(args[1]), h->fp) == EOF)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (fputs(text, h->fp) == EOF)
+    return oak_native_error(call, "write failed");
   *out = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
 
 static oak_fn_call_result_t file_eof(oak_native_call_t* call,
-                                          const oak_value_t* args,
-                                          int argc,
-                                          oak_value_t* out)
+                                     const oak_value_t* args,
+                                     const usize argc,
+                                     oak_value_t* out)
 {
-  (void)call;
-  if (argc != 1 || !oak_is_native_record(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  oak_file_handle_t* h = oak_native_instance(args[0]);
-  if (!h || !h->fp)
+  oak_file_handle_t* h;
+  if (!file_handle(call, args, argc, &h))
     return OAK_FN_CALL_RUNTIME_ERROR;
 
   /* Reports whether any data remains to be read, rather than whether the
@@ -233,27 +241,24 @@ static oak_fn_call_result_t file_eof(oak_native_call_t* call,
 
   const long pos = ftell(f);
   if (pos < 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "cannot read the file position");
   if (fseek(f, 0, SEEK_END) != 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "cannot seek to the end of the file");
   const long end = ftell(f);
   if (end < 0 || fseek(f, pos, SEEK_SET) != 0)
-    return OAK_FN_CALL_RUNTIME_ERROR;
+    return oak_native_error(call, "cannot restore the file position");
 
   *out = OAK_VALUE_BOOL(pos >= end);
   return OAK_FN_CALL_OK;
 }
 
 static oak_fn_call_result_t file_close(oak_native_call_t* call,
-                                            const oak_value_t* args,
-                                            int argc,
-                                            oak_value_t* out)
+                                       const oak_value_t* args,
+                                       const usize argc,
+                                       oak_value_t* out)
 {
-  if (argc != 1 || !oak_is_native_record(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  (void)call;
-  oak_file_handle_t* h = oak_native_instance(args[0]);
-  if (!h || !h->fp)
+  oak_file_handle_t* h;
+  if (!file_handle(call, args, argc, &h))
     return OAK_FN_CALL_RUNTIME_ERROR;
   fclose(h->fp);
   /* The handle stays alive (freed by file_destroy) so that read/write/close
@@ -262,6 +267,14 @@ static oak_fn_call_result_t file_close(oak_native_call_t* call,
   *out = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
+
+/* The compile-time signature for write(). Static, not a local in the function
+ * below: param_types is borrowed, so the array has to outlive oak_compile_ex.
+ * The callback no longer reads it -- oak_arg_cstring does that check and says
+ * what went wrong -- but declaring it still buys call-site checking in Oak. */
+static const oak_bind_type_ref_t file_write_params[] = {
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
+};
 
 void oak_stdlib_register_file(oak_compile_options_t* opts)
 {
@@ -299,6 +312,9 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .return_type = OAK_BIND_NATIVE(t),
       .param_types = mode ? open_sig : null,
       .param_count = mode ? (int)oak_count_of(open_sig) : 0,
+      /* A global function has no receiver, so this is the only way the
+       * descriptor reaches file_open; the static method below gets it as
+       * self_type instead (see file_type_of). */
       .user_data = t },
   };
   oak_bind_fns_global(opts, globals, (int)oak_count_of(globals));
@@ -311,8 +327,7 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .arity = 2,
       .return_type = OAK_BIND_NATIVE(t),
       .param_types = mode ? open_sig : null,
-      .param_count = mode ? (int)oak_count_of(open_sig) : 0,
-      .user_data = t },
+      .param_count = mode ? (int)oak_count_of(open_sig) : 0 },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "read",

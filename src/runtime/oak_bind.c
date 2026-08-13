@@ -503,15 +503,15 @@ int oak_value_matches(const oak_value_t value, const oak_bind_type_ref_t ref)
 }
 
 int oak_native_args_match(const oak_value_t* args,
-                          const int argc,
+                          const usize argc,
                           const oak_bind_type_ref_t* types,
-                          const int count)
+                          const usize count)
 {
   if (argc != count)
     return 0;
   if (count > 0 && (!args || !types))
     return 0;
-  for (int i = 0; i < count; ++i)
+  for (usize i = 0; i < count; ++i)
   {
     if (!oak_value_matches(args[i], types[i]))
       return 0;

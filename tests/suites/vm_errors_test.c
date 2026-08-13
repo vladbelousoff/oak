@@ -81,12 +81,15 @@ UTEST_F(vm_errors, int_min_modulo_minus_one_is_zero)
   OAK_EXPECT_OK_CASES(cases);
 }
 
+/* Each row asserts the specific reason, not just that something failed: a
+ * builtin that rejects its argument says which argument and what it wanted,
+ * and one that rejects the value's magnitude says that instead. */
 UTEST_F(vm_errors, arithmetic_on_non_numbers_is_caught)
 {
   static const oak_case_t cases[] = {
-    { "print(to_int('x'));\n", "native function 'to_int' failed" },
-    { "print(sqrt(-1));\n", "native function 'sqrt' failed" },
-    { "print(sin('x'));\n", "native function 'sin' failed" },
+    { "print(to_int('x'));\n", "argument 0: expected a number, found string" },
+    { "print(sqrt(-1));\n", "square root of negative" },
+    { "print(sin('x'));\n", "argument 0: expected a number, found string" },
   };
 
   OAK_EXPECT_RUNTIME_ERROR_CASES(cases);

@@ -27,7 +27,7 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
         native->attr_hooks[hi].cb(&hook_call,
                                   native->name,
                                   arg_base,
-                                  (int)argc,
+                                  (usize)argc,
                                   native->attr_hooks[hi].ud);
     if (r != OAK_FN_CALL_OK)
     {
@@ -48,7 +48,7 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
    * own message; only a silent failure falls back to the generic one. */
   const u32 error_seq = vm->error_seq;
   const oak_fn_call_result_t err =
-      native->fn(&call, arg_base, (int)argc, &result);
+      native->fn(&call, arg_base, (usize)argc, &result);
   if (err != OAK_FN_CALL_OK)
   {
     if (vm->error_seq == error_seq)
@@ -97,7 +97,7 @@ static oak_vm_result_t vm_call_bytecode(oak_vm_t* vm,
                                     .user_data = fn->attr_hooks[hi].ud,
                                     .fn_name = fn->name };
     const oak_fn_call_result_t r = fn->attr_hooks[hi].cb(
-        &hook_call, fn->name, arg_base, (int)argc, fn->attr_hooks[hi].ud);
+        &hook_call, fn->name, arg_base, (usize)argc, fn->attr_hooks[hi].ud);
     if (r != OAK_FN_CALL_OK)
     {
       oak_vm_runtime_error(vm, "attribute hook aborted function call");
@@ -250,7 +250,7 @@ static u8 halt_trampoline[] = { 0 /* OAK_OP_HALT */ };
 static oak_vm_result_t oak_vm_call_impl(oak_vm_t* vm,
                                              oak_value_t fn_val,
                                              const oak_value_t* args,
-                                             int argc,
+                                             const usize argc,
                                              oak_value_t* out_result)
 {
   if (!vm->chunk)
@@ -305,7 +305,7 @@ static oak_vm_result_t oak_vm_call_impl(oak_vm_t* vm,
 oak_vm_result_t oak_vm_call(oak_vm_t* vm,
                             oak_value_t fn_val,
                             const oak_value_t* args,
-                            int argc,
+                            const usize argc,
                             oak_value_t* out_result)
 {
   oak_vm_clear_last_error(vm);

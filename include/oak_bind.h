@@ -621,6 +621,103 @@ OAK_API oak_fn_call_result_t
 oak_native_error(oak_native_call_t* call, const char* fmt, ...);
 
 
+/*
+ * Checked argument accessors.
+ *
+ * Each reads args[i], and returns non-zero having written *out.  On a missing
+ * or wrongly-typed argument each raises a runtime error naming the binding,
+ * the parameter position and the expected versus actual type, then returns 0 --
+ * so a guarded callback reads as:
+ *
+ *   int fathoms;
+ *   const char* name;
+ *   if (!oak_arg_i32(call, args, argc, 0, &fathoms) ||
+ *       !oak_arg_cstring(call, args, argc, 1, &name))
+ *     return OAK_FN_CALL_RUNTIME_ERROR;
+ *
+ * and every diagnostic is phrased once, here, rather than per callback.
+ *
+ * These do not check arity: the VM already rejects an argc mismatch before a
+ * callback runs (on every path, including oak_vm_call from C), so an
+ * `argc != N` guard in a callback is dead code.  An index past argc is still
+ * reported rather than read, because a callback reached through some future
+ * path with fewer arguments must not read off the end.
+ *
+ * The string from oak_arg_cstring points into the argument, which the VM
+ * releases when the call returns; copy it if it must outlive the callback.
+ */
+OAK_API int oak_arg_i32(oak_native_call_t* call,
+                        const oak_value_t* args,
+                        usize argc,
+                        usize i,
+                        int* out);
+OAK_API int oak_arg_f32(oak_native_call_t* call,
+                        const oak_value_t* args,
+                        usize argc,
+                        usize i,
+                        float* out);
+/* Accepts either numeric representation and widens, which is what a native
+ * doing float maths wants; oak_arg_f32 insists on a float. */
+OAK_API int oak_arg_number(oak_native_call_t* call,
+                           const oak_value_t* args,
+                           usize argc,
+                           usize i,
+                           float* out);
+OAK_API int oak_arg_bool(oak_native_call_t* call,
+                         const oak_value_t* args,
+                         usize argc,
+                         usize i,
+                         int* out);
+OAK_API int oak_arg_cstring(oak_native_call_t* call,
+                            const oak_value_t* args,
+                            usize argc,
+                            usize i,
+                            const char** out);
+/* The string object rather than a C pointer, so the length travels with it:
+ * an Oak string may contain embedded NULs, which oak_arg_cstring cannot
+ * express.  Prefer this for anything that measures, slices or copies. */
+OAK_API int oak_arg_string(oak_native_call_t* call,
+                           const oak_value_t* args,
+                           usize argc,
+                           usize i,
+                           const oak_obj_string_t** out);
+
+/* The checked form of oak_native_instance: verifies args[i] is a native record
+ * of exactly `type` before yielding its instance pointer.  oak_native_instance
+ * asserts only that the value is *some* native record and then reinterprets
+ * whatever C struct is behind it, so a receiver of the wrong bound type is
+ * silently misread -- reachable from C through oak_vm_call, where no
+ * compile-time check applies.  A null instance is refused too. */
+OAK_API int oak_arg_native(oak_native_call_t* call,
+                           const oak_value_t* args,
+                           usize argc,
+                           usize i,
+                           const oak_bind_type_t* type,
+                           void** out);
+
+/* oak_arg_native against args[0] and the receiver type of the method being
+ * called.  For an instance method bound with oak_bind_fn this is the whole
+ * receiver check:
+ *
+ *   my_handle_t* h;
+ *   if (!oak_arg_self(call, args, argc, (void**)&h))
+ *     return OAK_FN_CALL_RUNTIME_ERROR;
+ *
+ * Fails if the binding is not an instance method (there is no receiver). */
+OAK_API int oak_arg_self(oak_native_call_t* call,
+                         const oak_value_t* args,
+                         usize argc,
+                         void** out);
+
+/* Wrap `instance` as a value of the receiver type of the method being called,
+ * owned by that call's VM.  The one-liner form of
+ * oak_vm_native_record_new(call->vm, call->self_type, instance), for the
+ * common case of a static method acting as a constructor for its own type.
+ * Returns OAK_VALUE_NONE if the binding has no receiver type. */
+OAK_API oak_value_t oak_native_self_new(oak_native_call_t* call,
+                                        void* instance);
+
+
 /* Non-zero when `value` satisfies the declared type `ref`.
  * A ref of OAK_TYPE_VOID matches anything, which is how an unspecified
  * parameter type behaves at a call site. */
@@ -628,33 +725,40 @@ OAK_API int oak_value_matches(oak_value_t value, oak_bind_type_ref_t ref);
 
 /* Non-zero when argc == count and every args[i] satisfies types[i].
  *
- * Pass the same array given as oak_bind_fn_t::param_types, so the signature is
- * written once and serves both the compiler's call-site checking and the
- * callback's own guard:
+ * Checks a whole signature in one call, against the same array passed as
+ * oak_bind_fn_t::param_types, so the signature is written once and serves both
+ * the compiler's call-site checking and the callback's own guard:
  *
  *   static const oak_bind_type_ref_t params[] = {
  *     OAK_BIND_SCALAR(OAK_TYPE_STRING), OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
  *   };
  *   static oak_fn_call_result_t my_fn(oak_native_call_t* call,
- *                                     const oak_value_t* args, int argc,
- *                                     oak_value_t* out)
+ *                                     const oak_value_t* args,
+ *                                     const usize argc, oak_value_t* out)
  *   {
- *     if (!oak_native_args_match(args, argc, params, 2))
+ *     if (!oak_native_args_match(args, argc, params, oak_count_of(params)))
  *       return OAK_FN_CALL_RUNTIME_ERROR;
  *     ...
  *   }
  *
- * The guard is still worth keeping: param_types makes the compiler check Oak
- * call sites, but a native function can also be reached from C through
- * oak_vm_call with arbitrary values.
+ * Prefer the oak_arg_* accessors above for anything that then reads the
+ * arguments: they unwrap and check in one step, and they say which argument
+ * was wrong and why, where this only answers yes or no.  This remains useful
+ * for a callback that wants to validate a signature it does not immediately
+ * destructure.
+ *
+ * Guarding at all is still worth it even with param_types declared: that makes
+ * the compiler check Oak call sites, but a native can also be reached from C
+ * through oak_vm_call with arbitrary values.
  *
  * For an instance method, args[0] is the receiver and param_types describes
- * only the explicit parameters, so check the tail:
- * oak_native_args_match(args + 1, argc - 1, params, count). */
+ * only the explicit parameters, so check the tail -- guarding argc first,
+ * since it is unsigned:
+ *   argc > 0 && oak_native_args_match(args + 1, argc - 1, params, count) */
 OAK_API int oak_native_args_match(const oak_value_t* args,
-                                  int argc,
+                                  usize argc,
                                   const oak_bind_type_ref_t* types,
-                                  int count);
+                                  usize count);
 
 
 /* Compile a parsed AST into bytecode, registering the native types, functions

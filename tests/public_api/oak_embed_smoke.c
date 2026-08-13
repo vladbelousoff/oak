@@ -55,7 +55,7 @@ static const oak_bind_type_ref_t add_params[] = {
 
 static oak_fn_call_result_t native_add(oak_native_call_t* call,
                                        const oak_value_t* args,
-                                       int argc,
+                                       const usize argc,
                                        oak_value_t* out)
 {
   (void)call;
@@ -95,7 +95,7 @@ static void counter_set_value(oak_value_t self, oak_value_t v, void* user_data)
  * option sets in one process stay independent. */
 static oak_fn_call_result_t counter_bump(oak_native_call_t* call,
                                          const oak_value_t* args,
-                                         int argc,
+                                         const usize argc,
                                          oak_value_t* out)
 {
   if (argc != 1 || !oak_is_native_record(args[0]))
