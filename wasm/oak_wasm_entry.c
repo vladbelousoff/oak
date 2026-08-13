@@ -19,10 +19,10 @@ int oak_run_wrapper(const char* code)
 EMSCRIPTEN_KEEPALIVE
 int oak_run_file_wrapper(const char* path)
 {
-  struct oak_allocator_t allocator;
+  oak_allocator_t allocator;
   oak_tracking_allocator_init(&allocator);
 
-  struct oak_compile_options_t compile_opts;
+  oak_compile_options_t compile_opts;
   oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = path;
   compile_opts.emit_debug_info = 1;
@@ -32,9 +32,9 @@ int oak_run_file_wrapper(const char* path)
   compile_opts.allow_synthetic_native_modules = 1;
   oak_stdlib_register(&compile_opts);
 
-  struct oak_module_registry_t registry;
+  oak_module_registry_t registry;
   oak_module_registry_init(&registry, &allocator);
-  struct oak_module_loader_result_t lr = { 0 };
+  oak_module_loader_result_t lr = { 0 };
 
   int exit_code = 1;
   const int load_rc =
@@ -42,7 +42,7 @@ int oak_run_file_wrapper(const char* path)
 
   for (int i = 0; i < lr.error_count; i++)
   {
-    const struct oak_diagnostic_t* d = &lr.errors[i];
+    const oak_diagnostic_t* d = &lr.errors[i];
     if (d->line > 0)
       oak_log(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
     else
@@ -51,7 +51,7 @@ int oak_run_file_wrapper(const char* path)
 
   if (load_rc == 0 && lr.entry && lr.entry->chunk)
   {
-    struct oak_vm_t vm;
+    oak_vm_t vm;
     oak_vm_init(&vm, &allocator);
     oak_vm_set_module_registry(&vm, &registry);
     exit_code = oak_vm_run(&vm, lr.entry->chunk) != OAK_VM_OK;

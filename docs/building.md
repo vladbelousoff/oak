@@ -70,10 +70,22 @@ executable. Set `OAK_STDLIB_DIR` only to override that lookup.
 ## Web Playground
 
 ```sh
-meson setup build-wasm --cross-file meson/cross/emscripten.ini
-meson compile -C build-wasm
+meson setup build_wasm --cross-file meson/cross/emscripten.ini
+meson compile -C build_wasm oak_wasm.js
 npm install
 npm run dev
 ```
 
-Use `npm run build` to create the static site in `dist/`.
+The build directory name matters: the Vite dev server serves the Emscripten
+output straight out of `build_wasm/`.
+
+For the static site, stage the runtime into Vite's public directory first —
+the dev-server passthrough does not apply to production builds — then build:
+
+```sh
+mkdir -p www/public/build_wasm
+cp build_wasm/oak_wasm.js build_wasm/oak_wasm.wasm www/public/build_wasm/
+npm run build
+```
+
+The result lands in `_site/`.
