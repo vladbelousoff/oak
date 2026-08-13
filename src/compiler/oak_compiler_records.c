@@ -58,11 +58,7 @@ static const oak_bind_type_t* native_record_binding(
 static oak_type_t native_field_type(const oak_bind_field_t* field)
 {
   oak_type_t type;
-  oak_type_clear(&type);
-  type.kind = field->type.kind;
-  type.id = field->type.id;
-  if (field->type.kind == OAK_TYPE_KIND_MAP)
-    type.key_id = field->type.key_id;
+  oak_lower_bind_ref(&field->type, &type);
   return type;
 }
 

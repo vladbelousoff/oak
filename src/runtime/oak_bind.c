@@ -9,6 +9,20 @@
 #include <string.h>
 
 
+void oak_lower_bind_ref(const struct oak_bind_type_ref* r, oak_type_t* out)
+{
+  oak_type_clear(out);
+  out->kind = r->kind;
+  if (r->type)
+    out->id = r->type->resolved_type_id;
+  else if (r->enum_type)
+    out->id = r->enum_type->resolved_type_id;
+  else
+    out->id = r->id;
+  if (r->kind == OAK_TYPE_KIND_MAP)
+    out->key_id = r->key_type ? r->key_type->resolved_type_id : r->key_id;
+}
+
 void oak_compile_options_init(oak_compile_options_t* opts,
                              oak_allocator_t* allocator)
 {

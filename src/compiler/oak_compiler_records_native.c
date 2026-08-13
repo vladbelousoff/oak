@@ -36,22 +36,6 @@ find_method_export(const oak_module_export_record_t* rec,
   return null;
 }
 
-/* Lower a public oak_bind_type_ref_t into an internal oak_type_t. */
-static void lower_bind_ref(const oak_bind_type_ref_t* r,
-                           oak_type_t* out)
-{
-  oak_type_clear(out);
-  out->kind = r->kind;
-  if (r->type)
-    out->id = r->type->resolved_type_id;
-  else if (r->enum_type)
-    out->id = r->enum_type->resolved_type_id;
-  else
-    out->id = r->id;
-  if (r->kind == OAK_TYPE_KIND_MAP)
-    out->key_id = r->key_type ? r->key_type->resolved_type_id : r->key_id;
-}
-
 
 void oak_register_native_types(
     oak_compiler_t* c, const oak_compile_options_t* opts)
@@ -125,7 +109,7 @@ void oak_register_native_types(
       oak_record_field_t sf = {
         .name = nf->name,
       };
-      lower_bind_ref(&nf->type, &sf.type);
+      oak_lower_bind_ref(&nf->type, &sf.type);
       oak_assert(oak_push_back(proto.fields, &sf));
     }
 
@@ -175,7 +159,7 @@ void oak_register_native_fns(oak_compiler_t* c,
     entry.name = b->name;
     entry.const_idx = idx;
     entry.arity = b->arity;
-    lower_bind_ref(&b->return_type, &entry.return_type);
+    oak_lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
@@ -185,7 +169,7 @@ void oak_register_native_fns(oak_compiler_t* c,
       entry.param_types = OAK_ALLOC(
           c->allocator, (usize)b->arity * sizeof(oak_type_t));
       for (int pi = 0; pi < b->arity; ++pi)
-        lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
+        oak_lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
     }
 
     if (oak_fn_registry_find(&c->fns, b->name))
@@ -256,7 +240,7 @@ void oak_register_native_fns(oak_compiler_t* c,
     entry.name = b->name;
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type->resolved_type_id;
-    lower_bind_ref(&b->return_type, &entry.return_type);
+    oak_lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
@@ -292,7 +276,7 @@ void oak_register_native_fns(oak_compiler_t* c,
         ++slot;
       }
       for (int pi = 0; pi < b->arity; ++pi, ++slot)
-        lower_bind_ref(&b->param_types[pi], &entry.param_types[slot]);
+        oak_lower_bind_ref(&b->param_types[pi], &entry.param_types[slot]);
     }
     const oak_registered_fn_t* methods =
         OAK_CDATA(oak_registered_fn_t, sd->methods);

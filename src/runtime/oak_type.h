@@ -7,6 +7,7 @@
 #include "oak_vector.h"
 
 typedef struct oak_allocator oak_allocator_t;
+struct oak_bind_type_ref;
 
 /* A typed slot.
  * - kind == OAK_TYPE_KIND_ARRAY  → value is an array whose element type is
@@ -68,6 +69,17 @@ oak_type_id_t oak_type_registry_intern_with_id(oak_type_registry_t* reg,
  * returned string lives as long as the registry. */
 const char* oak_type_registry_name(const oak_type_registry_t* reg,
                                    oak_type_id_t id);
+
+/* Lower a public oak_bind_type_ref_t into an internal oak_type_t.
+ *
+ * The single place that knows how a binding's type reference resolves: a
+ * native-type or native-enum descriptor contributes the id it was assigned at
+ * registration, and only a MAP kind carries a key. Everything that consumes
+ * oak_bind_type_ref_t goes through here -- the compiler's native registration,
+ * the record-declaration cross-check, and the module loader's export
+ * synthesis -- so a ref form added to the public API cannot be honoured in one
+ * consumer and silently dropped in another. */
+void oak_lower_bind_ref(const struct oak_bind_type_ref* r, oak_type_t* out);
 
 /* Convenience helpers for oak_type_t. */
 static inline void oak_type_clear(oak_type_t* t)

@@ -308,6 +308,63 @@ UTEST_F(bind_type, a_record_declaration_must_match_its_native_binding)
   oak_compile_options_free(&opts);
 }
 
+/*
+ * A field bound with OAK_BIND_NATIVE or OAK_BIND_ENUM names its type through a
+ * descriptor rather than a type id, so the id is only known once registration
+ * has run. The cross-check against an Oak `record` declaration used to lower
+ * the binding side by copying `id` straight across, which reads OAK_TYPE_VOID
+ * for both forms -- so a declaration that agreed perfectly was rejected as a
+ * mismatch, and neither form could appear in a stub. Both sides now go through
+ * oak_lower_bind_ref.
+ */
+UTEST_F(bind_type, descriptor_typed_fields_match_their_record_declaration)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* inner;
+  oak_bind_type_t* owner;
+  oak_bind_enum_t* colour;
+  oak_run_result_t matching;
+  oak_run_result_t wrong_type;
+
+  oak_compile_options_init(&opts, OAK_A);
+  inner = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Inner");
+  ASSERT_TRUE(inner != null);
+  colour = oak_bind_enum(&opts, "Tint");
+  ASSERT_TRUE(colour != null);
+  EXPECT_EQ(0, oak_bind_enum_variant(colour, "Red", 0));
+
+  owner = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Owner");
+  ASSERT_TRUE(owner != null);
+  EXPECT_EQ(0,
+            oak_bind_field(owner,
+                           &(oak_bind_field_t){
+                               .name = "inner",
+                               .type = OAK_BIND_NATIVE(inner),
+                               .getter = stub_getter,
+                               .setter = null }));
+  EXPECT_EQ(0,
+            oak_bind_field(owner,
+                           &(oak_bind_field_t){
+                               .name = "tint",
+                               .type = OAK_BIND_ENUM(colour),
+                               .getter = stub_getter,
+                               .setter = null }));
+
+  matching = oak_test_source_opts(
+      OAK_A, "record Owner { inner : Inner; tint : Tint; }\n", &opts);
+  EXPECT_TRUE(matching.compiled);
+  if (!matching.compiled)
+    oak_test_explain(&matching, "record Owner { inner : Inner; tint : Tint; }");
+
+  /* The check still has teeth: naming the wrong type is still a mismatch. */
+  wrong_type = oak_test_source_opts(
+      OAK_A, "record Owner { inner : number; tint : Tint; }\n", &opts);
+  EXPECT_FALSE(wrong_type.compiled);
+  EXPECT_TRUE(oak_test_contains(wrong_type.diag, "does not match"));
+
+  oak_compile_options_free(&opts);
+}
+
 /* A native type with no bound fields cannot be declared with any. */
 UTEST_F(bind_type, a_fieldless_native_type_rejects_a_record_body)
 {

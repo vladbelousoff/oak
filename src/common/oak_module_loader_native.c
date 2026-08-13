@@ -50,18 +50,13 @@ static int native_type_in_module(const oak_bind_type_t* type,
   return type && native_module_name_eq(type->module_name, dotted);
 }
 
-static oak_type_id_t native_ref_id(const oak_bind_type_ref_t* ref)
+/* Value form of oak_lower_bind_ref, for the export structs built as compound
+ * literals below. */
+static oak_type_t native_ref_type(const oak_bind_type_ref_t* ref)
 {
-  if (ref->type)
-    return ref->type->resolved_type_id;
-  if (ref->enum_type)
-    return ref->enum_type->resolved_type_id;
-  return ref->id;
-}
-
-static oak_type_id_t native_ref_key_id(const oak_bind_type_ref_t* ref)
-{
-  return ref->key_type ? ref->key_type->resolved_type_id : ref->key_id;
+  oak_type_t type;
+  oak_lower_bind_ref(ref, &type);
+  return type;
 }
 
 void module_loader_filter_native_decls(
@@ -192,24 +187,14 @@ void apply_native_module_function_exports(
       exp->param_types = OAK_ALLOC(
           mod->allocator, (usize)fn->arity * sizeof(oak_type_t));
       for (int pi = 0; pi < fn->arity; ++pi)
-      {
-        oak_type_clear(&exp->param_types[pi]);
-        exp->param_types[pi].kind = fn->param_types[pi].kind;
-        exp->param_types[pi].id = native_ref_id(&fn->param_types[pi]);
-        if (fn->param_types[pi].kind == OAK_TYPE_KIND_MAP)
-          exp->param_types[pi].key_id = native_ref_key_id(&fn->param_types[pi]);
-      }
+        oak_lower_bind_ref(&fn->param_types[pi], &exp->param_types[pi]);
       exp->arity = fn->arity;
     }
     /* Otherwise the stub's parameter contract is authoritative; keep arity
      * consistent with the stub's param_types (never index past it). */
     else if (!exp->param_types || fn->arity == exp->arity)
       exp->arity = fn->arity;
-    oak_type_clear(&exp->return_type);
-    exp->return_type.kind = fn->return_type.kind;
-    exp->return_type.id = native_ref_id(&fn->return_type);
-    if (fn->return_type.kind == OAK_TYPE_KIND_MAP)
-      exp->return_type.key_id = native_ref_key_id(&fn->return_type);
+    oak_lower_bind_ref(&fn->return_type, &exp->return_type);
   }
   oak_module_export_record_t* records =
       OAK_DATA(oak_module_export_record_t, mod->exports.records);
@@ -246,11 +231,7 @@ void apply_native_module_function_exports(
               opts, null, native, me->stub_attrs, me->stub_attr_count);
         me->const_idx =
             (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
-        oak_type_clear(&me->return_type);
-        me->return_type.kind = fn->return_type.kind;
-        me->return_type.id = native_ref_id(&fn->return_type);
-        if (fn->return_type.kind == OAK_TYPE_KIND_MAP)
-          me->return_type.key_id = native_ref_key_id(&fn->return_type);
+        oak_lower_bind_ref(&fn->return_type, &me->return_type);
         break;
       }
     }
@@ -563,7 +544,7 @@ oak_module_t* create_native_module(
 
   /* Intern enum type ids in the same early pass as the record types: a
    * function signature further down may reference an enum through
-   * OAK_BIND_ENUM, and native_ref_id reads the id assigned here. The export
+   * OAK_BIND_ENUM, and the lowering reads the id assigned here. The export
    * entries themselves are built later, alongside the other exports. */
   {
     oak_bind_enum_t** early_enums =
@@ -592,13 +573,7 @@ oak_module_t* create_native_module(
       .name = fn->name,
       .const_idx = const_idx,
       .arity = fn->arity,
-      .return_type = {
-        .id = native_ref_id(&fn->return_type),
-        .key_id = fn->return_type.kind == OAK_TYPE_KIND_MAP
-                      ? native_ref_key_id(&fn->return_type)
-                      : OAK_TYPE_VOID,
-        .kind = fn->return_type.kind,
-      },
+      .return_type = native_ref_type(&fn->return_type),
     };
     /* Carry the parameter contract so imported calls are type-checked. */
     if (fn->param_types && fn->arity > 0)
@@ -606,13 +581,7 @@ oak_module_t* create_native_module(
       exp.param_types =
           OAK_ALLOC(a, (usize)fn->arity * sizeof(oak_type_t));
       for (int pi = 0; pi < fn->arity; ++pi)
-      {
-        oak_type_clear(&exp.param_types[pi]);
-        exp.param_types[pi].kind = fn->param_types[pi].kind;
-        exp.param_types[pi].id = native_ref_id(&fn->param_types[pi]);
-        if (fn->param_types[pi].kind == OAK_TYPE_KIND_MAP)
-          exp.param_types[pi].key_id = native_ref_key_id(&fn->param_types[pi]);
-      }
+        oak_lower_bind_ref(&fn->param_types[pi], &exp.param_types[pi]);
     }
     oak_symbol_registry_insert_fn(
         &mod->exports, exp.name, mod->module_id, &exp);
@@ -637,13 +606,7 @@ oak_module_t* create_native_module(
     {
       oak_module_export_record_field_t field = {
         .name = type_fields[fi].name,
-        .type = {
-          .id = native_ref_id(&type_fields[fi].type),
-          .key_id = type_fields[fi].type.kind == OAK_TYPE_KIND_MAP
-                        ? native_ref_key_id(&type_fields[fi].type)
-                        : OAK_TYPE_VOID,
-          .kind = type_fields[fi].type.kind,
-        },
+        .type = native_ref_type(&type_fields[fi].type),
       };
       oak_assert(oak_push_back(exp.fields, &field));
     }
