@@ -308,7 +308,7 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .arity = 2,
       .return_type = OAK_BIND_NATIVE(t),
       .param_types = mode ? open_sig : null,
-      .param_count = mode ? (int)oak_count_of(open_sig) : 0,
+      .param_count = mode ? oak_count_of(open_sig) : 0,
       /* A global function has no receiver, so this is the only way the
        * descriptor reaches file_open; the static method below gets it as
        * self_type instead (see file_type_of). */
@@ -324,7 +324,7 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .arity = 2,
       .return_type = OAK_BIND_NATIVE(t),
       .param_types = mode ? open_sig : null,
-      .param_count = mode ? (int)oak_count_of(open_sig) : 0 },
+      .param_count = mode ? oak_count_of(open_sig) : 0 },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "read",

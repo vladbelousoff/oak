@@ -33,6 +33,12 @@ enum oak_bind_type_kind
   OAK_BIND_TYPE_VALUE,
 };
 
+/* The largest arity a binding may declare.  Bytecode encodes a call's argument
+ * count in a single byte, so this is a hard ceiling rather than a style limit:
+ * oak_bind_fn and oak_bind_fn_global reject anything above it, instead of
+ * letting the count wrap silently when the call is emitted. */
+#define OAK_MAX_ARITY 255u
+
 /* Where a native method is bound on its receiver type (see oak_bind_fn). */
 typedef enum oak_bind_fn_kind oak_bind_fn_kind_t;
 enum oak_bind_fn_kind
@@ -250,7 +256,7 @@ struct oak_bind_global_fn
   const char* module_name;
   const char* name;
   oak_native_fn_t impl;
-  int arity;
+  usize arity;
   /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
   oak_bind_type_ref_t return_type;
   /* Optional per-parameter types used for call-site type checking.  When
@@ -258,7 +264,7 @@ struct oak_bind_global_fn
    * struct but not the array it points at, so the array is borrowed: the
    * embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
-  int param_count;
+  usize param_count;
   /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
    * borrowed and must outlive every chunk compiled with this binding. */
   void* user_data;
@@ -277,7 +283,7 @@ struct oak_bind_fn
   oak_native_fn_t impl;
   /* User-visible arity: for STATIC_METHOD, full argument count;
    * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM). */
-  int arity;
+  usize arity;
   /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
   oak_bind_type_ref_t return_type;
   /* Optional per-parameter types used for call-site type checking.  param_types
@@ -286,7 +292,7 @@ struct oak_bind_fn
    * this struct but not the array it points at, so the array is borrowed: the
    * embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
-  int param_count;
+  usize param_count;
   /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
    * borrowed and must outlive every chunk compiled with this binding. */
   void* user_data;

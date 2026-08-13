@@ -211,13 +211,16 @@ int oak_bind_fn_global(oak_compile_options_t* opts,
   if (!p->impl)
     return bind_reject(opts, "native function '%s' has no implementation",
                        p->name);
-  if (p->arity < 0)
-    return bind_reject(
-        opts, "native function '%s' has a negative arity (%d)", p->name,
-        p->arity);
+  if (p->arity > OAK_MAX_ARITY)
+    return bind_reject(opts,
+                       "native function '%s' declares arity %zu, above the "
+                       "maximum of %u",
+                       p->name,
+                       p->arity,
+                       (unsigned)OAK_MAX_ARITY);
   if (p->param_types && p->param_count != p->arity)
     return bind_reject(opts,
-                       "native function '%s' declares arity %d but %d "
+                       "native function '%s' declares arity %zu but %zu "
                        "parameter types; use OAK_BIND_PARAMS to state it once",
                        p->name,
                        p->arity,
@@ -237,13 +240,17 @@ int oak_bind_fn(oak_compile_options_t* opts,
   if (!p->impl)
     return bind_reject(opts, "native method '%s' has no implementation",
                        p->name);
-  if (p->arity < 0)
-    return bind_reject(opts, "native method '%s' has a negative arity (%d)",
-                       p->name, p->arity);
+  if (p->arity > OAK_MAX_ARITY)
+    return bind_reject(opts,
+                       "native method '%s' declares arity %zu, above the "
+                       "maximum of %u",
+                       p->name,
+                       p->arity,
+                       (unsigned)OAK_MAX_ARITY);
   if (p->param_types && p->param_count != p->arity)
     return bind_reject(opts,
-                       "native method '%s' declares arity %d but %d parameter "
-                       "types; use OAK_BIND_PARAMS to state it once",
+                       "native method '%s' declares arity %zu but %zu "
+                       "parameter types; use OAK_BIND_PARAMS to state it once",
                        p->name,
                        p->arity,
                        p->param_count);

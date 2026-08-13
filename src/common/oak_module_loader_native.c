@@ -176,7 +176,7 @@ void apply_native_module_function_exports(
        * binding API carries no mutability metadata, so preserve the stub's
        * param_mut_flags when the arity is unchanged (the flags still align with
        * the new param_types); only drop them if the arity actually changes. */
-      const int old_arity = exp->arity;
+      const usize old_arity = (usize)exp->arity;
       if (exp->param_types)
         OAK_FREE(mod->allocator, exp->param_types);
       if (exp->param_mut_flags && fn->arity != old_arity)
@@ -186,14 +186,14 @@ void apply_native_module_function_exports(
       }
       exp->param_types = OAK_ALLOC(
           mod->allocator, (usize)fn->arity * sizeof(oak_type_t));
-      for (int pi = 0; pi < fn->arity; ++pi)
+      for (usize pi = 0; pi < fn->arity; ++pi)
         oak_lower_bind_ref(&fn->param_types[pi], &exp->param_types[pi]);
-      exp->arity = fn->arity;
+      exp->arity = (int)fn->arity;
     }
     /* Otherwise the stub's parameter contract is authoritative; keep arity
      * consistent with the stub's param_types (never index past it). */
     else if (!exp->param_types || fn->arity == exp->arity)
-      exp->arity = fn->arity;
+      exp->arity = (int)fn->arity;
     oak_lower_bind_ref(&fn->return_type, &exp->return_type);
   }
   oak_module_export_record_t* records =
@@ -573,7 +573,7 @@ oak_module_t* create_native_module(
     oak_module_export_fn_t exp = {
       .name = fn->name,
       .const_idx = const_idx,
-      .arity = fn->arity,
+      .arity = (int)fn->arity,
       .return_type = native_ref_type(&fn->return_type),
     };
     /* Carry the parameter contract so imported calls are type-checked. */
@@ -581,7 +581,7 @@ oak_module_t* create_native_module(
     {
       exp.param_types =
           OAK_ALLOC(a, (usize)fn->arity * sizeof(oak_type_t));
-      for (int pi = 0; pi < fn->arity; ++pi)
+      for (usize pi = 0; pi < fn->arity; ++pi)
         oak_lower_bind_ref(&fn->param_types[pi], &exp.param_types[pi]);
     }
     oak_symbol_registry_insert_fn(

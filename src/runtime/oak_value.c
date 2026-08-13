@@ -265,7 +265,7 @@ oak_obj_string_t* oak_string_new(oak_allocator_t* a,
 
 oak_obj_fn_t* oak_fn_new(oak_allocator_t* a,
                                 const usize code_offset,
-                                const int arity,
+                                const usize arity,
                                 const u16 module_id)
 {
   oak_obj_fn_t* fn = OAK_ALLOC(a, sizeof(oak_obj_fn_t));
@@ -281,7 +281,7 @@ oak_obj_fn_t* oak_fn_new(oak_allocator_t* a,
 
 oak_obj_native_fn_t* oak_native_fn_new(oak_allocator_t* a,
                                               const oak_native_fn_t fn,
-                                              const int arity,
+                                              const usize arity,
                                               const char* name,
                                               void* user_data)
 {
@@ -306,11 +306,11 @@ int oak_native_fn_format(char* buf,
   if (native->name && native->name[0] != '\0')
     return snprintf(buf,
                     size,
-                    "<native %s arity=%d fn=%p>",
+                    "<native %s arity=%zu fn=%p>",
                     native->name,
                     native->arity,
                     fn_ptr);
-  return snprintf(buf, size, "<native arity=%d fn=%p>", native->arity, fn_ptr);
+  return snprintf(buf, size, "<native arity=%zu fn=%p>", native->arity, fn_ptr);
 }
 
 oak_obj_array_t* oak_array_new_in_table(oak_allocator_t* a,

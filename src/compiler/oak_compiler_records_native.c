@@ -158,7 +158,7 @@ void oak_register_native_fns(oak_compiler_t* c,
     oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
     entry.const_idx = idx;
-    entry.arity = b->arity;
+    entry.arity = (int)b->arity;
     oak_lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
@@ -168,7 +168,7 @@ void oak_register_native_fns(oak_compiler_t* c,
     {
       entry.param_types = OAK_ALLOC(
           c->allocator, (usize)b->arity * sizeof(oak_type_t));
-      for (int pi = 0; pi < b->arity; ++pi)
+      for (usize pi = 0; pi < b->arity; ++pi)
         oak_lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
     }
 
@@ -198,9 +198,13 @@ void oak_register_native_fns(oak_compiler_t* c,
     if (!b->name || !b->impl)
       continue;
 
+    /* The compiler's registries index and offset with signed arithmetic (the
+     * implicit self is a -1/+1 adjustment throughout), so the descriptor's
+     * count converts here, once, at the boundary. oak_bind_fn has already
+     * capped it at OAK_MAX_ARITY. */
     const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
-                             ? b->arity + 1
-                             : b->arity;
+                             ? (int)b->arity + 1
+                             : (int)b->arity;
     oak_obj_native_fn_t* native = oak_native_fn_new(
         c->allocator, b->impl, vm_arity, b->name, b->user_data);
     /* Reaches the callback as oak_native_call_t::self_type, so a method can
@@ -279,7 +283,7 @@ void oak_register_native_fns(oak_compiler_t* c,
         entry.param_types[slot].id = entry.receiver_type_id;
         ++slot;
       }
-      for (int pi = 0; pi < b->arity; ++pi, ++slot)
+      for (usize pi = 0; pi < b->arity; ++pi, ++slot)
         oak_lower_bind_ref(&b->param_types[pi], &entry.param_types[slot]);
     }
     const oak_registered_fn_t* methods =

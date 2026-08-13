@@ -504,7 +504,7 @@ struct oak_obj_fn
 {
   oak_obj_t obj;
   usize code_offset;
-  int arity;
+  usize arity;
   u16 module_id;
   const char* name;
   oak_attr_hook_entry_t* attr_hooks;
@@ -556,7 +556,7 @@ struct oak_obj_native_fn
 {
   oak_obj_t obj;
   oak_native_fn_t fn;
-  int arity;
+  usize arity;
   const char* name;
   /* Forwarded to the callback through oak_native_call_t::user_data. */
   void* user_data;
@@ -753,12 +753,12 @@ OAK_API oak_obj_string_t* oak_string_concat(oak_allocator_t* a,
 
 OAK_API oak_obj_fn_t* oak_fn_new(oak_allocator_t* a,
                                  usize code_offset,
-                                 int arity,
+                                 usize arity,
                                  u16 module_id);
 
 OAK_API oak_obj_native_fn_t* oak_native_fn_new(oak_allocator_t* a,
                                                oak_native_fn_t fn,
-                                               int arity,
+                                               usize arity,
                                                const char* name,
                                                void* user_data);
 

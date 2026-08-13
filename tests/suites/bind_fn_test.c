@@ -172,17 +172,40 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
                     .impl = null,
                     .arity = 0,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
-  /* Negative arity. */
+  /* An arity a call could not encode. Bytecode carries the argument count in
+   * one byte, so anything past OAK_MAX_ARITY would wrap when the call is
+   * emitted rather than fail. An arity mistakenly written as a negative int
+   * lands here too, since the field is unsigned. */
   EXPECT_EQ(-1,
             oak_bind_fn_global(
                 &opts,
                 &(oak_bind_global_fn_t){
-                    .name = "bad_arity",
+                    .name = "too_many",
                     .impl = native_answer,
-                    .arity = -1,
+                    .arity = OAK_MAX_ARITY + 1u,
+                    .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+  EXPECT_EQ(-1,
+            oak_bind_fn_global(
+                &opts,
+                &(oak_bind_global_fn_t){
+                    .name = "wrapped",
+                    .impl = native_answer,
+                    .arity = (usize)-1,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
 
   EXPECT_EQ(0u, oak_size(opts.native_global_fns));
+
+  /* The ceiling itself is accepted, so the check is a bound and not an
+   * off-by-one that quietly costs a parameter. */
+  EXPECT_EQ(0,
+            oak_bind_fn_global(
+                &opts,
+                &(oak_bind_global_fn_t){
+                    .name = "at_the_limit",
+                    .impl = native_answer,
+                    .arity = OAK_MAX_ARITY,
+                    .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+  EXPECT_EQ(1u, oak_size(opts.native_global_fns));
 
   oak_compile_options_free(&opts);
 }
