@@ -93,6 +93,124 @@ static oak_fn_call_result_t native_void(oak_native_call_t* call,
   return OAK_FN_CALL_OK;
 }
 
+/* ---- attribute call hooks ------------------------------------------------
+ *
+ * on_call fires before every call to a declaration carrying the attribute, and
+ * aborting it aborts the call. Nothing exercised this path before, in either
+ * direction.
+ */
+
+static int s_hook_calls;
+/* Copied, not aliased: fn_name points into the chunk, which the harness frees
+ * before the assertions run. */
+static char s_hook_last_fn[32];
+static void* s_hook_ctx_user_data;
+static int s_hook_should_abort;
+
+static oak_fn_call_result_t counting_hook(oak_native_call_t* call,
+                                          const char* fn_name,
+                                          const oak_value_t* args,
+                                          const usize argc,
+                                          void* user_data)
+{
+  (void)args;
+  (void)argc;
+  (void)user_data;
+  ++s_hook_calls;
+  snprintf(s_hook_last_fn,
+           sizeof(s_hook_last_fn),
+           "%s",
+           fn_name ? fn_name : "");
+  s_hook_ctx_user_data = call->user_data;
+  return s_hook_should_abort ? OAK_FN_CALL_RUNTIME_ERROR : OAK_FN_CALL_OK;
+}
+
+static int s_hook_marker;
+
+/* Compiles and runs `src` with a "Guarded" attribute bound to counting_hook. */
+static oak_run_result_t run_with_hook(oak_allocator_t* a, const char* src)
+{
+  oak_compile_options_t opts;
+  oak_run_result_t r;
+
+  oak_compile_options_init(&opts, a);
+  oak_bind_attr(&opts,
+                &(oak_bind_attr_t){ .name = "Guarded",
+                                    .on_call = counting_hook,
+                                    .user_data = &s_hook_marker });
+  r = oak_test_source_opts(a, src, &opts);
+  oak_compile_options_free(&opts);
+  return r;
+}
+
+UTEST_F(bind_fn, an_attribute_hook_runs_before_each_call)
+{
+  s_hook_calls = 0;
+  s_hook_should_abort = 0;
+  s_hook_last_fn[0] = '\0';
+  s_hook_ctx_user_data = null;
+
+  const oak_run_result_t r =
+      run_with_hook(OAK_A,
+                    "@Guarded\n"
+                    "fn watched(n : number) -> number { return n + 1; }\n"
+                    "print(watched(1));\n"
+                    "print(watched(2));\n");
+
+  EXPECT_TRUE(r.compiled);
+  OAK_EXPECT_ENUM(OAK_VM_OK, r.run);
+  EXPECT_EQ(2, s_hook_calls);
+  EXPECT_STREQ("watched", s_hook_last_fn);
+  /* The binding's user_data reaches the hook on the call struct, as it does
+   * for every other native callback; it used to arrive only as the trailing
+   * parameter, with call->user_data left null. */
+  EXPECT_TRUE(s_hook_ctx_user_data == &s_hook_marker);
+  EXPECT_TRUE(oak_test_output_equals(r.out, "2\n3"));
+  if (*utest_result != UTEST_TEST_PASSED)
+    oak_test_explain(&r, "@Guarded fn watched ...");
+}
+
+UTEST_F(bind_fn, an_attribute_hook_can_abort_the_call)
+{
+  s_hook_calls = 0;
+  s_hook_should_abort = 1;
+  s_hook_last_fn[0] = '\0';
+
+  const oak_run_result_t r =
+      run_with_hook(OAK_A,
+                    "@Guarded\n"
+                    "fn watched(n : number) -> number { return n + 1; }\n"
+                    "print(watched(1));\n");
+
+  EXPECT_TRUE(r.compiled);
+  OAK_EXPECT_ENUM(OAK_VM_RUNTIME_ERROR, r.run);
+  EXPECT_EQ(1, s_hook_calls);
+  EXPECT_TRUE(oak_test_contains(r.err, "attribute hook aborted"));
+  /* The body never ran, so nothing was printed. */
+  EXPECT_TRUE(oak_test_output_equals(r.out, ""));
+  if (*utest_result != UTEST_TEST_PASSED)
+    oak_test_explain(&r, "@Guarded fn watched ... (aborting)");
+
+  s_hook_should_abort = 0;
+}
+
+/* An unattributed declaration is untouched, so the hook is attached per
+ * declaration rather than installed globally. */
+UTEST_F(bind_fn, an_unattributed_function_runs_no_hook)
+{
+  s_hook_calls = 0;
+  s_hook_should_abort = 0;
+
+  const oak_run_result_t r =
+      run_with_hook(OAK_A,
+                    "fn plain(n : number) -> number { return n + 1; }\n"
+                    "print(plain(1));\n");
+
+  EXPECT_TRUE(r.compiled);
+  OAK_EXPECT_ENUM(OAK_VM_OK, r.run);
+  EXPECT_EQ(0, s_hook_calls);
+}
+
 UTEST_F(bind_fn, a_global_function_is_recorded_with_its_descriptor)
 {
   oak_compile_options_t opts;

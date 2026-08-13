@@ -121,9 +121,21 @@ void oak_compiler_dispatch_attr_cbs(oak_compiler_t* c,
   oak_compiler_report_bind_errors(c, c->opts);
   if (c->has_error)
     return;
+  const usize records_before = oak_size(c->records.entries);
   oak_register_native_types(c, c->opts);
   if (!c->has_error)
     oak_register_native_fns(c, c->opts);
+  if (c->has_error)
+    return;
+
+  /* The acyclicity analysis ran at step 3 of the pipeline, sized to the record
+   * registry as it stood then. Anything bound just now is both unchecked by it
+   * and indexed past the end of its matrix, so redo it at the new size. The
+   * program root is only used to locate a field declaration for an error
+   * message, and is not reachable here; a violation found on this pass reports
+   * without a source location rather than not at all. */
+  if (oak_size(c->records.entries) != records_before)
+    oak_compiler_check_cycles(c, null);
 }
 
 void oak_apply_runtime_attr_hook(oak_compiler_t* c,

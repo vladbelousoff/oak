@@ -138,6 +138,11 @@ void oak_compiler_check_cycles(oak_compiler_t* c,
                                const oak_ast_node_t* program)
 {
   const int n = (int)oak_size(c->records.entries);
+  /* Re-runnable: attribute callbacks bind new native types after the first
+   * pass, and the matrix has to be rebuilt at the new size rather than left
+   * describing a smaller registry. */
+  if (c->cycle_reach)
+    OAK_FREE(c->allocator, c->cycle_reach);
   c->cycle_reach = null;
   c->cycle_reach_count = n;
   if (n == 0)
@@ -268,6 +273,14 @@ int oak_container_store_locked(oak_compiler_t* c,
       OAK_CDATA(oak_registered_record_t, c->records.entries);
   for (int t = 0; t < tc; ++t)
   {
+    /* targets[t] indexes the record registry as it stands now, but the matrix
+     * was sized when the analysis ran. An attribute callback can bind new
+     * native types afterwards, which appends records -- so a target can be
+     * past the last row. oak_compiler_check_cycles is re-run when that
+     * happens; this guard is what keeps the read in bounds if it ever is not.
+     */
+    if (targets[t] >= n)
+      continue;
     const u8* row = c->cycle_reach + (usize)targets[t] * (usize)n;
     for (int k = 0; k < n; ++k)
     {

@@ -23,6 +23,26 @@ find_module_by_dotted(const oak_module_registry_t* reg,
   return null;
 }
 
+/* Whether a module-scoped binding belongs in the namespace being compiled.
+ *
+ * A descriptor with no module_name is global and always belongs. One that
+ * names a module belongs only while that module itself is being compiled --
+ * everywhere else it is reached through `import`, and the module loader
+ * installs it on the module's exports.
+ *
+ * Without this check oak_bind_type_in_module(opts, "io", ..., "File") also
+ * registered a bare global `File`, with all its methods, in every compilation
+ * unit. The enum and global-function passes already filtered on module_name;
+ * the type and method passes did not. */
+static int binding_is_in_scope(const oak_compiler_t* c,
+                               const char* module_name)
+{
+  if (!module_name)
+    return 1;
+  return c->current_module && c->current_module->dotted_name &&
+         strcmp(c->current_module->dotted_name, module_name) == 0;
+}
+
 /* Find a method export entry by name in a record export. */
 static const oak_module_export_record_method_t*
 find_method_export(const oak_module_export_record_t* rec,
@@ -46,14 +66,18 @@ void oak_register_native_types(
   oak_bind_type_t** native_types =
       OAK_DATA(oak_bind_type_t*, opts->native_types);
 
-  /* Assign every descriptor first so fields/signatures may reference a type
-   * registered later in the binding list. */
+  /* Assign the ids first so fields and signatures may reference a type
+   * registered later in the binding list.  Out-of-scope module types are
+   * skipped in both passes: interning the name is what makes it resolvable in
+   * a type position, so doing it here would put a bare `File` in scope no
+   * matter what the second pass declares.  Their ids are assigned by the
+   * module loader when their own module is compiled. */
   for (usize i = (usize)c->native_types_cursor;
        i < oak_size(opts->native_types);
        ++i)
   {
     oak_bind_type_t* nt = native_types[i];
-    if (!nt)
+    if (!nt || !binding_is_in_scope(c, nt->module_name))
       continue;
     nt->resolved_type_id = oak_type_registry_intern(&c->types, nt->name);
   }
@@ -65,7 +89,7 @@ void oak_register_native_types(
        ++i)
   {
     oak_bind_type_t* nt = native_types[i];
-    if (!nt)
+    if (!nt || !binding_is_in_scope(c, nt->module_name))
       continue;
 
     if (oak_records_find(&c->records, nt->name))
@@ -196,6 +220,9 @@ void oak_register_native_fns(oak_compiler_t* c,
   {
     const oak_bind_fn_t* b = &native_fns[i];
     if (!b->name || !b->impl)
+      continue;
+    if (b->receiver_type &&
+        !binding_is_in_scope(c, b->receiver_type->module_name))
       continue;
 
     /* The compiler's registries index and offset with signed arithmetic (the

@@ -374,6 +374,18 @@ UTEST_F(bind_type, descriptor_typed_fields_match_their_record_declaration)
  * Oak call sites are type-checked at compile time, so C is the only way to
  * reach this: oak_vm_call takes arbitrary values.
  */
+static oak_fn_call_result_t stub_method(oak_native_call_t* call,
+                                        const oak_value_t* args,
+                                        const usize argc,
+                                        oak_value_t* out_result)
+{
+  (void)call;
+  (void)args;
+  (void)argc;
+  *out_result = OAK_VALUE_I32(0);
+  return OAK_FN_CALL_OK;
+}
+
 static int s_wrong_self_instance_seen;
 
 static oak_fn_call_result_t reads_own_instance(oak_native_call_t* call,
@@ -433,6 +445,68 @@ UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
   oak_obj_decref(oak_value_obj_resolve(right));
   oak_obj_decref(oak_value_obj_resolve(wrong));
   oak_vm_free(&vm);
+  oak_compile_options_free(&opts);
+}
+
+/*
+ * A type bound into a module is reachable only through that module. It used to
+ * be registered in the global namespace as well, so oak_stdlib_register made a
+ * bare `File` -- and every one of its methods -- visible in every program,
+ * alongside the `io.File` that was intended. The enum and global-function
+ * passes already filtered on module_name; the type and method passes did not.
+ */
+UTEST_F(bind_type, a_module_scoped_type_is_not_also_a_global)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* scoped;
+  oak_bind_type_t* global;
+  oak_run_result_t bare;
+  oak_run_result_t unscoped;
+
+  oak_compile_options_init(&opts, OAK_A);
+  scoped = oak_bind_type_in_module(&opts, "gear", OAK_BIND_TYPE_RECORD, "Cog");
+  ASSERT_TRUE(scoped != null);
+  EXPECT_EQ(0,
+            oak_bind_fn(&opts,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = scoped,
+                            .name = "teeth",
+                            .impl = stub_method,
+                            .arity = 0,
+                            .return_type =
+                                OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+
+  /* A bare type name alone proves nothing: Oak interns any name written in a
+   * type position, so `c : Cog` compiles either way. What leaked was the
+   * binding itself -- the record and its methods -- so call one. */
+  bare = oak_test_source_opts(
+      OAK_A, "fn f(c : Cog) -> number { return c.teeth(); }\n", &opts);
+  EXPECT_FALSE(bare.compiled);
+  if (bare.compiled)
+    oak_test_explain(&bare, "fn f(c : Cog) -> number { return c.teeth(); }");
+
+  /* A type bound with no module is still global, so this is a filter on
+   * module_name and not a blanket refusal. */
+  global = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Sprocket");
+  ASSERT_TRUE(global != null);
+  EXPECT_EQ(0,
+            oak_bind_fn(&opts,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = global,
+                            .name = "teeth",
+                            .impl = stub_method,
+                            .arity = 0,
+                            .return_type =
+                                OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+  unscoped = oak_test_source_opts(
+      OAK_A, "fn f(s : Sprocket) -> number { return s.teeth(); }\n", &opts);
+  EXPECT_TRUE(unscoped.compiled);
+  if (!unscoped.compiled)
+    oak_test_explain(&unscoped,
+                     "fn f(s : Sprocket) -> number { return s.teeth(); }");
+
   oak_compile_options_free(&opts);
 }
 

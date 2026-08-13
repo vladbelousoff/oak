@@ -214,12 +214,18 @@ initializers for the same three builtin forms, for tables with static storage
 duration — the macros above expand to a function call, which C does not accept
 as a static initializer.
 
-A type reference **cannot name a native enum** registered with
-`oak_bind_enum()`: only builtins and native record/value descriptors can be
-referenced. Leave such a parameter out of `param_types` rather than declaring
-it `OAK_TYPE_NUMBER`, which would make the compiler reject
-`f(EnumName.Variant)`. At run time an enum value is its integer, so a number
-check inside the callback is still correct.
+`OAK_BIND_ENUM(desc)` and `OAK_BIND_ENUM_ARRAY(desc)` name a native enum
+registered with `oak_bind_enum()`. Prefer them over `OAK_TYPE_NUMBER` for an
+enum-typed parameter: the compiler then accepts `f(EnumName.Variant)` and
+rejects a bare integer. At run time an enum value *is* its integer, so a
+number check inside the callback is the right one — `oak_arg_i32` rather than
+anything enum-aware.
+
+`OAK_BIND_WEAK(ref)` wraps any of the forms above to make the reference
+non-owning. Oak has no cycle collector, so a native field that points back at
+something that can reach it must be declared weak, exactly as it would be in
+Oak source; a weak field takes part in the same compile-time acyclicity
+analysis as a declared one.
 
 ## Native record types
 
