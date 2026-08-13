@@ -1,0 +1,302 @@
+/*
+ * Compiler: name resolution, call checking, scoping, void functions, enums.
+ *
+ * Every negative case asserts a substring of the actual diagnostic. Asserting
+ * only "compilation failed" would let these tests pass while the compiler
+ * rejects the program for a completely unrelated reason -- which is exactly
+ * what happens when a change breaks name lookup and every arity test still
+ * goes green because the program now fails to parse instead.
+ */
+
+#include "oak_test_support.h"
+
+OAK_TEST_SUITE(compiler_semantics);
+
+/* ------------------------------------------------------------------ */
+/* Names                                                               */
+/* ------------------------------------------------------------------ */
+
+UTEST_F(compiler_semantics, undefined_names_are_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "print(y);\n", "undefined variable 'y'" },
+    { "print(does_not_exist(1, 2));\n", "undefined function 'does_not_exist'" },
+    { "record Point { x : number; }\n"
+      "let p = new Point { x : 1 };\n"
+      "print(p.z);\n",
+      "no such field 'z' on record 'Point'" },
+    { "record Point { x : number; }\n"
+      "let p = new Point { x : 1 };\n"
+      "p.flip();\n",
+      "no method 'flip' on record 'Point'" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/*
+ * Known diagnostic-quality gap, pinned here so it is visible rather than
+ * forgotten: in a `let` initializer the specific error is swallowed and
+ * replaced by the generic "this expression has no value (void)". The very same
+ * expressions in call position report properly (see the tests above and
+ * below). If the compiler is ever fixed to propagate the real diagnostic, this
+ * test fails and should be folded back into the tests above.
+ */
+UTEST_F(compiler_semantics, let_initializers_report_a_generic_diagnostic)
+{
+  static const oak_case_t cases[] = {
+    { "let x = y + 1;\n", "this expression has no value (void)" },
+    { "enum Color { Red, Green, Blue }\n"
+      "let c = Color.Purple;\n",
+      "this expression has no value (void)" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, assignment_to_immutable_binding_is_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "let x = 1;\n"
+      "x = 2;\n",
+      "cannot assign to immutable variable 'x'" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, duplicate_top_level_names_are_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "fn f() { }\n"
+      "fn f() { }\n",
+      "duplicate function 'f'" },
+    { "record R { x : number; }\n"
+      "record R { y : number; }\n",
+      "duplicate record 'R'" },
+    { "enum E { A }\n"
+      "enum E { B }\n",
+      "enum 'E' conflicts" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/* ------------------------------------------------------------------ */
+/* Calls                                                               */
+/* ------------------------------------------------------------------ */
+
+UTEST_F(compiler_semantics, call_arity_is_checked)
+{
+  static const oak_case_t cases[] = {
+    { "fn add(a : number, b : number) -> number { return a + b; }\n"
+      "print(add(1));\n",
+      "expects 2 arguments, got 1" },
+    { "fn add(a : number, b : number) -> number { return a + b; }\n"
+      "print(add(1, 2, 3));\n",
+      "expects 2 arguments, got 3" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, argument_types_are_checked)
+{
+  static const oak_case_t cases[] = {
+    { "fn echo(s : string) -> number { return 1; }\n"
+      "print(echo(42));\n",
+      "expected type 'string'" },
+    { "fn takes_bool(b : bool) { }\n"
+      "takes_bool('yes');\n",
+      "expected type 'bool'" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, return_type_is_checked)
+{
+  static const oak_case_t cases[] = {
+    { "fn f() -> number { return 'text'; }\n", "return type mismatch" },
+    { "fn f() -> number { return; }\n", "missing return value" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/* ------------------------------------------------------------------ */
+/* Module scope                                                        */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Module-scope bindings are deliberately not visible inside function or method
+ * bodies -- functions see only their parameters and locals. This is what keeps
+ * the language free of implicit global state.
+ */
+UTEST_F(compiler_semantics, module_scope_names_are_invisible_inside_bodies)
+{
+  static const oak_case_t cases[] = {
+    { "let g = 1;\n"
+      "fn f() -> number { return g; }\n",
+      "not visible here (module scope only)" },
+    { "let mut g = 1;\n"
+      "fn f() { g = 2; }\n",
+      "not visible here (module scope only)" },
+    { "record R { x : number; }\n"
+      "fn R.m(self) -> number { return g; }\n"
+      "let g = 1;\n",
+      "not visible here (module scope only)" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, a_local_may_shadow_a_module_scope_name)
+{
+  static const oak_case_t cases[] = {
+    { "let g = 1;\n"
+      "fn f() -> number { let g = 2; return g; }\n"
+      "print(f());\n",
+      null },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
+}
+
+/* ------------------------------------------------------------------ */
+/* Control flow placement                                              */
+/* ------------------------------------------------------------------ */
+
+UTEST_F(compiler_semantics, loop_control_outside_a_loop_is_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "break;\n", "'break' used outside of a loop" },
+    { "continue;\n", "'continue' used outside of a loop" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/* `return` at module scope may be caught by either stage depending on how the
+ * grammar evolves, so this only asserts that it never reaches the VM. */
+UTEST_F(compiler_semantics, return_at_module_scope_is_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "return 1;\n", null },
+  };
+
+  OAK_EXPECT_REJECTED_CASES(cases);
+}
+
+/* ------------------------------------------------------------------ */
+/* Void functions                                                      */
+/* ------------------------------------------------------------------ */
+
+UTEST_F(compiler_semantics, functions_without_an_arrow_are_void)
+{
+  static const oak_case_t cases[] = {
+    { "fn side() { return; }\n"
+      "fn main() { side(); }\n"
+      "main();\n",
+      null },
+    { "fn noop() { }\n"
+      "noop();\n",
+      null },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, void_is_not_a_writable_type)
+{
+  static const oak_case_t cases[] = {
+    /* `void` is spelled by omitting the arrow, never written out. */
+    { "fn f() -> void { return; }\n", "'void' is not allowed after '->'" },
+    { "fn bad() { return 1; }\n", "void function cannot return a value" },
+    { "fn v() { }\n"
+      "let x = v();\n",
+      "this expression has no value (void)" },
+    { "let x = print(1);\n", "this expression has no value (void)" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/* ------------------------------------------------------------------ */
+/* Enums                                                               */
+/* ------------------------------------------------------------------ */
+
+UTEST_F(compiler_semantics, enum_variants_are_accessed_through_their_type)
+{
+  static const oak_case_t cases[] = {
+    { "enum Color { Red, Green, Blue }\n"
+      "let c = Color.Green;\n"
+      "print(c == Color.Green);\n",
+      null },
+    /* A trailing comma in the variant list is accepted. */
+    { "enum Status { Off, On, }\n"
+      "let s = Status.On;\n",
+      null },
+    /* Two enums keep independent ordinals. */
+    { "enum A { X, Y }\n"
+      "enum B { P, Q }\n"
+      "let x = A.X;\n"
+      "let q = B.Q;\n",
+      null },
+    /* An enum round-trips through a parameter of its own type. */
+    { "enum Color { Red, Green, Blue }\n"
+      "fn use_color(c : Color) -> Color { return c; }\n"
+      "use_color(Color.Blue);\n",
+      null },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
+}
+
+/* Enum values are their own type: they are neither numbers nor each other. */
+UTEST_F(compiler_semantics, enums_do_not_decay_to_numbers)
+{
+  static const oak_case_t cases[] = {
+    { "enum Status { Off, On }\n"
+      "let s = Status.On;\n"
+      "let x = s + 10;\n",
+      "operator not supported on enum values" },
+    { "enum Color { Red, Green, Blue }\n"
+      "fn use_color(c : number) -> number { return c; }\n"
+      "use_color(Color.Blue);\n",
+      "expected type 'number'" },
+    { "enum A { X, Y }\n"
+      "enum B { P, Q }\n"
+      "let r = A.X == B.P;\n",
+      "may only be compared to the same enum type" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, unknown_and_unqualified_variants_are_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "enum Color { Red, Green, Blue }\n"
+      "print(Color.Purple);\n",
+      "'Purple' is not a variant of enum 'Color'" },
+    /* Variants never enter the enclosing scope on their own. */
+    { "enum Color { Red, Green, Blue }\n"
+      "print(Green);\n",
+      "undefined variable 'Green'" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/* Variants must be comma-separated; whitespace alone does not separate them. */
+UTEST_F(compiler_semantics, space_separated_variants_are_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "enum Dir { North South East West }\n"
+      "let a = Dir.North;\n",
+      null },
+  };
+
+  OAK_EXPECT_REJECTED_CASES(cases);
+}

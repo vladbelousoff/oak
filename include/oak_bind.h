@@ -53,10 +53,9 @@ struct oak_bind_type_ref
   oak_type_kind_t kind; /* SCALAR / ARRAY / MAP */
 };
 
-/* Constructor helper for oak_bind_type_ref_t.  Implemented as a function
- * (rather than a compound literal) so the OAK_BIND_* macros are valid in both
- * C and C++: MSVC rejects C compound literals when this header is included from
- * C++ translation units (e.g. the Unreal bridge). */
+/* Constructor helper for oak_bind_type_ref_t. Implemented as a function rather
+ * than a compound literal so the OAK_BIND_* macros expand to an expression that
+ * is valid anywhere, including in initializers of static storage. */
 static inline oak_bind_type_ref_t oak_bind_type_ref_make(
     oak_type_id_t id, oak_type_id_t key_id, oak_type_kind_t kind)
 {

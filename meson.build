@@ -118,7 +118,7 @@ src_inc = include_directories(
   'src/debugger',
 )
 public_inc = include_directories('include')
-test_inc = include_directories('tests/common')
+test_inc = include_directories('tests/support')
 
 oak_core_sources = files(
   'src/common/oak_allocator.c',
@@ -293,85 +293,64 @@ else
     )
   endif
 
-  cli_parse_test = executable(
-    'cli_parse',
-    files('tests/cli/cli_parse.c', 'oak_cli.c'),
-    include_directories: include_directories('.'),
-    c_args: common_c_args,
-  )
-  test('cli_parse', cli_parse_test)
-
   test(
     'dap_integration',
     python,
     args: [
-      files('tests/debugger/dap_test.py'),
+      files('tests/dap_test.py'),
       oak.full_path(),
       meson.project_source_root() / 'examples/04_functions/04_functions.oak',
     ],
   )
 
-  test_sources = {
-    'containers': 'tests/common/containers.c',
-    'compiler_anon_fn': 'tests/compiler/compiler_anon_fn.c',
-    'compiler_const_mut_binding': 'tests/compiler/compiler_const_mut_binding.c',
-    'compiler_cycles': 'tests/compiler/compiler_cycles.c',
-    'compiler_enum_access': 'tests/compiler/compiler_enum_access.c',
-    'compiler_imports': 'tests/compiler/compiler_imports.c',
-    'compiler_native_fn_binding': 'tests/compiler/compiler_native_fn_binding.c',
-    'compiler_native_value_types': 'tests/compiler/compiler_native_value_types.c',
-    'compiler_native_type_binding': 'tests/compiler/compiler_native_type_binding.c',
-    'compiler_semantic_errors': 'tests/compiler/compiler_semantic_errors.c',
-    'compiler_interfaces': 'tests/compiler/compiler_interfaces.c',
-    'compiler_type_binding': 'tests/compiler/compiler_type_binding.c',
-    'compiler_type_field_binding': 'tests/compiler/compiler_type_field_binding.c',
-    'compiler_void_fn': 'tests/compiler/compiler_void_fn.c',
-    'lexer_language': 'tests/lexer/lexer_language.c',
-    'parser_language': 'tests/parser/parser_language.c',
-    'stdlib_file': 'tests/stdlib/stdlib_file.c',
-    'stdlib_file_missing': 'tests/stdlib/stdlib_file_missing.c',
-    'vm_language_runtime': 'tests/vm/vm_language_runtime.c',
-    'vm_math_builtins': 'tests/vm/vm_math_builtins.c',
-    'vm_string_methods': 'tests/vm/vm_string_methods.c',
-    'vm_map_table': 'tests/vm/vm_map_table.c',
-    'vm_runtime_errors': 'tests/vm/vm_runtime_errors.c',
-    'vm_short_circuit': 'tests/vm/vm_short_circuit.c',
-    'vm_value_boxing': 'tests/vm/vm_value_boxing.c',
-    'debugger_test': 'tests/debugger/debugger_test.c',
-  }
+  # One suite per file; the utest.h suite name inside each file matches its
+  # basename minus the _test suffix, which is what the --filter below selects.
+  test_suites = [
+    'lexer',
+    'compiler_semantics',
+    'compiler_types',
+    'compiler_mut',
+    'compiler_cycles',
+    'compiler_interfaces',
+    'vm_errors',
+    'vm_exec',
+    'vm_value',
+    'vm_map',
+    'cli',
+    'containers',
+    'parser',
+    'debugger',
+    'bind_fn',
+    'bind_type',
+  ]
 
-  foreach test_name, test_src : test_sources
-    test_exe = executable(
-      test_name,
-      files(test_src),
-      include_directories: [src_inc, test_inc],
-      c_args: common_c_args,
-      dependencies: acorn_dep,
-    )
-    test(test_name, test_exe)
+  test_suite_sources = []
+  foreach suite : test_suites
+    test_suite_sources += files('tests/suites/' + suite + '_test.c')
   endforeach
 
-  # C++ wrapper test
-  add_languages('cpp', native: false, required: true)
-  cxx = meson.get_compiler('cpp')
-  is_msvc_cxx = cxx.get_id() == 'msvc'
-  cpp_warning_args = is_msvc_cxx ? ['/wd4200'] : ['-Wno-unused-function']
-  cpp_std_args = is_msvc_cxx ? ['/std:c++20', '/GR-'] : ['-std=c++20', '-fno-exceptions', '-fno-rtti']
-  cpp_args = cpp_warning_args + cpp_std_args + debug_defines + platform_defines + release_symbol_args + [stdlib_dir_define]
-  cpp_release_link_args = is_release and is_msvc_cxx ? ['/DEBUG'] : []
-  if get_option('atomic_refcount')
-    cpp_args += ['-DOAK_ATOMIC_REFCOUNT']
-  endif
-
-  test_oak_hpp = executable(
-    'test_oak_hpp',
-    files('tests/cpp/test_oak_hpp.cpp'),
-    include_directories: [src_inc, public_inc],
-    cpp_args: cpp_args,
-    link_args: cpp_release_link_args,
+  # utest.h registers every test through a constructor, so all suites live in
+  # one binary with a single main(). oak_cli.c is linked in for the cli suite;
+  # it declares no main() of its own (that is in oak.c).
+  oak_tests = executable(
+    'oak_tests',
+    files('tests/main_test.c', 'tests/support/oak_test_support.c') +
+    test_suite_sources + files('oak_cli.c'),
+    include_directories: [
+      src_inc,
+      test_inc,
+      include_directories('tests/third_party'),
+      include_directories('.'),
+    ],
+    c_args: common_c_args,
     dependencies: acorn_dep,
   )
-  test('test_oak_hpp', test_oak_hpp)
+
+  # Register each suite separately so meson reports them individually and a
+  # crash in one suite cannot take the rest of the run down with it.
+  foreach suite : test_suites
+    test(suite, oak_tests, args: ['--filter=' + suite + '.*'])
+  endforeach
 
   example_sources = {
     '01_values': 'examples/01_values/01_values.oak',

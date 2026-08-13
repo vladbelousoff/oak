@@ -68,9 +68,9 @@ OAK_API void* oak_query_interface(void* obj, oak_interface_id_t iid);
  * threading a separate allocator alongside it. */
 OAK_API oak_allocator_t* oak_allocator_of(const void* obj);
 
-/* The root of the type chain. `oak_is(obj, oak_object_type_info())` is always
+/* The root of the type chain. `oak_is(obj, oak_base_type_info())` is always
  * true for a live object. */
-OAK_API const oak_type_info_t* oak_object_type_info(void);
+OAK_API const oak_type_info_t* oak_base_type_info(void);
 
 /* Name of the object's type, or "(null)" when obj is null. For diagnostics. */
 OAK_API const char* oak_type_name(const void* obj);

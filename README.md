@@ -18,7 +18,7 @@ fn sum(values : number[]) -> number {
 print(sum([3, 5, 8]));
 ```
 
-The repo includes the `oak` CLI, the `acorn` C/C++ embedding library, a VS
+The repo includes the `oak` CLI, the `acorn` C embedding library, a VS
 Code extension, examples, tests, and a WebAssembly playground.
 
 ## Quick Start
@@ -265,7 +265,7 @@ print(a.links[0].target.name);
 ```
 
 The same invariant applies to native bindings — host code must never create a
-strong ownership loop from C or C++.
+strong ownership loop from C.
 
 ### Strings and the Stdlib
 
@@ -299,7 +299,6 @@ and file I/O via `io.File` (see
 | Building, installing, web playground | [`docs/building.md`](docs/building.md) |
 | CLI options and debugging | [`docs/cli.md`](docs/cli.md) |
 | Embedding: C API | [`docs/embedding-c.md`](docs/embedding-c.md) |
-| Embedding: C++ API | [`docs/embedding-cpp.md`](docs/embedding-cpp.md) |
 | VS Code extension | [`editors/vscode/`](editors/vscode/README.md) |
 | Benchmark suite and methodology | [`benchmark/`](benchmark/README.md) |
 
@@ -307,27 +306,39 @@ and file I/O via `io.File` (see
 
 Link against `acorn` and register native types, functions, enums, and
 attributes before compiling; bindings participate in Oak's compile-time type
-checks. The C API is descriptor-based, and the C++20 wrapper
-([`include/oak.hpp`](include/oak.hpp)) adds RAII and typed callable binding:
+checks. The API is descriptor-based: describe the bindings on
+`oak_compile_options_t`, then compile with `oak_compile_ex()`.
 
-```cpp
-oak::Allocator alloc;
-oak::CompileOptions opts(alloc);
+```c
+oak_allocator_t allocator;
+oak_system_allocator_init(&allocator);
 
-opts.bind_fn("add", [](int a, int b) { return a + b; });
-opts.bind_enum("Color", {{"Red", 0}, {"Green", 1}, {"Blue", 2}});
+oak_compile_options_t opts;
+oak_compile_options_init(&opts, &allocator);
 
-auto result = oak::compile(
-    "let n = add(20, 22);\n"
-    "let color = Color.Green;\n",
-    opts);
+oak_bind_fn_global(&opts,
+                   &(oak_bind_global_fn_t){
+                       .name = "add",
+                       .impl = native_add,
+                       .arity = 2,
+                       .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                   });
 
-oak::VM vm(alloc);
-vm.run(result);
+oak_lexer_result_t* lexer =
+    oak_lexer_tokenize("let n = add(20, 22);\n", &allocator);
+oak_parser_result_t parsed = { 0 };
+oak_parse(lexer, OAK_NODE_PROGRAM, &parsed, &allocator);
+
+oak_compile_result_t compiled = { 0 };
+oak_compile_ex(oak_parser_root(&parsed), &opts, &compiled);
+
+oak_vm_t vm;
+oak_vm_init(&vm, &allocator);
+oak_vm_run(&vm, compiled.chunk);
 ```
 
-See the [C embedding guide](docs/embedding-c.md) and the
-[C++ embedding guide](docs/embedding-cpp.md).
+See the [C embedding guide](docs/embedding-c.md) for the full API, including
+native types, methods, enums, and attributes.
 
 ### Object IDs, VM ownership, and threads
 
@@ -390,11 +401,11 @@ _Relative to the fastest runtime per benchmark, lower is better; median wall tim
 | Path | Contents |
 |---|---|
 | `oak.c`, `oak_cli.c` | native CLI |
-| `include/` | public C API and C++ wrapper |
+| `include/` | public C API |
 | `src/` | compiler, runtime, VM, and stdlib C code |
 | `stdlib/` | Oak stdlib modules |
 | `docs/` | build, CLI, and embedding guides |
-| `tests/` | C/C++ tests |
+| `tests/` | C test suites (utest.h) |
 | `examples/` | runnable language tour |
 | `editors/vscode/` | VS Code extension |
 | `wasm/`, `www/` | WebAssembly playground |

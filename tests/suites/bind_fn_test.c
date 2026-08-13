@@ -1,0 +1,398 @@
+/*
+ * Native function binding: oak_bind_fn_global and oak_bind_fn.
+ *
+ * Two halves. First, registration validation -- what the descriptor API
+ * accepts and what it refuses. Second, what a registered binding does to
+ * compilation and execution: arity and type checking at call sites, return
+ * type inference, and the value actually reaching the VM.
+ *
+ * The native implementations here compute real answers rather than returning
+ * a constant, so the runtime tests can assert the result instead of only that
+ * nothing crashed.
+ */
+
+#include "oak_test_support.h"
+
+#include "oak_type_id.h"
+#include "oak_value.h"
+
+#include <string.h>
+
+OAK_TEST_SUITE(bind_fn);
+
+/* ------------------------------------------------------------------ */
+/* Native implementations                                              */
+/* ------------------------------------------------------------------ */
+
+static oak_fn_call_result_t native_add(oak_native_ctx_t* ctx,
+                                       const oak_value_t* args,
+                                       int argc,
+                                       oak_value_t* out_result)
+{
+  (void)ctx;
+  *out_result = OAK_VALUE_I32(argc == 2 ? oak_as_i32(args[0]) +
+                                              oak_as_i32(args[1])
+                                        : 0);
+  return OAK_FN_CALL_OK;
+}
+
+static oak_fn_call_result_t native_double(oak_native_ctx_t* ctx,
+                                          const oak_value_t* args,
+                                          int argc,
+                                          oak_value_t* out_result)
+{
+  (void)ctx;
+  *out_result = OAK_VALUE_I32(argc == 1 ? oak_as_i32(args[0]) * 2 : 0);
+  return OAK_FN_CALL_OK;
+}
+
+static oak_fn_call_result_t native_answer(oak_native_ctx_t* ctx,
+                                          const oak_value_t* args,
+                                          int argc,
+                                          oak_value_t* out_result)
+{
+  (void)ctx;
+  (void)args;
+  (void)argc;
+  *out_result = OAK_VALUE_I32(42);
+  return OAK_FN_CALL_OK;
+}
+
+/* A void native leaves out_result untouched; the VM must supply none. */
+static oak_fn_call_result_t native_void(oak_native_ctx_t* ctx,
+                                        const oak_value_t* args,
+                                        int argc,
+                                        oak_value_t* out_result)
+{
+  (void)ctx;
+  (void)args;
+  (void)argc;
+  (void)out_result;
+  return OAK_FN_CALL_OK;
+}
+
+/* ------------------------------------------------------------------ */
+/* Registration                                                        */
+/* ------------------------------------------------------------------ */
+
+UTEST_F(bind_fn, a_global_function_is_recorded_with_its_descriptor)
+{
+  oak_compile_options_t opts;
+  const oak_bind_global_fn_t* recorded;
+
+  oak_compile_options_init(&opts, OAK_A);
+
+  ASSERT_EQ(0,
+            oak_bind_fn_global(
+                &opts,
+                &(oak_bind_global_fn_t){
+                    .name = "my_global",
+                    .impl = native_answer,
+                    .arity = 1,
+                    .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+
+  ASSERT_EQ(1u, oak_size(opts.native_global_fns));
+  recorded = &OAK_CDATA(oak_bind_global_fn_t, opts.native_global_fns)[0];
+  EXPECT_STREQ("my_global", recorded->name);
+  EXPECT_EQ(1, recorded->arity);
+  EXPECT_EQ(OAK_TYPE_NUMBER, recorded->return_type.id);
+  OAK_EXPECT_ENUM(OAK_TYPE_KIND_SCALAR, recorded->return_type.kind);
+  EXPECT_TRUE(recorded->impl == native_answer);
+
+  oak_compile_options_free(&opts);
+}
+
+UTEST_F(bind_fn, an_instance_method_is_recorded_against_its_receiver)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* t;
+
+  oak_compile_options_init(&opts, OAK_A);
+  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "MyVec");
+  ASSERT_TRUE(t != null);
+
+  ASSERT_EQ(0,
+            oak_bind_fn(&opts,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = t,
+                            .name = "length",
+                            .impl = native_answer,
+                            .arity = 0,
+                            .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+
+  ASSERT_EQ(1u, oak_size(opts.native_fns));
+  EXPECT_TRUE(OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].receiver_type == t);
+  EXPECT_EQ(0, OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].arity);
+
+  oak_compile_options_free(&opts);
+}
+
+/* Malformed descriptors are refused outright, leaving nothing registered --
+ * a half-registered binding would fail much later and much less clearly. */
+UTEST_F(bind_fn, malformed_descriptors_are_refused)
+{
+  oak_compile_options_t opts;
+
+  oak_compile_options_init(&opts, OAK_A);
+
+  /* No name. */
+  EXPECT_EQ(-1,
+            oak_bind_fn_global(
+                &opts,
+                &(oak_bind_global_fn_t){
+                    .name = null,
+                    .impl = native_answer,
+                    .arity = 0,
+                    .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+  /* No implementation. */
+  EXPECT_EQ(-1,
+            oak_bind_fn_global(
+                &opts,
+                &(oak_bind_global_fn_t){
+                    .name = "no_impl",
+                    .impl = null,
+                    .arity = 0,
+                    .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+  /* Negative arity. */
+  EXPECT_EQ(-1,
+            oak_bind_fn_global(
+                &opts,
+                &(oak_bind_global_fn_t){
+                    .name = "bad_arity",
+                    .impl = native_answer,
+                    .arity = -1,
+                    .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+
+  EXPECT_EQ(0u, oak_size(opts.native_global_fns));
+
+  oak_compile_options_free(&opts);
+}
+
+UTEST_F(bind_fn, several_functions_can_be_registered)
+{
+  oak_compile_options_t opts;
+  int i;
+
+  oak_compile_options_init(&opts, OAK_A);
+
+  /* oak_bind_fn_global() shallow-copies the descriptor, so the option list
+   * ends up holding these pointers, not copies of the text. The storage has to
+   * outlive every use of `opts` -- a buffer scoped to the loop body would
+   * leave all eight entries pointing at a dead stack frame. */
+  static char names[8][16];
+
+  for (i = 0; i < 8; ++i)
+  {
+    snprintf(names[i], sizeof(names[i]), "fn_%d", i);
+    EXPECT_EQ(0,
+              oak_bind_fn_global(
+                  &opts,
+                  &(oak_bind_global_fn_t){
+                      .name = names[i],
+                      .impl = native_answer,
+                      .arity = 0,
+                      .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
+  }
+  EXPECT_EQ(8u, oak_size(opts.native_global_fns));
+
+  oak_compile_options_free(&opts);
+}
+
+/* ------------------------------------------------------------------ */
+/* Call-site checking                                                  */
+/* ------------------------------------------------------------------ */
+
+/* Registers `native_add(a, b) -> number` and runs `src` against it. */
+static oak_run_result_t run_with_add(oak_allocator_t* a, const char* src)
+{
+  oak_compile_options_t opts;
+  oak_run_result_t r;
+
+  oak_compile_options_init(&opts, a);
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "native_add",
+                         .impl = native_add,
+                         .arity = 2,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "native_double",
+                         .impl = native_double,
+                         .arity = 1,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "native_answer",
+                         .impl = native_answer,
+                         .arity = 0,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "native_void",
+                         .impl = native_void,
+                         .arity = 0,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
+  r = oak_test_source_opts(a, src, &opts);
+  oak_compile_options_free(&opts);
+  return r;
+}
+
+/* A bound function is callable exactly like an Oak one, and its result is the
+ * value the C implementation produced. */
+UTEST_F(bind_fn, bound_functions_run_and_return_their_value)
+{
+  static const struct
+  {
+    const char* src;
+    const char* want;
+  } cases[] = {
+    { "print(native_add(10, 32));\n", "42" },
+    { "print(native_double(21));\n", "42" },
+    { "print(native_answer());\n", "42" },
+    /* Composition with Oak code on both sides. */
+    { "fn twice(n : number) -> number { return native_double(n); }\n"
+      "print(native_add(twice(10), 22));\n",
+      "42" },
+  };
+
+  usize i;
+  for (i = 0; i < oak_count_of(cases); ++i)
+  {
+    const oak_run_result_t r = run_with_add(OAK_A, cases[i].src);
+    if (!r.compiled || r.run != OAK_VM_OK ||
+        !oak_test_output_equals(r.out, cases[i].want))
+    {
+      UTEST_PRINTF("  row %u: want '%s'\n", (unsigned)i, cases[i].want);
+      oak_test_explain(&r, cases[i].src);
+      *utest_result = UTEST_TEST_FAILURE;
+    }
+  }
+}
+
+/* A void native may leave out_result untouched; the VM must fill in none
+ * rather than passing the uninitialized slot along. */
+UTEST_F(bind_fn, a_void_native_needs_no_out_value)
+{
+  const oak_run_result_t r =
+      run_with_add(OAK_A, "for i from 0 to 1000 { native_void(); }\n");
+
+  EXPECT_TRUE(r.compiled);
+  OAK_EXPECT_ENUM(OAK_VM_OK, r.run);
+}
+
+/* Bound functions take part in the same compile-time checks as Oak ones. */
+UTEST_F(bind_fn, call_sites_are_arity_and_type_checked)
+{
+  static const oak_case_t cases[] = {
+    { "let x = native_add(1);\n", "expects 2 arguments, got 1" },
+    { "let x = native_add(1, 2, 3);\n", "expects 2 arguments, got 3" },
+    { "let x = native_answer(1);\n", "expects 0 arguments, got 1" },
+    /* The declared return type flows into the enclosing call. */
+    { "fn takes_string(s : string) -> string { return s; }\n"
+      "let x = takes_string(native_answer());\n",
+      "expected type 'string'" },
+  };
+
+  usize i;
+  for (i = 0; i < oak_count_of(cases); ++i)
+  {
+    const oak_run_result_t r = run_with_add(OAK_A, cases[i].src);
+    if (r.compiled)
+    {
+      UTEST_PRINTF("  row %u: expected a compile error\n", (unsigned)i);
+      oak_test_explain(&r, cases[i].src);
+      *utest_result = UTEST_TEST_FAILURE;
+    }
+    else if (!oak_test_contains(r.diag, cases[i].want))
+    {
+      UTEST_PRINTF("  row %u: want substring '%s'\n",
+                   (unsigned)i,
+                   cases[i].want);
+      oak_test_explain(&r, cases[i].src);
+      *utest_result = UTEST_TEST_FAILURE;
+    }
+  }
+}
+
+/* The declared return type is what the compiler infers at the call site. */
+UTEST_F(bind_fn, the_declared_return_type_is_inferred)
+{
+  static const oak_case_t cases[] = {
+    { "fn takes_number(n : number) -> number { return n; }\n"
+      "print(takes_number(native_answer()));\n",
+      null },
+  };
+
+  usize i;
+  for (i = 0; i < oak_count_of(cases); ++i)
+  {
+    const oak_run_result_t r = run_with_add(OAK_A, cases[i].src);
+    EXPECT_TRUE(r.compiled);
+    OAK_EXPECT_ENUM(OAK_VM_OK, r.run);
+  }
+}
+
+/* Two bindings under one name would make the call site ambiguous. */
+UTEST_F(bind_fn, a_duplicate_global_name_fails_to_compile)
+{
+  oak_compile_options_t opts;
+  oak_run_result_t r;
+
+  oak_compile_options_init(&opts, OAK_A);
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "dup",
+                         .impl = native_answer,
+                         .arity = 0,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "dup",
+                         .impl = native_answer,
+                         .arity = 0,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
+
+  r = oak_test_source_opts(OAK_A, "let x = dup();\n", &opts);
+  EXPECT_FALSE(r.compiled);
+  EXPECT_TRUE(oak_test_contains(r.diag, "duplicate native function"));
+
+  oak_compile_options_free(&opts);
+}
+
+/* ------------------------------------------------------------------ */
+/* Diagnostics                                                         */
+/* ------------------------------------------------------------------ */
+
+/* A native function has exactly one arity, so its printed form says
+ * "arity=N" -- never a range, which an earlier variadic design produced. */
+UTEST_F(bind_fn, a_native_function_formats_with_a_single_arity)
+{
+  oak_obj_native_fn_t* fn =
+      oak_native_fn_new(OAK_A, native_answer, 3, "my_fn", null);
+  char buf[128];
+
+  ASSERT_TRUE(fn != null);
+  oak_native_fn_format(buf, sizeof(buf), fn);
+
+  EXPECT_TRUE(strstr(buf, "arity=3") != null);
+  EXPECT_TRUE(strstr(buf, "arity=3..") == null);
+  EXPECT_TRUE(strstr(buf, "my_fn") != null);
+
+  oak_obj_decref((oak_obj_t*)fn);
+}
+
+/* An unnamed native still formats without reading a null name. */
+UTEST_F(bind_fn, an_anonymous_native_function_formats)
+{
+  oak_obj_native_fn_t* fn =
+      oak_native_fn_new(OAK_A, native_answer, 1, null, null);
+  char buf[128];
+
+  ASSERT_TRUE(fn != null);
+  oak_native_fn_format(buf, sizeof(buf), fn);
+  EXPECT_TRUE(strstr(buf, "arity=1") != null);
+
+  oak_obj_decref((oak_obj_t*)fn);
+}

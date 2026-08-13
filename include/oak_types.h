@@ -65,11 +65,7 @@ typedef long isize;
  * pointers on common compilers). Prefer over the NULL macro from <stddef.h>.
  */
 #ifndef null
-#ifdef __cplusplus
-#define null nullptr
-#else
 #define null ((void*)0)
-#endif
 #endif
 
 #define OAK_STATIC_ASSERT(name, condition)                                     \
@@ -82,10 +78,7 @@ OAK_STATIC_ASSERT(width_64_bit, sizeof(i64) == 8 && sizeof(u64) == 8);
 
 #undef OAK_STATIC_ASSERT
 
-#if defined(__cplusplus)
-#undef _Thread_local
-#define _Thread_local thread_local
-#elif defined(_MSC_VER) && !defined(__STDC_VERSION__)
+#if defined(_MSC_VER) && !defined(__STDC_VERSION__)
 #undef _Thread_local
 #define _Thread_local __declspec(thread)
 #endif

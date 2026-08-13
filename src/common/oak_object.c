@@ -19,9 +19,9 @@ const oak_type_info_t oak_type_info_container = {
   .parent = &oak_type_info_object,
 };
 
-void* oak_object_alloc(oak_allocator_t* allocator,
+void* oak_base_alloc(oak_allocator_t* allocator,
                        usize body_size,
-                       const oak_object_vtable_t* vt)
+                       const oak_base_vtable_t* vt)
 {
   if (!allocator || !vt)
     return null;
@@ -32,7 +32,7 @@ void* oak_object_alloc(oak_allocator_t* allocator,
   if (!base)
     return null;
 
-  oak_object_header_t* const header = (oak_object_header_t*)base;
+  oak_base_header_t* const header = (oak_base_header_t*)base;
   header->vt = vt;
   header->allocator = allocator;
 #ifdef OAK_DEBUG_LOGGING
@@ -41,11 +41,11 @@ void* oak_object_alloc(oak_allocator_t* allocator,
   return base + OAK_OBJECT_HEADER_SIZE;
 }
 
-void oak_object_free(void* obj)
+void oak_base_free(void* obj)
 {
   if (!obj)
     return;
-  oak_object_header_t* const header = oak_object_header(obj);
+  oak_base_header_t* const header = oak_base_header(obj);
   oak_allocator_t* const allocator = header->allocator;
 #ifdef OAK_DEBUG_LOGGING
   /* Cleared so a double free trips the magic check instead of dispatching
@@ -72,16 +72,16 @@ void oak_destroy(void* obj)
 {
   if (!obj)
     return;
-  oak_object_check(obj);
-  oak_object_header(obj)->vt->destroy(obj);
+  oak_base_check(obj);
+  oak_base_header(obj)->vt->destroy(obj);
 }
 
 const oak_type_info_t* oak_type_of(const void* obj)
 {
   if (!obj)
     return null;
-  oak_object_check(obj);
-  return oak_object_header(obj)->vt->type_of(obj);
+  oak_base_check(obj);
+  return oak_base_header(obj)->vt->type_of(obj);
 }
 
 int oak_is(const void* obj, const oak_type_info_t* wanted)
@@ -101,19 +101,19 @@ void* oak_query_interface(void* obj, oak_interface_id_t iid)
 {
   if (!obj)
     return null;
-  oak_object_check(obj);
-  return oak_object_header(obj)->vt->query_interface(obj, iid);
+  oak_base_check(obj);
+  return oak_base_header(obj)->vt->query_interface(obj, iid);
 }
 
 oak_allocator_t* oak_allocator_of(const void* obj)
 {
   if (!obj)
     return null;
-  oak_object_check(obj);
-  return oak_object_header(obj)->allocator;
+  oak_base_check(obj);
+  return oak_base_header(obj)->allocator;
 }
 
-const oak_type_info_t* oak_object_type_info(void)
+const oak_type_info_t* oak_base_type_info(void)
 {
   return &oak_type_info_object;
 }

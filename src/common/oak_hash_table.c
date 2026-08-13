@@ -325,12 +325,12 @@ const void* oak_hash_table_iter_key(oak_iterator_t* it,
 void oak_hash_table_destroy(void* obj)
 {
   oak_hash_table_t* t = (oak_hash_table_t*)obj;
-  oak_allocator_t* allocator = oak_object_header(obj)->allocator;
+  oak_allocator_t* allocator = oak_base_header(obj)->allocator;
   if (t->slots)
     OAK_FREE(allocator, t->slots);
   if (t->values)
     OAK_FREE(allocator, t->values);
-  oak_object_free(obj);
+  oak_base_free(obj);
 }
 
 oak_container_t* oak_hash_table_new(
@@ -341,7 +341,7 @@ oak_container_t* oak_hash_table_new(
   if (!allocator)
     return null;
 
-  oak_hash_table_t* t = oak_object_alloc(allocator, sizeof *t, &vt->object);
+  oak_hash_table_t* t = oak_base_alloc(allocator, sizeof *t, &vt->object);
   if (!t)
     return null;
 

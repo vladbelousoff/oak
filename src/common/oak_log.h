@@ -4,8 +4,6 @@
 
 #if defined(_MSC_VER)
 #define OAK_NORETURN __declspec(noreturn)
-#elif defined(__cplusplus)
-#define OAK_NORETURN [[noreturn]]
 #else
 #define OAK_NORETURN _Noreturn
 #endif

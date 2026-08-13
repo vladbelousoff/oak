@@ -11,7 +11,6 @@ Required:
 
 Optional:
 
-- a C++20 compiler for C++ wrapper tests and C++ embedding
 - Emscripten, Node.js, and npm for the web playground
 
 GCC, Clang, and MSVC are supported.

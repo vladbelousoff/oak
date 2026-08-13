@@ -196,8 +196,8 @@ static void vector_destroy(void* obj)
 {
   oak_vector_t* v = (oak_vector_t*)obj;
   if (v->data)
-    OAK_FREE(oak_object_header(obj)->allocator, v->data);
-  oak_object_free(obj);
+    OAK_FREE(oak_base_header(obj)->allocator, v->data);
+  oak_base_free(obj);
 }
 
 static const oak_type_info_t* vector_type_of(const void* obj)
@@ -250,7 +250,7 @@ oak_container_t* oak_vector_new(oak_allocator_t* allocator,
     return null;
 
   oak_vector_t* v =
-      oak_object_alloc(allocator, sizeof *v, &vector_vtable.object);
+      oak_base_alloc(allocator, sizeof *v, &vector_vtable.object);
   if (!v)
     return null;
 

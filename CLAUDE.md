@@ -40,11 +40,22 @@ Public headers live in `include/`. Internal compiler headers are in `src/compile
 
 ## Tests
 
-Test files live under `tests/` as C harnesses using `oak_test_pipeline.h`. Each test compiles and optionally runs an Oak snippet, checking for success or expected errors.
+Tests live in `tests/suites/<name>_test.c`, built on vendored
+[utest.h](../tests/third_party/utest.h). Every suite declares `OAK_TEST_SUITE(<name>)`
+once, then writes tests as `UTEST_F(<name>, what_it_does)`; the fixture supplies a
+per-test tracking allocator (`OAK_A`) whose teardown fails the test on a leak.
+`tests/support/oak_test_support.h` drives the lex/parse/compile/run pipeline and
+provides the table-driven `OAK_EXPECT_*_CASES` macros.
+
+All suites link into one `oak_tests` binary; meson registers each one via
+`--filter`, so the suite name must match the filename stem. Tests do no
+filesystem I/O — output is captured through in-process pipes.
 
 ```sh
 meson test -C build                          # all tests
-meson test -C build compiler_interfaces          # single suite
+meson test -C build compiler_interfaces      # single suite
+./build/oak_tests --list-tests               # every test in the binary
+./build/oak_tests --filter='parser.*'        # run a suite directly
 ```
 
 ## Native Bindings

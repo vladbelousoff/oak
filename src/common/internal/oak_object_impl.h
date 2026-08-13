@@ -34,15 +34,15 @@
  *    debug builds; nothing catches it in release.
  */
 
-typedef struct oak_object_vtable oak_object_vtable_t;
-struct oak_object_vtable
+typedef struct oak_base_vtable oak_base_vtable_t;
+struct oak_base_vtable
 {
   void (*destroy)(void* obj);
   const oak_type_info_t* (*type_of)(const void* obj);
   void* (*query_interface)(void* obj, oak_interface_id_t iid);
 };
 
-/* Written into every header and checked by oak_object_check(). Arbitrary, but
+/* Written into every header and checked by oak_base_check(). Arbitrary, but
  * unlikely to appear by accident in whatever precedes a stray pointer.
  * Debug-only: release builds cannot act on it, so they do not carry it. */
 #ifdef OAK_DEBUG_LOGGING
@@ -53,10 +53,10 @@ struct oak_object_vtable
  * and therefore OAK_OBJECT_HEADER_SIZE — differs between debug and release.
  * That is invisible within a build, but a shared library and its consumer
  * must be built with matching settings, as they already must for oak_assert. */
-typedef struct oak_object_header oak_object_header_t;
-struct oak_object_header
+typedef struct oak_base_header oak_base_header_t;
+struct oak_base_header
 {
-  const oak_object_vtable_t* vt;
+  const oak_base_vtable_t* vt;
   oak_allocator_t* allocator;
 #ifdef OAK_DEBUG_LOGGING
   u32 magic;
@@ -67,31 +67,31 @@ struct oak_object_header
  * to a multiple of the maximum fundamental alignment, so that
  * base + OAK_OBJECT_HEADER_SIZE is as aligned as the allocation itself.
  * Spelled out rather than using max_align_t, which MSVC only provides in C++. */
-typedef union oak_object_prefix oak_object_prefix_t;
-union oak_object_prefix
+typedef union oak_base_prefix oak_base_prefix_t;
+union oak_base_prefix
 {
-  oak_object_header_t header;
+  oak_base_header_t header;
   long double align_ld;
   long long align_ll;
   void* align_p;
 };
 
-#define OAK_OBJECT_HEADER_SIZE (sizeof(oak_object_prefix_t))
+#define OAK_OBJECT_HEADER_SIZE (sizeof(oak_base_prefix_t))
 
 /* The header sitting immediately before `obj`. Takes a const pointer and
  * returns a mutable header because most callers hold a const container and
  * only read through it; the const cast is confined to this one place. */
-static inline oak_object_header_t* oak_object_header(const void* obj)
+static inline oak_base_header_t* oak_base_header(const void* obj)
 {
-  return (oak_object_header_t*)((u8*)obj - OAK_OBJECT_HEADER_SIZE);
+  return (oak_base_header_t*)((u8*)obj - OAK_OBJECT_HEADER_SIZE);
 }
 
 /* Debug-only guard against a pointer that is not an oak object. Compiles away
  * entirely in release builds, where nothing can catch that mistake. */
-static inline void oak_object_check(const void* obj)
+static inline void oak_base_check(const void* obj)
 {
 #ifdef OAK_DEBUG_LOGGING
-  oak_assert(oak_object_header(obj)->magic == OAK_OBJECT_MAGIC);
+  oak_assert(oak_base_header(obj)->magic == OAK_OBJECT_MAGIC);
 #else
   (void)obj;
 #endif
@@ -109,7 +109,7 @@ static inline void oak_object_check(const void* obj)
 typedef struct oak_container_vtable oak_container_vtable_t;
 struct oak_container_vtable
 {
-  oak_object_vtable_t object;
+  oak_base_vtable_t object;
 
   usize (*size)(const oak_container_t* c);
   void (*clear)(oak_container_t* c);
@@ -154,19 +154,19 @@ extern const oak_type_info_t oak_type_info_container;
 /* Allocates [header][body] and installs `vt` and `allocator`. Returns the body
  * pointer — the handle — or null on failure. The body is left uninitialized;
  * the caller fills it in. */
-void* oak_object_alloc(oak_allocator_t* allocator,
+void* oak_base_alloc(oak_allocator_t* allocator,
                        usize body_size,
-                       const oak_object_vtable_t* vt);
+                       const oak_base_vtable_t* vt);
 
 /* Releases the allocation `obj` belongs to. Does not touch anything the body
  * owns; the implementation's destroy slot frees that first. */
-void oak_object_free(void* obj);
+void oak_base_free(void* obj);
 
 /* The allocator recorded in a container's header. */
 static inline oak_allocator_t* oak_container_allocator(
     const oak_container_t* c)
 {
-  return oak_object_header(c)->allocator;
+  return oak_base_header(c)->allocator;
 }
 
 /* FNV-1a 32-bit over arbitrary bytes. Shared by the hash map and hash set. */
@@ -178,5 +178,5 @@ u32 oak_hash_bytes(const void* data, usize len);
 static inline const oak_container_vtable_t*
 oak_container_vt(const oak_container_t* c)
 {
-  return c ? (const oak_container_vtable_t*)oak_object_header(c)->vt : null;
+  return c ? (const oak_container_vtable_t*)oak_base_header(c)->vt : null;
 }

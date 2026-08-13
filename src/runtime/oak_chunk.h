@@ -220,8 +220,6 @@ static inline const u8* oak_chunk_code(const oak_chunk_t* chunk)
 static inline oak_code_loc_t oak_chunk_loc(const oak_chunk_t* chunk,
                                            const usize offset)
 {
-  /* Written without compound literals and with explicit casts off the void*
-   * returns: this header is also compiled as C++ via oak.hpp. */
   oak_code_loc_t none;
   none.line = 0;
   none.column = 0;

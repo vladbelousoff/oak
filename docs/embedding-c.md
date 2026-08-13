@@ -8,7 +8,8 @@ compile-time type checks exactly like Oak-declared ones — a script that calls
 a native function with the wrong argument type fails to compile.
 
 The examples below are condensed; complete, compiled usage lives in
-[`tests/compiler/`](../tests/compiler/) (one file per binding feature) and
+[`tests/suites/bind_fn_test.c`](../tests/suites/bind_fn_test.c),
+[`tests/suites/bind_type_test.c`](../tests/suites/bind_type_test.c), and
 [`src/stdlib/`](../src/stdlib/) (the real registrations behind `math.*`,
 string methods, and `io.File`).
 
@@ -248,7 +249,7 @@ The payload must fit in 61 bits (pointers do; arbitrary u64 ids may not).
 Value types expose data through methods only (they cannot declare fields).
 Wrap and unwrap the opaque payload with `oak_native_value_new()` /
 `oak_native_value()`. See
-[`tests/compiler/compiler_native_value_types.c`](../tests/compiler/compiler_native_value_types.c).
+[`tests/suites/bind_type_test.c`](../tests/suites/bind_type_test.c).
 
 ## Enums
 

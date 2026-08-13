@@ -8,10 +8,23 @@
 #include <stdio.h>
 #include <string.h>
 
+/* FileMode variant integer values. Must match the order/values registered in
+ * oak_stdlib_register_file. */
+typedef enum oak_file_mode oak_file_mode_t;
+enum oak_file_mode
+{
+  OAK_FILE_MODE_READ = 0,
+  OAK_FILE_MODE_WRITE = 1,
+  OAK_FILE_MODE_APPEND = 2,
+};
+
 typedef struct oak_file_handle oak_file_handle_t;
 struct oak_file_handle
 {
   FILE* fp; /* null after close() */
+  /* The mode the stream was opened in. eof() needs it because a write-only
+   * stream has no readable position to compare against. */
+  oak_file_mode_t mode;
   /* Kept so the destructor can free the handle without a native ctx. */
   oak_allocator_t* allocator;
 };
@@ -29,16 +42,6 @@ static void file_destroy(void* instance)
   OAK_FREE(h->allocator, h);
 }
 
-/* FileMode variant integer values. Must match the order/values registered in
- * oak_stdlib_register_file. */
-typedef enum oak_file_mode oak_file_mode_t;
-enum oak_file_mode
-{
-  OAK_FILE_MODE_READ = 0,
-  OAK_FILE_MODE_WRITE = 1,
-  OAK_FILE_MODE_APPEND = 2,
-};
-
 static const oak_bind_type_t* s_file_type;
 
 static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
@@ -49,7 +52,8 @@ static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
   if (argc != 2 || !oak_is_string(args[0]) || !oak_is_i32(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const char* mode;
-  switch (oak_as_i32(args[1]))
+  const oak_file_mode_t requested = (oak_file_mode_t)oak_as_i32(args[1]);
+  switch (requested)
   {
     case OAK_FILE_MODE_READ:
       mode = "r";
@@ -73,6 +77,7 @@ static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
     return OAK_FN_CALL_RUNTIME_ERROR;
   }
   h->fp = fp;
+  h->mode = requested;
   h->allocator = ctx->allocator;
   *out = oak_vm_native_record_new(ctx->vm, s_file_type, h);
   return OAK_FN_CALL_OK;
@@ -166,7 +171,51 @@ static oak_fn_call_result_t file_eof(oak_native_ctx_t* ctx,
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_BOOL(feof(h->fp) != 0);
+
+  /* Reports whether any data remains to be read, rather than whether the
+   * stream's EOF indicator happens to be set.
+   *
+   * C only raises that indicator on a read that *attempts* to go past the end.
+   * file_read_all() measures the remaining length and reads exactly that many
+   * bytes, so it never triggers it -- yet on Windows the file is open in text
+   * mode and CRLF translation makes the sized read come up short, which does
+   * set it. That made eof() answer differently per platform after the very
+   * same sequence of calls. Comparing the position against the end is
+   * deterministic everywhere.
+   *
+   * That comparison only means anything for a readable stream, though. A
+   * write-only handle has no readable content at all, so the answer is a flat
+   * "nothing remains" -- and it has to be stated rather than derived, because
+   * the position it would be derived from is not portable: C leaves the
+   * initial file position for append mode unspecified, and the two CRTs
+   * disagree in practice (glibc opens "a" positioned at end-of-file, the
+   * Microsoft CRT at offset 0). Deriving it would put exactly the platform
+   * split this function exists to remove back into append mode. Answering
+   * "true" also keeps `while !f.eof()` from spinning forever on a handle it
+   * can never read from. */
+  FILE* const f = h->fp;
+  if (h->mode != OAK_FILE_MODE_READ)
+  {
+    *out = OAK_VALUE_BOOL(1);
+    return OAK_FN_CALL_OK;
+  }
+
+  if (feof(f))
+  {
+    *out = OAK_VALUE_BOOL(1);
+    return OAK_FN_CALL_OK;
+  }
+
+  const long pos = ftell(f);
+  if (pos < 0)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (fseek(f, 0, SEEK_END) != 0)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  const long end = ftell(f);
+  if (end < 0 || fseek(f, pos, SEEK_SET) != 0)
+    return OAK_FN_CALL_RUNTIME_ERROR;
+
+  *out = OAK_VALUE_BOOL(pos >= end);
   return OAK_FN_CALL_OK;
 }
 
