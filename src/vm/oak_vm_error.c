@@ -46,10 +46,12 @@ static void record(const oak_vm_t* vm,
                    const int column,
                    const char* message)
 {
-  oak_diagnostic_t* slot = &((oak_vm_t*)vm)->last_error;
+  oak_vm_t* mutable_vm = (oak_vm_t*)vm;
+  oak_diagnostic_t* slot = &mutable_vm->last_error;
   slot->line = line;
   slot->column = column;
   snprintf(slot->message, sizeof(slot->message), "%s", message);
+  ++mutable_vm->error_seq;
 }
 
 void oak_vm_runtime_error(const oak_vm_t* vm, const char* fmt, ...)

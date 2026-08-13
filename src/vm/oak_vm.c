@@ -12,6 +12,7 @@ void oak_vm_init(oak_vm_t* vm, oak_allocator_t* allocator)
   vm->user_data = null;
   vm->debug_hook = null;
   vm->object_table = oak_obj_table_acquire();
+  vm->error_seq = 0;
   oak_vm_clear_last_error(vm);
 }
 

@@ -226,6 +226,7 @@ void apply_native_module_function_exports(
           continue;
         oak_obj_native_fn_t* native = oak_native_fn_new(
             mod->allocator, fn->impl, me->arity, fn->name, fn->user_data);
+        native->self_type = fn->receiver_type;
         if (me->stub_attrs && me->stub_attr_count > 0)
           oak_apply_attr_hooks(
               opts, null, native, me->stub_attrs, me->stub_attr_count);

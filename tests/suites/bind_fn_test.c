@@ -54,6 +54,32 @@ static oak_fn_call_result_t native_answer(oak_native_call_t* call,
   return OAK_FN_CALL_OK;
 }
 
+/* Reports its own reason, with a formatted detail the VM could not have
+ * produced on its own. */
+static oak_fn_call_result_t native_explains(oak_native_call_t* call,
+                                            const oak_value_t* args,
+                                            int argc,
+                                            oak_value_t* out_result)
+{
+  (void)args;
+  (void)argc;
+  (void)out_result;
+  return oak_native_error(call, "tank empty at %d fathoms", 27);
+}
+
+/* Fails without saying why, so the VM's generic message still has to appear. */
+static oak_fn_call_result_t native_silent(oak_native_call_t* call,
+                                          const oak_value_t* args,
+                                          int argc,
+                                          oak_value_t* out_result)
+{
+  (void)call;
+  (void)args;
+  (void)argc;
+  (void)out_result;
+  return OAK_FN_CALL_RUNTIME_ERROR;
+}
+
 /* A void native leaves out_result untouched; the VM must supply none. */
 static oak_fn_call_result_t native_void(oak_native_call_t* call,
                                         const oak_value_t* args,
@@ -222,6 +248,18 @@ static oak_run_result_t run_with_add(oak_allocator_t* a, const char* src)
                          .impl = native_void,
                          .arity = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "native_explains",
+                         .impl = native_explains,
+                         .arity = 0,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "native_silent",
+                         .impl = native_silent,
+                         .arity = 0,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
   r = oak_test_source_opts(a, src, &opts);
   oak_compile_options_free(&opts);
   return r;
@@ -257,6 +295,39 @@ UTEST_F(bind_fn, bound_functions_run_and_return_their_value)
       *utest_result = UTEST_TEST_FAILURE;
     }
   }
+}
+
+/*
+ * A failing native says why. Before oak_native_error every failure surfaced as
+ * "native function '<name>' failed" no matter what went wrong, which is the
+ * one thing an embedder most needs to distinguish. The message carries the
+ * binding's name too, so the detail does not arrive anonymously.
+ */
+UTEST_F(bind_fn, a_failing_native_reports_its_own_reason)
+{
+  const oak_run_result_t r = run_with_add(OAK_A, "native_explains();\n");
+
+  EXPECT_TRUE(r.compiled);
+  OAK_EXPECT_ENUM(OAK_VM_RUNTIME_ERROR, r.run);
+  EXPECT_TRUE(oak_test_contains(r.err, "tank empty at 27 fathoms"));
+  EXPECT_TRUE(oak_test_contains(r.err, "native_explains"));
+  /* The generic message must not also appear -- it would bury the real one. */
+  EXPECT_FALSE(oak_test_contains(r.err, "failed"));
+  if (*utest_result != UTEST_TEST_PASSED)
+    oak_test_explain(&r, "native_explains();");
+}
+
+/* A native that fails without calling oak_native_error still reports: the
+ * generic message is the fallback, not the only option. */
+UTEST_F(bind_fn, a_silent_failure_still_reports_generically)
+{
+  const oak_run_result_t r = run_with_add(OAK_A, "native_silent();\n");
+
+  EXPECT_TRUE(r.compiled);
+  OAK_EXPECT_ENUM(OAK_VM_RUNTIME_ERROR, r.run);
+  EXPECT_TRUE(oak_test_contains(r.err, "native function 'native_silent' failed"));
+  if (*utest_result != UTEST_TEST_PASSED)
+    oak_test_explain(&r, "native_silent();");
 }
 
 /* A void native may leave out_result untouched; the VM must fill in none

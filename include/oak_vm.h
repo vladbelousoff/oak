@@ -85,6 +85,12 @@ struct oak_vm
   /* Most recent runtime error, or line == 0 and an empty message when none.
    * Read it with oak_vm_last_error rather than touching this directly. */
   oak_diagnostic_t last_error;
+  /* Bumped every time last_error is written.  The VM samples it around a
+   * native call to tell "the callback reported its own error" from "the
+   * callback just returned OAK_FN_CALL_RUNTIME_ERROR", so a native that
+   * called oak_native_error keeps its message instead of having it replaced
+   * by the generic one.  Wrapping is harmless: only equality matters. */
+  u32 error_seq;
 };
 
 /* Zero-initialize a VM and wire it to an allocator.  The allocator pointer

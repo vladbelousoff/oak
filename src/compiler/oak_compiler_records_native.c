@@ -203,6 +203,10 @@ void oak_register_native_fns(oak_compiler_t* c,
                              : b->arity;
     oak_obj_native_fn_t* native = oak_native_fn_new(
         c->allocator, b->impl, vm_arity, b->name, b->user_data);
+    /* Reaches the callback as oak_native_call_t::self_type, so a method can
+     * unwrap its receiver and construct new instances of its own type without
+     * the binding passing the descriptor through user_data. */
+    native->self_type = b->receiver_type;
 
     /* Apply runtime attribute hooks from the module stub, if the receiver type
      * belongs to a module that has a compiled stub with attributed methods. */

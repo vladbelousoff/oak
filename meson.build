@@ -237,6 +237,7 @@ oak_core_sources = files(
   'src/vm/oak_vm_arith.c',
   'src/vm/oak_vm_call.c',
   'src/vm/oak_vm_error.c',
+  'src/vm/oak_vm_native.c',
   'src/vm/oak_vm_object.c',
   'src/debugger/oak_debugger.c',
   'src/debugger/oak_dap.c',

@@ -512,6 +512,9 @@ struct oak_obj_fn
 };
 
 typedef struct oak_native_call oak_native_call_t;
+/* Declared here and defined in oak_bind.h: a native function object remembers
+ * the type it was bound as a method on, and hands it to the callback. */
+typedef struct oak_bind_type oak_bind_type_t;
 
 typedef enum oak_fn_call_result oak_fn_call_result_t;
 enum oak_fn_call_result
@@ -548,6 +551,11 @@ struct oak_obj_native_fn
   const char* name;
   /* Forwarded to the callback through oak_native_call_t::user_data. */
   void* user_data;
+  /* Receiver type when this is a method bound with oak_bind_fn; null for
+   * global functions and builtins.  Forwarded as oak_native_call_t::self_type.
+   * Set after construction by whoever interns the method, so oak_native_fn_new
+   * keeps its signature. */
+  const oak_bind_type_t* self_type;
   oak_attr_hook_entry_t* attr_hooks;
   int attr_hook_count;
 };
@@ -596,8 +604,6 @@ struct oak_obj_record
   oak_value_t fields[];
 };
 
-typedef struct oak_bind_type oak_bind_type_t;
-
 typedef struct oak_obj_native_record oak_obj_native_record_t;
 struct oak_obj_native_record
 {
@@ -623,6 +629,16 @@ struct oak_native_call
   /* Per-binding user pointer from oak_bind_global_fn_t / oak_bind_fn_t;
    * null for builtins and bindings that did not set one. */
   void* user_data;
+  /* Name the binding was registered under; null for anonymous natives.
+   * Error messages raised with oak_native_error are prefixed with it, so a
+   * callback rarely needs to read it directly. */
+  const char* fn_name;
+  /* The receiver type, for a method registered with oak_bind_fn; null for
+   * global functions and builtins.  Reach it through oak_arg_self and
+   * oak_native_self_new rather than reading it: a binding no longer has to
+   * pass its own descriptor through user_data just to unwrap its receiver or
+   * construct another instance of itself. */
+  const oak_bind_type_t* self_type;
 };
 
 static inline oak_obj_string_t*

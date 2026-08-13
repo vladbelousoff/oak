@@ -18,9 +18,13 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
 
   for (int hi = 0; hi < native->attr_hook_count; ++hi)
   {
-    oak_native_call_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
+    oak_native_call_t hook_call = { .vm = vm,
+                                    .allocator = vm->allocator,
+                                    .user_data = native->attr_hooks[hi].ud,
+                                    .fn_name = native->name,
+                                    .self_type = native->self_type };
     const oak_fn_call_result_t r =
-        native->attr_hooks[hi].cb(&hook_ctx,
+        native->attr_hooks[hi].cb(&hook_call,
                                   native->name,
                                   arg_base,
                                   (int)argc,
@@ -34,17 +38,23 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
     }
   }
 
-  oak_native_call_t nctx = { .vm = vm,
-                                   .allocator = vm->allocator,
-                                   .user_data = native->user_data };
+  oak_native_call_t call = { .vm = vm,
+                             .allocator = vm->allocator,
+                             .user_data = native->user_data,
+                             .fn_name = native->name,
+                             .self_type = native->self_type };
   oak_value_t result = OAK_VALUE_NONE;
+  /* Sampled so a callback that reported through oak_native_error keeps its
+   * own message; only a silent failure falls back to the generic one. */
+  const u32 error_seq = vm->error_seq;
   const oak_fn_call_result_t err =
-      native->fn(&nctx, arg_base, (int)argc, &result);
+      native->fn(&call, arg_base, (int)argc, &result);
   if (err != OAK_FN_CALL_OK)
   {
-    oak_vm_runtime_error(vm,
-                         "native function '%s' failed",
-                         native->name ? native->name : "<anonymous>");
+    if (vm->error_seq == error_seq)
+      oak_vm_runtime_error(vm,
+                           "native function '%s' failed",
+                           native->name ? native->name : "<anonymous>");
     return OAK_VM_RUNTIME_ERROR;
   }
 
@@ -82,9 +92,12 @@ static oak_vm_result_t vm_call_bytecode(oak_vm_t* vm,
   for (int hi = 0; hi < fn->attr_hook_count; ++hi)
   {
     oak_value_t* arg_base = vm->stack + fn_slot + 1;
-    oak_native_call_t hook_ctx = { .vm = vm, .allocator = vm->allocator };
+    oak_native_call_t hook_call = { .vm = vm,
+                                    .allocator = vm->allocator,
+                                    .user_data = fn->attr_hooks[hi].ud,
+                                    .fn_name = fn->name };
     const oak_fn_call_result_t r = fn->attr_hooks[hi].cb(
-        &hook_ctx, fn->name, arg_base, (int)argc, fn->attr_hooks[hi].ud);
+        &hook_call, fn->name, arg_base, (int)argc, fn->attr_hooks[hi].ud);
     if (r != OAK_FN_CALL_OK)
     {
       oak_vm_runtime_error(vm, "attribute hook aborted function call");

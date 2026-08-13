@@ -600,6 +600,27 @@ OAK_API oak_value_t oak_native_value_new(void* payload);
 OAK_API void* oak_native_value(oak_value_t value);
 
 
+/* Raise a runtime error from inside a native callback, and return
+ * OAK_FN_CALL_RUNTIME_ERROR so that failing is one line:
+ *
+ *   if (!fp)
+ *     return oak_native_error(call, "cannot open '%s'", path);
+ *
+ * The message is prefixed with the binding's name and reaches the embedder
+ * through oak_vm_last_error() like any other runtime error.  A native that
+ * returns OAK_FN_CALL_RUNTIME_ERROR without calling this still reports, but
+ * only as "native function '<name>' failed" -- which cannot distinguish a
+ * missing file from a bad argument.  Prefer this at every failure point.
+ *
+ * Safe to call with a null `call` or a call with no VM: the message is then
+ * logged and discarded, and the return value is unchanged. */
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 2, 3)))
+#endif
+OAK_API oak_fn_call_result_t
+oak_native_error(oak_native_call_t* call, const char* fmt, ...);
+
+
 /* Non-zero when `value` satisfies the declared type `ref`.
  * A ref of OAK_TYPE_VOID matches anything, which is how an unspecified
  * parameter type behaves at a call site. */
