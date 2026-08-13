@@ -725,3 +725,50 @@ UTEST_F(bind_type, value_types_of_different_types_are_not_comparable)
 
   oak_compile_options_free(&opts);
 }
+
+/*
+ * A native field declared weak takes part in the same acyclicity analysis as a
+ * declared one. Before OAK_BIND_WEAK a binding had no way to say this, so the
+ * escape hatch the language gives Oak code was unreachable from C -- while
+ * CLAUDE.md required native bindings to uphold the invariant "using weak
+ * values".
+ */
+UTEST_F(bind_type, a_native_field_can_be_declared_weak)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* node;
+  const oak_bind_field_t* fields;
+
+  oak_compile_options_init(&opts, OAK_A);
+  node = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Node");
+  ASSERT_TRUE(node != null);
+  EXPECT_EQ(0,
+            oak_bind_field(node,
+                           &(oak_bind_field_t){
+                               .name = "parent",
+                               .type = OAK_BIND_WEAK(OAK_BIND_NATIVE(node)),
+                               .getter = stub_getter,
+                               .setter = null }));
+  EXPECT_EQ(0,
+            oak_bind_field(node,
+                           &(oak_bind_field_t){
+                               .name = "tag",
+                               .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                               .getter = stub_getter,
+                               .setter = null }));
+
+  fields = OAK_CDATA(oak_bind_field_t, node->fields);
+  EXPECT_EQ(1, fields[0].type.is_weak);
+  /* Weakness is opt-in, not a property of native refs in general. */
+  EXPECT_EQ(0, fields[1].type.is_weak);
+  /* A self-referential weak field is not a cycle, so this compiles. */
+  {
+    const oak_run_result_t r = oak_test_source_opts(
+        OAK_A, "fn f(n : Node) -> number { return n.tag; }\n", &opts);
+    EXPECT_TRUE(r.compiled);
+    if (!r.compiled)
+      oak_test_explain(&r, "fn f(n : Node) -> number { return n.tag; }");
+  }
+
+  oak_compile_options_free(&opts);
+}

@@ -309,15 +309,27 @@ checks. The API is descriptor-based: describe the bindings on
 `oak_compile_options_t`, then compile with `oak_compile_ex()`.
 
 ```c
+/* Written once and used twice: the compiler checks Oak call sites against it,
+ * and OAK_BIND_PARAMS below fills arity and param_count from it. */
+static const oak_bind_type_ref_t add_params[] = {
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
+};
+
 static oak_fn_call_result_t native_add(oak_native_call_t* call,
                                        const oak_value_t* args,
-                                       int argc,
+                                       const usize argc,
                                        oak_value_t* out)
 {
-  (void)call;
-  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+  /* Each accessor checks and unwraps in one step; on a bad argument it raises
+   * an error naming this function, the position and the types involved. The
+   * VM has already matched argc against the declared arity. */
+  int a;
+  int b;
+  if (!oak_arg_i32(call, args, argc, 0, &a) ||
+      !oak_arg_i32(call, args, argc, 1, &b))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_I32(oak_as_i32(args[0]) + oak_as_i32(args[1]));
+  *out = OAK_VALUE_I32(a + b);
   return OAK_FN_CALL_OK;
 }
 
@@ -331,7 +343,7 @@ oak_bind_fn_global(&opts,
                    &(oak_bind_global_fn_t){
                        .name = "add",
                        .impl = native_add,
-                       .arity = 2,
+                       OAK_BIND_PARAMS(add_params),
                        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                    });
 
@@ -361,6 +373,18 @@ oak_program_free(&prog);
 oak_compile_options_free(&opts);
 allocator.shutdown(&allocator);
 ```
+
+A native that fails reports why with `oak_native_error(call, fmt, ...)`, which
+returns `OAK_FN_CALL_RUNTIME_ERROR` so a failure stays one line:
+
+```c
+if (!fp)
+  return oak_native_error(call, "cannot open '%s'", path);
+```
+
+The message reaches the embedder through `oak_vm_last_error()` like any other
+runtime error. Returning `OAK_FN_CALL_RUNTIME_ERROR` without it still reports,
+but only as `native function '<name>' failed`.
 
 See the [C embedding guide](docs/embedding-c.md) for the full API, including
 native types, methods, enums, and attributes, and

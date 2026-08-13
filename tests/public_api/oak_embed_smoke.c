@@ -46,23 +46,46 @@ static int failures = 0;
 
 /* ---- a native free function -------------------------------------------- */
 
-/* Written once: passed as param_types so the compiler checks Oak call sites,
- * and reused below as the callback's own guard. */
+/* Declared so the compiler checks Oak call sites. OAK_BIND_PARAMS below fills
+ * arity and param_count from it, so the count is written once. */
 static const oak_bind_type_ref_t add_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
 };
 
+/* The accessors check and unwrap in one step, and on a bad argument they raise
+ * an error naming this function, the parameter position and the types
+ * involved. There is no argc check: the VM matches it against the binding's
+ * arity before dispatching. */
 static oak_fn_call_result_t native_add(oak_native_call_t* call,
                                        const oak_value_t* args,
                                        const usize argc,
                                        oak_value_t* out)
 {
-  (void)call;
-  if (!oak_native_args_match(
-          args, argc, add_params, (int)oak_count_of(add_params)))
+  int a;
+  int b;
+  if (!oak_arg_i32(call, args, argc, 0, &a) ||
+      !oak_arg_i32(call, args, argc, 1, &b))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_I32(oak_as_i32(args[0]) + oak_as_i32(args[1]));
+  *out = OAK_VALUE_I32(a + b);
+  return OAK_FN_CALL_OK;
+}
+
+/* A native that fails says why, rather than leaving the VM to report the
+ * generic "native function '<name>' failed". */
+static oak_fn_call_result_t native_divide(oak_native_call_t* call,
+                                          const oak_value_t* args,
+                                          const usize argc,
+                                          oak_value_t* out)
+{
+  int a;
+  int b;
+  if (!oak_arg_i32(call, args, argc, 0, &a) ||
+      !oak_arg_i32(call, args, argc, 1, &b))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (b == 0)
+    return oak_native_error(call, "cannot divide %d by zero", a);
+  *out = OAK_VALUE_I32(a / b);
   return OAK_FN_CALL_OK;
 }
 
@@ -91,20 +114,19 @@ static void counter_set_value(oak_value_t self, oak_value_t v, void* user_data)
     c->value = oak_as_i32(v);
 }
 
-/* Returns the descriptor through user_data rather than a file static, so two
- * option sets in one process stay independent. */
+/* oak_arg_self checks that the receiver really is a Counter before handing
+ * back its instance, and reaches the descriptor through the call itself -- the
+ * binding does not have to pass its own oak_bind_type_t through user_data, and
+ * a receiver of some other bound type is refused rather than reinterpreted. */
 static oak_fn_call_result_t counter_bump(oak_native_call_t* call,
                                          const oak_value_t* args,
                                          const usize argc,
                                          oak_value_t* out)
 {
-  if (argc != 1 || !oak_is_native_record(args[0]))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  counter_t* c = (counter_t*)oak_native_instance(args[0]);
-  if (!c)
+  counter_t* c;
+  if (!oak_arg_self(call, args, argc, (void**)&c))
     return OAK_FN_CALL_RUNTIME_ERROR;
   ++c->value;
-  (void)call;
   *out = OAK_VALUE_I32(c->value);
   return OAK_FN_CALL_OK;
 }
@@ -129,16 +151,23 @@ int main(void)
   opts.source_name = "smoke";
   opts.emit_debug_info = 1;
 
-  /* Registration must precede oak_compile_ex. */
+  /* Registration must precede oak_compile_ex. OAK_BIND_PARAMS fills arity,
+   * param_types and param_count from the one array, so they cannot drift. */
   CHECK(oak_bind_fn_global(&opts,
                            &(oak_bind_global_fn_t){
                                .name = "native_add",
                                .impl = native_add,
-                               .arity = 2,
+                               OAK_BIND_PARAMS(add_params),
                                .return_type =
                                    OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                               .param_types = add_params,
-                               .param_count = (int)oak_count_of(add_params),
+                           }) == 0);
+  CHECK(oak_bind_fn_global(&opts,
+                           &(oak_bind_global_fn_t){
+                               .name = "native_divide",
+                               .impl = native_divide,
+                               OAK_BIND_PARAMS(add_params),
+                               .return_type =
+                                   OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                            }) == 0);
 
   oak_bind_type_t* counter =
@@ -159,7 +188,6 @@ int main(void)
                         .impl = counter_bump,
                         .arity = 0,
                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                        .user_data = counter,
                     }) == 0);
 
   oak_bind_enum_t* colour = oak_bind_enum(&opts, "Colour");
@@ -226,6 +254,30 @@ int main(void)
   CHECK(oak_program_chunk(&bad) == null);
   oak_program_free(&bad);
   oak_program_free(&bad); /* nulls what it frees: safe twice */
+
+  /* A native's own failure message reaches the embedder as data, verbatim --
+   * not the generic "native function 'native_divide' failed". This is the
+   * whole point of oak_native_error, so assert the exact text. */
+  {
+    oak_program_t failing;
+    if (oak_program_compile(&failing, "print(native_divide(9, 0));\n", &opts))
+    {
+      oak_vm_t vm;
+      oak_vm_init(&vm, &allocator);
+      CHECK(oak_vm_run(&vm, oak_program_chunk(&failing)) ==
+            OAK_VM_RUNTIME_ERROR);
+      const oak_diagnostic_t* err = oak_vm_last_error(&vm);
+      CHECK(err != null);
+      CHECK(err != null && strstr(err->message, "cannot divide 9 by zero"));
+      CHECK(err != null && strstr(err->message, "native_divide"));
+      oak_vm_free(&vm);
+    }
+    else
+    {
+      CHECK(0 && "native_divide program should compile");
+    }
+    oak_program_free(&failing);
+  }
 
   /* ---- run -------------------------------------------------------------- */
 

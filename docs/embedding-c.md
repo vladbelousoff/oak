@@ -129,9 +129,8 @@ Every native callable — global function, instance method, static method —
 has the same C signature:
 
 ```c
-/* Written once: given to the compiler as param_types, and reused as the
- * callback's own guard. OAK_BIND_*_INIT are brace initializers, so the table
- * can have static storage; the OAK_BIND_* function forms cannot. */
+/* The compile-time signature. OAK_BIND_*_INIT are brace initializers, so the
+ * table can have static storage; the OAK_BIND_* function forms cannot. */
 static const oak_bind_type_ref_t add_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
@@ -139,44 +138,93 @@ static const oak_bind_type_ref_t add_params[] = {
 
 static oak_fn_call_result_t add(oak_native_call_t* call,
                                 const oak_value_t* args,
-                                int argc,
+                                const usize argc,
                                 oak_value_t* out)
 {
-  (void)call;
-  if (!oak_native_args_match(args, argc, add_params, 2))
+  int a;
+  int b;
+  if (!oak_arg_i32(call, args, argc, 0, &a) ||
+      !oak_arg_i32(call, args, argc, 1, &b))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_I32(oak_as_i32(args[0]) + oak_as_i32(args[1]));
+  *out = OAK_VALUE_I32(a + b);
   return OAK_FN_CALL_OK;
 }
 ```
 
-Returning `OAK_FN_CALL_RUNTIME_ERROR` aborts the script with a runtime error.
-`call` provides the VM, the allocator, and the `user_data` pointer from the
-binding descriptor.
+`call` provides the VM, the allocator, the `user_data` pointer from the binding
+descriptor, the binding's name, and — for a method — its receiver type.
 
-Register it as a global (or module-scoped) function:
+### Reading arguments
+
+The `oak_arg_*` family reads one argument, checking it on the way:
+
+| Accessor | Yields |
+|---|---|
+| `oak_arg_i32` / `oak_arg_f32` | exactly that numeric representation |
+| `oak_arg_number` | either, widened to `float` |
+| `oak_arg_bool` | `int`, 0 or 1 |
+| `oak_arg_cstring` | `const char*`, borrowed for the call |
+| `oak_arg_string` | `const oak_obj_string_t*`, so the length travels with it |
+| `oak_arg_native` | the C instance behind a native record of a given type |
+| `oak_arg_self` | `oak_arg_native` against `args[0]` and the receiver type |
+
+Each returns non-zero on success. On a missing or wrongly-typed argument it
+raises a runtime error naming the binding, the parameter position, and the
+expected versus actual type, then returns 0 — so the guard is one line and the
+diagnostic is written centrally rather than per callback.
+
+Do not re-check `argc`: the VM matches it against the binding's declared arity
+before dispatching, on every path including `oak_vm_call()` from C.
+
+`oak_arg_native` and `oak_arg_self` are the only *checked* way to unwrap a
+native record. `oak_native_instance()` asserts merely that the value is some
+native record and then reinterprets whatever C struct is behind it, so a
+receiver of the wrong bound type is silently misread — reachable from C through
+`oak_vm_call()`, where no compile-time check applies.
+
+### Reporting failure
+
+`oak_native_error(call, fmt, ...)` raises a runtime error and returns
+`OAK_FN_CALL_RUNTIME_ERROR`, so failing is one line:
+
+```c
+if (!fp)
+  return oak_native_error(call, "cannot open '%s'", path);
+```
+
+The message is prefixed with the binding's name and reaches the embedder
+through `oak_vm_last_error()`. Returning `OAK_FN_CALL_RUNTIME_ERROR` without
+calling it still aborts the script, but reports only
+`native function '<name>' failed`, which cannot distinguish a missing file from
+a bad argument.
+
+### Registering it
 
 ```c
 oak_bind_fn_global(&opts,
                    &(oak_bind_global_fn_t){
                        .name = "add",
                        .impl = add,
-                       .arity = 2,
+                       OAK_BIND_PARAMS(add_params),
                        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                       .param_types = add_params,
-                       .param_count = 2,
                    });
 ```
+
+`OAK_BIND_PARAMS` fills `arity`, `param_types` and `param_count` from the one
+array so they cannot disagree; set them individually only for a binding with no
+declared parameter types. The array is borrowed and must outlive
+`oak_compile_ex`, so it cannot be a local.
 
 The `module_name` field scopes the function into an importable module instead
 of the global namespace — see
 [Module-scoped bindings](#module-scoped-bindings) for the full pattern.
 `param_types` is optional but recommended: with it, the compiler type-checks
-call sites; the array is borrowed and must outlive `oak_compile_ex`.
+call sites.
 
-Keeping the guard as well is worthwhile even when `param_types` is set: the
-compiler checks Oak call sites, but a native function can also be reached from
-C through `oak_vm_call()` with arbitrary values.
+Every `oak_bind_*` call returns 0 or -1, and a rejection is *also* recorded and
+reported by `oak_compile_ex` as a diagnostic — a mis-registered binding fails
+the compile and names itself, rather than silently going missing and surfacing
+later as an "unknown name" error at the call site.
 
 ### Registering several at once
 
@@ -275,32 +323,53 @@ oak_bind_field(vec2,
                });
 ```
 
-Ownership rules for getters: object values (strings, arrays, records) must be
-returned as a fresh reference with the refcount already incremented; scalar
-values (numbers, bools) need no refcounting.
+Ownership at the field boundary runs in opposite directions, so both are worth
+stating: a **getter returns an owned reference** — object values (strings,
+arrays, records) must carry a refcount already incremented; scalars need none.
+A **setter receives a borrowed value**, which the VM releases as soon as the
+setter returns, so a setter that stores an object value must
+`oak_value_incref` it first.
 
-Instances are created inside a native callback (typically a factory function
-or static method) with `oak_vm_native_record_new()`:
+Instances are created inside a native callback — typically a static method
+acting as a constructor, where `oak_native_self_new()` wraps the instance as
+the receiver type without the binding having to carry its own descriptor:
 
 ```c
 static oak_fn_call_result_t make_vec2(oak_native_call_t* call,
-                                           const oak_value_t* args,
-                                           int argc,
-                                           oak_value_t* out)
+                                      const oak_value_t* args,
+                                      const usize argc,
+                                      oak_value_t* out)
 {
-  Vec2* v = malloc(sizeof(Vec2));
-  v->x = oak_as_f32(args[0]);
-  v->y = oak_as_f32(args[1]);
-  /* user_data carries the type descriptor (set it on the binding) */
-  *out = oak_vm_native_record_new(call->vm, call->user_data, v);
+  float x;
+  float y;
+  if (!oak_arg_number(call, args, argc, 0, &x) ||
+      !oak_arg_number(call, args, argc, 1, &y))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+
+  Vec2* v = OAK_ALLOC(call->allocator, sizeof(Vec2));
+  if (!v)
+    return oak_native_error(call, "out of memory");
+  v->x = x;
+  v->y = y;
+  *out = oak_native_self_new(call, v);
   return OAK_FN_CALL_OK;
 }
 ```
 
-The wrapper participates in normal reference counting: when the last
-reference drops, the registered `destructor` runs on the instance pointer. If
-no destructor is registered the instance is never freed — lifetime stays with
-the embedder (useful for values that point into host-owned memory).
+A *global* function has no receiver, so it still needs the descriptor through
+`user_data`: `oak_vm_native_record_new(call->vm, call->user_data, v)`.
+
+The wrapper participates in normal reference counting: when the last reference
+drops, the registered `destructor` runs, receiving the instance pointer and the
+type's `user_data` (teardown has no VM or call in scope, so that is where an
+allocator has to come from). If no destructor is registered the instance is
+never freed — lifetime stays with the embedder, which is useful for values that
+point into host-owned memory.
+
+Returning a value the callback did not just allocate needs care: `*out` is
+*moved* to the VM, which then releases every argument. Assigning an object
+argument straight through — `*out = args[0]` — is therefore a use-after-free.
+Incref it first, or return a fresh object.
 
 ## Methods
 
@@ -320,9 +389,27 @@ oak_bind_fn(&opts,
 
 For instance methods, `arity` counts only the user-visible parameters; at run
 time the callback receives `self` as `args[0]` (so `argc == arity + 1`), and
-`oak_native_instance(args[0])` recovers the C pointer. Static methods
-(`OAK_BIND_FN_STATIC_METHOD`) have no receiver and are called as
-`TypeName.name(...)` from Oak.
+`oak_arg_self()` recovers the C pointer, having first checked that the receiver
+really is this type. Static methods (`OAK_BIND_FN_STATIC_METHOD`) have no
+receiver and are called as `TypeName.name(...)` from Oak.
+
+Because `self` occupies `args[0]`, an explicit parameter *i* is at index
+*i + 1*:
+
+```c
+static oak_fn_call_result_t vec2_scale(oak_native_call_t* call,
+                                       const oak_value_t* args,
+                                       const usize argc,
+                                       oak_value_t* out)
+{
+  Vec2* v;
+  float factor;
+  if (!oak_arg_self(call, args, argc, (void**)&v) ||
+      !oak_arg_number(call, args, argc, 1, &factor))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  ...
+}
+```
 
 ## Inline value types
 
@@ -414,3 +501,20 @@ object. Native code must uphold the same invariant — never create a strong
 ownership loop from C (an Oak value stored in a native instance that
 ultimately owns that instance). Hold weak values or restructure ownership so
 the graph stays acyclic.
+
+A *declared* native field takes part in that analysis, so wrap its type in
+`OAK_BIND_WEAK` when it points back at something that can reach the owner:
+
+```c
+oak_bind_field(node,
+               &(oak_bind_field_t){
+                   .name = "parent",
+                   .type = OAK_BIND_WEAK(OAK_BIND_NATIVE(node)),
+                   .getter = node_get_parent,
+               });
+```
+
+The compiler cannot see inside a native instance, though. Oak values that the
+C struct holds without declaring them as fields — and anything a native method
+stores there — are outside the analysis entirely, and are the embedder's to
+keep acyclic.
