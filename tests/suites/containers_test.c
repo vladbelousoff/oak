@@ -23,10 +23,6 @@
 
 OAK_TEST_SUITE(containers);
 
-/* ------------------------------------------------------------------ */
-/* Vector                                                              */
-/* ------------------------------------------------------------------ */
-
 /* Type identity walks the chain vector -> container -> object, and the
  * interface query reports only what a vector actually implements. */
 UTEST_F(containers, a_vector_reports_its_type_and_interfaces)
@@ -184,10 +180,6 @@ UTEST_F(containers, vector_construction_validates_its_arguments)
   EXPECT_TRUE(oak_vector_new(null, sizeof(int)) == null);
 }
 
-/* ------------------------------------------------------------------ */
-/* Hash map                                                            */
-/* ------------------------------------------------------------------ */
-
 /* Keys are borrowed byte ranges, so every key here is a string literal that
  * outlives the map. */
 static const char* const map_keys[] = { "alpha", "beta",  "gamma",  "delta",
@@ -336,10 +328,6 @@ UTEST_F(containers, hash_map_construction_validates_its_arguments)
   EXPECT_TRUE(oak_hash_map_new(null, sizeof(int)) == null);
 }
 
-/* ------------------------------------------------------------------ */
-/* Hash set                                                            */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(containers, a_hash_set_holds_each_member_once)
 {
   static const char* const names[] = { "one",  "two",   "three", "four", "five",
@@ -396,10 +384,6 @@ UTEST_F(containers, a_hash_set_holds_each_member_once)
   oak_destroy(s);
   EXPECT_TRUE(oak_hash_set_new(null) == null);
 }
-
-/* ------------------------------------------------------------------ */
-/* The hidden object header                                            */
-/* ------------------------------------------------------------------ */
 
 /*
  * The header sits immediately before the handle the caller holds. These
@@ -459,10 +443,6 @@ UTEST_F(containers, growth_and_rehash_do_not_move_the_handle)
   oak_destroy(v);
   oak_destroy(m);
 }
-
-/* ------------------------------------------------------------------ */
-/* Null safety and allocation failure                                  */
-/* ------------------------------------------------------------------ */
 
 /* No allocator involved, so these two run outside the leak-checking fixture. */
 

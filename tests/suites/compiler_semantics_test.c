@@ -12,10 +12,6 @@
 
 OAK_TEST_SUITE(compiler_semantics);
 
-/* ------------------------------------------------------------------ */
-/* Names                                                               */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_semantics, undefined_names_are_rejected)
 {
   static const oak_case_t cases[] = {
@@ -82,10 +78,6 @@ UTEST_F(compiler_semantics, duplicate_top_level_names_are_rejected)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Calls                                                               */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_semantics, call_arity_is_checked)
 {
   static const oak_case_t cases[] = {
@@ -124,10 +116,6 @@ UTEST_F(compiler_semantics, return_type_is_checked)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Module scope                                                        */
-/* ------------------------------------------------------------------ */
-
 /*
  * Module-scope bindings are deliberately not visible inside function or method
  * bodies -- functions see only their parameters and locals. This is what keeps
@@ -163,10 +151,6 @@ UTEST_F(compiler_semantics, a_local_may_shadow_a_module_scope_name)
   OAK_EXPECT_OK_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Control flow placement                                              */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_semantics, loop_control_outside_a_loop_is_rejected)
 {
   static const oak_case_t cases[] = {
@@ -187,10 +171,6 @@ UTEST_F(compiler_semantics, return_at_module_scope_is_rejected)
 
   OAK_EXPECT_REJECTED_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Void functions                                                      */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_semantics, functions_without_an_arrow_are_void)
 {
@@ -221,10 +201,6 @@ UTEST_F(compiler_semantics, void_is_not_a_writable_type)
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Enums                                                               */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_semantics, enum_variants_are_accessed_through_their_type)
 {

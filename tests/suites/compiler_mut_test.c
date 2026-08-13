@@ -13,10 +13,6 @@
 
 OAK_TEST_SUITE(compiler_mut);
 
-/* ------------------------------------------------------------------ */
-/* let mut                                                             */
-/* ------------------------------------------------------------------ */
-
 /* Copying out of an immutable refcounted source would alias it mutably. */
 UTEST_F(compiler_mut, mut_binding_from_an_immutable_reference_is_rejected)
 {
@@ -92,10 +88,6 @@ UTEST_F(compiler_mut, mut_binding_from_a_copy_or_an_rvalue_is_fine)
   OAK_EXPECT_OK_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Writing through a reference                                         */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_mut, fields_of_an_immutable_record_cannot_be_assigned)
 {
   static const oak_case_t cases[] = {
@@ -155,10 +147,6 @@ UTEST_F(compiler_mut, immutable_references_cannot_be_stored_in_mutable_places)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* mut parameters                                                      */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_mut, mut_parameters_require_a_mutable_argument)
 {
   static const oak_case_t cases[] = {
@@ -207,10 +195,6 @@ UTEST_F(compiler_mut, mut_parameters_accept_mutable_and_copied_arguments)
 
   OAK_EXPECT_OK_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* mut self                                                            */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_mut, mut_self_methods_require_a_mutable_receiver)
 {

@@ -24,10 +24,6 @@
 #define oak_read   read
 #endif
 
-/* ------------------------------------------------------------------ */
-/* Pipes                                                               */
-/* ------------------------------------------------------------------ */
-
 /*
  * The tests capture output through anonymous pipes rather than scratch files,
  * so a test run touches no filesystem at all: nothing to name uniquely, nothing
@@ -125,10 +121,6 @@ void oak_test_pipe_free(oak_test_pipe_t* p)
   p->read_end = null;
 }
 
-/* ------------------------------------------------------------------ */
-/* Output capture                                                      */
-/* ------------------------------------------------------------------ */
-
 /*
  * The VM reports runtime errors through oak_log(OAK_LOG_ERROR, ...), which
  * writes to stderr and keeps no copy on the VM -- there is no API to read the
@@ -201,10 +193,6 @@ static void oak_capture_end(oak_capture_t* c, char* out, const usize cap)
   oak_close(c->read_fd);
   c->read_fd = -1;
 }
-
-/* ------------------------------------------------------------------ */
-/* Pipeline                                                            */
-/* ------------------------------------------------------------------ */
 
 oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
                                       const char* src,
@@ -327,10 +315,6 @@ void oak_test_parse_free(oak_parse_fixture_t* fx)
   fx->lexer = null;
   fx->root = null;
 }
-
-/* ------------------------------------------------------------------ */
-/* Reporting                                                           */
-/* ------------------------------------------------------------------ */
 
 int oak_test_contains(const char* haystack, const char* needle)
 {

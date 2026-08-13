@@ -38,8 +38,6 @@ static u8* elem_at(const oak_vector_t* v, usize index)
   return v->data + index * v->elem_size;
 }
 
-/* ---------- storage ---------- */
-
 static int vector_reserve(oak_container_t* c, usize capacity)
 {
   oak_vector_t* v = as_vector(c);
@@ -68,8 +66,6 @@ static int ensure_room(oak_container_t* c)
     return 0; /* usize overflow */
   return vector_reserve(c, capacity);
 }
-
-/* ---------- container operations ---------- */
 
 static usize vector_size(const oak_container_t* c)
 {
@@ -162,8 +158,6 @@ static void* vector_data(oak_container_t* c)
   return as_vector(c)->data;
 }
 
-/* ---------- iteration ---------- */
-
 static oak_iterator_t vector_begin(oak_container_t* c)
 {
   oak_iterator_t it = { .owner = null };
@@ -189,8 +183,6 @@ static void* vector_iter_get(oak_iterator_t* it)
   oak_vector_t* v = as_vector((oak_container_t*)it->owner);
   return it->state.index < v->size ? elem_at(v, it->state.index) : null;
 }
-
-/* ---------- object operations ---------- */
 
 static void vector_destroy(void* obj)
 {

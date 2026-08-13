@@ -11,10 +11,6 @@
 
 OAK_TEST_SUITE(vm_exec);
 
-/* ------------------------------------------------------------------ */
-/* Scalars, strings, functions                                         */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(vm_exec, arithmetic_and_string_concatenation)
 {
   static const oak_case_t cases[] = {
@@ -62,10 +58,6 @@ UTEST_F(vm_exec, number_predicates_reject_non_numbers)
   OAK_EXPECT_OUTPUT_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Math builtins                                                       */
-/* ------------------------------------------------------------------ */
-
 /* Math functions are global builtins needing no import; the importable `math`
  * module was removed and must not come back by accident. */
 UTEST_F(vm_exec, math_builtins_need_no_import)
@@ -86,10 +78,6 @@ UTEST_F(vm_exec, math_builtins_need_no_import)
 
   OAK_EXPECT_OUTPUT_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Arrays                                                              */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(vm_exec, arrays_index_push_and_iterate)
 {
@@ -177,10 +165,6 @@ UTEST_F(vm_exec, untyped_empty_collection_literals_are_rejected)
   OAK_EXPECT_REJECTED_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Maps                                                                */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(vm_exec, maps_store_lookup_and_delete)
 {
   static const oak_case_t cases[] = {
@@ -235,10 +219,6 @@ UTEST_F(vm_exec, map_typing_is_enforced_at_compile_time)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Records                                                             */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(vm_exec, records_construct_read_and_mutate)
 {
   static const oak_case_t cases[] = {
@@ -283,10 +263,6 @@ UTEST_F(vm_exec, shorthand_record_fields_need_a_binding_in_scope)
   OAK_EXPECT_REJECTED_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Interfaces at runtime                                               */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(vm_exec, virtual_dispatch_selects_the_concrete_implementation)
 {
   static const oak_case_t cases[] = {
@@ -322,10 +298,6 @@ UTEST_F(vm_exec, virtual_dispatch_selects_the_concrete_implementation)
 
   OAK_EXPECT_OUTPUT_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Anonymous and first-class functions                                 */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(vm_exec, functions_are_values)
 {
@@ -370,10 +342,6 @@ UTEST_F(vm_exec, anonymous_functions_cannot_close_over_locals)
 
   OAK_EXPECT_REJECTED_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* String methods                                                      */
-/* ------------------------------------------------------------------ */
 
 /* String methods are builtins on the string type; no import is needed. */
 UTEST_F(vm_exec, string_case_and_trimming)

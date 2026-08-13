@@ -9,8 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ===== Small helpers ===== */
-
 static int number_as_i32(const oak_value_t value)
 {
   return oak_is_f32(value) ? (int)oak_as_f32(value) : oak_as_i32(value);
@@ -67,8 +65,6 @@ static int starts_word(const char* s, usize len, usize i)
     return 1;
   return 0;
 }
-
-/* ===== Case ===== */
 
 static oak_fn_call_result_t map_case(oak_native_ctx_t* ctx,
                                           const oak_value_t* args,
@@ -130,8 +126,6 @@ oak_fn_call_result_t oak_str_trim(oak_native_ctx_t* ctx,
   make_string(ctx, s + start, end - start, out);
   return OAK_FN_CALL_OK;
 }
-
-/* ===== Search / predicates ===== */
 
 oak_fn_call_result_t oak_str_contains(oak_native_ctx_t* ctx,
                                            const oak_value_t* args,
@@ -196,8 +190,6 @@ oak_fn_call_result_t oak_str_index_of(oak_native_ctx_t* ctx,
   *out = OAK_VALUE_I32((int)at);
   return OAK_FN_CALL_OK;
 }
-
-/* ===== Transforms ===== */
 
 oak_fn_call_result_t oak_str_replace(oak_native_ctx_t* ctx,
                                           const oak_value_t* args,
@@ -310,8 +302,6 @@ oak_fn_call_result_t oak_str_substring(oak_native_ctx_t* ctx,
   return OAK_FN_CALL_OK;
 }
 
-/* ===== Case-style conversions ===== */
-
 /* Convert to snake_case: word boundaries (separators and case transitions)
  * become a single underscore and every letter is lowercased.
  * "HelloWorld" / "hello world" / "hello-world" -> "hello_world". */
@@ -410,8 +400,6 @@ oak_fn_call_result_t oak_str_to_camel_case(oak_native_ctx_t* ctx,
   OAK_FREE(ctx->allocator, buf);
   return OAK_FN_CALL_OK;
 }
-
-/* ===== Global char / parse builtins ===== */
 
 oak_fn_call_result_t oak_str_ord(oak_native_ctx_t* ctx,
                                       const oak_value_t* args,

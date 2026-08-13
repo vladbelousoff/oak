@@ -22,10 +22,6 @@ OAK_TEST_SUITE(compiler_interfaces);
   "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"     \
   "fn Circle.describe(self) -> string { return 'circle'; }\n"
 
-/* ------------------------------------------------------------------ */
-/* Conformance and dispatch that must work                             */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_interfaces, conforming_records_coerce_and_dispatch)
 {
   static const oak_case_t cases[] = {
@@ -82,10 +78,6 @@ UTEST_F(compiler_interfaces, interface_arrays_hold_mixed_implementations)
 
   OAK_EXPECT_OK_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Conformance failures                                                */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_interfaces, non_conforming_records_are_rejected_at_coercion)
 {
@@ -172,10 +164,6 @@ UTEST_F(compiler_interfaces, a_default_body_does_not_satisfy_conformance)
   OAK_EXPECT_OK_CASES(implemented);
 }
 
-/* ------------------------------------------------------------------ */
-/* Virtual call checking                                               */
-/* ------------------------------------------------------------------ */
-
 /* Calls through an interface are checked against the interface's declaration,
  * not against whatever the concrete record happens to offer. */
 UTEST_F(compiler_interfaces, virtual_calls_are_checked_against_the_interface)
@@ -211,10 +199,6 @@ UTEST_F(compiler_interfaces, virtual_calls_are_checked_against_the_interface)
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Declaration rules                                                   */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_interfaces, interface_declarations_are_validated)
 {

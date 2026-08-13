@@ -42,10 +42,6 @@ OAK_TEST_SUITE(compiler_cycles);
   "record Circle { radius : number; }\n"                                       \
   "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
 
-/* ------------------------------------------------------------------ */
-/* Rule 1: write-once fields on a type-graph cycle                     */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_cycles, self_referential_strong_fields_are_write_once)
 {
   static const oak_case_t cases[] = {
@@ -95,10 +91,6 @@ UTEST_F(compiler_cycles, fields_off_the_cycle_stay_freely_mutable)
 
   OAK_EXPECT_OK_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Rule 2: container stores that could close a cycle                   */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_cycles, stores_into_self_owning_containers_are_rejected)
 {
@@ -167,10 +159,6 @@ UTEST_F(compiler_cycles, containers_that_cannot_close_a_cycle_stay_mutable)
 
   OAK_EXPECT_OK_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Rule 3: strong ownership of interface objects                       */
-/* ------------------------------------------------------------------ */
 
 /* Any record could later implement the interface, including one that reaches
  * back to the owner, so strong ownership is refused outright. */

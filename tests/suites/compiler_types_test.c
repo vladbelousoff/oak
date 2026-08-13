@@ -10,10 +10,6 @@
 
 OAK_TEST_SUITE(compiler_types);
 
-/* ------------------------------------------------------------------ */
-/* Declaring and using record types                                    */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_types, records_bind_their_name_and_fields)
 {
   static const oak_case_t cases[] = {
@@ -71,10 +67,6 @@ UTEST_F(compiler_types, unknown_record_types_are_rejected)
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Record types in signatures and fields                               */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_types, record_types_flow_through_signatures_and_fields)
 {
@@ -153,10 +145,6 @@ UTEST_F(compiler_types, identical_layouts_are_still_distinct_types)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Record literals                                                     */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_types, record_literal_fields_are_checked)
 {
   static const oak_case_t cases[] = {
@@ -176,10 +164,6 @@ UTEST_F(compiler_types, record_literal_fields_are_checked)
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Field access and assignment                                         */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(compiler_types, field_reads_carry_their_declared_type)
 {
@@ -290,10 +274,6 @@ UTEST_F(compiler_types, a_mutable_owner_does_not_make_its_contents_mutable)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Weak references                                                     */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(compiler_types, weak_annotates_fields_and_parameters)
 {
   static const oak_case_t cases[] = {
@@ -338,10 +318,6 @@ UTEST_F(compiler_types, weak_rejects_temporaries_and_does_not_satisfy_strong)
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Methods live outside the record body                                */
-/* ------------------------------------------------------------------ */
 
 /* Methods are declared as `fn TypeName.method(...)` at module scope; a `fn`
  * inside the record body is not accepted syntax. */

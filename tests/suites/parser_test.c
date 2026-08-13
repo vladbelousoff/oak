@@ -18,10 +18,6 @@
 
 OAK_TEST_SUITE(parser);
 
-/* ------------------------------------------------------------------ */
-/* Precedence                                                          */
-/* ------------------------------------------------------------------ */
-
 /*
  * Precedence is a tree-shape property: `1 + 2 * 3` is correct only if the
  * multiply is the right operand of the add. Asserting the result of parsing
@@ -116,10 +112,6 @@ UTEST_F(parser, parentheses_regroup_the_tree)
   oak_test_parse_free(&fx);
 }
 
-/* ------------------------------------------------------------------ */
-/* Postfix chains                                                      */
-/* ------------------------------------------------------------------ */
-
 /* Member, index, and call chains are left-nested, so the outermost node is the
  * last operation in the source and its child is everything before it. */
 UTEST_F(parser, postfix_chains_nest_left)
@@ -167,10 +159,6 @@ UTEST_F(parser, calls_carry_one_node_per_argument)
 
   oak_test_parse_free(&fx);
 }
-
-/* ------------------------------------------------------------------ */
-/* Statements and declarations                                         */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(parser, control_flow_statements_parse)
 {
@@ -298,10 +286,6 @@ UTEST_F(parser, collection_types_and_literals_parse)
 
   oak_test_parse_free(&fx);
 }
-
-/* ------------------------------------------------------------------ */
-/* Syntax errors                                                       */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(parser, malformed_sources_are_rejected)
 {

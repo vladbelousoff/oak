@@ -12,10 +12,6 @@
 
 OAK_TEST_SUITE(vm_errors);
 
-/* ------------------------------------------------------------------ */
-/* Bounds and lookups                                                  */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(vm_errors, out_of_range_indexing_is_caught)
 {
   static const oak_case_t cases[] = {
@@ -33,10 +29,6 @@ UTEST_F(vm_errors, out_of_range_indexing_is_caught)
 
   OAK_EXPECT_RUNTIME_ERROR_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Arithmetic                                                          */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(vm_errors, division_and_modulo_by_zero_are_caught)
 {
@@ -100,10 +92,6 @@ UTEST_F(vm_errors, arithmetic_on_non_numbers_is_caught)
   OAK_EXPECT_RUNTIME_ERROR_CASES(cases);
 }
 
-/* ------------------------------------------------------------------ */
-/* Stack limits                                                        */
-/* ------------------------------------------------------------------ */
-
 /* Unbounded recursion must hit the frame limit and report it rather than
  * running the native stack into the ground. */
 UTEST_F(vm_errors, runaway_recursion_hits_the_frame_limit)
@@ -116,10 +104,6 @@ UTEST_F(vm_errors, runaway_recursion_hits_the_frame_limit)
 
   OAK_EXPECT_RUNTIME_ERROR_CASES(cases);
 }
-
-/* ------------------------------------------------------------------ */
-/* Short-circuit evaluation                                            */
-/* ------------------------------------------------------------------ */
 
 /*
  * Short-circuiting is invisible from the outside unless evaluating the

@@ -19,10 +19,6 @@
 
 OAK_TEST_SUITE(bind_type);
 
-/* ------------------------------------------------------------------ */
-/* Stubs                                                               */
-/* ------------------------------------------------------------------ */
-
 static int s_getter_calls;
 
 static oak_value_t stub_getter(oak_value_t self, void* user_data)
@@ -56,10 +52,6 @@ static oak_bind_type_t* bind_record_with_field(oak_compile_options_t* opts,
   return t;
 }
 
-/* ------------------------------------------------------------------ */
-/* oak_bind_type                                                       */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(bind_type, a_type_descriptor_is_created_and_registered)
 {
   oak_compile_options_t opts;
@@ -84,10 +76,6 @@ UTEST_F(bind_type, a_type_without_a_name_is_refused)
   EXPECT_EQ(0u, oak_size(opts.native_types));
   oak_compile_options_free(&opts);
 }
-
-/* ------------------------------------------------------------------ */
-/* oak_bind_field                                                      */
-/* ------------------------------------------------------------------ */
 
 /* Fields are assigned indices in registration order, which is the order the
  * compiler resolves them in -- so the order has to be preserved exactly. */
@@ -193,10 +181,6 @@ UTEST_F(bind_type, a_duplicate_field_name_is_refused)
 
   oak_compile_options_free(&opts);
 }
-
-/* ------------------------------------------------------------------ */
-/* Native record types in Oak source                                   */
-/* ------------------------------------------------------------------ */
 
 /* Compiles `src` against a native record `NTVec { x, y }`. */
 static oak_run_result_t compile_with_ntvec(oak_allocator_t* a,
@@ -366,10 +350,6 @@ UTEST_F(bind_type, assigning_to_a_read_only_native_field_is_rejected)
 
   EXPECT_FALSE(r.compiled);
 }
-
-/* ------------------------------------------------------------------ */
-/* Value types                                                         */
-/* ------------------------------------------------------------------ */
 
 /*
  * A "Handle" value type: the payload lives inline in the value word, so

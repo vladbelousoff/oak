@@ -52,7 +52,8 @@ struct oak_scope_ctx
   int fn_depth;
 };
 
-/* ---------- Top-level compiler state ----------
+/*
+ * Top-level compiler state.
  *
  * `oak_compiler_t` owns every registry needed to lower an AST into a chunk.
  * Registries are populated in passes (see oak_compiler_pipeline.c):

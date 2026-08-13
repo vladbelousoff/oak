@@ -202,8 +202,6 @@ static int table_store(oak_hash_table_t* t,
   return 1;
 }
 
-/* ---------- vtable slots ---------- */
-
 usize oak_hash_table_size(const oak_container_t* c)
 {
   return as_ctable(c)->count;
@@ -270,8 +268,6 @@ int oak_hash_table_contains(const oak_container_t* c,
   return find_slot(t, key, key_len, oak_hash_bytes(key, key_len)) != NO_SLOT;
 }
 
-/* ---------- iteration ---------- */
-
 /* Advances `index` to the next live slot, clearing `owner` when there is
  * none left. Returns 1 while the cursor is on an entry. */
 static int seek_live(oak_iterator_t* it, usize from)
@@ -319,8 +315,6 @@ const void* oak_hash_table_iter_key(oak_iterator_t* it,
     *out_key_len = s->key_len;
   return s->key;
 }
-
-/* ---------- lifetime ---------- */
 
 void oak_hash_table_destroy(void* obj)
 {

@@ -8,7 +8,8 @@
 
 #include <string.h>
 
-/* ===== Packed 8-byte value representation =====
+/*
+ * Packed 8-byte value representation.
  *
  * Every Oak value is a single 64-bit word: a 3-bit tag in the low bits plus
  * a payload.  Immediates (i32, f32, bool) keep their payload in the high 32
@@ -93,7 +94,8 @@ struct oak_obj
   oak_allocator_t* allocator;
 };
 
-/* ===== Object tables =====
+/*
+ * Object tables.
  *
  * Object values do not carry the oak_obj_t pointer; they carry a table id,
  * a slot index into that table, and the slot's nonce at the time the
@@ -188,8 +190,6 @@ struct oak_value
 #define OAK_OBJ_NONCE_SHIFT 40u
 #define OAK_OBJ_NONCE_MASK  0xFFFFFFu /* 24 bits */
 
-/* ===== Utilities ===== */
-
 static inline u32 oak_f32_to_bits(const float f)
 {
   u32 b;
@@ -208,8 +208,6 @@ static inline oak_value_tag_t oak_value_tag(const oak_value_t value)
 {
   return (oak_value_tag_t)(value.bits & OAK_VALUE_TAG_MASK);
 }
-
-/* ===== Value constructors ===== */
 
 static inline oak_value_t oak_value_i32(const i32 i)
 {
@@ -285,8 +283,6 @@ static inline oak_value_t oak_value_native(void* payload)
 #define OAK_VALUE_OBJ(_obj)      oak_value_obj((oak_obj_t*)(_obj))
 #define OAK_VALUE_WEAK_OBJ(_obj) oak_value_weak_obj((oak_obj_t*)(_obj))
 #define OAK_VALUE_NATIVE(_p)     oak_value_native((void*)(_p))
-
-/* ===== Type predicates ===== */
 
 static inline int oak_is_bool(const oak_value_t value)
 {
@@ -471,8 +467,6 @@ static inline int oak_is_interface_object(const oak_value_t value)
          oak_val_obj_ptr(value)->type == OAK_OBJ_INTERFACE_OBJECT;
 }
 
-/* ===== Value extractors ===== */
-
 static inline int oak_as_bool(const oak_value_t value)
 {
   oak_assert(oak_is_bool(value));
@@ -636,8 +630,6 @@ struct oak_native_ctx
   void* user_data;
 };
 
-/* ===== Typed cast helpers ===== */
-
 static inline oak_obj_string_t*
 oak_as_string(const oak_value_t value)
 {
@@ -697,8 +689,6 @@ static inline char* oak_as_cstring(const oak_value_t value)
   return oak_as_string(value)->chars;
 }
 
-/* ===== Reference counting ===== */
-
 OAK_API void oak_obj_incref(oak_obj_t* obj);
 OAK_API void oak_obj_decref(oak_obj_t* obj);
 
@@ -727,8 +717,6 @@ oak_value_weaken(const oak_value_t value)
   }
   return value;
 }
-
-/* ===== Public API ===== */
 
 OAK_API int oak_is_truthy(oak_value_t value);
 OAK_API int oak_value_equal(oak_value_t a, oak_value_t b);

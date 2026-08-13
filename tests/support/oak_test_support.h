@@ -160,10 +160,6 @@ const oak_ast_node_t* oak_test_rhs(const oak_ast_node_t* node);
 /* 1 when `haystack` contains `needle`; a null/empty needle matches anything. */
 int oak_test_contains(const char* haystack, const char* needle);
 
-/* ------------------------------------------------------------------ */
-/* Pipes                                                               */
-/* ------------------------------------------------------------------ */
-
 /*
  * An in-process pipe, for suites that have to hand a FILE* to code that reads
  * or writes a stream. Nothing here touches the filesystem, so there are no
@@ -195,10 +191,6 @@ void oak_test_pipe_free(oak_test_pipe_t* p);
  * treating CRLF as LF so expectations are written the same way on every
  * platform. A null `want` matches anything. */
 int oak_test_output_equals(const char* got, const char* want);
-
-/* ------------------------------------------------------------------ */
-/* Token stream expectations                                           */
-/* ------------------------------------------------------------------ */
 
 /* One expected token. Position fields are always checked; the value fields are
  * checked only for the token kinds they apply to, so a row can name just the
@@ -245,10 +237,6 @@ int oak_test_tokens_match(const oak_lexer_result_t* lexer,
 /* Print the full stage-by-stage outcome. Called by the table macros when a row
  * fails, so failures say which stage went wrong instead of just "false". */
 void oak_test_explain(const oak_run_result_t* r, const char* src);
-
-/* ------------------------------------------------------------------ */
-/* Fixture                                                             */
-/* ------------------------------------------------------------------ */
 
 /*
  * Declares the per-test fixture for one suite. Invoke it exactly once near the
@@ -299,10 +287,6 @@ void oak_test_explain(const oak_run_result_t* r, const char* src);
  */
 #define OAK_EXPECT_ENUM(expected, actual)                                      \
   EXPECT_EQ((int)(expected), (int)(actual))
-
-/* ------------------------------------------------------------------ */
-/* Table-driven case runners                                           */
-/* ------------------------------------------------------------------ */
 
 /* One row of a case table. `want` is a substring the relevant error message
  * must contain; it is unused for the "must succeed" tables. */

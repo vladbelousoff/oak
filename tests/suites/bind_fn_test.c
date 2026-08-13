@@ -20,10 +20,6 @@
 
 OAK_TEST_SUITE(bind_fn);
 
-/* ------------------------------------------------------------------ */
-/* Native implementations                                              */
-/* ------------------------------------------------------------------ */
-
 static oak_fn_call_result_t native_add(oak_native_ctx_t* ctx,
                                        const oak_value_t* args,
                                        int argc,
@@ -70,10 +66,6 @@ static oak_fn_call_result_t native_void(oak_native_ctx_t* ctx,
   (void)out_result;
   return OAK_FN_CALL_OK;
 }
-
-/* ------------------------------------------------------------------ */
-/* Registration                                                        */
-/* ------------------------------------------------------------------ */
 
 UTEST_F(bind_fn, a_global_function_is_recorded_with_its_descriptor)
 {
@@ -198,10 +190,6 @@ UTEST_F(bind_fn, several_functions_can_be_registered)
 
   oak_compile_options_free(&opts);
 }
-
-/* ------------------------------------------------------------------ */
-/* Call-site checking                                                  */
-/* ------------------------------------------------------------------ */
 
 /* Registers `native_add(a, b) -> number` and runs `src` against it. */
 static oak_run_result_t run_with_add(oak_allocator_t* a, const char* src)
@@ -360,10 +348,6 @@ UTEST_F(bind_fn, a_duplicate_global_name_fails_to_compile)
 
   oak_compile_options_free(&opts);
 }
-
-/* ------------------------------------------------------------------ */
-/* Diagnostics                                                         */
-/* ------------------------------------------------------------------ */
 
 /* A native function has exactly one arity, so its printed form says
  * "arity=N" -- never a range, which an earlier variadic design produced. */

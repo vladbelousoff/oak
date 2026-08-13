@@ -48,8 +48,6 @@ struct oak_iterator
   } state;
 };
 
-/* ---------- universal ---------- */
-
 /* Number of elements. 0 for a null container. */
 OAK_API usize oak_size(const oak_container_t* c);
 
@@ -58,8 +56,6 @@ OAK_API void oak_clear(oak_container_t* c);
 
 /* Release with `oak_destroy(c)` — declared in oak_object.h along with the
  * rest of the lifetime and type-identity operations. */
-
-/* ---------- positional (OAK_IID_SEQUENCE) ---------- */
 
 /* Borrowed pointer to the element at `index`, or null when out of range. */
 OAK_API void* oak_get(oak_container_t* c, usize index);
@@ -88,8 +84,6 @@ OAK_API int oak_resize(oak_container_t* c, usize count);
 /* Allocated capacity in elements. */
 OAK_API usize oak_capacity(const oak_container_t* c);
 
-/* ---------- contiguous storage (OAK_IID_RANDOM_ACCESS) ---------- */
-
 /* Borrowed pointer to the packed element array, or null when the
  * implementation does not store elements contiguously. Prefer this over
  * repeated `oak_get` when walking every element: hoist it once, then index
@@ -102,8 +96,6 @@ OAK_API const void* oak_cdata(const oak_container_t* c);
 #define OAK_DATA(type, c) ((type*)oak_data(c))
 #define OAK_CDATA(type, c) ((const type*)oak_cdata(c))
 #define OAK_AT(type, c, i) (((type*)oak_data(c))[i])
-
-/* ---------- keyed (OAK_IID_MAP) ---------- */
 
 /*
  * Keys are borrowed byte ranges: the caller must keep the memory a key points
@@ -133,14 +125,10 @@ OAK_API int oak_contains(const oak_container_t* c,
                          const void* key,
                          usize key_len);
 
-/* ---------- membership (OAK_IID_SET) ---------- */
-
 /* Adds `value` to the set. Returns 1 if it was inserted, 0 if already
  * present or on failure. Remove with `oak_erase_key`, test with
  * `oak_contains`. */
 OAK_API int oak_add(oak_container_t* c, const void* value, usize value_len);
-
-/* ---------- iteration (OAK_IID_ITERABLE) ---------- */
 
 /*
  * Canonical loop — `oak_iter_get` is null exactly when the cursor is
@@ -168,8 +156,6 @@ OAK_API void* oak_iter_get(oak_iterator_t* it);
 /* Borrowed pointer to the current key, or null for non-keyed containers.
  * Writes the key length to `out_key_len` when it is non-null. */
 OAK_API const void* oak_iter_key(oak_iterator_t* it, usize* out_key_len);
-
-/* ---------- C-string key sugar ---------- */
 
 /* Every key in Oak's own registries is a C string, so these save the strlen
  * at each call site. */

@@ -28,10 +28,6 @@ UTEST(vm_value, value_is_one_word_and_the_registry_is_64_tables)
   ASSERT_EQ(64u, (unsigned)OAK_OBJ_TABLE_COUNT);
 }
 
-/* ------------------------------------------------------------------ */
-/* Scalar round-trips                                                  */
-/* ------------------------------------------------------------------ */
-
 UTEST(vm_value, integers_round_trip_across_the_i32_range)
 {
   static const int values[] = {
@@ -114,10 +110,6 @@ UTEST(vm_value, opaque_handles_carry_61_bits)
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Objects and weak references                                         */
-/* ------------------------------------------------------------------ */
-
 UTEST_F(vm_value, object_values_resolve_back_to_their_object)
 {
   oak_obj_string_t* str = oak_string_new(OAK_A, "hello");
@@ -181,10 +173,6 @@ UTEST_F(vm_value, a_weak_reference_does_not_resurrect_when_its_slot_is_reused)
 
   oak_obj_decref((oak_obj_t*)second);
 }
-
-/* ------------------------------------------------------------------ */
-/* Object tables                                                       */
-/* ------------------------------------------------------------------ */
 
 /* Table 0 is shared (chunk constants, embedder objects); every VM gets its own
  * numbered table, which is recycled when the VM is freed. */

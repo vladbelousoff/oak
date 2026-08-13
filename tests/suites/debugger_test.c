@@ -171,10 +171,6 @@ static const char* const FN_SRC =
 static const char* const FLAT_SRC =
     "let a = 10;\nlet b = 20;\nlet c = 30;\n";
 
-/* ------------------------------------------------------------------ */
-/* Session control                                                     */
-/* ------------------------------------------------------------------ */
-
 /* `quit` stops the program rather than letting it finish. */
 UTEST_F(debugger, quit_halts_the_program)
 {
@@ -202,10 +198,6 @@ UTEST_F(debugger, a_breakpoint_stops_the_second_time)
   EXPECT_SAW(s, "stopped at test.oak:2"); /* breakpoint */
 }
 
-/* ------------------------------------------------------------------ */
-/* Inspecting state                                                    */
-/* ------------------------------------------------------------------ */
-
 /* Broken inside f(), both the parameter and the local are live. */
 UTEST_F(debugger, locals_lists_parameters_and_locals)
 {
@@ -227,10 +219,6 @@ UTEST_F(debugger, print_reports_a_local_or_says_it_is_absent)
   EXPECT_SAW(s, "b = 42");
   EXPECT_SAW(s, "no local named 'missing' in scope");
 }
-
-/* ------------------------------------------------------------------ */
-/* Stepping                                                            */
-/* ------------------------------------------------------------------ */
 
 /* From line 5, `next` runs f() to completion and lands on line 6 -- it must
  * not stop anywhere inside the callee. */
@@ -262,10 +250,6 @@ UTEST_F(debugger, finish_returns_to_the_caller)
   EXPECT_SAW(s, "stopped at test.oak:6");
 }
 
-/* ------------------------------------------------------------------ */
-/* Command validation                                                  */
-/* ------------------------------------------------------------------ */
-
 /* Numeric arguments are parsed with strtol, not atoi: "12xyz" must be
  * rejected outright rather than silently read as 12. */
 UTEST_F(debugger, malformed_break_arguments_create_no_breakpoint)
@@ -287,10 +271,6 @@ UTEST_F(debugger, malformed_delete_arguments_are_reported)
   EXPECT_SAW(s, "usage: delete <id>");
   EXPECT_SAW(s, "no breakpoint #99");
 }
-
-/* ------------------------------------------------------------------ */
-/* No debugger attached                                                */
-/* ------------------------------------------------------------------ */
 
 /* Debug info on the chunk must not change execution when no hook is set --
  * the debugger is entirely opt-in at run time. */

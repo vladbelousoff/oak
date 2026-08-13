@@ -376,12 +376,10 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
     const u8 instruction = cached_read_u8(&ip);
     switch (instruction)
     {
-      /* ====== HALT ====== */
       case OAK_OP_HALT:
         cached_sync_to_vm(vm, chunk, ip, sp);
         return OAK_VM_OK;
 
-      /* ====== CONSTANTS & LITERALS (inlined, #3) ====== */
       case OAK_OP_CONSTANT:
       {
         const u16 idx = cached_read_u16(&ip);
@@ -414,7 +412,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
           return OAK_VM_RUNTIME_ERROR;
         break;
 
-      /* ====== STACK OPS (inlined, #3) ====== */
       case OAK_OP_POP:
       {
         oak_value_decref(cached_pop(&sp));
@@ -429,7 +426,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== LOCAL VARIABLE ACCESS (inlined, #3) ====== */
       case OAK_OP_GET_LOCAL:
       {
         const u8 slot = cached_read_u8(&ip);
@@ -494,7 +490,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== DEDICATED ARITHMETIC OPCODES (#4) ====== */
       case OAK_OP_ADD:
       {
         const oak_value_t b = cached_pop(&sp);
@@ -632,7 +627,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== DEDICATED EQUALITY OPCODES (#4) ====== */
       case OAK_OP_EQUAL:
       {
         const oak_value_t b = cached_pop(&sp);
@@ -652,8 +646,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== DEDICATED COMPARISON OPCODES (#4, #7 integer fast path) ======
-       */
       case OAK_OP_LESS:
       case OAK_OP_LESS_EQUAL:
       case OAK_OP_GREATER:
@@ -684,7 +676,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== UNARY ====== */
       case OAK_OP_NEGATE:
       {
         oak_value_t val = cached_pop(&sp);
@@ -724,7 +715,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== CONTROL FLOW (inlined, #3) ====== */
       case OAK_OP_JUMP:
       {
         const u16 offset = cached_read_u16(&ip);
@@ -756,7 +746,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== FUSED COMPARE+BRANCH (#5) ====== */
       case OAK_OP_LESS_JUMP_IF_FALSE:
       case OAK_OP_LESS_EQUAL_JUMP_IF_FALSE:
       case OAK_OP_GREATER_JUMP_IF_FALSE:
@@ -782,7 +771,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== SUPERINSTRUCTIONS (#9) ====== */
       case OAK_OP_GET_LOCAL_GET_LOCAL:
       {
         const u8 slot1 = cached_read_u8(&ip);
@@ -818,7 +806,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         return OAK_VM_RUNTIME_ERROR;
       }
 
-      /* ====== CALLS & RETURNS ====== */
       case OAK_OP_CALL:
       {
         const u8 argc = cached_read_u8(&ip);
@@ -907,7 +894,6 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
         break;
       }
 
-      /* ====== OBJECTS (delegated to vm_object_dispatch) ====== */
       case OAK_OP_NEW_ARR:
       case OAK_OP_NEW_MAP:
       case OAK_OP_GET_INDEX:
