@@ -13,6 +13,10 @@
 
 #include "oak_test_support.h"
 
+/* oak_chunk_impl.h is the private header: this suite stack-allocates a chunk
+ * to prime a VM for oak_vm_call, which the public API has no way to express.
+ * See vm_call_rejects_a_callable_from_another_vm below. */
+#include "oak_chunk_impl.h"
 #include "oak_value.h"
 
 OAK_TEST_SUITE(vm_value);

@@ -1,8 +1,0 @@
-let n = 20000000;
-
-let mut total = 0;
-for i from 0 to n {
-  let s = 'id-' + '{}'.format([i % 1000]) + '-x';
-  total += s.size();
-}
-print(total);

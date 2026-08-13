@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_compiler_modules.h"
+#include "internal/oak_compiler_modules.h"
 
 /* Infer the return type of a method call whose callee is a MEMBER_ACCESS node
  * (recv.method(...)).  Handles four cases in resolution order:

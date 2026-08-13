@@ -3,6 +3,10 @@
 #include "oak_export.h"
 #include "oak_list.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct oak_allocator oak_allocator_t;
 typedef struct oak_lexer_result oak_lexer_result_t;
 
@@ -15,3 +19,7 @@ oak_lexer_tokens(const oak_lexer_result_t* result);
  * value means the token list may be incomplete or contain gaps. */
 OAK_API int oak_lexer_error_count(const oak_lexer_result_t* result);
 OAK_API void oak_lexer_free(oak_lexer_result_t* result);
+
+#ifdef __cplusplus
+}
+#endif

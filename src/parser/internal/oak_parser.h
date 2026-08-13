@@ -4,6 +4,18 @@
 #include "oak_count_of.h"
 #include <oak_parser.h>
 
+/* The concrete parser result. Opaque in the public header: the nodes live in
+ * the arena below, so the struct is only meaningful to the parser itself and
+ * to the module loader, which keeps one per module. */
+struct oak_parser_result
+{
+  oak_ast_node_t* root;
+  oak_arena_t arena;
+  oak_allocator_t* allocator;
+  oak_diagnostic_t errors[OAK_MAX_DIAGNOSTICS];
+  int error_count;
+};
+
 typedef struct oak_parser oak_parser_t;
 struct oak_parser
 {

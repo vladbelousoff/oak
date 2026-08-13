@@ -141,17 +141,19 @@ int oak_compiler_register_native_options(oak_compiler_t* c,
       return 0;
   }
 
-  if (oak_size(opts->native_fns) > 0 ||
-      oak_size(opts->native_global_fns) > 0)
+  /* Enums before functions: a signature may reference an enum through
+   * OAK_BIND_ENUM, and lowering that ref reads the type id this assigns. */
+  if (oak_size(opts->native_enums) > 0)
   {
-    oak_register_native_fns(c, opts);
+    oak_register_native_enums(c, opts);
     if (c->has_error)
       return 0;
   }
 
-  if (oak_size(opts->native_enums) > 0)
+  if (oak_size(opts->native_fns) > 0 ||
+      oak_size(opts->native_global_fns) > 0)
   {
-    oak_register_native_enums(c, opts);
+    oak_register_native_fns(c, opts);
     if (c->has_error)
       return 0;
   }

@@ -5,6 +5,10 @@
 #include "oak_export.h"
 #include "oak_module.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct oak_module_loader_result oak_module_loader_result_t;
 struct oak_module_loader_result
 {
@@ -26,3 +30,7 @@ oak_module_loader_load_program(const char* entry_path,
                                oak_compile_options_t* opts,
                                oak_module_registry_t* out_reg,
                                oak_module_loader_result_t* out);
+
+#ifdef __cplusplus
+}
+#endif

@@ -4,6 +4,10 @@
 #include "oak_export.h"
 #include "oak_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct oak_allocator oak_allocator_t;
 
 /*
@@ -29,3 +33,7 @@ OAK_API usize oak_hash_map_value_size(const oak_container_t* c);
 
 /* Type identity, for `oak_is`. */
 OAK_API const oak_type_info_t* oak_hash_map_type_info(void);
+
+#ifdef __cplusplus
+}
+#endif

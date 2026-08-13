@@ -300,7 +300,6 @@ and file I/O via `io.File` (see
 | CLI options and debugging | [`docs/cli.md`](docs/cli.md) |
 | Embedding: C API | [`docs/embedding-c.md`](docs/embedding-c.md) |
 | VS Code extension | [`editors/vscode/`](editors/vscode/README.md) |
-| Benchmark suite and methodology | [`benchmark/`](benchmark/README.md) |
 
 ## Embedding
 
@@ -310,6 +309,18 @@ checks. The API is descriptor-based: describe the bindings on
 `oak_compile_options_t`, then compile with `oak_compile_ex()`.
 
 ```c
+static oak_fn_call_result_t native_add(oak_native_ctx_t* ctx,
+                                       const oak_value_t* args,
+                                       int argc,
+                                       oak_value_t* out)
+{
+  (void)ctx;
+  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_I32(oak_as_i32(args[0]) + oak_as_i32(args[1]));
+  return OAK_FN_CALL_OK;
+}
+
 oak_allocator_t allocator;
 oak_system_allocator_init(&allocator);
 
@@ -324,21 +335,43 @@ oak_bind_fn_global(&opts,
                        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                    });
 
-oak_lexer_result_t* lexer =
-    oak_lexer_tokenize("let n = add(20, 22);\n", &allocator);
-oak_parser_result_t parsed = { 0 };
-oak_parse(lexer, OAK_NODE_PROGRAM, &parsed, &allocator);
+oak_program_t prog;
+if (oak_program_compile(&prog, "let n = add(20, 22);\n", &opts))
+{
+  oak_vm_t vm;
+  oak_vm_init(&vm, &allocator);
+  if (oak_vm_run(&vm, oak_program_chunk(&prog)) != OAK_VM_OK)
+  {
+    const oak_diagnostic_t* e = oak_vm_last_error(&vm);
+    if (e)
+      fprintf(stderr, "%d:%d: %s\n", e->line, e->column, e->message);
+  }
+  oak_vm_free(&vm);
+}
+else
+{
+  oak_diagnostics_print(oak_program_errors(&prog),
+                        oak_program_error_count(&prog));
+}
 
-oak_compile_result_t compiled = { 0 };
-oak_compile_ex(oak_parser_root(&parsed), &opts, &compiled);
-
-oak_vm_t vm;
-oak_vm_init(&vm, &allocator);
-oak_vm_run(&vm, compiled.chunk);
+/* oak_program_free releases the chunk, AST and tokens in the right order. The
+ * options go last: every native value holds a pointer to a descriptor they
+ * own. */
+oak_program_free(&prog);
+oak_compile_options_free(&opts);
+allocator.shutdown(&allocator);
 ```
 
 See the [C embedding guide](docs/embedding-c.md) for the full API, including
-native types, methods, enums, and attributes.
+native types, methods, enums, and attributes, and
+[`tests/public_api/oak_embed_smoke.c`](tests/public_api/oak_embed_smoke.c) for
+a complete program that CI compiles and runs against the installed headers.
+
+Installing gives you `oak.pc`, so a consumer needs no Oak-specific build flags:
+
+```sh
+cc myapp.c $(pkg-config --cflags --libs oak)
+```
 
 ### Object IDs, VM ownership, and threads
 
@@ -375,26 +408,6 @@ same checks as debug builds. Scalar values and process-owned table-0 objects
 To communicate between workers, exchange host data or scalar Oak values and
 recreate arrays, maps, records, and strings in the destination VM instead of
 passing an `oak_value_t` object from the source VM.
-
-## Benchmarks
-
-Cross-language benchmarks against peer bytecode interpreters (no JITs) run in
-CI whenever interpreter code changes and the table below is updated
-automatically. Workloads, methodology, and caveats are described in
-[`benchmark/`](benchmark/README.md).
-
-<!-- benchmark:start -->
-| runtime | fib | nsieve | mandelbrot | hashmap | strcat |
-|---|---|---|---|---|---|
-| **oak** | 3.44× (7.46 s) | 6.77× (9.07 s) | 7.09× (13.26 s) | 3.78× (8.64 s) | 5.05× (8.79 s) |
-| lua5.4 | 1.00× (2.17 s) | 1.00× (1.34 s) | 1.00× (1.87 s) | 1.84× (4.22 s) | 2.88× (5.01 s) |
-| python3 | 2.02× (4.38 s) | 2.57× (3.43 s) | 9.05× (16.93 s) | 3.07× (7.03 s) | 4.38× (7.64 s) |
-| ruby | 1.73× (3.75 s) | 2.28× (3.05 s) | 2.32× (4.35 s) | 2.37× (5.42 s) | 3.39× (5.90 s) |
-| perl | 8.11× (17.58 s) | 4.12× (5.52 s) | 4.56× (8.53 s) | 1.32× (3.02 s) | 1.00× (1.74 s) |
-| php | 8.43× (18.26 s) | 3.43× (4.60 s) | 3.06× (5.72 s) | 1.00× (2.29 s) | 1.51× (2.63 s) |
-
-_Relative to the fastest runtime per benchmark, lower is better; median wall time in parentheses. Measured on a GitHub-hosted `ubuntu-latest` runner at `8a48b2149` on 2026-08-13. All runtimes are bytecode interpreters (no JIT)._
-<!-- benchmark:end -->
 
 ## Layout
 

@@ -42,8 +42,7 @@ meson test -C build-debug
 
 Meson's default buildtype is `debug`: -O0 with memory tracking compiled in,
 which runs 4-8x slower than an optimized build. For anything
-performance-sensitive (such as the [benchmark suite](../benchmark/README.md)),
-build optimized:
+performance-sensitive, build optimized:
 
 ```sh
 meson setup build-release --buildtype=release
@@ -66,6 +65,25 @@ shells.
 Pass `--prefix=<path>` to `meson setup` when packaging or when you need a
 different install root. Installed builds find the stdlib relative to the `oak`
 executable. Set `OAK_STDLIB_DIR` only to override that lookup.
+
+### Embedding against an installed Oak
+
+Installing also ships the public headers to `<prefix>/include/oak` and a
+pkg-config file, so an embedder needs no Oak-specific flags:
+
+```sh
+cc myapp.c $(pkg-config --cflags --libs oak)
+```
+
+If Oak is under a non-system prefix, point pkg-config at it first:
+
+```sh
+export PKG_CONFIG_PATH=<prefix>/lib/pkgconfig
+```
+
+`--cflags` resolves to `-I<prefix>/include/oak`, which is the same spelling the
+in-tree build uses, so `#include "oak_program.h"` works either way. See
+[embedding-c.md](embedding-c.md) for the API itself.
 
 ## Web Playground
 

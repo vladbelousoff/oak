@@ -64,10 +64,9 @@ struct oak_run_result
 
 /* Compile and run `src` with a default set of options bound to `a`.
  *
- * Note this goes through oak_compile_ex() with an explicit allocator rather
- * than oak_compile(), which silently falls back to the process-wide system
- * allocator -- that fallback is why compiler allocations used to escape the
- * leak check entirely. */
+ * The options always carry an explicit allocator: oak_compile_ex() falls back
+ * to the process-wide system allocator when given none, and that fallback is
+ * why compiler allocations used to escape the leak check entirely. */
 oak_run_result_t oak_test_source(oak_allocator_t* a, const char* src);
 
 /* Same, but with caller-supplied options (native bindings, module registry,
@@ -82,7 +81,7 @@ typedef struct oak_parse_fixture oak_parse_fixture_t;
 struct oak_parse_fixture
 {
   oak_lexer_result_t* lexer;
-  oak_parser_result_t parsed;
+  oak_parser_result_t* parsed;
   const oak_ast_node_t* root; /* null when the source failed to parse */
 };
 

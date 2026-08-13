@@ -44,7 +44,7 @@ const oak_token_t* loader_import_alias_token(
 
 int collect_imports(const oak_module_t* mod, oak_container_t* out)
 {
-  const oak_ast_node_t* root = oak_parser_root(&mod->parser);
+  const oak_ast_node_t* root = oak_parser_root(mod->parser);
   if (!root)
     return 0;
   oak_list_entry_t* pos;
@@ -133,7 +133,7 @@ int compile_module(oak_module_t* mod,
   }
 
   oak_compile_result_t cr = { 0 };
-  oak_compile_ex(oak_parser_root(&mod->parser), &opts, &cr);
+  oak_compile_ex(oak_parser_root(mod->parser), &opts, &cr);
 
   if (cr.error_count > 0)
   {
@@ -188,13 +188,13 @@ oak_module_t* parse_or_get_module(
   }
   mod->lexer =
       oak_lexer_tokenize_len(mod->source.data, mod->source.size, mod->allocator);
-  oak_parse(mod->lexer, OAK_NODE_PROGRAM, &mod->parser, mod->allocator);
+  mod->parser = oak_parse(mod->lexer, OAK_NODE_PROGRAM, mod->allocator);
 
-  for (int i = 0; i < oak_parser_error_count(&mod->parser) &&
+  for (int i = 0; i < oak_parser_error_count(mod->parser) &&
                   out->error_count < OAK_MAX_DIAGNOSTICS;
        ++i)
   {
-    const oak_diagnostic_t* d = &oak_parser_errors(&mod->parser)[i];
+    const oak_diagnostic_t* d = &oak_parser_errors(mod->parser)[i];
     oak_diagnostic_t* dst = &out->errors[out->error_count++];
     dst->line = d->line;
     dst->column = d->column;
@@ -205,7 +205,7 @@ oak_module_t* parse_or_get_module(
              d->message);
   }
 
-  const oak_ast_node_t* root = oak_parser_root(&mod->parser);
+  const oak_ast_node_t* root = oak_parser_root(mod->parser);
   if (!root)
     return null;
   if (!is_entry && !validate_imported_module_body(out, mod, root))

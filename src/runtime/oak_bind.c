@@ -4,7 +4,7 @@
 #include "oak_log.h"
 #include "oak_str.h"
 #include "oak_type.h"
-#include "oak_value.h"
+#include "oak_value_impl.h"
 
 #include <string.h>
 
@@ -52,8 +52,11 @@ void oak_compile_options_free(oak_compile_options_t* opts)
     OAK_FREE(opts->allocator, types[i]);
   }
   oak_destroy(opts->native_types);
+  opts->native_types = null;
   oak_destroy(opts->native_fns);
+  opts->native_fns = null;
   oak_destroy(opts->native_global_fns);
+  opts->native_global_fns = null;
 
   oak_bind_enum_t** enums =
       OAK_DATA(oak_bind_enum_t*, opts->native_enums);
@@ -63,7 +66,9 @@ void oak_compile_options_free(oak_compile_options_t* opts)
     OAK_FREE(opts->allocator, enums[i]);
   }
   oak_destroy(opts->native_enums);
+  opts->native_enums = null;
   oak_destroy(opts->native_attrs);
+  opts->native_attrs = null;
 }
 
 
@@ -188,6 +193,7 @@ oak_bind_enum_t* oak_bind_enum_in_module(
       OAK_ALLOC(opts->allocator, sizeof(oak_bind_enum_t));
   e->module_name = module_name;
   e->name = name;
+  e->resolved_type_id = OAK_TYPE_VOID;
   e->allocator = opts->allocator;
   e->variants =
       oak_vector_new(e->allocator, sizeof(oak_bind_enum_variant_t));
@@ -369,4 +375,132 @@ int oak_bind_attr(oak_compile_options_t* opts,
     return -1;
   oak_assert(oak_push_back(opts->native_attrs, params));
   return 0;
+}
+
+int oak_bind_fields(oak_bind_type_t* type,
+                    const oak_bind_field_t* fields,
+                    const int count)
+{
+  if (!type || (count > 0 && !fields))
+    return -1;
+  int rc = 0;
+  for (int i = 0; i < count; ++i)
+  {
+    if (oak_bind_field(type, &fields[i]) != 0)
+      rc = -1;
+  }
+  return rc;
+}
+
+int oak_bind_fns(oak_compile_options_t* opts,
+                 const oak_bind_fn_t* fns,
+                 const int count)
+{
+  if (!opts || (count > 0 && !fns))
+    return -1;
+  int rc = 0;
+  for (int i = 0; i < count; ++i)
+  {
+    if (oak_bind_fn(opts, &fns[i]) != 0)
+      rc = -1;
+  }
+  return rc;
+}
+
+int oak_bind_fns_global(oak_compile_options_t* opts,
+                        const oak_bind_global_fn_t* fns,
+                        const int count)
+{
+  if (!opts || (count > 0 && !fns))
+    return -1;
+  int rc = 0;
+  for (int i = 0; i < count; ++i)
+  {
+    if (oak_bind_fn_global(opts, &fns[i]) != 0)
+      rc = -1;
+  }
+  return rc;
+}
+
+int oak_bind_enum_variants(oak_bind_enum_t* e,
+                           const oak_bind_enum_variant_t* variants,
+                           const int count)
+{
+  if (!e || (count > 0 && !variants))
+    return -1;
+  int rc = 0;
+  for (int i = 0; i < count; ++i)
+  {
+    if (oak_bind_enum_variant(e, variants[i].name, variants[i].value) != 0)
+      rc = -1;
+  }
+  return rc;
+}
+
+int oak_value_matches(const oak_value_t value, const oak_bind_type_ref_t ref)
+{
+  switch (ref.kind)
+  {
+    case OAK_TYPE_KIND_ARRAY:
+      return oak_is_array(value);
+    case OAK_TYPE_KIND_MAP:
+      return oak_is_map(value);
+    case OAK_TYPE_KIND_INTERFACE:
+      return oak_is_interface_object(value);
+    case OAK_TYPE_KIND_FN:
+      return oak_is_fn(value) || oak_is_native_fn(value);
+    case OAK_TYPE_KIND_SCALAR:
+      break;
+  }
+
+  /* A custom descriptor names either a native record or an inline value type;
+   * neither carries its descriptor in a form comparable here, so match on the
+   * representation the binding produces. */
+  if (ref.type)
+  {
+    return ref.type->kind == OAK_BIND_TYPE_VALUE ? oak_is_native_value(value)
+                                                 : oak_is_native_record(value);
+  }
+
+  /* An enum lowers to its integer value at run time, so there is nothing
+   * narrower to check than "is an integer". The compiler is what enforces that
+   * the integer came from the right enum. */
+  if (ref.enum_type)
+    return oak_is_i32(value);
+
+  switch (ref.id)
+  {
+    case OAK_TYPE_VOID:
+      return 1; /* unspecified: accepts anything */
+    case OAK_TYPE_NUMBER:
+      return oak_is_number(value);
+    case OAK_TYPE_STRING:
+      return oak_is_string(value);
+    case OAK_TYPE_BOOL:
+      return oak_is_bool(value);
+    case OAK_TYPE_FN:
+      return oak_is_fn(value) || oak_is_native_fn(value);
+    case OAK_TYPE_NONE:
+      return oak_is_none_like(value);
+    default:
+      /* A user-declared record type from Oak source. */
+      return oak_is_record(value) || oak_is_native_record(value);
+  }
+}
+
+int oak_native_args_match(const oak_value_t* args,
+                          const int argc,
+                          const oak_bind_type_ref_t* types,
+                          const int count)
+{
+  if (argc != count)
+    return 0;
+  if (count > 0 && (!args || !types))
+    return 0;
+  for (int i = 0; i < count; ++i)
+  {
+    if (!oak_value_matches(args[i], types[i]))
+      return 0;
+  }
+  return 1;
 }

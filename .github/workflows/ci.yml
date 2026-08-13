@@ -41,6 +41,33 @@ jobs:
       - name: Install Meson
         run: python -m pip install meson ninja
 
+      # The public headers must not depend on how the library was built: a
+      # consumer never passes -DOAK_*, so anything keying on one is either an
+      # ABI trap or a silent behaviour change. OAK_BUILDING_ACORN/OAK_STATIC in
+      # oak_export.h are the deliberate exceptions (dllimport/dllexport).
+      # The public_api test target covers the include-path half of this.
+      - name: Check no build defines leak into public headers
+        if: runner.os == 'Linux'
+        run: |
+          if grep -rn 'OAK_TRACK_MEMORY\|OAK_DEBUG_LOGGING\|OAK_ATOMIC_REFCOUNT' include/ --include='*.h' | grep -v '^\S*:\s*[0-9]*:\s*\*'; then
+            echo "::error::a build define is referenced in a public header"; exit 1
+          fi
+          if grep -rn 'defined(OAK_' include/ --include='*.h' | grep -v 'oak_export.h'; then
+            echo "::error::unexpected OAK_* conditional outside oak_export.h"; exit 1
+          fi
+
+      # A header in include/ that is missing from oak_public_headers compiles
+      # in-tree but never gets installed, so consumers fail only after packaging.
+      - name: Check every public header is installed
+        if: runner.os == 'Linux'
+        run: |
+          sed -n '/^oak_public_headers = files(/,/^)/p' meson.build \
+            | sed -n "s|.*'include/\([^']*\)'.*|\1|p" | sort > /tmp/listed
+          ls include/ | sort > /tmp/actual
+          if ! diff -u /tmp/listed /tmp/actual; then
+            echo "::error::include/ and oak_public_headers in meson.build disagree"; exit 1
+          fi
+
       - name: Setup MSVC
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1

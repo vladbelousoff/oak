@@ -3,6 +3,7 @@
 #include "oak_cli.h"
 #include "oak_compiler.h"
 #include "oak_debugger.h"
+#include "oak_diagnostic.h"
 #include "oak_dap.h"
 #include "oak_log.h"
 #include "oak_module.h"
@@ -50,16 +51,9 @@ int main(const int argc, const char* argv[])
   int exit_code = 1;
   const int load_rc = oak_module_loader_load_program(
       cli.script_path, &compile_opts, &registry, &lr);
-  for (int i = 0; i < lr.error_count; i++)
-  {
-    const oak_diagnostic_t* d = &lr.errors[i];
-    if (d->line > 0)
-      oak_log(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
-    else
-      oak_log(OAK_LOG_ERROR, "%s", d->message);
-  }
+  oak_diagnostics_print(lr.errors, lr.error_count);
 
-  if (load_rc == 0 && lr.entry && lr.entry->chunk)
+  if (load_rc == 0 && lr.entry && oak_module_chunk(lr.entry))
   {
     exit_code = 0;
     if (cli.disassemble)
@@ -71,8 +65,8 @@ int main(const int argc, const char* argv[])
         const oak_module_t* m = modules[i];
         oak_log(OAK_LOG_INFO,
                 "==== module [%s] ====",
-                m->dotted_name ? m->dotted_name : "<entry>");
-        oak_chunk_disassemble(m->chunk);
+                oak_module_dotted_name(m) ? oak_module_dotted_name(m) : "<entry>");
+        oak_chunk_disassemble(oak_module_chunk(m));
       }
     }
     else
@@ -91,9 +85,9 @@ int main(const int argc, const char* argv[])
       }
       const oak_vm_result_t vm_result =
           cli.debug
-              ? oak_dap_serve(&debugger, &vm, lr.entry->chunk,
+              ? oak_dap_serve(&debugger, &vm, oak_module_chunk(lr.entry),
                               cli.debug_port_set ? cli.debug_port : 4711)
-              : oak_vm_run(&vm, lr.entry->chunk);
+              : oak_vm_run(&vm, oak_module_chunk(lr.entry));
       if (vm_result == OAK_VM_DEBUG_HALT)
         exit_code = 130;
       else

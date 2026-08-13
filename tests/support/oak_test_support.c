@@ -122,11 +122,15 @@ void oak_test_pipe_free(oak_test_pipe_t* p)
 }
 
 /*
- * The VM reports runtime errors through oak_log(OAK_LOG_ERROR, ...), which
- * writes to stderr and keeps no copy on the VM -- there is no API to read the
- * message back. To assert on it we point fd 2 at a pipe for the duration of
- * the run and read it back afterwards. Same for fd 1 and everything print()
- * emitted.
+ * Everything print() emits goes to stdout, so asserting on program output means
+ * pointing fd 1 at a pipe for the duration of the run and reading it back
+ * afterwards. fd 2 is captured the same way, which picks up diagnostics from
+ * every stage in the form a user actually sees them.
+ *
+ * A runtime error specifically no longer needs the pipe: oak_vm_last_error()
+ * returns it as an oak_diagnostic_t. Prefer that when asserting on the message
+ * or its source location; the capture stays because it also covers compile and
+ * loader diagnostics, and because it verifies the text that reaches a terminal.
  */
 typedef struct oak_capture oak_capture_t;
 struct oak_capture
@@ -200,7 +204,7 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
 {
   oak_run_result_t r;
   oak_lexer_result_t* lexer;
-  oak_parser_result_t parsed = { 0 };
+  oak_parser_result_t* parsed = null;
   const oak_ast_node_t* root;
   oak_compile_result_t compiled = { 0 };
 
@@ -208,8 +212,8 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
   r.run = OAK_VM_OK;
 
   lexer = oak_lexer_tokenize(src, a);
-  oak_parse(lexer, OAK_NODE_PROGRAM, &parsed, a);
-  root = oak_parser_root(&parsed);
+  parsed = oak_parse(lexer, OAK_NODE_PROGRAM, a);
+  root = oak_parser_root(parsed);
   r.parsed = root != null;
 
   if (root)
@@ -272,7 +276,7 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
   }
 
   oak_compile_result_free(&compiled);
-  oak_parser_free(&parsed);
+  oak_parser_free(parsed);
   oak_lexer_free(lexer);
   return r;
 }
@@ -303,14 +307,15 @@ oak_parse_fixture_t oak_test_parse(oak_allocator_t* a, const char* src)
   oak_parse_fixture_t fx;
   memset(&fx, 0, sizeof(fx));
   fx.lexer = oak_lexer_tokenize(src, a);
-  oak_parse(fx.lexer, OAK_NODE_PROGRAM, &fx.parsed, a);
-  fx.root = oak_parser_root(&fx.parsed);
+  fx.parsed = oak_parse(fx.lexer, OAK_NODE_PROGRAM, a);
+  fx.root = oak_parser_root(fx.parsed);
   return fx;
 }
 
 void oak_test_parse_free(oak_parse_fixture_t* fx)
 {
-  oak_parser_free(&fx->parsed);
+  oak_parser_free(fx->parsed);
+  fx->parsed = null;
   oak_lexer_free(fx->lexer);
   fx->lexer = null;
   fx->root = null;

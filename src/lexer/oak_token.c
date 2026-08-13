@@ -1,6 +1,7 @@
 #include "oak_token.h"
 
 #include "oak_count_of.h"
+#include "oak_log.h"
 
 #include <string.h>
 

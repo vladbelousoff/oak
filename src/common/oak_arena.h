@@ -4,6 +4,10 @@
 #include "oak_export.h"
 #include "oak_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define OAK_ARENA_DEFAULT_BLOCK_SIZE 4096
 
 typedef struct oak_arena_block oak_arena_block_t;
@@ -27,3 +31,7 @@ OAK_API void oak_arena_init(oak_arena_t* arena,
 OAK_API void* oak_arena_alloc(oak_arena_t* arena, usize size);
 
 OAK_API void oak_arena_free(oak_arena_t* arena);
+
+#ifdef __cplusplus
+}
+#endif

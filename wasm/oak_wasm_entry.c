@@ -2,19 +2,11 @@
 
 #include "oak_allocator.h"
 #include "oak_bind.h"
-#include "oak_log.h"
+#include "oak_diagnostic.h"
 #include "oak_module.h"
 #include "oak_module_loader.h"
 #include "oak_stdlib.h"
 #include "oak_vm.h"
-
-int oak_run(const char* code);
-
-EMSCRIPTEN_KEEPALIVE
-int oak_run_wrapper(const char* code)
-{
-  return oak_run(code);
-}
 
 EMSCRIPTEN_KEEPALIVE
 int oak_run_file_wrapper(const char* path)
@@ -40,21 +32,14 @@ int oak_run_file_wrapper(const char* path)
   const int load_rc =
       oak_module_loader_load_program(path, &compile_opts, &registry, &lr);
 
-  for (int i = 0; i < lr.error_count; i++)
-  {
-    const oak_diagnostic_t* d = &lr.errors[i];
-    if (d->line > 0)
-      oak_log(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
-    else
-      oak_log(OAK_LOG_ERROR, "%s", d->message);
-  }
+  oak_diagnostics_print(lr.errors, lr.error_count);
 
-  if (load_rc == 0 && lr.entry && lr.entry->chunk)
+  if (load_rc == 0 && lr.entry && oak_module_chunk(lr.entry))
   {
     oak_vm_t vm;
     oak_vm_init(&vm, &allocator);
     oak_vm_set_module_registry(&vm, &registry);
-    exit_code = oak_vm_run(&vm, lr.entry->chunk) != OAK_VM_OK;
+    exit_code = oak_vm_run(&vm, oak_module_chunk(lr.entry)) != OAK_VM_OK;
     oak_vm_free(&vm);
   }
 

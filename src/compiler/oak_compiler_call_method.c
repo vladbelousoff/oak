@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_compiler_modules.h"
+#include "internal/oak_compiler_modules.h"
 
 static void emit_method_fn(oak_compiler_t* c,
                            const oak_registered_fn_t* sm,

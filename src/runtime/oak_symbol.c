@@ -2,7 +2,7 @@
 
 #include "oak_allocator.h"
 #include "oak_log.h"
-#include "oak_module.h"
+#include "oak_module_impl.h"
 
 #include <string.h>
 

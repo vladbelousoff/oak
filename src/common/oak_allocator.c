@@ -5,7 +5,7 @@
 
 #include "oak_list.h"
 #include "oak_log.h"
-#include "oak_value.h"
+#include "oak_value_impl.h"
 
 /* Runtime call sites do not null-check allocations (see oak_allocator.h), so
  * out-of-memory is fatal for the built-in allocators. */

@@ -1,5 +1,7 @@
 #include "internal/oak_parser.h"
 
+#include "oak_log.h"
+
 int oak_parser_try_skip_token(oak_parser_t* p,
                               const oak_token_kind_t token_kind)
 {

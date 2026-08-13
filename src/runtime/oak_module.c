@@ -1,7 +1,9 @@
-#include "oak_module.h"
+#include "oak_module_impl.h"
 
 #include "oak_allocator.h"
+#include "oak_chunk_impl.h"
 #include "oak_lexer.h"
+#include "oak_log.h"
 #include "oak_str.h"
 
 #include <string.h>
@@ -38,7 +40,8 @@ static void oak_module_free(oak_module_t* mod)
     oak_chunk_free(mod->chunk);
     mod->chunk = null;
   }
-  oak_parser_free(&mod->parser);
+  oak_parser_free(mod->parser);
+  mod->parser = null;
   if (mod->lexer)
   {
     oak_lexer_free(mod->lexer);
@@ -139,4 +142,31 @@ const oak_module_export_interface_t* oak_module_find_export_interface(
     const oak_module_t* mod, const char* name)
 {
   return oak_symbol_registry_find_interface(&mod->exports, name);
+}
+
+/* Accessors for the opaque oak_module_t (see include/oak_module.h). */
+
+oak_chunk_t* oak_module_chunk(const oak_module_t* mod)
+{
+  return mod ? mod->chunk : null;
+}
+
+const char* oak_module_dotted_name(const oak_module_t* mod)
+{
+  return mod ? mod->dotted_name : null;
+}
+
+const char* oak_module_path(const oak_module_t* mod)
+{
+  return mod ? mod->canonical_path : null;
+}
+
+u16 oak_module_id(const oak_module_t* mod)
+{
+  return mod ? mod->module_id : OAK_MODULE_ID_NONE;
+}
+
+int oak_module_is_entry(const oak_module_t* mod)
+{
+  return mod ? mod->is_entry : 0;
 }

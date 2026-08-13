@@ -7,56 +7,93 @@ then compile with `oak_compile_ex()`. Bound names participate in Oak's
 compile-time type checks exactly like Oak-declared ones — a script that calls
 a native function with the wrong argument type fails to compile.
 
-The examples below are condensed; complete, compiled usage lives in
+The examples below are condensed. For a complete program that is compiled and
+run by CI, see
+[`tests/public_api/oak_embed_smoke.c`](../tests/public_api/oak_embed_smoke.c):
+it registers a native function, a record type with a field and a method, an
+enum and an attribute, compiles and runs a script, and tears everything down in
+the documented order. It builds against `include/` alone with no `-DOAK_*`
+flags, so it cannot drift from what an embedder actually gets.
+
+Further usage lives in
 [`tests/suites/bind_fn_test.c`](../tests/suites/bind_fn_test.c),
 [`tests/suites/bind_type_test.c`](../tests/suites/bind_type_test.c), and
-[`src/stdlib/`](../src/stdlib/) (the real registrations behind `math.*`,
-string methods, and `io.File`).
+[`src/stdlib/`](../src/stdlib/) (the real registrations behind `io.File`).
+
+Note that `sqrt`, `pow` and the string methods are *not* native bindings: the
+compiler installs them directly as globals and methods, so there is no `math`
+module to import and no way for an embedder to add to or remove from those
+tables. `oak_stdlib_register()` registers `io.File` only.
 
 ## Compile and run
 
-The pipeline is `source → lexer → parser → compiler → chunk → VM`:
+The pipeline is `source → lexer → parser → compiler → chunk → VM`.
+`oak_program_t` drives all of it and owns the three intermediate results, so
+they are released together and in the right order:
 
 ```c
 #include "oak_allocator.h"
 #include "oak_bind.h"
-#include "oak_compiler.h"
-#include "oak_lexer.h"
-#include "oak_parser.h"
+#include "oak_diagnostic.h"
+#include "oak_program.h"
 #include "oak_vm.h"
 
-oak_allocator_t allocator_storage;
-oak_system_allocator_init(&allocator_storage);
-oak_allocator_t* allocator = &allocator_storage;
+oak_allocator_t allocator;
+oak_system_allocator_init(&allocator);
 
 oak_compile_options_t opts;
-oak_compile_options_init(&opts, allocator);
-/* ... register bindings on &opts (see below) ... */
+oak_compile_options_init(&opts, &allocator);
+/* register native bindings on `opts` here, before compiling */
 
-oak_lexer_result_t* lexer =
-    oak_lexer_tokenize("print(add(20, 22));", allocator);
-oak_parser_result_t parsed = { 0 };
-oak_parse(lexer, OAK_NODE_PROGRAM, &parsed, allocator);
-
-oak_compile_result_t compiled = { 0 };
-oak_compile_ex(oak_parser_root(&parsed), &opts, &compiled);
-if (compiled.chunk == null)
+oak_program_t prog;
+if (oak_program_compile(&prog, source, &opts))
 {
-  /* compiled.errors[0..error_count] hold the diagnostics */
+  oak_vm_t vm;
+  oak_vm_init(&vm, &allocator);
+  if (oak_vm_run(&vm, oak_program_chunk(&prog)) != OAK_VM_OK)
+  {
+    const oak_diagnostic_t* e = oak_vm_last_error(&vm);
+    if (e)
+      fprintf(stderr, "%d:%d: %s\n", e->line, e->column, e->message);
+  }
+  oak_vm_free(&vm);
 }
 else
 {
-  oak_vm_t vm;
-  oak_vm_init(&vm, allocator);
-  oak_vm_result_t r = oak_vm_run(&vm, compiled.chunk);
-  oak_vm_free(&vm);
+  oak_diagnostics_print(oak_program_errors(&prog),
+                        oak_program_error_count(&prog));
 }
 
-oak_compile_result_free(&compiled);
-oak_parser_free(&parsed);
-oak_lexer_free(lexer);
+oak_program_free(&prog);
 oak_compile_options_free(&opts);
 ```
+
+The allocator for every stage comes from `opts->allocator`, so there is one
+place to set it. `oak_program_free` is safe to call on a failed or
+already-freed program, so the teardown does not need to branch.
+
+The stages can still be driven by hand — `oak_lexer_tokenize`, `oak_parse` and
+`oak_compile_ex` are all public — if you need the token stream or AST for
+tooling. Doing so means holding three results alive and freeing the parser
+result before the lexer, since the AST arena borrows the lexer's tokens.
+
+### Diagnostics
+
+Compile-time and run-time errors are both reported as `oak_diagnostic_t`
+(`line`, `column`, `message`), and `oak_diagnostics_print` writes an array of
+them to stderr. Where to find them:
+
+| Stage | Accessor |
+|---|---|
+| lex / parse / compile via `oak_program_t` | `oak_program_errors()` / `oak_program_error_count()` |
+| parsing directly | `oak_parser_errors()` / `oak_parser_error_count()` |
+| compiling directly | `oak_compile_result_t::errors` / `::error_count` |
+| module loading | `oak_module_loader_result_t::errors` / `::error_count` |
+| run time | `oak_vm_last_error()` |
+
+`oak_vm_last_error` returns the most recent runtime error, or `NULL` if the
+last `oak_vm_run` / `oak_vm_call` did not fail. Runtime errors are written to
+stderr as well; this is how to get them as data instead.
 
 To route Oak through another allocator, initialize it with any
 `malloc`/`realloc`/`free`-compatible functions instead:
@@ -66,9 +103,11 @@ oak_allocator_t allocator_storage;
 oak_allocator_init(&allocator_storage, my_malloc, my_realloc, my_free);
 ```
 
-`oak_vm_call()` calls an Oak function value from C after a chunk has run;
-`oak_vm_t::user_data` carries an embedder pointer so native callbacks can
-recover their host object without process globals.
+`oak_vm_call()` calls an Oak function value from C. It needs a chunk attached
+to the VM: either run one first with `oak_vm_run()`, or attach one without
+executing it using `oak_vm_prepare()`. `oak_vm_t::user_data` carries an
+embedder pointer so native callbacks can recover their host object without
+process globals.
 
 VM ownership is explicit rather than thread-local. Use the `oak_vm_*_new()`
 family when a heap value should belong to a particular VM; for example:
@@ -90,13 +129,21 @@ Every native callable — global function, instance method, static method —
 has the same C signature:
 
 ```c
+/* Written once: given to the compiler as param_types, and reused as the
+ * callback's own guard. OAK_BIND_*_INIT are brace initializers, so the table
+ * can have static storage; the OAK_BIND_* function forms cannot. */
+static const oak_bind_type_ref_t add_params[] = {
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
+};
+
 static oak_fn_call_result_t add(oak_native_ctx_t* ctx,
-                                     const oak_value_t* args,
-                                     int argc,
-                                     oak_value_t* out)
+                                const oak_value_t* args,
+                                int argc,
+                                oak_value_t* out)
 {
   (void)ctx;
-  if (argc != 2 || !oak_is_number(args[0]) || !oak_is_number(args[1]))
+  if (!oak_native_args_match(args, argc, add_params, 2))
     return OAK_FN_CALL_RUNTIME_ERROR;
   *out = OAK_VALUE_I32(oak_as_i32(args[0]) + oak_as_i32(args[1]));
   return OAK_FN_CALL_OK;
@@ -110,17 +157,13 @@ binding descriptor.
 Register it as a global (or module-scoped) function:
 
 ```c
-static oak_bind_type_ref_t params[2];
-params[0] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
-params[1] = OAK_BIND_SCALAR(OAK_TYPE_NUMBER);
-
 oak_bind_fn_global(&opts,
                    &(oak_bind_global_fn_t){
                        .name = "add",
                        .impl = add,
                        .arity = 2,
                        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                       .param_types = params,
+                       .param_types = add_params,
                        .param_count = 2,
                    });
 ```
@@ -128,9 +171,30 @@ oak_bind_fn_global(&opts,
 The `module_name` field scopes the function into an importable module instead
 of the global namespace — see
 [Module-scoped bindings](#module-scoped-bindings) for the full pattern.
-`param_types` is optional but recommended: with
-it, the compiler type-checks call sites; the array is borrowed and must
-outlive `oak_compile_ex`.
+`param_types` is optional but recommended: with it, the compiler type-checks
+call sites; the array is borrowed and must outlive `oak_compile_ex`.
+
+Keeping the guard as well is worthwhile even when `param_types` is set: the
+compiler checks Oak call sites, but a native function can also be reached from
+C through `oak_vm_call()` with arbitrary values.
+
+### Registering several at once
+
+`oak_bind_fields`, `oak_bind_fns`, `oak_bind_fns_global` and
+`oak_bind_enum_variants` take an array, so a binding can be a table rather than
+a run of near-identical calls. Each returns 0 only if every entry registered:
+
+```c
+static const oak_bind_enum_variant_t modes[] = {
+  { "Read", 0 }, { "Write", 1 }, { "Append", 2 },
+};
+oak_bind_enum_variants(mode, modes, (int)oak_count_of(modes));
+```
+
+A table that references a descriptor returned by `oak_bind_type()` cannot be
+`static`, since that pointer is only known at run time — make it a local array.
+See [`src/stdlib/oak_stdlib_file.c`](../src/stdlib/oak_stdlib_file.c) for both
+shapes.
 
 ### Type references
 
@@ -143,6 +207,19 @@ outlive `oak_compile_ex`.
 | `OAK_BIND_MAP(OAK_TYPE_STRING, OAK_TYPE_NUMBER)` | `[string:number]` |
 | `OAK_BIND_NATIVE(desc)` | a native type by its descriptor |
 | `OAK_BIND_NATIVE_ARRAY(desc)` | array of a native type |
+| `OAK_BIND_NATIVE_MAP(kdesc, vdesc)` | map with native key and/or value types |
+
+`OAK_BIND_SCALAR_INIT`, `OAK_BIND_ARRAY_INIT` and `OAK_BIND_MAP_INIT` are brace
+initializers for the same three builtin forms, for tables with static storage
+duration — the macros above expand to a function call, which C does not accept
+as a static initializer.
+
+A type reference **cannot name a native enum** registered with
+`oak_bind_enum()`: only builtins and native record/value descriptors can be
+referenced. Leave such a parameter out of `param_types` rather than declaring
+it `OAK_TYPE_NUMBER`, which would make the compiler reject
+`f(EnumName.Variant)`. At run time an enum value is its integer, so a number
+check inside the callback is still correct.
 
 ## Native record types
 

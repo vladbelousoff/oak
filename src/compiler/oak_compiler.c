@@ -1,12 +1,6 @@
 #include "internal/oak_compiler.h"
 #include "oak_allocator.h"
 
-void oak_compile(const oak_ast_node_t* root,
-                 oak_compile_result_t* out)
-{
-  oak_compile_ex(root, null, out);
-}
-
 void oak_compile_ex(const oak_ast_node_t* root,
                     const oak_compile_options_t* opts,
                     oak_compile_result_t* out)

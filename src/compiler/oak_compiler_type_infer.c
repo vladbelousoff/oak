@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_compiler_modules.h"
+#include "internal/oak_compiler_modules.h"
 
 /* Implemented in oak_compiler_type_infer_call.c */
 void oak_infer_fn_call_type(oak_compiler_t* c,

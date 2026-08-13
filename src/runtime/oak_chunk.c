@@ -1,7 +1,8 @@
-#include "oak_chunk.h"
+#include "oak_chunk_impl.h"
 
 #include "oak_allocator.h"
 #include "oak_count_of.h"
+#include "oak_log.h"
 #include "oak_vector.h"
 
 #include <stdio.h>

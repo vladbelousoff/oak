@@ -6,6 +6,10 @@
 
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Generic container interface.
  *
@@ -193,3 +197,7 @@ static inline int oak_add_str(oak_container_t* c, const char* value)
 {
   return oak_add(c, value, strlen(value));
 }
+
+#ifdef __cplusplus
+}
+#endif

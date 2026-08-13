@@ -5,6 +5,10 @@
 #include "oak_export.h"
 #include "oak_parser.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Result of compiling an Oak program.
  *
  * `chunk` is the emitted bytecode, owned by the result; pass the whole
@@ -19,17 +23,14 @@ struct oak_compile_result
   int error_count;
 };
 
-/* Compile a parsed AST into bytecode using the default allocator and no
- * native bindings.  For native types/fns or a custom allocator, use
- * oak_compile_ex (declared in oak_bind.h).
- * The caller retains ownership of `root` (the AST is not freed by oak_compile).
- * `out` must be initialized by the caller; oak_compile populates it and the
- * caller releases it with oak_compile_result_free. */
-OAK_API void oak_compile(const oak_ast_node_t* root,
-                         oak_compile_result_t* out);
-
-/* Free the chunk and any heap-owned diagnostic state inside `result`.
- * Safe to call on a zero-initialized or already-failed result. */
+/* Free the chunk and any heap-owned diagnostic state inside `result`, and null
+ * what it releases, so calling it twice is a no-op rather than a double free.
+ * Safe on a zero-initialized or already-failed result. */
 OAK_API void oak_compile_result_free(oak_compile_result_t* result);
 
-/* oak_compile_ex is declared in oak_bind.h (requires oak_compile_options_t). */
+/* Compilation itself is oak_compile_ex(), declared in oak_bind.h because it
+ * takes an oak_compile_options_t. */
+
+#ifdef __cplusplus
+}
+#endif

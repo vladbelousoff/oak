@@ -114,16 +114,55 @@ src_inc = include_directories(
   'src/lexer',
   'src/parser',
   'src/compiler',
+  'src/stdlib',
   'src/vm',
   'src/debugger',
 )
 public_inc = include_directories('include')
 test_inc = include_directories('tests/support')
 
+# The machine-readable definition of "public". Listed explicitly rather than
+# globbed so that adding a header to include/ without publishing it here is a
+# visible omission in review. Every header below must be self-contained under
+# -Iinclude alone; the public_api test target at the bottom of this file is the
+# guard that keeps it that way.
+oak_public_headers = files(
+  'include/oak_allocator.h',
+  'include/oak_bind.h',
+  'include/oak_chunk.h',
+  'include/oak_compiler.h',
+  'include/oak_container.h',
+  'include/oak_count_of.h',
+  'include/oak_diagnostic.h',
+  'include/oak_export.h',
+  'include/oak_hash_map.h',
+  'include/oak_hash_set.h',
+  'include/oak_lexer.h',
+  'include/oak_list.h',
+  'include/oak_module.h',
+  'include/oak_module_loader.h',
+  'include/oak_native.h',
+  'include/oak_object.h',
+  'include/oak_parser.h',
+  'include/oak_program.h',
+  'include/oak_refcount.h',
+  'include/oak_stdlib.h',
+  'include/oak_stdlib_file.h',
+  'include/oak_token.h',
+  'include/oak_type_id.h',
+  'include/oak_type_kind.h',
+  'include/oak_types.h',
+  'include/oak_value.h',
+  'include/oak_vector.h',
+  'include/oak_vm.h',
+)
+
 oak_core_sources = files(
   'src/common/oak_allocator.c',
   'src/common/oak_arena.c',
   'src/common/oak_container.c',
+  'src/common/oak_diagnostic.c',
+  'src/common/oak_program.c',
   'src/common/oak_file_map.c',
   'src/common/oak_hash_map.c',
   'src/common/oak_hash_set.c',
@@ -135,7 +174,6 @@ oak_core_sources = files(
   'src/common/oak_module_loader_path.c',
   'src/common/oak_net.c',
   'src/common/oak_object.c',
-  'src/common/oak_run.c',
   'src/common/oak_vector.c',
   'src/compiler/oak_compiler.c',
   'src/compiler/oak_compiler_builtins.c',
@@ -225,11 +263,20 @@ else
   )
 endif
 
+# include_directories is public_inc ONLY, deliberately. Adding src_inc here
+# would let in-repo targets compile against private headers without saying so,
+# and would silently break every installed consumer -- which is exactly how the
+# public headers came to depend on src/ in the first place. The public_api test
+# target below is the guard.
 acorn_dep = declare_dependency(
   link_with: acorn,
   include_directories: public_inc,
   dependencies: [yyjson_dep, math_dep, socket_dep],
 )
+
+if install_oak
+  install_headers(oak_public_headers, subdir: 'oak')
+endif
 
 if is_emscripten
   executable(
@@ -245,7 +292,7 @@ if is_emscripten
       '-sEXPORT_NAME=OakModule',
       '-sSTACK_SIZE=1048576',
       '-sALLOW_MEMORY_GROWTH=1',
-      '-sEXPORTED_FUNCTIONS=["_oak_run_wrapper","_oak_run_file_wrapper"]',
+      '-sEXPORTED_FUNCTIONS=["_oak_run_file_wrapper"]',
       '-sEXPORTED_RUNTIME_METHODS=["ccall","cwrap","FS"]',
     ],
   )
@@ -291,7 +338,41 @@ else
       'stdlib',
       install_dir: get_option('bindir'),
     )
+
+    # subdirs: 'oak' emits -I${includedir}/oak to match install_headers above,
+    # so `#include "oak_bind.h"` resolves identically in-tree and installed.
+    #
+    # No -DOAK_STATIC here: acorn is unconditionally a shared_library in this
+    # branch (the static build is the emscripten one, which installs nothing),
+    # so a consumer needs the default __declspec(dllimport) path on Windows.
+    # Do NOT key this on default_library -- that option is 'static' project-wide
+    # for the bundled subprojects and says nothing about how acorn was built.
+    # yyjson is absorbed statically and so needs no Requires.
+    import('pkgconfig').generate(
+      acorn,
+      name: 'oak',
+      filebase: 'oak',
+      description: 'Oak language runtime (acorn)',
+      subdirs: 'oak',
+      version: meson.project_version(),
+      libraries_private: [math_dep, socket_dep],
+    )
   endif
+
+  # The guard for the public API. Two things make it real rather than
+  # ceremonial: it takes no include_directories, so -Iinclude (from acorn_dep)
+  # is the entire header search path; and it uses warning_args rather than
+  # common_c_args, so it compiles with zero -DOAK_* flags while the library
+  # itself is built with them. That makes it a live check that no public header
+  # keys on a build define -- a layout mismatch in oak_obj_t would show up here
+  # as corruption or a leak report at shutdown.
+  public_api_smoke = executable(
+    'oak_public_api_smoke',
+    files('tests/public_api/oak_embed_smoke.c'),
+    c_args: warning_args,
+    dependencies: acorn_dep,
+  )
+  test('public_api', public_api_smoke)
 
   test(
     'dap_integration',
@@ -322,6 +403,7 @@ else
     'debugger',
     'bind_fn',
     'bind_type',
+    'module_loader',
   ]
 
   test_suite_sources = []
@@ -342,7 +424,12 @@ else
       include_directories('tests/third_party'),
       include_directories('.'),
     ],
-    c_args: common_c_args,
+    # The module loader is the one subsystem that cannot be exercised without
+    # real files on disk, so its suite reads the multi-module example from the
+    # source tree. Same pattern as OAK_STDLIB_SOURCE_DIR above; nothing is
+    # written, so the "tests do no filesystem I/O" rule still holds for output.
+    c_args: common_c_args +
+      ['-DOAK_TEST_EXAMPLES_DIR="' + meson.current_source_dir() / 'examples' + '"'],
     dependencies: acorn_dep,
   )
 

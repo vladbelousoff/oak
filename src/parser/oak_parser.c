@@ -1,6 +1,9 @@
 #include "internal/oak_parser.h"
 
+#include "oak_allocator.h"
+
 #include <stdio.h>
+#include <string.h>
 
 static const oak_token_t* oak_parser_current_token(
     const oak_parser_t* p)
@@ -442,11 +445,16 @@ oak_ast_node_t* oak_parser_parse_rule(oak_parser_t* p,
   return null;
 }
 
-void oak_parse(const oak_lexer_result_t* lexer,
-               const oak_node_kind_t kind,
-               oak_parser_result_t* out,
-               oak_allocator_t* allocator)
+oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
+                               const oak_node_kind_t kind,
+                               oak_allocator_t* allocator)
 {
+  oak_parser_result_t* out =
+      OAK_ALLOC(allocator, sizeof(oak_parser_result_t));
+  if (!out)
+    return null;
+  memset(out, 0, sizeof *out);
+  out->allocator = allocator;
   oak_arena_init(&out->arena, 0, allocator);
 
   const oak_list_entry_t* tokens = oak_lexer_tokens(lexer);
@@ -463,6 +471,7 @@ void oak_parse(const oak_lexer_result_t* lexer,
     oak_parser_emit_detail(&parser, out);
     out->root = null;
   }
+  return out;
 }
 
 oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result)
@@ -486,4 +495,5 @@ void oak_parser_free(oak_parser_result_t* result)
   if (!result)
     return;
   oak_arena_free(&result->arena);
+  OAK_FREE(result->allocator, result);
 }

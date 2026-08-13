@@ -52,7 +52,11 @@ static int native_type_in_module(const oak_bind_type_t* type,
 
 static oak_type_id_t native_ref_id(const oak_bind_type_ref_t* ref)
 {
-  return ref->type ? ref->type->resolved_type_id : ref->id;
+  if (ref->type)
+    return ref->type->resolved_type_id;
+  if (ref->enum_type)
+    return ref->enum_type->resolved_type_id;
+  return ref->id;
 }
 
 static oak_type_id_t native_ref_key_id(const oak_bind_type_ref_t* ref)
@@ -432,7 +436,7 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
 {
   if (!opts_has_native_module(opts, mod->dotted_name))
     return 1;
-  const oak_ast_node_t* root = oak_parser_root(&mod->parser);
+  const oak_ast_node_t* root = oak_parser_root(mod->parser);
   if (!root)
     return 1;
   int ok = 1;
@@ -557,6 +561,22 @@ oak_module_t* create_native_module(
     type->resolved_type_id = oak_type_registry_intern(&mod->types, type->name);
   }
 
+  /* Intern enum type ids in the same early pass as the record types: a
+   * function signature further down may reference an enum through
+   * OAK_BIND_ENUM, and native_ref_id reads the id assigned here. The export
+   * entries themselves are built later, alongside the other exports. */
+  {
+    oak_bind_enum_t** early_enums =
+        OAK_DATA(oak_bind_enum_t*, opts->native_enums);
+    for (usize i = 0; i < oak_size(opts->native_enums); ++i)
+    {
+      oak_bind_enum_t* e = early_enums[i];
+      if (!e || !native_module_name_eq(e->module_name, dotted))
+        continue;
+      e->resolved_type_id = oak_type_registry_intern(&mod->types, e->name);
+    }
+  }
+
   const oak_bind_global_fn_t* global_fns =
       OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
   for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
@@ -635,14 +655,13 @@ oak_module_t* create_native_module(
       OAK_DATA(oak_bind_enum_t*, opts->native_enums);
   for (usize i = 0; i < oak_size(opts->native_enums); ++i)
   {
-    const oak_bind_enum_t* e = native_enums[i];
+    oak_bind_enum_t* e = native_enums[i];
     if (!e || !native_module_name_eq(e->module_name, dotted))
       continue;
-    /* Give the enum a type ID in this module's registry, exactly as the
-     * native types above get one. Importers resolve an exported enum by
-     * looking its name up here; without the entry the lookup fails and the
-     * import is rejected ("failed to register imported enum"). */
-    oak_type_registry_intern(&mod->types, e->name);
+    /* The type ID was interned in the early pass above, exactly as the native
+     * types get one. Importers resolve an exported enum by looking its name up
+     * in the registry; without that entry the lookup fails and the import is
+     * rejected ("failed to register imported enum"). */
     oak_module_export_enum_t exp = { 0 };
     exp.name = e->name;
     exp.variants = oak_vector_new(

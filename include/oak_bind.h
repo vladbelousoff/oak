@@ -3,16 +3,21 @@
 #include "oak_compiler.h"
 #include "oak_container.h"
 #include "oak_export.h"
+#include "oak_native.h"
 #include "oak_parser.h"
-#include "oak_type.h"
 #include "oak_type_id.h"
+#include "oak_type_kind.h"
 #include "oak_types.h"
-#include "oak_value.h"
 #include "oak_vector.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct oak_module_registry oak_module_registry_t;
 typedef struct oak_module oak_module_t;
 typedef struct oak_bind_type oak_bind_type_t;
+typedef struct oak_bind_enum oak_bind_enum_t;
 
 
 typedef enum oak_bind_type_kind oak_bind_type_kind_t;
@@ -29,7 +34,6 @@ enum oak_bind_type_kind
 
 /* Where a native method is bound on its receiver type (see oak_bind_fn). */
 typedef enum oak_bind_fn_kind oak_bind_fn_kind_t;
-typedef enum oak_bind_fn_kind oak_bind_fn_kind_t;
 enum oak_bind_fn_kind
 {
   OAK_BIND_FN_INSTANCE_METHOD,
@@ -41,8 +45,10 @@ enum oak_bind_fn_kind
  * return types.  Mirrors the internal oak_type_t and reuses oak_type_kind_t so
  * it can express scalars, typed arrays (element type = `id`), and typed maps
  * (value = `id`, key = `key_id`).  Construct with the OAK_BIND_* macros below;
- * a zero-initialised ref is a scalar of type OAK_TYPE_VOID. */
-typedef struct oak_bind_type_ref oak_bind_type_ref_t;
+ * a zero-initialised ref is a scalar of type OAK_TYPE_VOID.
+ *
+ * A ref can also name a native enum registered with oak_bind_enum -- use
+ * OAK_BIND_ENUM, so that `f(EnumName.Variant)` type-checks at the call site. */
 typedef struct oak_bind_type_ref oak_bind_type_ref_t;
 struct oak_bind_type_ref
 {
@@ -50,12 +56,19 @@ struct oak_bind_type_ref
   oak_type_id_t key_id;      /* map key type; ignored for non-map kinds */
   const oak_bind_type_t* type;     /* custom element/value type */
   const oak_bind_type_t* key_type; /* custom map key type */
+  /* Native enum element/value type.  Mutually exclusive with `type`. */
+  const oak_bind_enum_t* enum_type;
   oak_type_kind_t kind; /* SCALAR / ARRAY / MAP */
 };
 
 /* Constructor helper for oak_bind_type_ref_t. Implemented as a function rather
- * than a compound literal so the OAK_BIND_* macros expand to an expression that
- * is valid anywhere, including in initializers of static storage. */
+ * than a compound literal so the OAK_BIND_* macros expand to an expression
+ * usable wherever a value is expected, including as a struct field initializer
+ * in automatic storage.
+ *
+ * A call is not a constant expression, though, so these cannot initialize an
+ * object with static storage duration. For a `static const` table of type
+ * refs, use the OAK_BIND_*_INIT brace-initializer forms below instead. */
 static inline oak_bind_type_ref_t oak_bind_type_ref_make(
     oak_type_id_t id, oak_type_id_t key_id, oak_type_kind_t kind)
 {
@@ -64,6 +77,7 @@ static inline oak_bind_type_ref_t oak_bind_type_ref_make(
   ref.key_id = key_id;
   ref.type = null;
   ref.key_type = null;
+  ref.enum_type = null;
   ref.kind = kind;
   return ref;
 }
@@ -94,6 +108,45 @@ static inline oak_bind_type_ref_t oak_bind_type_ref_native_make(
   oak_bind_type_ref_native_make((t), null, OAK_TYPE_KIND_ARRAY)
 #define OAK_BIND_NATIVE_MAP(k, v)                                              \
   oak_bind_type_ref_native_make((v), (k), OAK_TYPE_KIND_MAP)
+
+static inline oak_bind_type_ref_t oak_bind_type_ref_enum_make(
+    const oak_bind_enum_t* e, oak_type_kind_t kind)
+{
+  oak_bind_type_ref_t ref = oak_bind_type_ref_make(
+      OAK_TYPE_VOID, OAK_TYPE_VOID, kind);
+  ref.enum_type = e;
+  return ref;
+}
+
+/* A parameter, return or field typed as a native enum registered with
+ * oak_bind_enum.  Prefer this over OAK_TYPE_NUMBER so the compiler accepts
+ * `f(EnumName.Variant)` and rejects a bare integer.  The descriptor must have
+ * been registered on the same options; its type id is assigned during
+ * compilation, before any signature that references it is lowered. */
+#define OAK_BIND_ENUM(e)                                                       \
+  oak_bind_type_ref_enum_make((e), OAK_TYPE_KIND_SCALAR)
+#define OAK_BIND_ENUM_ARRAY(e)                                                 \
+  oak_bind_type_ref_enum_make((e), OAK_TYPE_KIND_ARRAY)
+
+/* Brace-initializer forms of the three builtin constructors, for objects with
+ * static storage duration -- typically a `static const oak_bind_type_ref_t[]`
+ * shared between a binding's param_types and its callback's own guard:
+ *
+ *   static const oak_bind_type_ref_t params[] = {
+ *     OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
+ *     OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
+ *   };
+ *
+ * There is no OAK_BIND_NATIVE_INIT or OAK_BIND_ENUM_INIT: those descriptors
+ * come from oak_bind_type / oak_bind_enum at run time, so a table referring to
+ * one cannot be static anyway -- make it a local array and use the
+ * OAK_BIND_NATIVE / OAK_BIND_ENUM forms. */
+#define OAK_BIND_SCALAR_INIT(tid)                                              \
+  { .id = (tid), .key_id = 0, .kind = OAK_TYPE_KIND_SCALAR }
+#define OAK_BIND_ARRAY_INIT(elem)                                              \
+  { .id = (elem), .key_id = 0, .kind = OAK_TYPE_KIND_ARRAY }
+#define OAK_BIND_MAP_INIT(k, v)                                                \
+  { .id = (v), .key_id = (k), .kind = OAK_TYPE_KIND_MAP }
 
 
 /* Returns the field value for the native record instance `self`.
@@ -133,7 +186,6 @@ struct oak_bind_field
 };
 
 
-typedef struct oak_bind_type oak_bind_type_t;
 struct oak_bind_type
 {
   oak_bind_type_kind_t kind;
@@ -154,7 +206,6 @@ struct oak_bind_type
 /* Use oak_bind_fn_global() to register a free function or module-scoped
  * function (e.g. math.sqrt).  Global functions are not attached to any type. */
 typedef struct oak_bind_global_fn oak_bind_global_fn_t;
-typedef struct oak_bind_global_fn oak_bind_global_fn_t;
 struct oak_bind_global_fn
 {
   /* NULL for a top-level global; "math" to scope it as `math.fn()`. */
@@ -165,8 +216,9 @@ struct oak_bind_global_fn
   /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
   oak_bind_type_ref_t return_type;
   /* Optional per-parameter types used for call-site type checking.  When
-   * non-NULL, param_types must list `arity` entries; the embedder owns the
-   * array (it is copied at registration) and it must outlive oak_compile_ex. */
+   * non-NULL, param_types must list `arity` entries.  Registration copies this
+   * struct but not the array it points at, so the array is borrowed: the
+   * embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
   int param_count;
   /* Optional pointer surfaced to `impl` as oak_native_ctx_t::user_data;
@@ -177,7 +229,6 @@ struct oak_bind_global_fn
 
 /* Use oak_bind_fn() to register instance or static methods on a native type.
  * For global or module-scoped functions use oak_bind_fn_global() instead. */
-typedef struct oak_bind_fn oak_bind_fn_t;
 typedef struct oak_bind_fn oak_bind_fn_t;
 struct oak_bind_fn
 {
@@ -193,8 +244,9 @@ struct oak_bind_fn
   oak_bind_type_ref_t return_type;
   /* Optional per-parameter types used for call-site type checking.  param_types
    * lists the user-visible parameters (excluding the implicit self for instance
-   * methods) and must hold `arity` entries when non-NULL.  It is borrowed and
-   * must outlive oak_compile_ex. */
+   * methods) and must hold `arity` entries when non-NULL.  Registration copies
+   * this struct but not the array it points at, so the array is borrowed: the
+   * embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
   int param_count;
   /* Optional pointer surfaced to `impl` as oak_native_ctx_t::user_data;
@@ -207,27 +259,28 @@ struct oak_bind_fn
  * Variants are exposed to Oak source as `EnumName.Variant`, lowering to the
  * variant's integer value (the same shape as user-declared enums). */
 typedef struct oak_bind_enum_variant oak_bind_enum_variant_t;
-typedef struct oak_bind_enum_variant oak_bind_enum_variant_t;
 struct oak_bind_enum_variant
 {
   const char* name;
   int value;
 };
 
-typedef struct oak_bind_enum oak_bind_enum_t;
 struct oak_bind_enum
 {
   /* Optional native module name. When set, variants are exported from that
    * synthetic module and referenced as `module.Enum.Variant`. */
   const char* module_name;
   const char* name;
+  /* Assigned when this descriptor is installed into a module/compiler
+   * registry. Embedders should reference the descriptor via OAK_BIND_ENUM,
+   * not this value. */
+  oak_type_id_t resolved_type_id; /* private */
   oak_container_t* variants; /* vector of oak_bind_enum_variant_t */
   oak_allocator_t* allocator;
 };
 
 
 /* Target kind of a declaration bearing an attribute. */
-typedef enum oak_attr_target oak_attr_target_t;
 typedef enum oak_attr_target oak_attr_target_t;
 enum oak_attr_target
 {
@@ -239,7 +292,6 @@ enum oak_attr_target
 
 /* Per-parameter metadata exposed to attribute callbacks on FN/METHOD targets. */
 typedef struct oak_attr_param_info oak_attr_param_info_t;
-typedef struct oak_attr_param_info oak_attr_param_info_t;
 struct oak_attr_param_info
 {
   const char* name;
@@ -250,7 +302,6 @@ struct oak_attr_param_info
 };
 
 /* Per-field metadata exposed to attribute callbacks on RECORD targets. */
-typedef struct oak_attr_field_info oak_attr_field_info_t;
 typedef struct oak_attr_field_info oak_attr_field_info_t;
 struct oak_attr_field_info
 {
@@ -289,7 +340,7 @@ struct oak_attr_compile_ctx
 
 typedef void (*oak_attr_compile_cb_t)(const oak_attr_compile_ctx_t* ctx);
 
-/* oak_attr_runtime_cb_t is defined in oak_value.h (included above). */
+/* oak_attr_runtime_cb_t is declared in oak_native.h (included above). */
 
 typedef struct oak_bind_attr oak_bind_attr_t;
 struct oak_bind_attr
@@ -301,7 +352,20 @@ struct oak_bind_attr
 };
 
 
-typedef struct oak_compile_options oak_compile_options_t;
+/* Compilation inputs plus the registry of native bindings.
+ *
+ * Lifetime: this struct must outlive the VM and every native value created
+ * from it, not merely the call to oak_compile_ex.  Each native-record object
+ * retains a pointer to its oak_bind_type_t descriptor and reads
+ * `destructor` from it when its refcount reaches zero, and those descriptors
+ * are owned by these options.  Tear down in this order:
+ *
+ *   oak_vm_free(&vm);
+ *   oak_compile_result_free(&result);
+ *   oak_compile_options_free(&opts);
+ *
+ * Freeing the options first leaves every live native value pointing at a
+ * released descriptor. */
 struct oak_compile_options
 {
   /* Allocator used for all compilation and runtime allocations. */
@@ -356,18 +420,31 @@ struct oak_compile_options
 
 
 OAK_API void oak_compile_options_init(oak_compile_options_t* opts,
-                                     oak_allocator_t* allocator);
+                                      oak_allocator_t* allocator);
+
+/* Release every descriptor registered into `opts` and null the pointers, so
+ * calling this twice is a no-op rather than a double free.  Safe on a
+ * zero-initialized options struct.
+ *
+ * Of the strings passed to the oak_bind_* functions, only field names were
+ * copied; every other name is borrowed (see the individual declarations).
+ * Must be called after oak_vm_free — see the lifetime note on
+ * oak_compile_options_t. */
 OAK_API void oak_compile_options_free(oak_compile_options_t* opts);
 
 
 /* Allocate a native type descriptor, register it in opts, and return a pointer
  * for subsequent field/method/signature bindings. The descriptor is owned by
  * opts and freed by oak_compile_options_free; do not free it separately.
+ * `name` is borrowed and must outlive `opts`.
  * Returns NULL if opts or name is NULL. */
 OAK_API oak_bind_type_t* oak_bind_type(oak_compile_options_t* opts,
-                                              oak_bind_type_kind_t kind,
-                                              const char* name);
+                                       oak_bind_type_kind_t kind,
+                                       const char* name);
 
+/* As oak_bind_type, but exports the type from the synthetic module
+ * `module_name` so Oak source refers to it as `module.Type`.
+ * Both `module_name` and `name` are borrowed and must outlive `opts`. */
 OAK_API oak_bind_type_t* oak_bind_type_in_module(
     oak_compile_options_t* opts,
     const char* module_name,
@@ -378,9 +455,43 @@ OAK_API oak_bind_type_t* oak_bind_type_in_module(
  * registration order, matching the order the compiler resolves them.
  * `params` must not be NULL; it supplies name, field_type_id, getter, and
  * optional setter (same shape as oak_bind_field_t).
+ * Unlike the other oak_bind_* entry points, `params->name` is copied, so it
+ * need not outlive this call.
  * Returns 0 on success, -1 if a field with the same name already exists. */
 OAK_API int oak_bind_field(oak_bind_type_t* type,
                            const oak_bind_field_t* params);
+
+/*
+ * Batch forms of the four registration calls.
+ *
+ * Each registers `count` descriptors in order and returns 0 only if every one
+ * succeeded, -1 if any failed (earlier ones stay registered). They exist so a
+ * binding can be written as a static table rather than a run of near-identical
+ * compound literals:
+ *
+ *   static const oak_bind_fn_t methods[] = {
+ *     { .kind = OAK_BIND_FN_INSTANCE_METHOD, .receiver_type = t,
+ *       .name = "read", .impl = file_read, .arity = 0,
+ *       .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
+ *     ...
+ *   };
+ *   oak_bind_fns(opts, methods, (int)oak_count_of(methods));
+ *
+ * Note the table cannot be `static const` when it references a descriptor
+ * returned at run time by oak_bind_type; make it a local array in that case.
+ */
+OAK_API int oak_bind_fields(oak_bind_type_t* type,
+                            const oak_bind_field_t* fields,
+                            int count);
+OAK_API int oak_bind_fns(oak_compile_options_t* opts,
+                         const oak_bind_fn_t* fns,
+                         int count);
+OAK_API int oak_bind_fns_global(oak_compile_options_t* opts,
+                                const oak_bind_global_fn_t* fns,
+                                int count);
+OAK_API int oak_bind_enum_variants(oak_bind_enum_t* e,
+                                   const oak_bind_enum_variant_t* variants,
+                                   int count);
 
 /* Register a global or module-scoped native function.
  * Use this for free functions like `to_int(v)` or `math.sqrt(v)`.
@@ -399,20 +510,24 @@ OAK_API int oak_bind_fn(oak_compile_options_t* opts,
 
 /* Allocate a native enum descriptor and register it in opts.  Returns a
  * pointer for subsequent oak_bind_enum_variant calls; the descriptor is owned
- * by opts and freed by oak_compile_options_free.  Returns NULL on invalid
- * arguments. */
+ * by opts and freed by oak_compile_options_free.  `name` is borrowed and must
+ * outlive `opts`.  Returns NULL on invalid arguments. */
 OAK_API oak_bind_enum_t* oak_bind_enum(oak_compile_options_t* opts,
-                                              const char* name);
+                                       const char* name);
 
+/* As oak_bind_enum, but exports the variants from the synthetic module
+ * `module_name` so Oak source refers to them as `module.Enum.Variant`.
+ * Both `module_name` and `name` are borrowed and must outlive `opts`. */
 OAK_API oak_bind_enum_t* oak_bind_enum_in_module(
     oak_compile_options_t* opts,
     const char* module_name,
     const char* name);
 
-/* Append a variant to a native enum.  Variant values must be unique within
- * an enum is not enforced — they are forwarded as-is to Oak as integer
- * constants.  Returns 0 on success, -1 if a variant with the same name
- * already exists in this enum. */
+/* Append a variant to a native enum.  Values are forwarded to Oak as integer
+ * constants as-is; uniqueness of *values* within an enum is not enforced.
+ * `name` is borrowed and must outlive the enum's owning options.
+ * Returns 0 on success, -1 if a variant with the same *name* already exists
+ * in this enum. */
 OAK_API int oak_bind_enum_variant(oak_bind_enum_t* e,
                                   const char* name,
                                   int value);
@@ -485,10 +600,58 @@ OAK_API oak_value_t oak_native_value_new(void* payload);
 OAK_API void* oak_native_value(oak_value_t value);
 
 
-/* Like oak_compile() but registers native types and functions from `opts`
- * into the compiler before the first pass so that Oak source code can refer
- * to them by name.
- * `opts` may be NULL, in which case this is identical to oak_compile(). */
+/* Non-zero when `value` satisfies the declared type `ref`.
+ * A ref of OAK_TYPE_VOID matches anything, which is how an unspecified
+ * parameter type behaves at a call site. */
+OAK_API int oak_value_matches(oak_value_t value, oak_bind_type_ref_t ref);
+
+/* Non-zero when argc == count and every args[i] satisfies types[i].
+ *
+ * Pass the same array given as oak_bind_fn_t::param_types, so the signature is
+ * written once and serves both the compiler's call-site checking and the
+ * callback's own guard:
+ *
+ *   static const oak_bind_type_ref_t params[] = {
+ *     OAK_BIND_SCALAR(OAK_TYPE_STRING), OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+ *   };
+ *   static oak_fn_call_result_t my_fn(oak_native_ctx_t* ctx,
+ *                                     const oak_value_t* args, int argc,
+ *                                     oak_value_t* out)
+ *   {
+ *     if (!oak_native_args_match(args, argc, params, 2))
+ *       return OAK_FN_CALL_RUNTIME_ERROR;
+ *     ...
+ *   }
+ *
+ * The guard is still worth keeping: param_types makes the compiler check Oak
+ * call sites, but a native function can also be reached from C through
+ * oak_vm_call with arbitrary values.
+ *
+ * For an instance method, args[0] is the receiver and param_types describes
+ * only the explicit parameters, so check the tail:
+ * oak_native_args_match(args + 1, argc - 1, params, count). */
+OAK_API int oak_native_args_match(const oak_value_t* args,
+                                  int argc,
+                                  const oak_bind_type_ref_t* types,
+                                  int count);
+
+
+/* Compile a parsed AST into bytecode, registering the native types, functions
+ * and enums described by `opts` before the first pass so that Oak source can
+ * refer to them by name.
+ *
+ * The caller retains ownership of `root`; the AST is not freed here.  `out`
+ * must be initialized by the caller (zero-initialization is enough); it
+ * receives the chunk on success or diagnostics on failure, and is released
+ * with oak_compile_result_free.
+ *
+ * `opts` may be NULL to compile with no bindings, in which case allocation
+ * falls back to the process-wide system allocator — pass options with an
+ * explicit allocator if you want to account for compiler allocations. */
 OAK_API void oak_compile_ex(const oak_ast_node_t* root,
                             const oak_compile_options_t* opts,
                             oak_compile_result_t* out);
+
+#ifdef __cplusplus
+}
+#endif

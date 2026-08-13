@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Fixed-width aliases without pulling in system headers.
  * On typical OSes, usize/isize match the width of size_t/ssize_t (same as
@@ -63,9 +67,17 @@ typedef long isize;
  * Null pointer constant. C has no real "null type"; this expands to a null
  * pointer of type void* so it converts to any object pointer (and to function
  * pointers on common compilers). Prefer over the NULL macro from <stddef.h>.
+ *
+ * Under C++ it expands to nullptr instead: void* does not implicitly convert
+ * to a typed pointer there, so the void* form would make every assignment in
+ * these headers a hard error for a C++ embedder.
  */
 #ifndef null
+#if defined(__cplusplus)
+#define null nullptr
+#else
 #define null ((void*)0)
+#endif
 #endif
 
 #define OAK_STATIC_ASSERT(name, condition)                                     \
@@ -81,4 +93,8 @@ OAK_STATIC_ASSERT(width_64_bit, sizeof(i64) == 8 && sizeof(u64) == 8);
 #if defined(_MSC_VER) && !defined(__STDC_VERSION__)
 #undef _Thread_local
 #define _Thread_local __declspec(thread)
+#endif
+
+#ifdef __cplusplus
+}
 #endif

@@ -2,7 +2,10 @@
 
 #include "oak_export.h"
 #include "oak_list.h"
-#include "oak_log.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum oak_token_kind oak_token_kind_t;
 enum oak_token_kind
@@ -104,3 +107,7 @@ OAK_API float oak_token_as_f32(const oak_token_t* token);
 
 OAK_API oak_token_kind_t oak_keyword_lookup(const char* ident);
 OAK_API const char* oak_token_name(oak_token_kind_t token_kind);
+
+#ifdef __cplusplus
+}
+#endif

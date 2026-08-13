@@ -3,8 +3,9 @@
 #include "oak_vector.h"
 #include "oak_dap.h"
 
-#include "oak_chunk.h"
-#include "oak_value.h"
+#include "oak_chunk_impl.h"
+#include "oak_log.h"
+#include "oak_value_impl.h"
 
 #include <limits.h>
 #include <stdint.h>

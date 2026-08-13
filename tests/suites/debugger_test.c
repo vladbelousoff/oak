@@ -31,19 +31,19 @@ struct dbg_session
 static oak_compile_result_t compile_debug(oak_allocator_t* a, const char* src)
 {
   oak_lexer_result_t* lex = oak_lexer_tokenize(src, a);
-  oak_parser_result_t pr = { 0 };
+  oak_parser_result_t* pr;
   oak_compile_options_t opts;
   oak_compile_result_t cr = { 0 };
 
-  oak_parse(lex, OAK_NODE_PROGRAM, &pr, a);
+  pr = oak_parse(lex, OAK_NODE_PROGRAM, a);
 
   oak_compile_options_init(&opts, a);
   opts.emit_debug_info = 1;
   opts.source_name = "test.oak";
-  oak_compile_ex(oak_parser_root(&pr), &opts, &cr);
+  oak_compile_ex(oak_parser_root(pr), &opts, &cr);
 
   oak_compile_options_free(&opts);
-  oak_parser_free(&pr);
+  oak_parser_free(pr);
   oak_lexer_free(lex);
   return cr;
 }

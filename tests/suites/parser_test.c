@@ -173,7 +173,7 @@ UTEST_F(parser, control_flow_statements_parse)
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, src);
 
   ASSERT_TRUE(fx.root != null);
-  EXPECT_EQ(0, oak_parser_error_count(&fx.parsed));
+  EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
   OAK_EXPECT_KIND(fx.root, OAK_NODE_PROGRAM);
   OAK_EXPECT_CHILDREN(fx.root, 6);
 
@@ -236,7 +236,7 @@ UTEST_F(parser, declarations_parse)
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, src);
 
   ASSERT_TRUE(fx.root != null);
-  EXPECT_EQ(0, oak_parser_error_count(&fx.parsed));
+  EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
   OAK_EXPECT_KIND(fx.root, OAK_NODE_PROGRAM);
 
   oak_test_parse_free(&fx);
@@ -281,7 +281,7 @@ UTEST_F(parser, collection_types_and_literals_parse)
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, src);
 
   ASSERT_TRUE(fx.root != null);
-  EXPECT_EQ(0, oak_parser_error_count(&fx.parsed));
+  EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
   OAK_EXPECT_CHILDREN(fx.root, 6);
 
   oak_test_parse_free(&fx);
@@ -309,7 +309,7 @@ UTEST_F(parser, malformed_sources_are_rejected)
   for (i = 0; i < oak_count_of(cases); ++i)
   {
     oak_parse_fixture_t fx = oak_test_parse(OAK_A, cases[i]);
-    if (fx.root != null && oak_parser_error_count(&fx.parsed) == 0)
+    if (fx.root != null && oak_parser_error_count(fx.parsed) == 0)
     {
       UTEST_PRINTF("  parsed cleanly but should not have: %s\n", cases[i]);
       *utest_result = UTEST_TEST_FAILURE;
@@ -332,19 +332,19 @@ UTEST_F(parser, parse_errors_say_what_was_expected)
   for (i = 0; i < oak_count_of(cases); ++i)
   {
     oak_parse_fixture_t fx = oak_test_parse(OAK_A, cases[i].src);
-    const int errors = oak_parser_error_count(&fx.parsed);
+    const int errors = oak_parser_error_count(fx.parsed);
 
     if (fx.root != null || errors == 0)
     {
       UTEST_PRINTF("  expected a parse error: %s\n", cases[i].src);
       *utest_result = UTEST_TEST_FAILURE;
     }
-    else if (!oak_test_contains(oak_parser_errors(&fx.parsed)[0].message,
+    else if (!oak_test_contains(oak_parser_errors(fx.parsed)[0].message,
                                 cases[i].want))
     {
       UTEST_PRINTF("  want substring '%s', got '%s'\n",
                    cases[i].want,
-                   oak_parser_errors(&fx.parsed)[0].message);
+                   oak_parser_errors(fx.parsed)[0].message);
       *utest_result = UTEST_TEST_FAILURE;
     }
     oak_test_parse_free(&fx);

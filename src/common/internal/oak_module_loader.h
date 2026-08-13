@@ -3,8 +3,9 @@
 #include <oak_module_loader.h>
 
 #include "oak_bind.h"
-#include "oak_chunk.h"
+#include "oak_chunk_impl.h"
 #include "oak_container.h"
+#include "oak_module_impl.h"
 #include "oak_lexer.h"
 #include "oak_allocator.h"
 #include "oak_log.h"

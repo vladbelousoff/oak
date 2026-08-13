@@ -2,7 +2,8 @@
 
 #include "oak_allocator.h"
 #include "oak_bind.h"
-#include "oak_value.h"
+#include "oak_count_of.h"
+#include "oak_value_impl.h"
 #include "oak_vm.h"
 
 #include <stdio.h>
@@ -42,14 +43,30 @@ static void file_destroy(void* instance)
   OAK_FREE(h->allocator, h);
 }
 
-static const oak_bind_type_t* s_file_type;
+/* Runtime guard for open(). The compile-time signature is built in
+ * oak_stdlib_register_file, where the io.FileMode descriptor is in scope and
+ * the mode parameter is typed as that enum via OAK_BIND_ENUM. At run time an
+ * enum is just its integer value, so a number check is the right test here. */
+static const oak_bind_type_ref_t file_open_params[] = {
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
+};
+
+/* Declared once and used twice: as param_types, so the compiler checks Oak
+ * call sites, and as the callback's own guard against calls arriving from C. */
+static const oak_bind_type_ref_t file_write_params[] = {
+  OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
+};
 
 static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
                                            const oak_value_t* args,
                                            int argc,
                                            oak_value_t* out)
 {
-  if (argc != 2 || !oak_is_string(args[0]) || !oak_is_i32(args[1]))
+  if (!oak_native_args_match(
+          args, argc, file_open_params, (int)oak_count_of(file_open_params)))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  if (!oak_is_i32(args[1]))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const char* mode;
   const oak_file_mode_t requested = (oak_file_mode_t)oak_as_i32(args[1]);
@@ -79,7 +96,10 @@ static oak_fn_call_result_t file_open(oak_native_ctx_t* ctx,
   h->fp = fp;
   h->mode = requested;
   h->allocator = ctx->allocator;
-  *out = oak_vm_native_record_new(ctx->vm, s_file_type, h);
+  /* The io.File descriptor travels through user_data rather than a file
+   * static, so two oak_compile_options_t in one process stay independent. */
+  *out = oak_vm_native_record_new(
+      ctx->vm, (const oak_bind_type_t*)ctx->user_data, h);
   return OAK_FN_CALL_OK;
 }
 
@@ -149,7 +169,12 @@ static oak_fn_call_result_t file_write(oak_native_ctx_t* ctx,
                                             oak_value_t* out)
 {
   (void)ctx;
-  if (argc != 2 || !oak_is_native_record(args[0]) || !oak_is_string(args[1]))
+  /* args[0] is the receiver; param_types covers only explicit parameters. */
+  if (argc != 2 || !oak_is_native_record(args[0]) ||
+      !oak_native_args_match(args + 1,
+                             argc - 1,
+                             file_write_params,
+                             (int)oak_count_of(file_write_params)))
     return OAK_FN_CALL_RUNTIME_ERROR;
   oak_file_handle_t* h = oak_native_instance(args[0]);
   if (!h || !h->fp)
@@ -247,77 +272,79 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
   if (!t)
     return;
   t->destructor = file_destroy;
-  s_file_type = t;
 
-  oak_bind_enum_t* mode =
-      oak_bind_enum_in_module(opts, "io", "FileMode");
+  oak_bind_enum_t* mode = oak_bind_enum_in_module(opts, "io", "FileMode");
   if (mode)
   {
-    oak_bind_enum_variant(mode, "Read", OAK_FILE_MODE_READ);
-    oak_bind_enum_variant(mode, "Write", OAK_FILE_MODE_WRITE);
-    oak_bind_enum_variant(mode, "Append", OAK_FILE_MODE_APPEND);
+    static const oak_bind_enum_variant_t modes[] = {
+      { "Read", OAK_FILE_MODE_READ },
+      { "Write", OAK_FILE_MODE_WRITE },
+      { "Append", OAK_FILE_MODE_APPEND },
+    };
+    oak_bind_enum_variants(mode, modes, (int)oak_count_of(modes));
   }
 
-  oak_bind_fn_global(opts,
-                     &(oak_bind_global_fn_t){
-                         .module_name = "io",
-                         .name = "open",
-                         .impl = file_open,
-                         .arity = 2,
-                         .return_type = OAK_BIND_NATIVE(t),
-                     });
-  oak_bind_fn(opts,
-              &(oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_STATIC_METHOD,
-                  .receiver_type = t,
-                  .name = "open",
-                  .impl = file_open,
-                  .arity = 2,
-                  .return_type = OAK_BIND_NATIVE(t),
-              });
-  oak_bind_fn(opts,
-              &(oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type = t,
-                  .name = "read",
-                  .impl = file_read,
-                  .arity = 0,
-                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
-              });
-  oak_bind_fn(opts,
-              &(oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type = t,
-                  .name = "read_all",
-                  .impl = file_read_all,
-                  .arity = 0,
-                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
-              });
-  oak_bind_fn(opts,
-              &(oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type = t,
-                  .name = "write",
-                  .impl = file_write,
-                  .arity = 1,
-                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
-              });
-  oak_bind_fn(opts,
-              &(oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type = t,
-                  .name = "eof",
-                  .impl = file_eof,
-                  .arity = 0,
-                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_BOOL),
-              });
-  oak_bind_fn(opts,
-              &(oak_bind_fn_t){
-                  .kind = OAK_BIND_FN_INSTANCE_METHOD,
-                  .receiver_type = t,
-                  .name = "close",
-                  .impl = file_close,
-                  .arity = 0,
-                  .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
-              });
+  /* Not static: these reference `t` and `mode`, known only at run time.
+   * Typing the second parameter as the FileMode enum makes the compiler accept
+   * `io.open(p, FileMode.Write)` and reject a bare integer. */
+  const oak_bind_type_ref_t open_sig[] = {
+    OAK_BIND_SCALAR(OAK_TYPE_STRING),
+    OAK_BIND_ENUM(mode),
+  };
+  const oak_bind_global_fn_t globals[] = {
+    { .module_name = "io",
+      .name = "open",
+      .impl = file_open,
+      .arity = 2,
+      .return_type = OAK_BIND_NATIVE(t),
+      .param_types = mode ? open_sig : null,
+      .param_count = mode ? (int)oak_count_of(open_sig) : 0,
+      .user_data = t },
+  };
+  oak_bind_fns_global(opts, globals, (int)oak_count_of(globals));
+
+  const oak_bind_fn_t methods[] = {
+    { .kind = OAK_BIND_FN_STATIC_METHOD,
+      .receiver_type = t,
+      .name = "open",
+      .impl = file_open,
+      .arity = 2,
+      .return_type = OAK_BIND_NATIVE(t),
+      .param_types = mode ? open_sig : null,
+      .param_count = mode ? (int)oak_count_of(open_sig) : 0,
+      .user_data = t },
+    { .kind = OAK_BIND_FN_INSTANCE_METHOD,
+      .receiver_type = t,
+      .name = "read",
+      .impl = file_read,
+      .arity = 0,
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
+    { .kind = OAK_BIND_FN_INSTANCE_METHOD,
+      .receiver_type = t,
+      .name = "read_all",
+      .impl = file_read_all,
+      .arity = 0,
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
+    { .kind = OAK_BIND_FN_INSTANCE_METHOD,
+      .receiver_type = t,
+      .name = "write",
+      .impl = file_write,
+      .arity = 1,
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
+      .param_types = file_write_params,
+      .param_count = (int)oak_count_of(file_write_params) },
+    { .kind = OAK_BIND_FN_INSTANCE_METHOD,
+      .receiver_type = t,
+      .name = "eof",
+      .impl = file_eof,
+      .arity = 0,
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_BOOL) },
+    { .kind = OAK_BIND_FN_INSTANCE_METHOD,
+      .receiver_type = t,
+      .name = "close",
+      .impl = file_close,
+      .arity = 0,
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) },
+  };
+  oak_bind_fns(opts, methods, (int)oak_count_of(methods));
 }

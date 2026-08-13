@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_compiler_modules.h"
+#include "internal/oak_compiler_modules.h"
 
 void oak_compiler_compile_array_literal(oak_compiler_t* c,
                                         const oak_ast_node_t* node)

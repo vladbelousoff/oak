@@ -3,6 +3,10 @@
 #include "oak_export.h"
 #include "oak_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Object model: lifetime, runtime type identity, and capability queries.
  *
@@ -74,3 +78,7 @@ OAK_API const oak_type_info_t* oak_base_type_info(void);
 
 /* Name of the object's type, or "(null)" when obj is null. For diagnostics. */
 OAK_API const char* oak_type_name(const void* obj);
+
+#ifdef __cplusplus
+}
+#endif

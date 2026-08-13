@@ -290,11 +290,12 @@ static oak_vm_result_t oak_vm_call_impl(oak_vm_t* vm,
 }
 
 oak_vm_result_t oak_vm_call(oak_vm_t* vm,
-                                 oak_value_t fn_val,
-                                 const oak_value_t* args,
-                                 int argc,
-                                 oak_value_t* out_result)
+                            oak_value_t fn_val,
+                            const oak_value_t* args,
+                            int argc,
+                            oak_value_t* out_result)
 {
+  oak_vm_clear_last_error(vm);
   return oak_vm_call_impl(vm, fn_val, args, argc, out_result);
 }
 

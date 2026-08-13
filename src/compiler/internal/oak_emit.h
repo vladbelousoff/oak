@@ -1,7 +1,7 @@
 #pragma once
 
 #include "oak_state.h"
-#include "oak_chunk.h"
+#include "oak_chunk_impl.h"
 
 
 void oak_compiler_emit_byte(const oak_compiler_t* c,

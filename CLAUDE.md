@@ -21,6 +21,29 @@ source → lexer → parser → compiler → bytecode → VM
 
 Public headers live in `include/`. Internal compiler headers are in `src/compiler/internal/`.
 
+`include/` is the installed contract and holds two invariants, both guarded:
+
+- **Self-contained.** No public header may include one from `src/`. A header
+  with both public and private parts is split: the public one keeps the opaque
+  handle and the operations an embedder needs, and an `_impl.h` next to the
+  implementation holds the layout (`oak_value_impl.h`, `oak_chunk_impl.h`,
+  `oak_module_impl.h`). Never give a private header the same basename as a
+  public one.
+- **No build defines.** No public header may key on `OAK_TRACK_MEMORY`,
+  `OAK_DEBUG_LOGGING` or `OAK_ATOMIC_REFCOUNT` — a consumer never passes them,
+  so anything conditional on one is an ABI trap or a silent behaviour change.
+  Keep the conditional in a private header and expose only the
+  configuration-independent type (see `oak_refcount.h` vs
+  `src/common/oak_refcount_ops.h`). Public inline code uses `<assert.h>`, not
+  `oak_assert`. `OAK_BUILDING_ACORN`/`OAK_STATIC` in `oak_export.h` are the
+  deliberate exceptions.
+
+The `public_api` test enforces the first: `tests/public_api/oak_embed_smoke.c`
+builds against `acorn_dep` with no `include_directories` and no `-DOAK_*`, so
+it fails if either invariant breaks. A CI step greps for the second. Adding a
+header to `include/` also means adding it to `oak_public_headers` in
+`meson.build`, which is what `install_headers` ships.
+
 ## Code Conventions
 
 - C17, built with Meson/Ninja

@@ -1,13 +1,17 @@
 #pragma once
 
 #include "oak_bind.h"
+#include "oak_chunk_impl.h"
 #include "oak_log.h"
-#include "oak_module.h"
-#include "oak_value.h"
+#include "oak_module_impl.h"
+#include "oak_value_impl.h"
 #include <oak_vm.h>
 
 void oak_vm_report_stack_overflow(const oak_vm_t* vm);
 const char* oak_vm_value_kind_desc(oak_value_t v);
+/* Reset the VM's last-error slot; called when a run or host call begins so
+ * that oak_vm_last_error only ever reports the current one. */
+void oak_vm_clear_last_error(oak_vm_t* vm);
 
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((format(printf, 2, 3)))

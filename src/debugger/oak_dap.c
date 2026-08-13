@@ -1,9 +1,9 @@
 #include "oak_dap.h"
 
-#include "oak_chunk.h"
-#include "oak_module.h"
+#include "oak_chunk_impl.h"
+#include "oak_module_impl.h"
 #include "oak_net.h"
-#include "oak_value.h"
+#include "oak_value_impl.h"
 #include "yyjson.h"
 
 #include <stdio.h>

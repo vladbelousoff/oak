@@ -42,7 +42,12 @@ static void lower_bind_ref(const oak_bind_type_ref_t* r,
 {
   oak_type_clear(out);
   out->kind = r->kind;
-  out->id = r->type ? r->type->resolved_type_id : r->id;
+  if (r->type)
+    out->id = r->type->resolved_type_id;
+  else if (r->enum_type)
+    out->id = r->enum_type->resolved_type_id;
+  else
+    out->id = r->id;
   if (r->kind == OAK_TYPE_KIND_MAP)
     out->key_id = r->key_type ? r->key_type->resolved_type_id : r->key_id;
 }

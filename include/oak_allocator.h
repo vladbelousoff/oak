@@ -3,6 +3,10 @@
 #include "oak_export.h"
 #include "oak_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct oak_obj oak_obj_t;
 
 typedef void* (*oak_malloc_fn)(usize size);
@@ -54,3 +58,7 @@ OAK_API void oak_allocator_init(oak_allocator_t* a,
                                 oak_free_fn free_fn);
 OAK_API void oak_system_allocator_init(oak_allocator_t* a);
 OAK_API void oak_tracking_allocator_init(oak_allocator_t* a);
+
+#ifdef __cplusplus
+}
+#endif

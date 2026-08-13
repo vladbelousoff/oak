@@ -2,161 +2,46 @@
 
 #include "oak_chunk.h"
 #include "oak_container.h"
-#include "oak_diagnostic.h"
 #include "oak_export.h"
-#include "oak_file_map.h"
-#include "oak_hash_map.h"
-#include "oak_parser.h"
-#include "oak_symbol.h"
-#include "oak_type.h"
-#include "oak_vector.h"
+#include "oak_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Sentinel module_id used by native fns and the entry-only chunk before a
  * registry exists. */
 #define OAK_MODULE_ID_NONE ((u16)0xFFFF)
 
+typedef struct oak_allocator oak_allocator_t;
 
-typedef struct oak_module_export_fn oak_module_export_fn_t;
-struct oak_module_export_fn
-{
-  const char* name; /* borrowed from the module's lexer arena */
-  u16 const_idx; /* index into the module's chunk constants */
-  int arity;     /* user-visible arity (no implicit self for globals) */
-  /* Per-parameter resolved types and mutability flags.
-   * Type IDs reference the owning module's type registry.
-   * NULL when arity == 0. */
-  oak_type_t* param_types;
-  u8* param_mut_flags;
-  oak_type_t return_type;
-  /* Heap-allocated pointer array; each element points into the module's lexer
-   * arena.  Populated for bodyless stubs so apply_native_module_function_exports
-   * can carry attributes onto the replacement native function object.
-   * NULL when attr_count == 0.  Freed by oak_module_free. */
-  const char** stub_attrs;
-  int stub_attr_count;
-};
-
-typedef struct oak_module_export_record_field oak_module_export_record_field_t;
-struct oak_module_export_record_field
-{
-  const char* name; /* borrowed from lexer arena */
-  oak_type_t type; /* IDs reference the owning module's type registry */
-};
-
-/* Per-method metadata for exported record methods.
- * Populated by oak_populate_module_exports; used by importing modules to
- * register callable methods on imported records. */
-typedef struct oak_module_export_record_method oak_module_export_record_method_t;
-struct oak_module_export_record_method
-{
-  const char* name;        /* borrowed from lexer arena */
-  u16 const_idx;           /* index into the source module's chunk constants */
-  int arity;               /* total arity including implicit self for instance */
-  int is_static;           /* 1 = static method, 0 = instance method */
-  oak_type_t* param_types;
-  u8* param_mut_flags;
-  oak_type_t return_type;
-  const char** stub_attrs; /* heap-allocated array; elements from lexer arena */
-  int stub_attr_count;
-};
-
-typedef struct oak_module_export_record oak_module_export_record_t;
-struct oak_module_export_record
-{
-  const char* name; /* borrowed from lexer arena */
-  oak_container_t* fields;  /* oak_module_export_record_field_t  */
-  u16 layout_id; /* const-pool slot in this module's chunk (for new mod.T{}) */
-  oak_container_t* methods; /* oak_module_export_record_method_t */
-  /* 1 for inline value types (OAK_BIND_TYPE_VALUE): non-refcounted, inline. */
-  int is_value;
-};
-
-/* One variant entry for an exported enum. */
-typedef struct oak_module_export_enum_variant oak_module_export_enum_variant_t;
-struct oak_module_export_enum_variant
-{
-  const char* name; /* borrowed from lexer arena */
-  int value; /* ordinal (0, 1, 2, …) */
-};
-
-typedef struct oak_module_export_enum oak_module_export_enum_t;
-struct oak_module_export_enum
-{
-  const char* name; /* enum type name, borrowed from lexer arena */
-  oak_container_t* variants; /* oak_module_export_enum_variant_t */
-};
-
-/* Per-method metadata for an exported interface. */
-typedef struct oak_module_export_interface_method oak_module_export_interface_method_t;
-struct oak_module_export_interface_method
-{
-  const char* name;
-  int arity;
-  int self_is_mut;
-  oak_type_t* param_types;
-  oak_type_t return_type;
-};
-
-/* One exported interface declaration. */
-typedef struct oak_module_export_interface oak_module_export_interface_t;
-struct oak_module_export_interface
-{
-  const char* name;
-  oak_container_t* methods; /* oak_module_export_interface_method_t */
-};
-
-
-
+/*
+ * A compiled module.
+ *
+ * Opaque: a module owns its source mapping, lexer, AST, bytecode, type
+ * registry and export tables, and is always created and destroyed through the
+ * registry below — never stack-allocated.  Read what an embedder needs with
+ * the accessors further down.
+ */
 typedef struct oak_module oak_module_t;
-struct oak_module
-{
-  oak_allocator_t* allocator;
 
-  /* Identity */
-  char* canonical_path; /* owned; null-terminated; hash-table key */
-  char* dotted_name;    /* owned; e.g. "a.b.c"; for diagnostics only */
-  u16 module_id;        /* dense index into registry */
-  int is_entry;         /* 1 if this is the program entry module */
-
-  /* Source + parsing artefacts (owned) */
-  oak_file_map_t source;
-  oak_lexer_result_t* lexer;
-  oak_parser_result_t parser;
-
-  /* Bytecode (owned; null until compile succeeds) */
-  oak_chunk_t* chunk;
-
-  /* Resolved imports (alias_name -> dependency module_id) */
-  oak_container_t* imports;        /* alias name → usize module_id  */
-  oak_container_t* import_modules; /* vector of u16, direct deps    */
-
-  /* Type catalog (moved from compiler after compilation).
-   * Persists so imports can resolve names for module-qualified type IDs. */
-  oak_type_registry_t types;
-
-  /* Exports (populated post-compile) — unified symbol registry with payloads */
-  oak_symbol_registry_t exports;
-
-  /* Lifecycle */
-  enum
-  {
-    OAK_MOD_PARSED,
-    OAK_MOD_COMPILED,
-  } state;
-};
-
-
+/* Owns every module loaded for one program, indexed by id and by canonical
+ * path.  Initialize it on the stack with oak_module_registry_init and hand it
+ * to oak_module_loader_load_program (oak_module_loader.h), then attach it to a
+ * VM with oak_vm_set_module_registry so cross-module calls resolve. */
 typedef struct oak_module_registry oak_module_registry_t;
 struct oak_module_registry
 {
   oak_allocator_t* allocator;
-  oak_container_t* modules; /* vector of oak_module_t*, index = id */
-  oak_container_t* by_canonical_path; /* path → usize module_id    */
+  oak_container_t* modules;           /* vector of oak_module_t*, index = id */
+  oak_container_t* by_canonical_path; /* path → usize module_id             */
 };
 
-
 OAK_API void oak_module_registry_init(oak_module_registry_t* reg,
-                                     oak_allocator_t* allocator);
+                                      oak_allocator_t* allocator);
+
+/* Free every module in the registry and the registry's own tables.  The
+ * registry struct itself is the caller's (usually stack) storage. */
 OAK_API void oak_module_registry_free(oak_module_registry_t* reg);
 
 /* O(1) lookup. Returns null if no module with that id. */
@@ -172,25 +57,25 @@ oak_module_registry_find_by_path(const oak_module_registry_t* reg,
  * `canonical_path` and `dotted_name` are duplicated. */
 OAK_API oak_module_t*
 oak_module_registry_new(oak_module_registry_t* reg,
-                           const char* canonical_path,
-                           const char* dotted_name);
+                        const char* canonical_path,
+                        const char* dotted_name);
 
-/* Look up any exported top-level symbol in the module's single namespace. */
-OAK_API const oak_symbol_t* oak_module_find_export_symbol(
-    const oak_module_t* mod, const char* name);
+/* The module's bytecode, or null if it has not compiled successfully.  Owned
+ * by the module; pass it to oak_vm_run, which borrows it. */
+OAK_API oak_chunk_t* oak_module_chunk(const oak_module_t* mod);
 
-/* Look up a function export. Returns null if not found. */
-OAK_API const oak_module_export_fn_t* oak_module_find_export_fn(
-    const oak_module_t* mod, const char* name);
+/* Dotted name for diagnostics, e.g. "a.b.c".  Borrowed from the module. */
+OAK_API const char* oak_module_dotted_name(const oak_module_t* mod);
 
-/* Look up a record export. Returns null if not found. */
-OAK_API const oak_module_export_record_t* oak_module_find_export_record(
-    const oak_module_t* mod, const char* name);
+/* Canonical filesystem path used as the registry key.  Borrowed. */
+OAK_API const char* oak_module_path(const oak_module_t* mod);
 
-/* Look up an enum export. Returns null if not found. */
-OAK_API const oak_module_export_enum_t* oak_module_find_export_enum(
-    const oak_module_t* mod, const char* name);
+/* Dense registry index; OAK_MODULE_ID_NONE for a null module. */
+OAK_API u16 oak_module_id(const oak_module_t* mod);
 
-/* Look up an interface export. Returns null if not found. */
-OAK_API const oak_module_export_interface_t* oak_module_find_export_interface(
-    const oak_module_t* mod, const char* name);
+/* Non-zero when this is the program's entry module. */
+OAK_API int oak_module_is_entry(const oak_module_t* mod);
+
+#ifdef __cplusplus
+}
+#endif

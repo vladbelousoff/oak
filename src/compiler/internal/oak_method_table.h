@@ -2,7 +2,7 @@
 
 #include "oak_defs.h"
 #include "oak_type.h"
-#include "oak_value.h"
+#include "oak_value_impl.h"
 
 typedef struct oak_compiler oak_compiler_t;
 

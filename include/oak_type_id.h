@@ -2,6 +2,10 @@
 
 #include "oak_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Module-qualified integer identifier for a type.
  *
  * Builtins occupy the small fixed IDs below. User types declared in a source
@@ -41,3 +45,7 @@ static inline u16 oak_type_id_local_slot(oak_type_id_t id)
 {
   return (u16)((u32)id & (u32)OAK_TYPE_ID_SLOT_MASK);
 }
+
+#ifdef __cplusplus
+}
+#endif

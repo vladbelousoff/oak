@@ -2,6 +2,10 @@
 
 #include "oak_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define oak_container_of(address, type, field)                                 \
   ((type*)((char*)(address) - (char*)(&((type*)0)->field)))
 
@@ -92,3 +96,7 @@ static inline usize oak_list_length(const oak_list_entry_t* head)
   }
   return length;
 }
+
+#ifdef __cplusplus
+}
+#endif

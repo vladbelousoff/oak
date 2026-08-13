@@ -11,7 +11,7 @@ typedef struct oak_compile_options oak_compile_options_t; /* in oak_bind.h */
 #include "oak_method_table.h"
 #include "oak_record_registry.h"
 #include "oak_interface_registry.h"
-#include "oak_module.h"
+#include "oak_module_impl.h"
 #include "oak_symbol.h"
 #include "oak_type.h"
 

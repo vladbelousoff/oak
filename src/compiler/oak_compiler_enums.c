@@ -104,7 +104,7 @@ void oak_register_native_enums(
       OAK_DATA(oak_bind_enum_t*, opts->native_enums);
   for (usize i = 0; i < oak_size(opts->native_enums); ++i)
   {
-    const oak_bind_enum_t* ne = native_enums[i];
+    oak_bind_enum_t* ne = native_enums[i];
     if (!ne)
       continue;
     if (ne->module_name)
@@ -128,6 +128,8 @@ void oak_register_native_enums(
           c, null, "failed to register native enum '%s' as a type", ne->name);
       return;
     }
+    /* Published on the descriptor so OAK_BIND_ENUM refs can resolve to it. */
+    ne->resolved_type_id = enum_type_id;
 
     {
       oak_registered_enum_t re = {

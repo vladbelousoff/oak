@@ -32,8 +32,8 @@
   } while (0)
 #endif
 
-OAK_API const char* oak_path_basename(const char* path);
-OAK_NORETURN OAK_API void oak_panic(void);
+const char* oak_path_basename(const char* path);
+OAK_NORETURN void oak_panic(void);
 
 typedef enum oak_log_level oak_log_level_t;
 enum oak_log_level

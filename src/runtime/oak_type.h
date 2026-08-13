@@ -2,23 +2,11 @@
 
 #include "oak_container.h"
 #include "oak_type_id.h"
+#include "oak_type_kind.h"
 #include "oak_types.h"
 #include "oak_vector.h"
 
 typedef struct oak_allocator oak_allocator_t;
-
-/* Discriminates the three shapes a compile-time type slot can have. The
- * default (zero) value is OAK_TYPE_KIND_SCALAR so that zero-initialised
- * oak_type_t structs are valid scalar types without explicit assignment. */
-typedef enum oak_type_kind oak_type_kind_t;
-enum oak_type_kind
-{
-  OAK_TYPE_KIND_SCALAR = 0, /* plain value: number, bool, string, user record */
-  OAK_TYPE_KIND_ARRAY,      /* typed array; element type is `id` */
-  OAK_TYPE_KIND_MAP, /* typed map; key type is `key_id`, value type is `id` */
-  OAK_TYPE_KIND_INTERFACE, /* interface object; interface type id is `id` */
-  OAK_TYPE_KIND_FN,    /* function value */
-};
 
 /* A typed slot.
  * - kind == OAK_TYPE_KIND_ARRAY  → value is an array whose element type is

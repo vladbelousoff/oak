@@ -1,11 +1,14 @@
 #pragma once
 
-#include "oak_arena.h"
 #include "oak_diagnostic.h"
 #include "oak_export.h"
 #include "oak_lexer.h"
 #include "oak_token.h"
 #include "oak_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum oak_node_kind oak_node_kind_t;
 enum oak_node_kind
@@ -171,24 +174,34 @@ struct oak_ast_node
   };
 };
 
+/* The AST and its diagnostics.
+ *
+ * Opaque, and heap-allocated by oak_parse, matching oak_lexer_result_t: the
+ * nodes live in an arena the result owns, so there is nothing an embedder can
+ * usefully do with the struct itself. Read it through the accessors below and
+ * release it with oak_parser_free. */
 typedef struct oak_parser_result oak_parser_result_t;
-struct oak_parser_result
-{
-  oak_ast_node_t* root;
-  oak_arena_t arena;
-  oak_diagnostic_t errors[OAK_MAX_DIAGNOSTICS];
-  int error_count;
-};
 
-OAK_API void oak_parse(const oak_lexer_result_t* lexer,
-                       oak_node_kind_t kind,
-                       oak_parser_result_t* out,
-                       oak_allocator_t* allocator);
-OAK_API oak_ast_node_t*
-oak_parser_root(const oak_parser_result_t* result);
+/* Parse the token stream in `lexer` as `kind` (OAK_NODE_PROGRAM for a whole
+ * program). Returns null only if the result itself could not be allocated; a
+ * parse failure still returns a result, with the diagnostics readable through
+ * oak_parser_errors and a null root.
+ *
+ * The AST borrows the lexer's tokens, so `lexer` must outlive the result --
+ * free the parser result first, then the lexer. */
+OAK_API oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
+                                       oak_node_kind_t kind,
+                                       oak_allocator_t* allocator);
+
+/* The root node, or null when parsing failed. Owned by `result`. */
+OAK_API oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result);
+
 OAK_API int oak_parser_error_count(const oak_parser_result_t* result);
 OAK_API const oak_diagnostic_t*
 oak_parser_errors(const oak_parser_result_t* result);
+
+/* Releases the arena holding every node, and the result itself. Safe on
+ * null. */
 OAK_API void oak_parser_free(oak_parser_result_t* result);
 
 OAK_API int oak_node_is_unary_op(oak_node_kind_t kind);
@@ -200,3 +213,7 @@ OAK_API oak_ast_node_t*
 oak_ast_node_child_at(const oak_ast_node_t* node, usize index);
 
 OAK_API const char* oak_ast_node_kind_name(oak_node_kind_t kind);
+
+#ifdef __cplusplus
+}
+#endif

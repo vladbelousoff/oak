@@ -12,6 +12,20 @@ void oak_vm_init(oak_vm_t* vm, oak_allocator_t* allocator)
   vm->user_data = null;
   vm->debug_hook = null;
   vm->object_table = oak_obj_table_acquire();
+  oak_vm_clear_last_error(vm);
+}
+
+void oak_vm_prepare(oak_vm_t* vm, oak_chunk_t* chunk)
+{
+  vm->chunk = chunk;
+  vm->ip = chunk ? OAK_DATA(u8, chunk->code) : null;
+}
+
+const oak_diagnostic_t* oak_vm_last_error(const oak_vm_t* vm)
+{
+  if (!vm || vm->last_error.message[0] == '\0')
+    return null;
+  return &vm->last_error;
 }
 
 oak_obj_string_t* oak_vm_string_new(oak_vm_t* vm,
@@ -335,9 +349,10 @@ static oak_binop_t comparison_binop(u8 instruction)
 
 oak_vm_result_t oak_vm_run(oak_vm_t* vm, oak_chunk_t* chunk)
 {
+  oak_vm_clear_last_error(vm);
   if (oak_chunk_size(chunk) == 0)
   {
-    oak_log(OAK_LOG_ERROR, "vm: empty chunk");
+    oak_vm_runtime_error(vm, "empty chunk");
     return OAK_VM_RUNTIME_ERROR;
   }
 

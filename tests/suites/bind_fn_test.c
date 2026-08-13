@@ -380,3 +380,62 @@ UTEST_F(bind_fn, an_anonymous_native_function_formats)
 
   oak_obj_decref((oak_obj_t*)fn);
 }
+
+/*
+ * A parameter can be typed as a native enum.
+ *
+ * Registering the enum and then declaring the parameter as OAK_TYPE_NUMBER
+ * makes the compiler reject `f(Colour.Red)` -- the argument's type is the enum,
+ * not `number`. OAK_BIND_ENUM names the enum itself, which is the only way to
+ * express such a signature; without it a binding taking an enum has to leave
+ * the parameter out of param_types and lose call-site checking entirely.
+ */
+static oak_run_result_t run_with_enum_param(oak_allocator_t* a,
+                                            const char* src,
+                                            const int use_enum_ref)
+{
+  oak_compile_options_t opts;
+  oak_run_result_t r;
+
+  oak_compile_options_init(&opts, a);
+  oak_bind_enum_t* colour = oak_bind_enum(&opts, "Colour");
+  oak_bind_enum_variant(colour, "Red", 0);
+  oak_bind_enum_variant(colour, "Green", 1);
+
+  const oak_bind_type_ref_t params[] = {
+    use_enum_ref ? OAK_BIND_ENUM(colour) : OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+  };
+  oak_bind_fn_global(&opts,
+                     &(oak_bind_global_fn_t){
+                         .name = "takes_colour",
+                         .impl = native_double,
+                         .arity = 1,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                         .param_types = params,
+                         .param_count = 1 });
+  r = oak_test_source_opts(a, src, &opts);
+  oak_compile_options_free(&opts);
+  return r;
+}
+
+UTEST_F(bind_fn, a_parameter_can_be_typed_as_a_native_enum)
+{
+  static const char* const src = "let x = takes_colour(Colour.Green);\n";
+
+  /* Declared as the enum: the variant is accepted and reaches the native fn,
+   * which doubles its ordinal (Green == 1). */
+  const oak_run_result_t ok = run_with_enum_param(OAK_A, src, 1);
+  EXPECT_TRUE(ok.compiled);
+  if (!ok.compiled)
+    oak_test_explain(&ok, src);
+  OAK_EXPECT_ENUM(OAK_VM_OK, ok.run);
+
+  /* Declared as a plain number, the same call fails to compile. This is the
+   * regression OAK_BIND_ENUM exists to fix. */
+  const oak_run_result_t bad = run_with_enum_param(OAK_A, src, 0);
+  EXPECT_FALSE(bad.compiled);
+  if (bad.compiled)
+    oak_test_explain(&bad, src);
+  else
+    EXPECT_TRUE(oak_test_contains(bad.diag, "expected type 'number'"));
+}

@@ -11,14 +11,14 @@
 
 /* Public and shared system headers still needed by all compiler files. */
 #include "oak_bind.h"
-#include "oak_chunk.h"
+#include "oak_chunk_impl.h"
 #include "oak_count_of.h"
 #include "oak_log.h"
 #include "oak_allocator.h"
-#include "oak_module.h"
+#include "oak_module_impl.h"
 #include "oak_str.h"
 #include "oak_type.h"
-#include "oak_value.h"
+#include "oak_value_impl.h"
 #include <oak_compiler.h>
 
 #include <stdarg.h>

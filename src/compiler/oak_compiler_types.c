@@ -1,5 +1,5 @@
 #include "internal/oak_compiler.h"
-#include "oak_compiler_modules.h"
+#include "internal/oak_compiler_modules.h"
 
 int oak_compiler_type_is_refcounted(oak_compiler_t* c,
                                     const oak_type_t* ty)
