@@ -142,12 +142,48 @@ void module_loader_free_filtered_native_decls(
   oak_destroy(opts->native_enums);
 }
 
+/* Hands every descriptor bound into this module its type id, taken from the
+ * module's own registry.
+ *
+ * create_native_module does the same for a module with no Oak source. A module
+ * that has a stub takes the ordinary compile path instead, and the compiler
+ * deliberately skips bindings that name another module (they are reached
+ * through `import`, not by being in scope), so nothing on that path ever
+ * assigns them -- they would keep the OAK_TYPE_VOID that oak_bind_type_in_module
+ * left behind, and every match against a stub declaration below would fail.
+ *
+ * Both passes run before any signature is lowered, because a parameter or
+ * return type may name a record or enum declared later in the binding list. */
+static void resolve_native_module_type_ids(
+    oak_module_t* mod,
+    const oak_compile_options_t* opts)
+{
+  oak_bind_type_t** types = OAK_DATA(oak_bind_type_t*, opts->native_types);
+  for (usize i = 0; i < oak_size(opts->native_types); ++i)
+  {
+    oak_bind_type_t* type = types[i];
+    if (!type || !native_module_name_eq(type->module_name, mod->dotted_name))
+      continue;
+    type->resolved_type_id = oak_type_registry_intern(&mod->types, type->name);
+  }
+
+  oak_bind_enum_t** enums = OAK_DATA(oak_bind_enum_t*, opts->native_enums);
+  for (usize i = 0; i < oak_size(opts->native_enums); ++i)
+  {
+    oak_bind_enum_t* e = enums[i];
+    if (!e || !native_module_name_eq(e->module_name, mod->dotted_name))
+      continue;
+    e->resolved_type_id = oak_type_registry_intern(&mod->types, e->name);
+  }
+}
+
 void apply_native_module_function_exports(
     oak_module_t* mod,
     const oak_compile_options_t* opts)
 {
   if (!mod || !mod->chunk || !opts || !opts_has_native_module(opts, mod->dotted_name))
     return;
+  resolve_native_module_type_ids(mod, opts);
   const oak_bind_global_fn_t* global_fns =
       OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
   for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
