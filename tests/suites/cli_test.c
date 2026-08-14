@@ -72,6 +72,21 @@ UTEST(cli, an_out_of_range_debug_port_is_rejected)
   EXPECT_STREQ("invalid debug port", args.error);
 }
 
+/* Unbuffered output is opt-in: a normal run keeps stdio's own buffering. */
+UTEST(cli, unbuffered_output_is_opt_in)
+{
+  oak_cli_args_t args;
+  static const char* const enabled[] = { "oak", "--unbuffered", "main.oak" };
+  static const char* const defaulted[] = { "oak", "main.oak" };
+
+  ASSERT_EQ(0, oak_cli_parse(3, enabled, &args));
+  EXPECT_TRUE(args.unbuffered);
+  EXPECT_STREQ("main.oak", args.script_path);
+
+  ASSERT_EQ(0, oak_cli_parse(2, defaulted, &args));
+  EXPECT_FALSE(args.unbuffered);
+}
+
 /* Synthetic native modules are opt-in and off by default. */
 UTEST(cli, synthetic_modules_are_opt_in)
 {

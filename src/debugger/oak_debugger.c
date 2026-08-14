@@ -80,6 +80,12 @@ void oak_debugger_init(oak_debugger_t* dbg,
   dbg->initial_break = 1;
   dbg->in = stdin;
   dbg->out = stdout;
+  /* A debug adapter captures the program over a pipe, which stdio would
+   * buffer fully -- everything print() emitted would reach the client in one
+   * blob at exit rather than at the stop it belongs to. Unbuffer for the
+   * session; a normal run keeps stdio's own policy. _IOLBF is not an option:
+   * MSVC accepts it and silently buffers fully anyway. */
+  setvbuf(stdout, null, _IONBF, 0);
 }
 
 void oak_debugger_free(oak_debugger_t* dbg)

@@ -76,15 +76,16 @@ oak_string_from_value_repr(oak_allocator_t* allocator,
   return oak_string_from_value_repr_in_table(allocator, 0u, value);
 }
 
+/* Buffering is left to stdio: a terminal is line-buffered and a pipe is fully
+ * buffered, same as any other program. A debug session needs each line to
+ * reach the adapter as it happens, so oak_debugger_init() turns the buffering
+ * off for the process rather than this path paying for a flush per print. */
 void oak_value_println(oak_allocator_t* allocator,
                        oak_value_t value)
 {
   oak_obj_string_t* s = oak_value_to_string(allocator, value);
   if (!s)
-  {
-    fputs("<value unprintable>\n", stdout);
     return;
-  }
   fputs(s->chars, stdout);
   fputc('\n', stdout);
   oak_obj_decref(&s->obj);

@@ -89,6 +89,11 @@ int oak_cli_parse(int argc,
         args->track_memory = 1;
         continue;
       }
+      if (strcmp(a, "--unbuffered") == 0)
+      {
+        args->unbuffered = 1;
+        continue;
+      }
       args->error = "unknown option";
       return -1;
     }
@@ -123,5 +128,6 @@ void oak_cli_usage(FILE* out)
   fprintf(out,
           "usage: oak [--debug] [--debug-port <port>] [--disassemble] "
           "[--no-debug-symbols] [--allow-synthetic-modules] "
-          "[--track-memory] [--help] <script> [script args...]\n");
+          "[--track-memory] [--unbuffered] [--help] "
+          "<script> [script args...]\n");
 }

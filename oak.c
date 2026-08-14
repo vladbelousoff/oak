@@ -31,6 +31,13 @@ int main(const int argc, const char* argv[])
     return 0;
   }
 
+  /* stdio buffers a pipe fully, so a piped long-running script shows nothing
+   * until it exits and loses whatever is still buffered if it is killed. This
+   * opts out of that, at a write syscall per print. A debug session does the
+   * same on its own -- see oak_debugger_init(). */
+  if (cli.unbuffered)
+    setvbuf(stdout, null, _IONBF, 0);
+
   oak_allocator_t allocator;
   if (cli.track_memory)
     oak_tracking_allocator_init(&allocator);
