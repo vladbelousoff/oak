@@ -31,20 +31,80 @@ UTEST_F(compiler_semantics, undefined_names_are_rejected)
 }
 
 /*
- * Known diagnostic-quality gap, pinned here so it is visible rather than
- * forgotten: in a `let` initializer the specific error is swallowed and
- * replaced by the generic "this expression has no value (void)". The very same
- * expressions in call position report properly (see the tests above and
- * below). If the compiler is ever fixed to propagate the real diagnostic, this
- * test fails and should be folded back into the tests above.
+ * Inference reports "no type" and "returns nothing" through the same void
+ * type, and every caller of oak_reject_void runs before the expression is
+ * compiled -- so an unresolvable initializer used to be reported as the
+ * generic "this expression has no value (void)" while the very same
+ * expression in call position reported properly. These cases pin the specific
+ * diagnostic to the position that used to lose it.
  */
-UTEST_F(compiler_semantics, let_initializers_report_a_generic_diagnostic)
+UTEST_F(compiler_semantics, let_initializers_report_the_specific_cause)
 {
   static const oak_case_t cases[] = {
-    { "let x = y + 1;\n", "this expression has no value (void)" },
+    { "let x = y + 1;\n", "undefined variable 'y'" },
     { "enum Color { Red, Green, Blue }\n"
       "let c = Color.Purple;\n",
-      "this expression has no value (void)" },
+      "'Purple' is not a variant of enum 'Color'" },
+    { "record Point { x : number; }\n"
+      "let p = new Point { x : 1 };\n"
+      "let z = p.z;\n",
+      "no such field 'z' on record 'Point'" },
+    { "record Point { x : number; }\n"
+      "let p = new Point { x : 1 };\n"
+      "let z = p.flip();\n",
+      "no method 'flip' on record 'Point'" },
+    { "let p = new Nowhere { x : 1 };\n", "unknown record type 'Nowhere'" },
+    { "let n = 1;\n"
+      "let z = n.foo;\n",
+      "field access '.foo' requires a record receiver, got 'number'" },
+    { "let n = 1;\n"
+      "let z = n[0];\n",
+      "cannot index a value of type 'number'" },
+    { "let n = 1;\n"
+      "let z = n.foo();\n",
+      "no method 'foo' on number" },
+    { "let a = [1, 2];\n"
+      "let z = a.nope();\n",
+      "no method 'nope' on array of 'number[]'" },
+    { "let s = 'hi';\n"
+      "let z = s.nope();\n",
+      "no method 'nope' on string" },
+    { "record Point { x : number; }\n"
+      "let z = Point;\n",
+      "record 'Point' is a type, not a value" },
+    { "enum Color { Red }\n"
+      "let z = Color;\n",
+      "enum 'Color' is a type, not a value" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/*
+ * Reaching for a member of the wrong kind is a slip, not ignorance of the
+ * type, so the diagnostic says which kind the name actually has.
+ */
+UTEST_F(compiler_semantics, member_diagnostics_name_the_other_kind)
+{
+  static const oak_case_t cases[] = {
+    { "record P { x : number; }\n"
+      "fn P.get(self) -> number { return self.x; }\n"
+      "let p = new P { x : 1 };\n"
+      "print(p.get);\n",
+      "'get' is a method, call it as 'get()'" },
+    { "record P { x : number; }\n"
+      "let p = new P { x : 1 };\n"
+      "print(p.x());\n",
+      "'x' is a field, drop the '()' to read it" },
+    { "record P { x : number; }\n"
+      "fn P.make() -> P { return new P { x : 1 }; }\n"
+      "let p = new P { x : 1 };\n"
+      "print(p.make());\n",
+      "'make' is a static method, call it as 'P.make()'" },
+    { "record P { x : number; }\n"
+      "fn P.get(self) -> number { return self.x; }\n"
+      "let n = P.get();\n",
+      "'get' is an instance method of record 'P'" },
   };
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);

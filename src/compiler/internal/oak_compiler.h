@@ -138,8 +138,11 @@ int oak_type_accepts(const oak_type_t* want,
 int oak_compiler_type_is_refcounted(oak_compiler_t* c,
                                     const oak_type_t* ty);
 
-/* Fails compilation if the expression is typed as void (e.g. call to a void
- * fn). No-op for null or not-yet-inferrable types. */
+/* Fails compilation if the expression has no value: either it is typed as
+ * void (a call to a void fn) or inference could not resolve it at all. The
+ * cause is diagnosed from the AST first, so the message names the undefined
+ * name, missing field or missing method whenever there is one -- see
+ * oak_compiler_void_diag.c. */
 void oak_reject_void(oak_compiler_t* c,
                                          const oak_ast_node_t* expr);
 
@@ -317,6 +320,14 @@ int oak_record_field_index(
     oak_type_t recv_ty,
     const char* field_name,
     const oak_registered_record_t** out_sd);
+
+/* Reports that `mname` is not an instance method of `sd`, pointing at a field
+ * or static method of the same name when there is one. Shared so codegen and
+ * the void-expression diagnosis speak with one voice. */
+void oak_report_no_record_method(oak_compiler_t* c,
+                                 const oak_token_t* token,
+                                 const oak_registered_record_t* sd,
+                                 const char* mname);
 
 /* Resolves a member for codegen; emits errors and returns -1 on failure. */
 int oak_require_record_field(

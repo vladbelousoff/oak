@@ -106,6 +106,39 @@ oak_find_record_method(const oak_registered_record_t* sd,
   return null;
 }
 
+void oak_report_no_record_method(oak_compiler_t* c,
+                                 const oak_token_t* token,
+                                 const oak_registered_record_t* sd,
+                                 const char* mname)
+{
+  if (oak_record_field(sd, mname) >= 0)
+  {
+    oak_compiler_error_at(c,
+                          token,
+                          "no method '%s' on record '%s'; '%s' is a field, "
+                          "drop the '()' to read it",
+                          mname,
+                          sd->name,
+                          mname);
+    return;
+  }
+  if (oak_find_record_method(sd, mname, 1))
+  {
+    oak_compiler_error_at(c,
+                          token,
+                          "no method '%s' on record '%s'; '%s' is a static "
+                          "method, call it as '%s.%s()'",
+                          mname,
+                          sd->name,
+                          mname,
+                          sd->name,
+                          mname);
+    return;
+  }
+  oak_compiler_error_at(
+      c, token, "no method '%s' on record '%s'", mname, sd->name);
+}
+
 int oak_record_field_index(
     const oak_compiler_t* c,
     oak_type_t recv_ty,
@@ -137,17 +170,57 @@ int oak_require_record_field(
   const int idx = oak_record_field_index(c, recv_ty, ftext, &sd);
   if (!oak_type_is_known(&recv_ty) || !sd)
   {
-    oak_compiler_error_at(c,
-                          fname->token,
-                          is_assignment
-                              ? "field assignment '.%s ='"
-                                " requires a record receiver"
-                              : "field access '.%s' requires a record receiver",
-                          ftext);
+    /* Naming the receiver's type is the whole diagnosis when there is one;
+     * an unresolved receiver has none to name, and the caller's own error
+     * says why. */
+    if (oak_type_is_known(&recv_ty))
+      oak_compiler_error_at(
+          c,
+          fname->token,
+          is_assignment ? "field assignment '.%s ='"
+                          " requires a record receiver, got '%s'"
+                        : "field access '.%s' requires a record receiver,"
+                          " got '%s'",
+          ftext,
+          oak_type_full_name(c, recv_ty));
+    else
+      oak_compiler_error_at(c,
+                            fname->token,
+                            is_assignment
+                                ? "field assignment '.%s ='"
+                                  " requires a record receiver"
+                                : "field access '.%s' requires a record"
+                                  " receiver",
+                            ftext);
     return -1;
   }
   if (idx < 0)
   {
+    if (oak_find_record_method(sd, ftext, 0))
+    {
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "no such field '%s' on record '%s'; '%s' is a "
+                            "method, call it as '%s()'",
+                            ftext,
+                            sd->name,
+                            ftext,
+                            ftext);
+      return -1;
+    }
+    if (oak_find_record_method(sd, ftext, 1))
+    {
+      oak_compiler_error_at(c,
+                            fname->token,
+                            "no such field '%s' on record '%s'; '%s' is a "
+                            "static method, call it as '%s.%s()'",
+                            ftext,
+                            sd->name,
+                            ftext,
+                            sd->name,
+                            ftext);
+      return -1;
+    }
     oak_compiler_error_at(
         c, fname->token, "no such field '%s' on record '%s'", ftext, sd->name);
     return -1;

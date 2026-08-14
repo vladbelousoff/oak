@@ -213,6 +213,7 @@ oak_core_sources = files(
   'src/compiler/oak_compiler_type_infer.c',
   'src/compiler/oak_compiler_type_infer_call.c',
   'src/compiler/oak_compiler_types.c',
+  'src/compiler/oak_compiler_void_diag.c',
   'src/lexer/oak_lexer.c',
   'src/lexer/oak_lexer_buffer.c',
   'src/lexer/oak_token.c',

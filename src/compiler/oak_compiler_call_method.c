@@ -467,8 +467,7 @@ void oak_compile_method_call(oak_compiler_t* c,
           oak_find_record_builtin_method(c, mname);
       if (!bm)
       {
-        oak_compiler_error_at(
-            c, method->token, "no method '%s' on record '%s'", mname, sd->name);
+        oak_report_no_record_method(c, method->token, sd, mname);
         return;
       }
       try_compile_builtin_method_call(

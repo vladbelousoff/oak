@@ -280,17 +280,3 @@ const char* oak_type_full_name(oak_compiler_t* c,
   }
   return oak_type_kind_name(c, t);
 }
-
-void oak_reject_void(oak_compiler_t* c,
-                    const oak_ast_node_t* expr)
-{
-  if (!expr)
-    return;
-  oak_type_t t;
-  oak_infer_type(c, expr, &t);
-  if (oak_type_is_void(&t))
-  {
-    oak_compiler_error_at(
-        c, expr->token, "this expression has no value (void)");
-  }
-}
