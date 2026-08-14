@@ -230,7 +230,7 @@ UTEST_F(bind_fn, a_global_function_is_recorded_with_its_descriptor)
   ASSERT_EQ(1u, oak_size(opts.native_global_fns));
   recorded = &OAK_CDATA(oak_bind_global_fn_t, opts.native_global_fns)[0];
   EXPECT_STREQ("my_global", recorded->name);
-  EXPECT_EQ(1, recorded->arity);
+  EXPECT_EQ(1u, recorded->arity);
   EXPECT_EQ(OAK_TYPE_NUMBER, recorded->return_type.id);
   OAK_EXPECT_ENUM(OAK_TYPE_KIND_SCALAR, recorded->return_type.kind);
   EXPECT_TRUE(recorded->impl == native_answer);
@@ -259,7 +259,7 @@ UTEST_F(bind_fn, an_instance_method_is_recorded_against_its_receiver)
 
   ASSERT_EQ(1u, oak_size(opts.native_fns));
   EXPECT_TRUE(OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].receiver_type == t);
-  EXPECT_EQ(0, OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].arity);
+  EXPECT_EQ(0u, OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].arity);
 
   oak_compile_options_free(&opts);
 }

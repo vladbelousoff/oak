@@ -192,7 +192,7 @@ void apply_native_module_function_exports(
     }
     /* Otherwise the stub's parameter contract is authoritative; keep arity
      * consistent with the stub's param_types (never index past it). */
-    else if (!exp->param_types || fn->arity == exp->arity)
+    else if (!exp->param_types || fn->arity == (usize)exp->arity)
       exp->arity = (int)fn->arity;
     oak_lower_bind_ref(&fn->return_type, &exp->return_type);
   }
@@ -283,12 +283,12 @@ static int loader_fn_decl_has_self(const oak_ast_node_t* decl)
   return plist && plist->lhs;
 }
 
-static int loader_fn_decl_param_count(const oak_ast_node_t* decl)
+static usize loader_fn_decl_param_count(const oak_ast_node_t* decl)
 {
   const oak_ast_node_t* plist = loader_fn_decl_param_list(decl);
   if (!plist || !plist->rhs)
     return 0;
-  return (int)oak_list_length(&plist->rhs->children);
+  return oak_list_length(&plist->rhs->children);
 }
 
 static int loader_fn_decl_is_bodyless(const oak_ast_node_t* decl)
@@ -330,12 +330,12 @@ static int loader_method_decl_has_self(const oak_ast_node_t* decl)
   return plist && plist->lhs;
 }
 
-static int loader_method_decl_param_count(const oak_ast_node_t* decl)
+static usize loader_method_decl_param_count(const oak_ast_node_t* decl)
 {
   const oak_ast_node_t* plist = loader_method_decl_param_list(decl);
   if (!plist || !plist->rhs)
     return 0;
-  return (int)oak_list_length(&plist->rhs->children);
+  return oak_list_length(&plist->rhs->children);
 }
 
 static const oak_ast_node_t*
@@ -374,7 +374,7 @@ find_native_type_decl(const oak_compile_options_t* opts,
 static int native_global_fn_decl_exists(const oak_compile_options_t* opts,
                                         const char* dotted,
                                         const char* name,
-                                        int arity)
+                                        usize arity)
 {
   if (!opts)
     return 0;
@@ -394,7 +394,7 @@ static int native_method_decl_exists(const oak_compile_options_t* opts,
                                      const oak_bind_type_t* receiver,
                                      const char* name,
                                      int has_self,
-                                     int arity)
+                                     usize arity)
 {
   if (!opts || !receiver)
     return 0;
@@ -433,7 +433,7 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
     {
       const oak_ast_node_t* name_node = loader_fn_decl_name_node(item);
       const char* name = oak_token_text(name_node->token);
-      const int arity = loader_fn_decl_param_count(item);
+      const usize arity = loader_fn_decl_param_count(item);
       if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, arity))
       {
         loader_error(out,
@@ -453,7 +453,7 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
       const char* type_name = oak_token_text(type_node->token);
       const char* name = oak_token_text(name_node->token);
       const int has_self = loader_method_decl_has_self(item);
-      const int arity = loader_method_decl_param_count(item);
+      const usize arity = loader_method_decl_param_count(item);
       const oak_bind_type_t* receiver =
           find_native_type_decl(opts, mod->dotted_name, type_name);
       if (!native_method_decl_exists(opts, receiver, name, has_self, arity))
@@ -488,7 +488,7 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
       const oak_ast_node_t* name_node = loader_fn_decl_name_node(member);
       const char* name = oak_token_text(name_node->token);
       const int has_self = loader_fn_decl_has_self(member);
-      const int arity = loader_fn_decl_param_count(member);
+      const usize arity = loader_fn_decl_param_count(member);
       if (!native_method_decl_exists(opts, receiver, name, has_self, arity))
       {
         loader_error(out,

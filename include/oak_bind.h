@@ -560,8 +560,8 @@ OAK_API int oak_bind_field(oak_bind_type_t* type,
  * For an instance method the array lists the explicit parameters only; the
  * implicit self is not one of them. */
 #define OAK_BIND_PARAMS(arr)                                                   \
-  .arity = (int)oak_count_of(arr), .param_types = (arr),                       \
-  .param_count = (int)oak_count_of(arr)
+  .arity = oak_count_of(arr), .param_types = (arr),                            \
+  .param_count = oak_count_of(arr)
 
 OAK_API int oak_bind_fields(oak_bind_type_t* type,
                             const oak_bind_field_t* fields,

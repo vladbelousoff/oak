@@ -80,10 +80,12 @@ UTEST_F(module_loader, loads_an_entry_and_its_imports)
   {
     oak_module_t* m = mods[i];
     ASSERT_TRUE(m != null);
-    EXPECT_EQ(m, oak_module_registry_get(&f.registry, oak_module_id(m)));
+    /* oak_module_t is opaque, so compare the handles with EXPECT_TRUE:
+     * EXPECT_EQ would have utest try to print an incomplete type. */
+    EXPECT_TRUE(m == oak_module_registry_get(&f.registry, oak_module_id(m)));
     EXPECT_TRUE(oak_module_path(m) != null);
-    EXPECT_EQ(m, oak_module_registry_find_by_path(&f.registry,
-                                                  oak_module_path(m)));
+    EXPECT_TRUE(m == oak_module_registry_find_by_path(&f.registry,
+                                                      oak_module_path(m)));
   }
 
   load_end(&f);

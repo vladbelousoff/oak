@@ -7,10 +7,10 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
                                            const oak_value_t fn_val)
 {
   oak_obj_native_fn_t* native = oak_as_native_fn(fn_val);
-  if ((int)argc != native->arity)
+  if ((usize)argc != native->arity)
   {
     oak_vm_runtime_error(vm,
-                         "function arity mismatch (expected %d, got %u)",
+                         "function arity mismatch (expected %zu, got %u)",
                          native->arity,
                          (unsigned)argc);
     return OAK_VM_RUNTIME_ERROR;
@@ -80,10 +80,10 @@ static oak_vm_result_t vm_call_bytecode(oak_vm_t* vm,
                                              const oak_value_t fn_val)
 {
   oak_obj_fn_t* fn = oak_as_fn(fn_val);
-  if (fn->arity != (int)argc)
+  if (fn->arity != (usize)argc)
   {
     oak_vm_runtime_error(vm,
-                         "function arity mismatch (expected %d, got %u)",
+                         "function arity mismatch (expected %zu, got %u)",
                          fn->arity,
                          (unsigned)argc);
     return OAK_VM_RUNTIME_ERROR;
@@ -269,7 +269,7 @@ static oak_vm_result_t oak_vm_call_impl(oak_vm_t* vm,
   vm->ip = halt_trampoline;
 
   oak_vm_result_t r = oak_vm_push(vm, fn_val);
-  for (int i = 0; r == OAK_VM_OK && i < argc; ++i)
+  for (usize i = 0; r == OAK_VM_OK && i < argc; ++i)
     r = oak_vm_push(vm, args[i]);
   if (r == OAK_VM_OK)
     r = oak_vm_op_call_with_argc(vm, (u8)argc);
