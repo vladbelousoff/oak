@@ -29,11 +29,11 @@ static void free_fn_entry(oak_allocator_t* a,
                           oak_module_export_fn_t* fn)
 {
   if (fn->stub_attrs)
-    OAK_FREE(a, fn->stub_attrs);
+    oak_free(a, fn->stub_attrs, OAK_HERE);
   if (fn->param_types)
-    OAK_FREE(a, fn->param_types);
+    oak_free(a, fn->param_types, OAK_HERE);
   if (fn->param_mut_flags)
-    OAK_FREE(a, fn->param_mut_flags);
+    oak_free(a, fn->param_mut_flags, OAK_HERE);
 }
 
 static void free_record_entry(oak_allocator_t* a,
@@ -45,11 +45,11 @@ static void free_record_entry(oak_allocator_t* a,
   for (usize mi = 0; mi < oak_size(rec->methods); ++mi)
   {
     if (methods[mi].stub_attrs)
-      OAK_FREE(a, methods[mi].stub_attrs);
+      oak_free(a, methods[mi].stub_attrs, OAK_HERE);
     if (methods[mi].param_types)
-      OAK_FREE(a, methods[mi].param_types);
+      oak_free(a, methods[mi].param_types, OAK_HERE);
     if (methods[mi].param_mut_flags)
-      OAK_FREE(a, methods[mi].param_mut_flags);
+      oak_free(a, methods[mi].param_mut_flags, OAK_HERE);
   }
   oak_destroy(rec->methods);
 }
@@ -67,7 +67,7 @@ static void free_interface_entry(oak_allocator_t* a,
   for (usize mi = 0; mi < oak_size(tr->methods); ++mi)
   {
     if (methods[mi].param_types)
-      OAK_FREE(a, methods[mi].param_types);
+      oak_free(a, methods[mi].param_types, OAK_HERE);
   }
   oak_destroy(tr->methods);
 }

@@ -450,7 +450,7 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
                                oak_allocator_t* allocator)
 {
   oak_parser_result_t* out =
-      OAK_ALLOC(allocator, sizeof(oak_parser_result_t));
+      oak_alloc(allocator, sizeof(oak_parser_result_t), OAK_HERE);
   if (!out)
     return null;
   memset(out, 0, sizeof *out);
@@ -495,5 +495,5 @@ void oak_parser_free(oak_parser_result_t* result)
   if (!result)
     return;
   oak_arena_free(&result->arena);
-  OAK_FREE(result->allocator, result);
+  oak_free(result->allocator, result, OAK_HERE);
 }

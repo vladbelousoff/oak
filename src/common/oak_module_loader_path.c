@@ -21,13 +21,13 @@ char* path_dirname_dup(oak_allocator_t* a, const char* path)
   }
   if (!last)
   {
-    char* dot = OAK_ALLOC(a, 2u);
+    char* dot = oak_alloc(a, 2u, OAK_HERE);
     dot[0] = '.';
     dot[1] = 0;
     return dot;
   }
   const usize n = (usize)(last - path);
-  char* d = OAK_ALLOC(a, n + 1u);
+  char* d = oak_alloc(a, n + 1u, OAK_HERE);
   memcpy(d, path, n);
   d[n] = 0;
   return d;
@@ -40,7 +40,7 @@ char* path_resolve_dotted(oak_allocator_t* a,
   const usize bdlen = strlen(base_dir);
   const usize dlen = strlen(dotted);
   const usize total = bdlen + 1u + dlen + 4u + 1u;
-  char* out = OAK_ALLOC(a, total);
+  char* out = oak_alloc(a, total, OAK_HERE);
   usize w = 0;
   memcpy(out + w, base_dir, bdlen);
   w += bdlen;
@@ -58,7 +58,7 @@ char* path_join(oak_allocator_t* a, const char* base, const char* rel)
 {
   const usize bl = strlen(base);
   const usize rl = strlen(rel);
-  char* out = OAK_ALLOC(a, bl + 1u + rl + 1u);
+  char* out = oak_alloc(a, bl + 1u + rl + 1u, OAK_HERE);
   usize w = 0;
   memcpy(out + w, base, bl);
   w += bl;
@@ -101,7 +101,7 @@ char* path_canonicalize(oak_allocator_t* a, const char* path)
   if (abs)
   {
     const usize n = strlen(abs);
-    char* copy = OAK_ALLOC(a, n + 1u);
+    char* copy = oak_alloc(a, n + 1u, OAK_HERE);
     memcpy(copy, abs, n + 1u);
     free(abs);
     return copy;
@@ -111,13 +111,13 @@ char* path_canonicalize(oak_allocator_t* a, const char* path)
   if (realpath(path, buf))
   {
     const usize n = strlen(buf);
-    char* copy = OAK_ALLOC(a, n + 1u);
+    char* copy = oak_alloc(a, n + 1u, OAK_HERE);
     memcpy(copy, buf, n + 1u);
     return copy;
   }
 #endif
   const usize n = strlen(path);
-  char* copy = OAK_ALLOC(a, n + 1u);
+  char* copy = oak_alloc(a, n + 1u, OAK_HERE);
   memcpy(copy, path, n + 1u);
   return copy;
 }
@@ -158,12 +158,12 @@ char* dotted_name_from_path(oak_allocator_t* a,
   }
   if (count == 0)
   {
-    char* empty = OAK_ALLOC(a, 1u);
+    char* empty = oak_alloc(a, 1u, OAK_HERE);
     empty[0] = 0;
     return empty;
   }
   total += (usize)(count - 1);
-  char* buf = OAK_ALLOC(a, total + 1u);
+  char* buf = oak_alloc(a, total + 1u, OAK_HERE);
   usize w = 0;
   int first = 1;
   oak_list_for_each(pos, &path_node->children)

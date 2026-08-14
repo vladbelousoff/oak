@@ -399,6 +399,7 @@ else
     'vm_value',
     'vm_map',
     'cli',
+    'allocator',
     'containers',
     'parser',
     'debugger',

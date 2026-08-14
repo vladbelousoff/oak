@@ -22,7 +22,7 @@ void oak_enum_registry_free(oak_enum_registry_t* r)
   for (usize i = 0; i < oak_size(r->enums); ++i)
   {
     if (enums[i].attrs)
-      OAK_FREE(r->allocator, enums[i].attrs);
+      oak_free(r->allocator, enums[i].attrs, OAK_HERE);
   }
   oak_destroy(r->by_name);
   oak_destroy(r->enum_names);

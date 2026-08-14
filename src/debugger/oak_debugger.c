@@ -87,13 +87,13 @@ void oak_debugger_free(oak_debugger_t* dbg)
   const oak_breakpoint_t* const bps =
       OAK_CDATA(oak_breakpoint_t, dbg->breakpoints);
   for (usize i = 0; i < oak_size(dbg->breakpoints); ++i)
-    OAK_FREE(dbg->allocator, (void*)bps[i].source_name);
+    oak_free(dbg->allocator, (void*)bps[i].source_name, OAK_HERE);
   oak_destroy(dbg->breakpoints);
   oak_destroy(dbg->line_offsets);
   if (dbg->source_map.data)
     oak_file_unmap(&dbg->source_map);
   if (dbg->cached_source_path)
-    OAK_FREE(dbg->allocator, (void*)dbg->cached_source_path);
+    oak_free(dbg->allocator, (void*)dbg->cached_source_path, OAK_HERE);
   memset(dbg, 0, sizeof(*dbg));
 }
 
@@ -104,7 +104,7 @@ int oak_debugger_add_breakpoint(oak_debugger_t* dbg, const int line,
   if (source_name)
   {
     const usize len = strlen(source_name);
-    owned_name = OAK_ALLOC(dbg->allocator, len + 1);
+    owned_name = oak_alloc(dbg->allocator, len + 1, OAK_HERE);
     if (!owned_name)
       return -1;
     memcpy(owned_name, source_name, len + 1);
@@ -116,7 +116,7 @@ int oak_debugger_add_breakpoint(oak_debugger_t* dbg, const int line,
   bp.enabled = 1;
   if (!oak_push_back(dbg->breakpoints, &bp))
   {
-    OAK_FREE(dbg->allocator, owned_name);
+    oak_free(dbg->allocator, owned_name, OAK_HERE);
     return -1;
   }
   return bp.id;
@@ -130,7 +130,7 @@ int oak_debugger_remove_breakpoint(oak_debugger_t* dbg, const int id)
   {
     if (bps[i].id == id)
     {
-      OAK_FREE(dbg->allocator, (void*)bps[i].source_name);
+      oak_free(dbg->allocator, (void*)bps[i].source_name, OAK_HERE);
       oak_erase(dbg->breakpoints, i);
       return 1;
     }
@@ -188,7 +188,7 @@ static void cache_source(oak_debugger_t* dbg, const char* path)
   oak_clear(dbg->line_offsets);
   if (dbg->cached_source_path)
   {
-    OAK_FREE(dbg->allocator, (void*)dbg->cached_source_path);
+    oak_free(dbg->allocator, (void*)dbg->cached_source_path, OAK_HERE);
     dbg->cached_source_path = null;
   }
 
@@ -198,7 +198,7 @@ static void cache_source(oak_debugger_t* dbg, const char* path)
   /* Own a copy of the path: the borrowed chunk source name is not guaranteed
    * to outlive repeated cache switches. */
   const usize path_len = strlen(path);
-  char* owned_path = OAK_ALLOC(dbg->allocator, path_len + 1);
+  char* owned_path = oak_alloc(dbg->allocator, path_len + 1, OAK_HERE);
   if (owned_path)
   {
     memcpy(owned_path, path, path_len + 1);

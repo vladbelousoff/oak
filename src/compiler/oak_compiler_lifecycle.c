@@ -6,8 +6,7 @@ oak_chunk_t* oak_compiler_init(oak_compiler_t* c,
 {
   c->allocator = allocator;
 
-  oak_chunk_t* chunk =
-      OAK_ALLOC(allocator, sizeof(oak_chunk_t));
+  oak_chunk_t* chunk = oak_alloc(allocator, sizeof(oak_chunk_t), OAK_HERE);
   oak_chunk_init(chunk, allocator);
 
   oak_type_t no_return_type;

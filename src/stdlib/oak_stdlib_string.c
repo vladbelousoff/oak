@@ -67,14 +67,14 @@ static oak_fn_call_result_t map_case(oak_native_call_t* call,
     *out = oak_vm_string_value_len(call->vm, "", 0);
     return OAK_FN_CALL_OK;
   }
-  char* buf = OAK_ALLOC(call->allocator, len);
+  char* buf = oak_alloc(call->allocator, len, OAK_HERE);
   for (usize i = 0; i < len; ++i)
   {
     const unsigned char c = (unsigned char)self->chars[i];
     buf[i] = (char)(upper ? toupper(c) : tolower(c));
   }
   *out = oak_vm_string_value_len(call->vm, buf, len);
-  OAK_FREE(call->allocator, buf);
+  oak_free(call->allocator, buf, OAK_HERE);
   return OAK_FN_CALL_OK;
 }
 
@@ -218,7 +218,8 @@ oak_fn_call_result_t oak_str_replace(oak_native_call_t* call,
 
   const usize result_len =
       self->length - count * from->length + count * to->length;
-  char* buf = OAK_ALLOC(call->allocator, result_len == 0 ? 1 : result_len);
+  char* buf =
+      oak_alloc(call->allocator, result_len == 0 ? 1 : result_len, OAK_HERE);
 
   /* Pass 2: build the result. */
   usize w = 0;
@@ -236,7 +237,7 @@ oak_fn_call_result_t oak_str_replace(oak_native_call_t* call,
   }
 
   *out = oak_vm_string_value_len(call->vm, buf, result_len);
-  OAK_FREE(call->allocator, buf);
+  oak_free(call->allocator, buf, OAK_HERE);
   return OAK_FN_CALL_OK;
 }
 
@@ -260,11 +261,11 @@ oak_fn_call_result_t oak_str_repeat(oak_native_call_t* call,
     return oak_native_error(
         call, "repeating %zu bytes %d times overflows", self->length, n);
   const usize total = self->length * (usize)n;
-  char* buf = OAK_ALLOC(call->allocator, total);
+  char* buf = oak_alloc(call->allocator, total, OAK_HERE);
   for (int i = 0; i < n; ++i)
     memcpy(buf + (usize)i * self->length, self->chars, self->length);
   *out = oak_vm_string_value_len(call->vm, buf, total);
-  OAK_FREE(call->allocator, buf);
+  oak_free(call->allocator, buf, OAK_HERE);
   return OAK_FN_CALL_OK;
 }
 
@@ -315,7 +316,7 @@ oak_fn_call_result_t oak_str_to_snake_case(oak_native_call_t* call,
   }
 
   /* At most one underscore per source char, plus the char itself. */
-  char* buf = OAK_ALLOC(call->allocator, len * 2);
+  char* buf = oak_alloc(call->allocator, len * 2, OAK_HERE);
   usize w = 0;
   int pending = 0; /* a separator boundary awaits the next word char */
   for (usize i = 0; i < len; ++i)
@@ -337,7 +338,7 @@ oak_fn_call_result_t oak_str_to_snake_case(oak_native_call_t* call,
   }
 
   *out = oak_vm_string_value_len(call->vm, buf, w);
-  OAK_FREE(call->allocator, buf);
+  oak_free(call->allocator, buf, OAK_HERE);
   return OAK_FN_CALL_OK;
 }
 
@@ -361,7 +362,7 @@ oak_fn_call_result_t oak_str_to_camel_case(oak_native_call_t* call,
   }
 
   /* Separators are removed, so the result never grows past the input. */
-  char* buf = OAK_ALLOC(call->allocator, len);
+  char* buf = oak_alloc(call->allocator, len, OAK_HERE);
   usize w = 0;
   int cap_next = 0; /* uppercase the next word char (after a separator) */
   int started = 0;  /* has the first word char been emitted yet */
@@ -390,7 +391,7 @@ oak_fn_call_result_t oak_str_to_camel_case(oak_native_call_t* call,
   }
 
   *out = oak_vm_string_value_len(call->vm, buf, w);
-  OAK_FREE(call->allocator, buf);
+  oak_free(call->allocator, buf, OAK_HERE);
   return OAK_FN_CALL_OK;
 }
 

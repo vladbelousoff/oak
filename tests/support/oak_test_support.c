@@ -132,15 +132,7 @@ void oak_test_pipe_free(oak_test_pipe_t* p)
  * or its source location; the capture stays because it also covers compile and
  * loader diagnostics, and because it verifies the text that reaches a terminal.
  */
-typedef struct oak_capture oak_capture_t;
-struct oak_capture
-{
-  FILE* stream; /* the stream being redirected */
-  int read_fd;
-  int saved_fd;
-};
-
-static void oak_capture_begin(oak_capture_t* c, FILE* stream)
+void oak_capture_begin(oak_capture_t* c, FILE* stream)
 {
   int fds[2];
 
@@ -171,7 +163,7 @@ static void oak_capture_begin(oak_capture_t* c, FILE* stream)
   c->read_fd = fds[0];
 }
 
-static void oak_capture_end(oak_capture_t* c, char* out, const usize cap)
+void oak_capture_end(oak_capture_t* c, char* out, const usize cap)
 {
   if (cap)
     out[0] = '\0';

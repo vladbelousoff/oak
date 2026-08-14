@@ -49,7 +49,13 @@ header to `include/` also means adding it to `oak_public_headers` in
 - C17, built with Meson/Ninja
 - Prefix all symbols (public API and internal compiler) with `oak_`
 - `null` macro (not `NULL`), `u8`/`u16`/`u32`/`usize` typedefs from `oakc_defs.h`
-- All heap allocation goes through `oak_allocator_t` (OAK_ALLOC / OAK_FREE macros)
+- All heap allocation goes through `oak_allocator_t`: `oak_alloc`,
+  `oak_realloc` and `oak_free`, each taking an explicit `oak_source_loc_t`.
+  Pass `OAK_HERE` when this call site is where the memory was asked for. When
+  it is not — a helper allocating on a caller's behalf — take an
+  `oak_source_loc_t` parameter and forward it, so the tracking allocator blames
+  the caller rather than the helper. There is deliberately no allocation macro:
+  a macro can only ever name its own expansion site.
 - Values are reference-counted (`oak_value_t`); weak references use `is_weak` flag
 - There is no runtime cycle collector: the compiler rejects programs that could
   form strong reference cycles (`src/compiler/oak_compiler_cycles.c`). Native

@@ -142,13 +142,13 @@ void oak_compiler_check_cycles(oak_compiler_t* c,
    * pass, and the matrix has to be rebuilt at the new size rather than left
    * describing a smaller registry. */
   if (c->cycle_reach)
-    OAK_FREE(c->allocator, c->cycle_reach);
+    oak_free(c->allocator, c->cycle_reach, OAK_HERE);
   c->cycle_reach = null;
   c->cycle_reach_count = n;
   if (n == 0)
     return;
 
-  u8* reach = OAK_ALLOC(c->allocator, (usize)n * (usize)n);
+  u8* reach = oak_alloc(c->allocator, (usize)n * (usize)n, OAK_HERE);
   memset(reach, 0, (usize)n * (usize)n);
   c->cycle_reach = reach;
 
@@ -235,7 +235,7 @@ void oak_compiler_check_cycles(oak_compiler_t* c,
 void oak_compiler_free_cycles(oak_compiler_t* c)
 {
   if (c->cycle_reach)
-    OAK_FREE(c->allocator, c->cycle_reach);
+    oak_free(c->allocator, c->cycle_reach, OAK_HERE);
   c->cycle_reach = null;
   c->cycle_reach_count = 0;
 }

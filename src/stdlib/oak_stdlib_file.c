@@ -42,7 +42,7 @@ static void file_destroy(void* instance, void* user_data)
     return;
   if (h->fp)
     fclose(h->fp);
-  OAK_FREE((oak_allocator_t*)user_data, h);
+  oak_free((oak_allocator_t*)user_data, h, OAK_HERE);
 }
 
 /* Compile-time signature for open(). Built in oak_stdlib_register_file rather
@@ -91,7 +91,7 @@ static oak_fn_call_result_t file_open(oak_native_call_t* call,
   FILE* fp = fopen(path, mode);
   if (!fp)
     return oak_native_error(call, "cannot open '%s' for '%s'", path, mode);
-  oak_file_handle_t* h = OAK_ALLOC(call->allocator, sizeof *h);
+  oak_file_handle_t* h = oak_alloc(call->allocator, sizeof *h, OAK_HERE);
   if (!h)
   {
     fclose(fp);
@@ -165,13 +165,13 @@ static oak_fn_call_result_t file_read_all(oak_native_call_t* call,
     *out = oak_vm_string_value_len(call->vm, "", 0);
     return OAK_FN_CALL_OK;
   }
-  char* buf = OAK_ALLOC(call->allocator, n + 1u);
+  char* buf = oak_alloc(call->allocator, n + 1u, OAK_HERE);
   if (!buf)
     return oak_native_error(call, "out of memory reading %zu bytes", n);
   const size_t got = fread(buf, 1u, n, f);
   buf[got] = '\0';
   *out = oak_vm_string_value_len(call->vm, buf, got);
-  OAK_FREE(call->allocator, buf);
+  oak_free(call->allocator, buf, OAK_HERE);
   return OAK_FN_CALL_OK;
 }
 

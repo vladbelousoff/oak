@@ -43,7 +43,7 @@ static oak_type_t* translate_param_types(oak_compiler_t* c,
   if (!src || count <= 0)
     return null;
   oak_type_t* dst =
-      OAK_ALLOC(c->allocator, sizeof(oak_type_t) * (usize)count);
+      oak_alloc(c->allocator, sizeof(oak_type_t) * (usize)count, OAK_HERE);
   for (int i = 0; i < count; ++i)
     dst[i] = import_type_ref(c, dep, src[i]);
   return dst;
@@ -53,7 +53,7 @@ static u8* copy_mut_flags(oak_compiler_t* c, const u8* src, int count)
 {
   if (!src || count <= 0)
     return null;
-  u8* dst = OAK_ALLOC(c->allocator, sizeof(u8) * (usize)count);
+  u8* dst = oak_alloc(c->allocator, sizeof(u8) * (usize)count, OAK_HERE);
   memcpy(dst, src, sizeof(u8) * (usize)count);
   return dst;
 }
@@ -589,8 +589,8 @@ static void lower_params_from_decl(oak_compiler_t* c,
   }
   const int has_self = !is_static;
   oak_type_t* ptypes =
-      OAK_ALLOC(c->allocator, sizeof(oak_type_t) * (usize)arity);
-  u8* pmuts = OAK_ALLOC(c->allocator, sizeof(u8) * (usize)arity);
+      oak_alloc(c->allocator, sizeof(oak_type_t) * (usize)arity, OAK_HERE);
+  u8* pmuts = oak_alloc(c->allocator, sizeof(u8) * (usize)arity, OAK_HERE);
   for (int i = 0; i < arity; ++i)
   {
     oak_type_clear(&ptypes[i]);
@@ -800,7 +800,7 @@ static void export_user_interfaces(oak_compiler_t* c,
       if (src->sig_decl)
         lower_params_from_decl(c, src->sig_decl, src->arity, 0, &ptypes, &pmuts);
       if (pmuts)
-        OAK_FREE(c->allocator, pmuts);
+        oak_free(c->allocator, pmuts, OAK_HERE);
       oak_module_export_interface_method_t tm = {
         .name = src->name,
         .arity = src->arity,

@@ -13,7 +13,7 @@ static char* oak_strdup_alloc(oak_allocator_t* a, const char* s)
   if (!s)
     return null;
   const usize n = strlen(s);
-  char* copy = OAK_ALLOC(a, n + 1u);
+  char* copy = oak_alloc(a, n + 1u, OAK_HERE);
   if (!copy)
     return null;
   memcpy(copy, s, n);
@@ -53,10 +53,10 @@ static void oak_module_free(oak_module_t* mod)
   oak_type_registry_free(&mod->types);
   oak_symbol_registry_free(&mod->exports);
   if (mod->canonical_path)
-    OAK_FREE(a, mod->canonical_path);
+    oak_free(a, mod->canonical_path, OAK_HERE);
   if (mod->dotted_name)
-    OAK_FREE(a, mod->dotted_name);
-  OAK_FREE(a, mod);
+    oak_free(a, mod->dotted_name, OAK_HERE);
+  oak_free(a, mod, OAK_HERE);
 }
 
 void oak_module_registry_free(oak_module_registry_t* reg)
@@ -92,8 +92,7 @@ oak_module_registry_new(oak_module_registry_t* reg,
                            const char* dotted_name)
 {
   oak_allocator_t* a = reg->allocator;
-  oak_module_t* mod =
-      OAK_ALLOC(a, sizeof(oak_module_t));
+  oak_module_t* mod = oak_alloc(a, sizeof(oak_module_t), OAK_HERE);
   if (!mod)
     return null;
   memset(mod, 0, sizeof(*mod));

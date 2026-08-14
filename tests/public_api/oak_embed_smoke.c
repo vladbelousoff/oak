@@ -146,6 +146,16 @@ int main(void)
   oak_allocator_t allocator;
   oak_tracking_allocator_init(&allocator);
 
+  /* The allocation API has to be usable from the installed headers alone: the
+   * location type, its constructor and the OAK_HERE shorthand. An embedder
+   * forwarding a location of its own passes it in place of OAK_HERE, which is
+   * the whole reason the argument is explicit. */
+  void* scratch = oak_alloc(&allocator, 64, OAK_HERE);
+  CHECK(scratch != NULL);
+  scratch = oak_realloc(&allocator, scratch, 128, OAK_HERE);
+  CHECK(scratch != NULL);
+  oak_free(&allocator, scratch, oak_source_loc_make("embedder", 1));
+
   oak_compile_options_t opts;
   oak_compile_options_init(&opts, &allocator);
   opts.source_name = "smoke";

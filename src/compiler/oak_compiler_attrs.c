@@ -68,7 +68,8 @@ const char** oak_extract_attrs(oak_allocator_t* allocator,
   if (count == 0)
     return null;
 
-  const char** arr = OAK_ALLOC(allocator, (usize)count * sizeof(const char*));
+  const char** arr =
+      oak_alloc(allocator, (usize)count * sizeof(const char*), OAK_HERE);
   if (!arr)
     return null;
 
@@ -92,7 +93,8 @@ const char** oak_alloc_attrs(oak_allocator_t* allocator,
 {
   if (count <= 0)
     return null;
-  const char** arr = OAK_ALLOC(allocator, (usize)count * sizeof(const char*));
+  const char** arr =
+      oak_alloc(allocator, (usize)count * sizeof(const char*), OAK_HERE);
   if (!arr)
     return null;
   for (int i = 0; i < count; ++i)

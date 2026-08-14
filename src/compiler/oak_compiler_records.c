@@ -241,8 +241,9 @@ void oak_register_program_records(oak_compiler_t* c,
       oak_list_for_each(fp, &fw->children) { ++finfo_count; }
       if (finfo_count > 0)
       {
-        finfo = OAK_ALLOC(c->allocator,
-                          (usize)finfo_count * sizeof(oak_attr_field_info_t));
+        finfo = oak_alloc(c->allocator,
+                          (usize)finfo_count * sizeof(oak_attr_field_info_t),
+                          OAK_HERE);
         int fi = 0;
         oak_list_for_each(fp, &fw->children)
         {
@@ -271,7 +272,7 @@ void oak_register_program_records(oak_compiler_t* c,
         c, proto.attrs, proto.attr_count, name, OAK_ATTR_TARGET_RECORD,
         null, 0, finfo, finfo_count, -1);
     if (finfo)
-      OAK_FREE(c->allocator, finfo);
+      oak_free(c->allocator, finfo, OAK_HERE);
 
     if (proto.type_id < 0)
     {

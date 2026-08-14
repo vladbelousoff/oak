@@ -70,7 +70,7 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
       OAK_CDATA(oak_record_field_t, sd->fields);
   const usize field_count = oak_size(sd->fields);
   const oak_ast_node_t** exprs =
-      OAK_ALLOC(c->allocator, field_count * sizeof(*exprs));
+      oak_alloc(c->allocator, field_count * sizeof(*exprs), OAK_HERE);
   for (usize i = 0; i < field_count; ++i)
     exprs[i] = null;
 
@@ -147,7 +147,8 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
   }
 
   {
-    const char** fptr = OAK_ALLOC(c->allocator, field_count * sizeof(*fptr));
+    const char** fptr =
+        oak_alloc(c->allocator, field_count * sizeof(*fptr), OAK_HERE);
     for (usize i = 0; i < field_count; ++i)
       fptr[i] = fields[i].name;
     const int layout_id =
@@ -157,11 +158,11 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
       oak_compiler_error_at(
           c, name_node->token, "internal error: could not add record layout");
       if (fptr)
-        OAK_FREE(c->allocator, fptr);
+        oak_free(c->allocator, fptr, OAK_HERE);
       goto cleanup_exprs;
     }
     if (fptr)
-      OAK_FREE(c->allocator, fptr);
+      oak_free(c->allocator, fptr, OAK_HERE);
 
     oak_obj_string_t* type_name_obj =
         oak_string_new_len(c->allocator, sd->name, strlen(sd->name));
@@ -199,5 +200,5 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
 
 cleanup_exprs:
   if (exprs)
-    OAK_FREE(c->allocator, exprs);
+    oak_free(c->allocator, exprs, OAK_HERE);
 }

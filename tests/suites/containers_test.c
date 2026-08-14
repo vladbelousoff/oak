@@ -481,37 +481,27 @@ struct fail_state
   int fail_realloc;
 };
 
-static void* fail_alloc(oak_allocator_t* self,
-                        usize size,
-                        const char* file,
-                        int line)
+static void* fail_alloc(oak_allocator_t* self, usize size, oak_source_loc_t at)
 {
   fail_state_t* state = self->state;
-  (void)file;
-  (void)line;
+  (void)at;
   return state->fail_alloc ? null : malloc(size);
 }
 
 static void* fail_realloc(oak_allocator_t* self,
                           void* ptr,
                           usize size,
-                          const char* file,
-                          int line)
+                          oak_source_loc_t at)
 {
   fail_state_t* state = self->state;
-  (void)file;
-  (void)line;
+  (void)at;
   return state->fail_realloc ? null : realloc(ptr, size);
 }
 
-static void fail_free(oak_allocator_t* self,
-                      void* ptr,
-                      const char* file,
-                      int line)
+static void fail_free(oak_allocator_t* self, void* ptr, oak_source_loc_t at)
 {
   (void)self;
-  (void)file;
-  (void)line;
+  (void)at;
   free(ptr);
 }
 

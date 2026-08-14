@@ -17,11 +17,11 @@ void oak_fn_registry_free(oak_fn_registry_t* r)
   for (usize i = 0; i < oak_size(r->entries); ++i)
   {
     if (entries[i].attrs)
-      OAK_FREE(r->allocator, entries[i].attrs);
+      oak_free(r->allocator, entries[i].attrs, OAK_HERE);
     if (entries[i].param_types)
-      OAK_FREE(r->allocator, entries[i].param_types);
+      oak_free(r->allocator, entries[i].param_types, OAK_HERE);
     if (entries[i].param_mut_flags)
-      OAK_FREE(r->allocator, entries[i].param_mut_flags);
+      oak_free(r->allocator, entries[i].param_mut_flags, OAK_HERE);
   }
   oak_destroy(r->by_name);
   oak_destroy(r->entries);
@@ -96,7 +96,7 @@ static void register_regular_fn_decl(oak_compiler_t* c,
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
   oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, explicit_arity, mid);
-  char* name_copy = OAK_ALLOC(c->allocator, len + 1u);
+  char* name_copy = oak_alloc(c->allocator, len + 1u, OAK_HERE);
   memcpy(name_copy, name, len + 1u);
   fn_obj->name = name_copy;
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&fn_obj->obj));
@@ -107,8 +107,9 @@ static void register_regular_fn_decl(oak_compiler_t* c,
   oak_attr_param_info_t* pinfo = null;
   if (attr_count > 0 && explicit_arity > 0)
   {
-    pinfo = OAK_ALLOC(c->allocator,
-                      (usize)explicit_arity * sizeof(oak_attr_param_info_t));
+    pinfo = oak_alloc(c->allocator,
+                      (usize)explicit_arity * sizeof(oak_attr_param_info_t),
+                      OAK_HERE);
     for (int pi = 0; pi < explicit_arity; ++pi)
     {
       const oak_ast_node_t* param = oak_fn_param_at(item, pi);
@@ -138,7 +139,7 @@ static void register_regular_fn_decl(oak_compiler_t* c,
   oak_compiler_dispatch_attr_cbs(c, attrs, attr_count, name, OAK_ATTR_TARGET_FN,
                                  pinfo, explicit_arity, null, 0, (int)idx);
   if (pinfo)
-    OAK_FREE(c->allocator, pinfo);
+    oak_free(c->allocator, pinfo, OAK_HERE);
 
   oak_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);
   oak_registered_fn_t entry = {
@@ -208,7 +209,7 @@ void oak_register_method_on_record(oak_compiler_t* c,
   const u16 mid =
       c->current_module ? c->current_module->module_id : (u16)0xFFFFu;
   oak_obj_fn_t* fn_obj = oak_fn_new(c->allocator, 0, total_arity, mid);
-  char* method_name_copy = OAK_ALLOC(c->allocator, len + 1u);
+  char* method_name_copy = oak_alloc(c->allocator, len + 1u, OAK_HERE);
   memcpy(method_name_copy, name, len + 1u);
   fn_obj->name = method_name_copy;
   oak_apply_runtime_attr_hook(c, fn_obj, null, attrs, attr_count);

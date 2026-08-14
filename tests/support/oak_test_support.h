@@ -186,6 +186,29 @@ usize oak_test_pipe_read(oak_test_pipe_t* p, char* out, usize cap);
 
 void oak_test_pipe_free(oak_test_pipe_t* p);
 
+/*
+ * Redirection of one whole stream, for the cases oak_test_source() does not
+ * cover: code that writes straight to stdout/stderr rather than through the
+ * pipeline. oak_log() is the one that matters -- it holds no configurable
+ * stream, so the only way to read an allocator's leak report back is to point
+ * fd 2 somewhere else for the duration.
+ *
+ * Same pipe capacity caveat as above: nothing drains until oak_capture_end.
+ */
+typedef struct oak_capture oak_capture_t;
+struct oak_capture
+{
+  FILE* stream; /* the stream being redirected */
+  int read_fd;
+  int saved_fd;
+};
+
+void oak_capture_begin(oak_capture_t* c, FILE* stream);
+
+/* Restores the stream and reads what was written into `out`, which is set to
+ * OAK_TEST_CAPTURE_FAILED if redirection never got set up. */
+void oak_capture_end(oak_capture_t* c, char* out, usize cap);
+
 /* 1 when `got` equals `want` ignoring trailing whitespace on both, and
  * treating CRLF as LF so expectations are written the same way on every
  * platform. A null `want` matches anything. */

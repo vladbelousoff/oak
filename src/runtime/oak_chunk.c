@@ -131,7 +131,7 @@ void oak_chunk_enable_debug(oak_chunk_t* chunk, const char* source_name)
     return;
   }
   oak_chunk_debug_t* dbg =
-      OAK_ALLOC(chunk->allocator, sizeof(oak_chunk_debug_t));
+      oak_alloc(chunk->allocator, sizeof(oak_chunk_debug_t), OAK_HERE);
   dbg->source_name = source_name;
   dbg->locations =
       oak_vector_new(chunk->allocator, sizeof(oak_code_loc_t));
@@ -178,7 +178,7 @@ int oak_chunk_add_field_layout(oak_chunk_t* const c,
     const usize a = strlen(names[i]);
     tot += a + 1u;
   }
-  char* const blob = OAK_ALLOC(c->allocator, tot);
+  char* const blob = oak_alloc(c->allocator, tot, OAK_HERE);
   d.name_blob = blob;
   {
     char* p = blob;
@@ -195,7 +195,7 @@ int oak_chunk_add_field_layout(oak_chunk_t* const c,
    * survive the vector reallocating. */
   if (!oak_push_back(c->field_layouts, &d))
   {
-    OAK_FREE(c->allocator, blob);
+    oak_free(c->allocator, blob, OAK_HERE);
     return -1;
   }
   return (int)count;
@@ -228,7 +228,7 @@ void oak_chunk_add_debug_local(oak_chunk_t* chunk,
   if (!chunk->debug)
     return;
 
-  char* buf = OAK_ALLOC(chunk->allocator, length + 1);
+  char* buf = oak_alloc(chunk->allocator, length + 1, OAK_HERE);
   memcpy(buf, name, length);
   buf[length] = 0;
 
@@ -239,7 +239,7 @@ void oak_chunk_add_debug_local(oak_chunk_t* chunk,
     .name = buf,
   };
   if (!oak_push_back(chunk->debug->debug_locals, &d))
-    OAK_FREE(chunk->allocator, buf);
+    oak_free(chunk->allocator, buf, OAK_HERE);
 }
 
 void oak_chunk_end_debug_local(oak_chunk_t* chunk, const int slot)
@@ -279,10 +279,10 @@ void oak_chunk_free(oak_chunk_t* chunk)
     const oak_debug_local_t* locals =
         OAK_CDATA(oak_debug_local_t, dbg->debug_locals);
     for (usize i = 0; i < oak_size(dbg->debug_locals); ++i)
-      OAK_FREE(a, locals[i].name);
+      oak_free(a, locals[i].name, OAK_HERE);
     oak_destroy(dbg->debug_locals);
     oak_destroy(dbg->locations);
-    OAK_FREE(a, dbg);
+    oak_free(a, dbg, OAK_HERE);
   }
 
   oak_destroy(chunk->code);
@@ -291,11 +291,11 @@ void oak_chunk_free(oak_chunk_t* chunk)
     const oak_chunk_field_layout_t* layouts =
         OAK_CDATA(oak_chunk_field_layout_t, chunk->field_layouts);
     for (usize i = 0; i < oak_size(chunk->field_layouts); ++i)
-      OAK_FREE(a, layouts[i].name_blob);
+      oak_free(a, layouts[i].name_blob, OAK_HERE);
     oak_destroy(chunk->field_layouts);
   }
 
-  OAK_FREE(a, chunk);
+  oak_free(a, chunk, OAK_HERE);
 }
 
 static const char* opcode_name(const u8 op)

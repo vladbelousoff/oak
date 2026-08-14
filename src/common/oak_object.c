@@ -28,7 +28,8 @@ void* oak_base_alloc(oak_allocator_t* allocator,
   if (body_size > SIZE_MAX - OAK_OBJECT_HEADER_SIZE)
     return null;
 
-  u8* const base = OAK_ALLOC(allocator, OAK_OBJECT_HEADER_SIZE + body_size);
+  u8* const base =
+      oak_alloc(allocator, OAK_OBJECT_HEADER_SIZE + body_size, OAK_HERE);
   if (!base)
     return null;
 
@@ -53,7 +54,7 @@ void oak_base_free(void* obj)
    * to clear and no check to trip. */
   header->magic = 0;
 #endif
-  OAK_FREE(allocator, header);
+  oak_free(allocator, header, OAK_HERE);
 }
 
 u32 oak_hash_bytes(const void* data, usize len)

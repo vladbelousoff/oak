@@ -23,7 +23,7 @@ static oak_arena_block_t* arena_new_block(oak_allocator_t* a,
                                                  usize capacity)
 {
   oak_arena_block_t* block =
-      OAK_ALLOC(a, sizeof(oak_arena_block_t) + capacity);
+      oak_alloc(a, sizeof(oak_arena_block_t) + capacity, OAK_HERE);
   if (!block)
     return null;
   block->next = null;
@@ -71,7 +71,7 @@ void oak_arena_free(oak_arena_t* arena)
   while (block)
   {
     oak_arena_block_t* next = block->next;
-    OAK_FREE(arena->allocator, block);
+    oak_free(arena->allocator, block, OAK_HERE);
     block = next;
   }
   arena->current = null;

@@ -20,17 +20,17 @@ void oak_record_registry_free(oak_record_registry_t* r)
   {
     oak_registered_record_t* e = &entries[i];
     if (e->attrs)
-      OAK_FREE(r->allocator, e->attrs);
+      oak_free(r->allocator, e->attrs, OAK_HERE);
     oak_registered_fn_t* methods =
         OAK_DATA(oak_registered_fn_t, e->methods);
     for (usize j = 0; j < oak_size(e->methods); ++j)
     {
       if (methods[j].attrs)
-        OAK_FREE(r->allocator, methods[j].attrs);
+        oak_free(r->allocator, methods[j].attrs, OAK_HERE);
       if (methods[j].param_types)
-        OAK_FREE(r->allocator, methods[j].param_types);
+        oak_free(r->allocator, methods[j].param_types, OAK_HERE);
       if (methods[j].param_mut_flags)
-        OAK_FREE(r->allocator, methods[j].param_mut_flags);
+        oak_free(r->allocator, methods[j].param_mut_flags, OAK_HERE);
     }
     oak_destroy(e->fields);
     oak_destroy(e->methods);

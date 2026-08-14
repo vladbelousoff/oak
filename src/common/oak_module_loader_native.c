@@ -37,7 +37,7 @@ static char* native_canonical_path_dup(oak_allocator_t* a,
   const char* prefix = "native:";
   const usize plen = strlen(prefix);
   const usize dlen = strlen(dotted);
-  char* out = OAK_ALLOC(a, plen + dlen + 1u);
+  char* out = oak_alloc(a, plen + dlen + 1u, OAK_HERE);
   memcpy(out, prefix, plen);
   memcpy(out + plen, dotted, dlen);
   out[plen + dlen] = 0;
@@ -178,14 +178,14 @@ void apply_native_module_function_exports(
        * the new param_types); only drop them if the arity actually changes. */
       const usize old_arity = (usize)exp->arity;
       if (exp->param_types)
-        OAK_FREE(mod->allocator, exp->param_types);
+        oak_free(mod->allocator, exp->param_types, OAK_HERE);
       if (exp->param_mut_flags && fn->arity != old_arity)
       {
-        OAK_FREE(mod->allocator, exp->param_mut_flags);
+        oak_free(mod->allocator, exp->param_mut_flags, OAK_HERE);
         exp->param_mut_flags = null;
       }
-      exp->param_types = OAK_ALLOC(
-          mod->allocator, (usize)fn->arity * sizeof(oak_type_t));
+      exp->param_types = oak_alloc(
+          mod->allocator, (usize)fn->arity * sizeof(oak_type_t), OAK_HERE);
       for (usize pi = 0; pi < fn->arity; ++pi)
         oak_lower_bind_ref(&fn->param_types[pi], &exp->param_types[pi]);
       exp->arity = (int)fn->arity;
@@ -515,20 +515,20 @@ oak_module_t* create_native_module(
       oak_module_registry_find_by_path(reg, canonical);
   if (existing)
   {
-    OAK_FREE(a, canonical);
+    oak_free(a, canonical, OAK_HERE);
     return existing;
   }
 
   oak_module_t* mod =
       oak_module_registry_new(reg, canonical, dotted);
-  OAK_FREE(a, canonical);
+  oak_free(a, canonical, OAK_HERE);
   if (!mod)
   {
     loader_error(out, "out of memory creating native module '%s'", dotted);
     return null;
   }
 
-  mod->chunk = OAK_ALLOC(a, sizeof(oak_chunk_t));
+  mod->chunk = oak_alloc(a, sizeof(oak_chunk_t), OAK_HERE);
   oak_chunk_init(mod->chunk, a);
   mod->chunk->module_id = mod->module_id;
   oak_type_registry_init(&mod->types, a);
@@ -580,7 +580,7 @@ oak_module_t* create_native_module(
     if (fn->param_types && fn->arity > 0)
     {
       exp.param_types =
-          OAK_ALLOC(a, (usize)fn->arity * sizeof(oak_type_t));
+          oak_alloc(a, (usize)fn->arity * sizeof(oak_type_t), OAK_HERE);
       for (usize pi = 0; pi < fn->arity; ++pi)
         oak_lower_bind_ref(&fn->param_types[pi], &exp.param_types[pi]);
     }

@@ -17,7 +17,7 @@ void oak_growable_buf_init(oak_growable_buf_t* b,
 void oak_growable_buf_free(oak_growable_buf_t* b)
 {
   if (b->heap)
-    OAK_FREE(b->allocator, b->data);
+    oak_free(b->allocator, b->data, OAK_HERE);
   b->data = null;
   b->len = 0u;
   b->cap = 0u;
@@ -34,7 +34,7 @@ oak_lex_status_t oak_growable_buf_reserve(oak_growable_buf_t* b,
     usize new_cap = (usize)OAK_LEXER_TLS_BUF * 2u;
     while (new_cap < min_cap)
       new_cap *= 2u;
-    char* new_buf = OAK_ALLOC(b->allocator, new_cap);
+    char* new_buf = oak_alloc(b->allocator, new_cap, OAK_HERE);
     if (!new_buf)
       return OAK_LEX_ALLOC_FAILED;
     memcpy(new_buf, b->data, b->len);
@@ -46,10 +46,10 @@ oak_lex_status_t oak_growable_buf_reserve(oak_growable_buf_t* b,
   usize new_cap = b->cap * 2u;
   while (new_cap < min_cap)
     new_cap *= 2u;
-  char* new_buf = OAK_REALLOC(b->allocator, b->data, new_cap);
+  char* new_buf = oak_realloc(b->allocator, b->data, new_cap, OAK_HERE);
   if (!new_buf)
   {
-    OAK_FREE(b->allocator, b->data);
+    oak_free(b->allocator, b->data, OAK_HERE);
     b->data = null;
     return OAK_LEX_ALLOC_FAILED;
   }

@@ -190,8 +190,8 @@ void oak_register_native_fns(oak_compiler_t* c,
     entry.source_module_id = OAK_MODULE_ID_NONE;
     if (b->param_types && b->arity > 0)
     {
-      entry.param_types = OAK_ALLOC(
-          c->allocator, (usize)b->arity * sizeof(oak_type_t));
+      entry.param_types = oak_alloc(
+          c->allocator, (usize)b->arity * sizeof(oak_type_t), OAK_HERE);
       for (usize pi = 0; pi < b->arity; ++pi)
         oak_lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
     }
@@ -301,8 +301,8 @@ void oak_register_native_fns(oak_compiler_t* c,
      * (the receiver type), with the user-facing params following. */
     if (b->param_types && vm_arity > 0)
     {
-      entry.param_types =
-          OAK_ALLOC(c->allocator, (usize)vm_arity * sizeof(oak_type_t));
+      entry.param_types = oak_alloc(
+          c->allocator, (usize)vm_arity * sizeof(oak_type_t), OAK_HERE);
       int slot = 0;
       if (!is_static)
       {

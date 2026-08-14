@@ -103,6 +103,43 @@ oak_allocator_t allocator_storage;
 oak_allocator_init(&allocator_storage, my_malloc, my_realloc, my_free);
 ```
 
+To allocate through it, call `oak_alloc` / `oak_realloc` / `oak_free`. Each
+takes an `oak_source_loc_t` saying where the memory was asked for, which is
+what the tracking allocator reports on a leak:
+
+```c
+void* p = oak_alloc(&allocator_storage, 64, OAK_HERE);
+oak_free(&allocator_storage, p, OAK_HERE);
+```
+
+`OAK_HERE` is the current C file and line. It is an argument rather than
+something a macro hides because the answer is often not the call site: a helper
+that allocates for a caller should take an `oak_source_loc_t` of its own and
+pass it straight through, so a leak names whoever asked for the memory instead
+of the one line every caller funnels into.
+
+```c
+static Node* node_new(oak_allocator_t* a, oak_source_loc_t at)
+{
+  return oak_alloc(a, sizeof(Node), at);   /* not OAK_HERE */
+}
+```
+
+The location's `file` is borrowed, never copied, and the tracking allocator
+only reads it back at shutdown — so it has to outlive the allocation. A
+`__FILE__` literal always does; anything else must be at least as long-lived as
+the memory it describes.
+
+Writing an `oak_allocator_t` by hand rather than through `oak_allocator_init`
+means implementing the three callbacks, which receive that location:
+
+```c
+static void* my_alloc(oak_allocator_t* self, usize size, oak_source_loc_t at);
+static void* my_realloc(oak_allocator_t* self, void* ptr, usize new_size,
+                        oak_source_loc_t at);
+static void  my_free(oak_allocator_t* self, void* ptr, oak_source_loc_t at);
+```
+
 `oak_vm_call()` calls an Oak function value from C. It needs a chunk attached
 to the VM: either run one first with `oak_vm_run()`, or attach one without
 executing it using `oak_vm_prepare()`. `oak_vm_t::user_data` carries an
@@ -346,7 +383,7 @@ static oak_fn_call_result_t make_vec2(oak_native_call_t* call,
       !oak_arg_number(call, args, argc, 1, &y))
     return OAK_FN_CALL_RUNTIME_ERROR;
 
-  Vec2* v = OAK_ALLOC(call->allocator, sizeof(Vec2));
+  Vec2* v = oak_alloc(call->allocator, sizeof(Vec2), OAK_HERE);
   if (!v)
     return oak_native_error(call, "out of memory");
   v->x = x;

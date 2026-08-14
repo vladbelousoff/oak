@@ -10,7 +10,7 @@ void oak_compile_expr_fn(oak_compiler_t* c,
   char name_buf[32];
   snprintf(name_buf, sizeof(name_buf), "__anon_%d", c->anon_fn_count++);
   const usize len = strlen(name_buf) + 1u;
-  char* name_copy = OAK_ALLOC(c->allocator, len);
+  char* name_copy = oak_alloc(c->allocator, len, OAK_HERE);
   memcpy(name_copy, name_buf, len);
 
   const u16 mid =

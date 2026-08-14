@@ -70,15 +70,15 @@ static char* stdlib_resolve(oak_allocator_t* a, const char* dotted,
     if (exe_dir)
     {
       char* base = path_join(a, exe_dir, OAK_STDLIB_INSTALL_RELPATH);
-      OAK_FREE(a, exe_dir);
+      oak_free(a, exe_dir, OAK_HERE);
       if (path_dir_exists(base))
       {
         *origin = STDLIB_ORIGIN_INSTALL;
         char* p = path_resolve_dotted(a, base, dotted);
-        OAK_FREE(a, base);
+        oak_free(a, base, OAK_HERE);
         return p;
       }
-      OAK_FREE(a, base);
+      oak_free(a, base, OAK_HERE);
     }
   }
 #endif
@@ -88,7 +88,7 @@ static char* stdlib_resolve(oak_allocator_t* a, const char* dotted,
     char* p = path_resolve_dotted(a, OAK_STDLIB_SOURCE_DIR, dotted);
     if (path_exists(p))
       return p;
-    OAK_FREE(a, p);
+    oak_free(a, p, OAK_HERE);
   }
 #endif
 
@@ -110,7 +110,7 @@ int oak_module_loader_load_program(const char* entry_path,
   int created = 0;
   oak_module_t* entry = parse_or_get_module(
       out_reg, entry_canonical, "<entry>", 1, out, &created);
-  OAK_FREE(a, entry_canonical);
+  oak_free(a, entry_canonical, OAK_HERE);
   if (!entry || out->error_count > 0)
     return -1;
 
@@ -214,8 +214,8 @@ int oak_module_loader_load_program(const char* entry_path,
                          ? "OAK_STDLIB_DIR"
                          : "the installed stdlib",
                      file_path);
-        OAK_FREE(a, file_path);
-        OAK_FREE(a, dotted);
+        oak_free(a, file_path, OAK_HERE);
+        oak_free(a, dotted, OAK_HERE);
         rc = -1;
         break;
       }
@@ -224,7 +224,7 @@ int oak_module_loader_load_program(const char* entry_path,
     {
       char* mod_dir = path_dirname_dup(a, top->mod->canonical_path);
       file_path = path_resolve_dotted(a, mod_dir, dotted);
-      OAK_FREE(a, mod_dir);
+      oak_free(a, mod_dir, OAK_HERE);
     }
 
     if (!path_exists(file_path) && is_native)
@@ -242,8 +242,8 @@ int oak_module_loader_load_program(const char* entry_path,
                      "native bindings instead)",
                      dotted,
                      file_path);
-        OAK_FREE(a, file_path);
-        OAK_FREE(a, dotted);
+        oak_free(a, file_path, OAK_HERE);
+        oak_free(a, dotted, OAK_HERE);
         rc = -1;
         break;
       }
@@ -251,7 +251,7 @@ int oak_module_loader_load_program(const char* entry_path,
           create_native_module(out_reg, opts, dotted, out);
       if (!dep || out->error_count > 0)
       {
-        OAK_FREE(a, dotted);
+        oak_free(a, dotted, OAK_HERE);
         rc = -1;
         break;
       }
@@ -267,7 +267,7 @@ int oak_module_loader_load_program(const char* entry_path,
                        top->mod->dotted_name,
                        (int)alen,
                        alias);
-          OAK_FREE(a, dotted);
+          oak_free(a, dotted, OAK_HERE);
           rc = -1;
           break;
         }
@@ -277,8 +277,8 @@ int oak_module_loader_load_program(const char* entry_path,
       oak_assert(oak_push_back(top->mod->import_modules, &dep->module_id));
       ENSURE_FLAGS(dep->module_id);
       OAK_DATA(char, visited)[dep->module_id] = 1;
-      OAK_FREE(a, dotted);
-      OAK_FREE(a, file_path);
+      oak_free(a, dotted, OAK_HERE);
+      oak_free(a, file_path, OAK_HERE);
       continue;
     }
 
@@ -311,9 +311,9 @@ int oak_module_loader_load_program(const char* entry_path,
       }
       buf[w] = 0;
       loader_error(out, "import cycle: %s", buf);
-      OAK_FREE(a, dotted);
-      OAK_FREE(a, file_path);
-      OAK_FREE(a, canonical);
+      oak_free(a, dotted, OAK_HERE);
+      oak_free(a, file_path, OAK_HERE);
+      oak_free(a, canonical, OAK_HERE);
       rc = -1;
       break;
     }
@@ -324,15 +324,15 @@ int oak_module_loader_load_program(const char* entry_path,
       RECORD_ALIAS(top->mod, imp, found->module_id);
       if (rc != 0)
       {
-        OAK_FREE(a, dotted);
-        OAK_FREE(a, file_path);
-        OAK_FREE(a, canonical);
+        oak_free(a, dotted, OAK_HERE);
+        oak_free(a, file_path, OAK_HERE);
+        oak_free(a, canonical, OAK_HERE);
         break;
       }
       oak_assert(oak_push_back(top->mod->import_modules, &found->module_id));
-      OAK_FREE(a, dotted);
-      OAK_FREE(a, file_path);
-      OAK_FREE(a, canonical);
+      oak_free(a, dotted, OAK_HERE);
+      oak_free(a, file_path, OAK_HERE);
+      oak_free(a, canonical, OAK_HERE);
       continue;
     }
 
@@ -341,9 +341,9 @@ int oak_module_loader_load_program(const char* entry_path,
         parse_or_get_module(out_reg, canonical, dotted, 0, out, &dep_created);
     if (!dep || out->error_count > 0)
     {
-      OAK_FREE(a, dotted);
-      OAK_FREE(a, file_path);
-      OAK_FREE(a, canonical);
+      oak_free(a, dotted, OAK_HERE);
+      oak_free(a, file_path, OAK_HERE);
+      oak_free(a, canonical, OAK_HERE);
       rc = -1;
       break;
     }
@@ -361,9 +361,9 @@ int oak_module_loader_load_program(const char* entry_path,
                        top->mod->dotted_name,
                        (int)alen,
                        alias);
-          OAK_FREE(a, dotted);
-          OAK_FREE(a, file_path);
-          OAK_FREE(a, canonical);
+          oak_free(a, dotted, OAK_HERE);
+          oak_free(a, file_path, OAK_HERE);
+          oak_free(a, canonical, OAK_HERE);
           rc = -1;
           break;
         }
@@ -373,9 +373,9 @@ int oak_module_loader_load_program(const char* entry_path,
     }
     oak_assert(oak_push_back(top->mod->import_modules, &dep->module_id));
 
-    OAK_FREE(a, dotted);
-    OAK_FREE(a, file_path);
-    OAK_FREE(a, canonical);
+    oak_free(a, dotted, OAK_HERE);
+    oak_free(a, file_path, OAK_HERE);
+    oak_free(a, canonical, OAK_HERE);
 
     ENSURE_FLAGS(dep->module_id);
     if (OAK_CDATA(char, visiting)[dep->module_id] ||

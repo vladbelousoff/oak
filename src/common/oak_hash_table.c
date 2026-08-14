@@ -89,7 +89,7 @@ static int rehash(oak_hash_table_t* t, usize new_capacity)
 
   oak_allocator_t* allocator = oak_container_allocator((oak_container_t*)t);
   oak_hash_slot_t* new_slots =
-      OAK_ALLOC(allocator, new_capacity * sizeof *new_slots);
+      oak_alloc(allocator, new_capacity * sizeof *new_slots, OAK_HERE);
   if (!new_slots)
     return 0;
   memset(new_slots, 0, new_capacity * sizeof *new_slots);
@@ -97,10 +97,10 @@ static int rehash(oak_hash_table_t* t, usize new_capacity)
   u8* new_values = null;
   if (t->value_size)
   {
-    new_values = OAK_ALLOC(allocator, new_capacity * t->value_size);
+    new_values = oak_alloc(allocator, new_capacity * t->value_size, OAK_HERE);
     if (!new_values)
     {
-      OAK_FREE(allocator, new_slots);
+      oak_free(allocator, new_slots, OAK_HERE);
       return 0;
     }
   }
@@ -122,9 +122,9 @@ static int rehash(oak_hash_table_t* t, usize new_capacity)
   }
 
   if (t->slots)
-    OAK_FREE(allocator, t->slots);
+    oak_free(allocator, t->slots, OAK_HERE);
   if (t->values)
-    OAK_FREE(allocator, t->values);
+    oak_free(allocator, t->values, OAK_HERE);
   t->slots = new_slots;
   t->values = new_values;
   t->capacity = new_capacity;
@@ -321,9 +321,9 @@ void oak_hash_table_destroy(void* obj)
   oak_hash_table_t* t = (oak_hash_table_t*)obj;
   oak_allocator_t* allocator = oak_base_header(obj)->allocator;
   if (t->slots)
-    OAK_FREE(allocator, t->slots);
+    oak_free(allocator, t->slots, OAK_HERE);
   if (t->values)
-    OAK_FREE(allocator, t->values);
+    oak_free(allocator, t->values, OAK_HERE);
   oak_base_free(obj);
 }
 

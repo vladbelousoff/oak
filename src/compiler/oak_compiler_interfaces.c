@@ -23,7 +23,7 @@ void oak_interface_registry_free(oak_interface_registry_t* r)
     for (usize mi = 0; mi < oak_size(interfaces[i].methods); ++mi)
     {
       if (methods[mi].param_types)
-        OAK_FREE(r->allocator, methods[mi].param_types);
+        oak_free(r->allocator, methods[mi].param_types, OAK_HERE);
     }
     oak_destroy(interfaces[i].methods);
   }
@@ -34,7 +34,7 @@ void oak_interface_registry_free(oak_interface_registry_t* r)
   for (usize i = 0; i < oak_size(r->impls); ++i)
   {
     if (impls[i].vtable)
-      OAK_FREE(r->allocator, impls[i].vtable);
+      oak_free(r->allocator, impls[i].vtable, OAK_HERE);
     impls[i].vtable = null;
     impls[i].vtable_count = 0;
   }
@@ -450,7 +450,7 @@ u16 oak_get_or_build_vtable(oak_compiler_t* c,
     oak_interface_impl_t proto = {
       .interface_id = tr->interface_id,
       .record_type_id = sd->type_id,
-      .vtable = OAK_ALLOC(c->allocator, method_count * sizeof(u16)),
+      .vtable = oak_alloc(c->allocator, method_count * sizeof(u16), OAK_HERE),
       .vtable_count = (int)method_count,
       .vtable_array_const_idx = 0,
       .vtable_built = 0,

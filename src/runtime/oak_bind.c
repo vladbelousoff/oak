@@ -29,7 +29,7 @@ static int bind_reject(oak_compile_options_t* opts, const char* fmt, ...)
   va_end(ap);
 
   const usize len = strlen(buf) + 1u;
-  char* copy = OAK_ALLOC(opts->allocator, len);
+  char* copy = oak_alloc(opts->allocator, len, OAK_HERE);
   if (!copy)
     return -1;
   memcpy(copy, buf, len);
@@ -91,9 +91,9 @@ void oak_compile_options_free(oak_compile_options_t* opts)
     const oak_bind_field_t* fields =
         OAK_CDATA(oak_bind_field_t, types[i]->fields);
     for (usize fi = 0; fi < oak_size(types[i]->fields); ++fi)
-      OAK_FREE(opts->allocator, (void*)fields[fi].name);
+      oak_free(opts->allocator, (void*)fields[fi].name, OAK_HERE);
     oak_destroy(types[i]->fields);
-    OAK_FREE(opts->allocator, types[i]);
+    oak_free(opts->allocator, types[i], OAK_HERE);
   }
   oak_destroy(opts->native_types);
   opts->native_types = null;
@@ -107,7 +107,7 @@ void oak_compile_options_free(oak_compile_options_t* opts)
   for (usize i = 0; i < oak_size(opts->native_enums); ++i)
   {
     oak_destroy(enums[i]->variants);
-    OAK_FREE(opts->allocator, enums[i]);
+    oak_free(opts->allocator, enums[i], OAK_HERE);
   }
   oak_destroy(opts->native_enums);
   opts->native_enums = null;
@@ -116,7 +116,7 @@ void oak_compile_options_free(oak_compile_options_t* opts)
 
   char** bind_errors = OAK_DATA(char*, opts->bind_errors);
   for (usize i = 0; i < oak_size(opts->bind_errors); ++i)
-    OAK_FREE(opts->allocator, bind_errors[i]);
+    oak_free(opts->allocator, bind_errors[i], OAK_HERE);
   oak_destroy(opts->bind_errors);
   opts->bind_errors = null;
 }
@@ -139,7 +139,7 @@ oak_bind_type_t* oak_bind_type_in_module(
     return null;
 
   oak_bind_type_t* t =
-      OAK_ALLOC(opts->allocator, sizeof(oak_bind_type_t));
+      oak_alloc(opts->allocator, sizeof(oak_bind_type_t), OAK_HERE);
   t->module_name = module_name;
   t->kind = kind;
   t->name = name;
@@ -185,7 +185,7 @@ int oak_bind_field(oak_bind_type_t* type,
   }
 
   const usize len = strlen(p->name) + 1u;
-  char* name_copy = OAK_ALLOC(type->allocator, len);
+  char* name_copy = oak_alloc(type->allocator, len, OAK_HERE);
   if (!name_copy)
     return -1;
   memcpy(name_copy, p->name, len);
@@ -282,7 +282,7 @@ oak_bind_enum_t* oak_bind_enum_in_module(
     return null;
 
   oak_bind_enum_t* e =
-      OAK_ALLOC(opts->allocator, sizeof(oak_bind_enum_t));
+      oak_alloc(opts->allocator, sizeof(oak_bind_enum_t), OAK_HERE);
   e->module_name = module_name;
   e->name = name;
   e->resolved_type_id = OAK_TYPE_VOID;
@@ -426,8 +426,8 @@ void oak_apply_attr_hooks(const oak_compile_options_t* opts,
                              : null;
   if (!a)
     return;
-  oak_attr_hook_entry_t* hooks = OAK_ALLOC(a,
-      (usize)match_count * sizeof(oak_attr_hook_entry_t));
+  oak_attr_hook_entry_t* hooks = oak_alloc(
+      a, (usize)match_count * sizeof(oak_attr_hook_entry_t), OAK_HERE);
   int idx = 0;
   for (usize bi = 0; bi < oak_size(opts->native_attrs); ++bi)
   {
@@ -458,7 +458,7 @@ void oak_apply_attr_hooks(const oak_compile_options_t* opts,
   }
   else
   {
-    OAK_FREE(a, hooks);
+    oak_free(a, hooks, OAK_HERE);
   }
 }
 

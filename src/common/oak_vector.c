@@ -46,8 +46,8 @@ static int vector_reserve(oak_container_t* c, usize capacity)
   if (capacity > SIZE_MAX / v->elem_size)
     return 0;
 
-  u8* grown = OAK_REALLOC(
-      oak_container_allocator(c), v->data, capacity * v->elem_size);
+  u8* grown = oak_realloc(
+      oak_container_allocator(c), v->data, capacity * v->elem_size, OAK_HERE);
   if (!grown)
     return 0;
   v->data = grown;
@@ -188,7 +188,7 @@ static void vector_destroy(void* obj)
 {
   oak_vector_t* v = (oak_vector_t*)obj;
   if (v->data)
-    OAK_FREE(oak_base_header(obj)->allocator, v->data);
+    oak_free(oak_base_header(obj)->allocator, v->data, OAK_HERE);
   oak_base_free(obj);
 }
 

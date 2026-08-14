@@ -506,7 +506,7 @@ oak_lexer_result_t* oak_lexer_tokenize_len(
     return null;
 
   oak_lexer_result_t* result =
-      OAK_ALLOC(allocator, sizeof(oak_lexer_result_t));
+      oak_alloc(allocator, sizeof(oak_lexer_result_t), OAK_HERE);
   if (!result)
     return null;
 
@@ -583,5 +583,5 @@ void oak_lexer_free(oak_lexer_result_t* result)
     return;
   oak_allocator_t* a = result->allocator;
   oak_arena_free(&result->arena);
-  OAK_FREE(a, result);
+  oak_free(a, result, OAK_HERE);
 }

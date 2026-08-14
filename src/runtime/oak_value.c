@@ -152,7 +152,7 @@ static void oak_obj_destroy_payload(oak_obj_t* obj)
     for (usize i = 0; i < arr->length; ++i)
       oak_value_decref(arr->items[i]);
     if (arr->items)
-      OAK_FREE(a, arr->items);
+      oak_free(a, arr->items, OAK_HERE);
   }
   else if (obj->type == OAK_OBJ_MAP)
   {
@@ -163,15 +163,15 @@ static void oak_obj_destroy_payload(oak_obj_t* obj)
       oak_value_decref(map->entries[i].value);
     }
     if (map->entries)
-      OAK_FREE(a, map->entries);
+      oak_free(a, map->entries, OAK_HERE);
     if (map->ht)
-      OAK_FREE(a, map->ht);
+      oak_free(a, map->ht, OAK_HERE);
   }
   else if (obj->type == OAK_OBJ_RECORD)
   {
     oak_obj_record_t* s = (oak_obj_record_t*)obj;
     if (s->field_name_storage)
-      OAK_FREE(a, s->field_name_storage);
+      oak_free(a, s->field_name_storage, OAK_HERE);
     for (int i = 0; i < s->field_count; ++i)
       oak_value_decref(s->fields[i]);
   }
@@ -192,15 +192,15 @@ static void oak_obj_destroy_payload(oak_obj_t* obj)
   {
     oak_obj_fn_t* fn = (oak_obj_fn_t*)obj;
     if (fn->name)
-      OAK_FREE(a, (void*)fn->name);
+      oak_free(a, (void*)fn->name, OAK_HERE);
     if (fn->attr_hooks)
-      OAK_FREE(a, fn->attr_hooks);
+      oak_free(a, fn->attr_hooks, OAK_HERE);
   }
   else if (obj->type == OAK_OBJ_NATIVE_FN)
   {
     oak_obj_native_fn_t* nfn = (oak_obj_native_fn_t*)obj;
     if (nfn->attr_hooks)
-      OAK_FREE(a, nfn->attr_hooks);
+      oak_free(a, nfn->attr_hooks, OAK_HERE);
   }
 }
 
@@ -214,7 +214,7 @@ void oak_obj_decref(oak_obj_t* obj)
    * as expired. */
   oak_obj_table_release(obj);
   oak_obj_destroy_payload(obj);
-  OAK_FREE(obj->allocator, obj);
+  oak_free(obj->allocator, obj, OAK_HERE);
 }
 
 static u32 hash_string(const char* chars, const usize length)
@@ -234,7 +234,7 @@ oak_obj_string_t* oak_string_new_len_in_table(oak_allocator_t* a,
                                                      const usize length)
 {
   oak_obj_string_t* str =
-      OAK_ALLOC(a, sizeof(oak_obj_string_t) + length + 1);
+      oak_alloc(a, sizeof(oak_obj_string_t) + length + 1, OAK_HERE);
   oak_obj_init(&str->obj, OAK_OBJ_STRING, a, table_id);
   str->length = length;
   memcpy(str->chars, chars, length);
@@ -268,7 +268,7 @@ oak_obj_fn_t* oak_fn_new(oak_allocator_t* a,
                                 const usize arity,
                                 const u16 module_id)
 {
-  oak_obj_fn_t* fn = OAK_ALLOC(a, sizeof(oak_obj_fn_t));
+  oak_obj_fn_t* fn = oak_alloc(a, sizeof(oak_obj_fn_t), OAK_HERE);
   oak_obj_init(&fn->obj, OAK_OBJ_FN, a, 0u);
   fn->code_offset = code_offset;
   fn->arity = arity;
@@ -286,7 +286,7 @@ oak_obj_native_fn_t* oak_native_fn_new(oak_allocator_t* a,
                                               void* user_data)
 {
   oak_obj_native_fn_t* native =
-      OAK_ALLOC(a, sizeof(oak_obj_native_fn_t));
+      oak_alloc(a, sizeof(oak_obj_native_fn_t), OAK_HERE);
   oak_obj_init(&native->obj, OAK_OBJ_NATIVE_FN, a, 0u);
   native->fn = fn;
   native->arity = arity;
@@ -316,7 +316,7 @@ int oak_native_fn_format(char* buf,
 oak_obj_array_t* oak_array_new_in_table(oak_allocator_t* a,
                                                const u32 table_id)
 {
-  oak_obj_array_t* arr = OAK_ALLOC(a, sizeof(oak_obj_array_t));
+  oak_obj_array_t* arr = oak_alloc(a, sizeof(oak_obj_array_t), OAK_HERE);
   oak_obj_init(&arr->obj, OAK_OBJ_ARRAY, a, table_id);
   arr->length = 0;
   arr->capacity = 0;
@@ -336,8 +336,10 @@ int oak_array_push(oak_obj_array_t* arr, const oak_value_t value)
   if (arr->length >= arr->capacity)
   {
     const usize new_cap = arr->capacity == 0 ? 8u : arr->capacity * 2u;
-    arr->items = OAK_REALLOC(
-        arr->obj.allocator, arr->items, new_cap * sizeof(oak_value_t));
+    arr->items = oak_realloc(arr->obj.allocator,
+                             arr->items,
+                             new_cap * sizeof(oak_value_t),
+                             OAK_HERE);
     arr->capacity = new_cap;
   }
   oak_value_incref(value);
@@ -355,7 +357,7 @@ oak_record_new_in_table(oak_allocator_t* a,
   oak_assert(field_count >= 0);
   const usize size = sizeof(oak_obj_record_t) +
                      (usize)field_count * sizeof(oak_value_t);
-  oak_obj_record_t* s = OAK_ALLOC(a, size);
+  oak_obj_record_t* s = oak_alloc(a, size, OAK_HERE);
   oak_obj_init(&s->obj, OAK_OBJ_RECORD, a, table_id);
   s->type_name = null;
   s->field_count = field_count;
@@ -378,7 +380,8 @@ oak_record_new_in_table(oak_allocator_t* a,
   const usize type_name_size = type_name ? strlen(type_name) + 1u : 0u;
   if (ptrs_size + strings_total + type_name_size > 0u)
   {
-    char* const raw = OAK_ALLOC(a, ptrs_size + strings_total + type_name_size);
+    char* const raw =
+        oak_alloc(a, ptrs_size + strings_total + type_name_size, OAK_HERE);
     s->field_name_storage = raw;
     char* p = raw + ptrs_size;
     if (have_fields)
@@ -418,7 +421,7 @@ oak_obj_native_record_new_in_table(oak_allocator_t* a,
                                    void* instance)
 {
   oak_obj_native_record_t* ns =
-      OAK_ALLOC(a, sizeof(oak_obj_native_record_t));
+      oak_alloc(a, sizeof(oak_obj_native_record_t), OAK_HERE);
   oak_obj_init(&ns->obj, OAK_OBJ_NATIVE_RECORD, a, table_id);
   ns->instance = instance;
   ns->type = type;
@@ -440,13 +443,13 @@ oak_interface_object_new_in_table(oak_allocator_t* a,
                                   oak_obj_array_t* vtable)
 {
   oak_obj_interface_object_t* to =
-      OAK_ALLOC(a, sizeof(oak_obj_interface_object_t));
+      oak_alloc(a, sizeof(oak_obj_interface_object_t), OAK_HERE);
   oak_obj_init(&to->obj, OAK_OBJ_INTERFACE_OBJECT, a, table_id);
   if (!oak_value_can_refcopy_to_table(value, to->obj.table_id) ||
       (vtable->obj.table_id != 0u && vtable->obj.table_id != to->obj.table_id))
   {
     oak_obj_table_release(&to->obj);
-    OAK_FREE(a, to);
+    oak_free(a, to, OAK_HERE);
     return null;
   }
   oak_value_incref(value);
@@ -467,7 +470,7 @@ oak_interface_object_new(oak_allocator_t* a,
 oak_obj_map_t* oak_map_new_in_table(oak_allocator_t* a,
                                            const u32 table_id)
 {
-  oak_obj_map_t* map = OAK_ALLOC(a, sizeof(oak_obj_map_t));
+  oak_obj_map_t* map = oak_alloc(a, sizeof(oak_obj_map_t), OAK_HERE);
   oak_obj_init(&map->obj, OAK_OBJ_MAP, a, table_id);
   map->length = 0;
   map->capacity = 0;
@@ -558,7 +561,7 @@ static usize ht_probe(const usize* ht,
 static void map_ht_rebuild(oak_obj_map_t* map, const usize new_cap)
 {
   oak_allocator_t* a = map->obj.allocator;
-  usize* new_ht = OAK_ALLOC(a, new_cap * sizeof(usize));
+  usize* new_ht = oak_alloc(a, new_cap * sizeof(usize), OAK_HERE);
   for (usize i = 0; i < new_cap; ++i)
     new_ht[i] = MAP_HT_EMPTY;
 
@@ -572,7 +575,7 @@ static void map_ht_rebuild(oak_obj_map_t* map, const usize new_cap)
   }
 
   if (map->ht)
-    OAK_FREE(a, map->ht);
+    oak_free(a, map->ht, OAK_HERE);
   map->ht = new_ht;
   map->ht_capacity = new_cap;
   map->ht_tombstones = 0;
@@ -695,9 +698,10 @@ int oak_map_set(oak_obj_map_t* map,
   if (map->length >= map->capacity)
   {
     const usize new_cap = map->capacity == 0u ? 8u : map->capacity * 2u;
-    map->entries = OAK_REALLOC(map->obj.allocator,
+    map->entries = oak_realloc(map->obj.allocator,
                                map->entries,
-                               new_cap * sizeof(oak_map_entry_t));
+                               new_cap * sizeof(oak_map_entry_t),
+                               OAK_HERE);
     map->capacity = new_cap;
   }
 
@@ -720,7 +724,7 @@ oak_string_concat_in_table(oak_allocator_t* al,
 {
   const usize length = a->length + b->length;
   oak_obj_string_t* str =
-      OAK_ALLOC(al, sizeof(oak_obj_string_t) + length + 1);
+      oak_alloc(al, sizeof(oak_obj_string_t) + length + 1, OAK_HERE);
   oak_obj_init(&str->obj, OAK_OBJ_STRING, al, table_id);
   str->length = length;
   memcpy(str->chars, a->chars, a->length);
