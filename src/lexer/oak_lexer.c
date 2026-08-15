@@ -185,7 +185,7 @@ static oak_lex_status_t scan_op(const oak_lexer_ctx_t* ctx,
   const char c2 = (usize)cur->buf_pos + 1 < ctx->input_len ? p[1] : '\0';
   const oak_lexer_cur_t sav_cur = *cur;
 
-  for (usize i = 0; i < oak_count_of(two_char_ops); ++i)
+  for (usize i = 0; i < OAK_COUNT_OF(two_char_ops); ++i)
   {
     if (c1 == two_char_ops[i].a && c2 == two_char_ops[i].b)
     {
@@ -195,7 +195,7 @@ static oak_lex_status_t scan_op(const oak_lexer_ctx_t* ctx,
     }
   }
 
-  for (usize i = 0; i < oak_count_of(single_char_ops); ++i)
+  for (usize i = 0; i < OAK_COUNT_OF(single_char_ops); ++i)
   {
     if (c1 == single_char_ops[i].c)
     {
@@ -487,7 +487,7 @@ static const scan_fn_t scanners[] = {
 static oak_lex_status_t try_scan(const oak_lexer_ctx_t* ctx,
                                       const char* input)
 {
-  for (usize i = 0; i < oak_count_of(scanners); ++i)
+  for (usize i = 0; i < OAK_COUNT_OF(scanners); ++i)
   {
     const oak_lex_status_t r = scanners[i](ctx, input);
     if (r == OAK_LEX_OK)

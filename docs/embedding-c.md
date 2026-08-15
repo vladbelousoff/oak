@@ -231,16 +231,19 @@ without calling it still aborts the script, but the message is only
 ```c
 oak_bind_fn_global(&opts,
                    &(oak_bind_global_fn_t){
+                       .module_name = null,
                        .name = "add",
                        .impl = add,
-                       OAK_BIND_PARAMS(add_params),
                        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                       .param_types = add_params,
+                       .param_count = OAK_COUNT_OF(add_params),
+                       .user_data = null,
                    });
 ```
 
-`OAK_BIND_PARAMS` fills `arity`, `param_types`, and `param_count`
-from one array so they cannot disagree. Set them individually only
-for a binding with no declared parameter types. The array is
+Set `.param_types` and `.param_count` as separate fields. When types
+are declared they must agree; set `.param_count` without an array
+only for a binding with no declared parameter types. The array is
 borrowed and must outlive `oak_compile_ex`, so it cannot be a local.
 
 Set `module_name` to put the function in an importable module instead
@@ -263,7 +266,7 @@ entry registered:
 static const oak_bind_enum_variant_t modes[] = {
   { "Read", 0 }, { "Write", 1 }, { "Append", 2 },
 };
-oak_bind_enum_variants(mode, modes, (int)oak_count_of(modes));
+oak_bind_enum_variants(mode, modes, (int)OAK_COUNT_OF(modes));
 ```
 
 A table that references a descriptor returned by `oak_bind_type()`
@@ -422,14 +425,14 @@ oak_bind_fn(&opts,
                 .receiver_type = vec2,
                 .name = "length",
                 .impl = vec2_length,
-                .arity = 0, /* excludes the implicit self */
                 .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                .param_count = 0, /* excludes the implicit self */
             });
 ```
 
-For instance methods, `arity` counts only the user-visible
+For instance methods, `param_count` is only the user-visible
 parameters. At run time the callback receives `self` as `args[0]`
-(so `argc == arity + 1`), and `oak_arg_self()` recovers the C
+(so `argc == param_count + 1`), and `oak_arg_self()` recovers the C
 pointer after checking the type. Static methods
 (`OAK_BIND_FN_STATIC_METHOD`) have no receiver and are called as
 `TypeName.name(...)` from Oak.

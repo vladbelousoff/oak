@@ -249,7 +249,7 @@ int oak_test_tokens_match(const oak_lexer_result_t* lexer,
   {                                                                            \
     char oak_msg[512];                                                         \
     if (!oak_test_tokens_match(                                                \
-            (lexer), (tbl), oak_count_of(tbl), oak_msg, sizeof(oak_msg)))      \
+            (lexer), (tbl), OAK_COUNT_OF(tbl), oak_msg, sizeof(oak_msg)))      \
     {                                                                          \
       UTEST_PRINTF("  %s\n", oak_msg);                                         \
       *utest_result = UTEST_TEST_FAILURE;                                      \
@@ -343,7 +343,7 @@ struct oak_case
 #define OAK_EXPECT_OK_CASES(tbl)                                               \
   do                                                                           \
   {                                                                            \
-    for (usize oak_i = 0; oak_i < oak_count_of(tbl); ++oak_i)                  \
+    for (usize oak_i = 0; oak_i < OAK_COUNT_OF(tbl); ++oak_i)                  \
     {                                                                          \
       const oak_run_result_t oak_r =                                           \
           oak_test_source(OAK_A, (tbl)[oak_i].src);                            \
@@ -363,7 +363,7 @@ struct oak_case
 #define OAK_EXPECT_COMPILE_ERROR_CASES(tbl)                                    \
   do                                                                           \
   {                                                                            \
-    for (usize oak_i = 0; oak_i < oak_count_of(tbl); ++oak_i)                  \
+    for (usize oak_i = 0; oak_i < OAK_COUNT_OF(tbl); ++oak_i)                  \
     {                                                                          \
       const oak_run_result_t oak_r =                                           \
           oak_test_source(OAK_A, (tbl)[oak_i].src);                            \
@@ -391,7 +391,7 @@ struct oak_case
 #define OAK_EXPECT_REJECTED_CASES(tbl)                                         \
   do                                                                           \
   {                                                                            \
-    for (usize oak_i = 0; oak_i < oak_count_of(tbl); ++oak_i)                  \
+    for (usize oak_i = 0; oak_i < OAK_COUNT_OF(tbl); ++oak_i)                  \
     {                                                                          \
       const oak_run_result_t oak_r =                                           \
           oak_test_source(OAK_A, (tbl)[oak_i].src);                            \
@@ -408,7 +408,7 @@ struct oak_case
 #define OAK_EXPECT_RUNTIME_ERROR_CASES(tbl)                                    \
   do                                                                           \
   {                                                                            \
-    for (usize oak_i = 0; oak_i < oak_count_of(tbl); ++oak_i)                  \
+    for (usize oak_i = 0; oak_i < OAK_COUNT_OF(tbl); ++oak_i)                  \
     {                                                                          \
       const oak_run_result_t oak_r =                                           \
           oak_test_source(OAK_A, (tbl)[oak_i].src);                            \
@@ -444,7 +444,7 @@ struct oak_case
 #define OAK_EXPECT_OUTPUT_CASES(tbl)                                           \
   do                                                                           \
   {                                                                            \
-    for (usize oak_i = 0; oak_i < oak_count_of(tbl); ++oak_i)                  \
+    for (usize oak_i = 0; oak_i < OAK_COUNT_OF(tbl); ++oak_i)                  \
     {                                                                          \
       const oak_run_result_t oak_r =                                           \
           oak_test_source(OAK_A, (tbl)[oak_i].src);                            \

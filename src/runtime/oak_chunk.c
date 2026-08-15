@@ -78,7 +78,7 @@ const oak_op_info_t oak_op_info[] = {
   [OAK_OP_INC_LOCAL_LOOP] = { "OP_INC_LOCAL_LOOP", OAK_OP_FMT_U8_U16, 0 },
 };
 
-#define OAK_OP_INFO_COUNT oak_count_of(oak_op_info)
+#define OAK_OP_INFO_COUNT OAK_COUNT_OF(oak_op_info)
 
 const oak_op_info_t* oak_op_get_info(const u8 op)
 {
@@ -104,7 +104,7 @@ static const char* const oak_binop_names[] = {
 
 const char* oak_binop_name(const u8 binop)
 {
-  if (binop < oak_count_of(oak_binop_names) && oak_binop_names[binop])
+  if (binop < OAK_COUNT_OF(oak_binop_names) && oak_binop_names[binop])
     return oak_binop_names[binop];
   return "?";
 }

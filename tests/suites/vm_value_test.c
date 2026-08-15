@@ -39,7 +39,7 @@ UTEST(vm_value, integers_round_trip_across_the_i32_range)
   };
   usize i;
 
-  for (i = 0; i < oak_count_of(values); ++i)
+  for (i = 0; i < OAK_COUNT_OF(values); ++i)
   {
     const oak_value_t v = OAK_VALUE_I32(values[i]);
     EXPECT_TRUE(oak_is_i32(v));
@@ -55,7 +55,7 @@ UTEST(vm_value, floats_round_trip)
   static const float values[] = { 0.0f, 1.5f, -1.5f, 1e10f, -1e10f, 1e-10f };
   usize i;
 
-  for (i = 0; i < oak_count_of(values); ++i)
+  for (i = 0; i < OAK_COUNT_OF(values); ++i)
   {
     const oak_value_t v = OAK_VALUE_F32(values[i]);
     EXPECT_TRUE(oak_is_f32(v));
@@ -106,7 +106,7 @@ UTEST(vm_value, opaque_handles_carry_61_bits)
   static const u64 values[] = { 0u, 1u, 0xDEADBEEFu, (1ull << 61) - 1u };
   usize i;
 
-  for (i = 0; i < oak_count_of(values); ++i)
+  for (i = 0; i < OAK_COUNT_OF(values); ++i)
   {
     const oak_value_t v = oak_value_handle(values[i]);
     EXPECT_TRUE(oak_is_handle(v));

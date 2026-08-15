@@ -224,13 +224,13 @@ UTEST_F(bind_fn, a_global_function_is_recorded_with_its_descriptor)
                 &(oak_bind_global_fn_t){
                     .name = "my_global",
                     .impl = native_answer,
-                    .arity = 1,
+                    .param_count = 1,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
 
   ASSERT_EQ(1u, oak_size(opts.native_global_fns));
   recorded = &OAK_CDATA(oak_bind_global_fn_t, opts.native_global_fns)[0];
   EXPECT_STREQ("my_global", recorded->name);
-  EXPECT_EQ(1u, recorded->arity);
+  EXPECT_EQ(1u, recorded->param_count);
   EXPECT_EQ(OAK_TYPE_NUMBER, recorded->return_type.id);
   OAK_EXPECT_ENUM(OAK_TYPE_KIND_SCALAR, recorded->return_type.kind);
   EXPECT_TRUE(recorded->impl == native_answer);
@@ -254,12 +254,12 @@ UTEST_F(bind_fn, an_instance_method_is_recorded_against_its_receiver)
                             .receiver_type = t,
                             .name = "length",
                             .impl = native_answer,
-                            .arity = 0,
+                            .param_count = 0,
                             .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
 
   ASSERT_EQ(1u, oak_size(opts.native_fns));
   EXPECT_TRUE(OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].receiver_type == t);
-  EXPECT_EQ(0u, OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].arity);
+  EXPECT_EQ(0u, OAK_CDATA(oak_bind_fn_t, opts.native_fns)[0].param_count);
 
   oak_compile_options_free(&opts);
 }
@@ -279,7 +279,7 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
                 &(oak_bind_global_fn_t){
                     .name = null,
                     .impl = native_answer,
-                    .arity = 0,
+                    .param_count = 0,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   /* No implementation. */
   EXPECT_EQ(-1,
@@ -288,7 +288,7 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
                 &(oak_bind_global_fn_t){
                     .name = "no_impl",
                     .impl = null,
-                    .arity = 0,
+                    .param_count = 0,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   /* An arity a call could not encode. Bytecode carries the argument count in
    * one byte, so anything past OAK_MAX_ARITY would wrap when the call is
@@ -300,7 +300,7 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
                 &(oak_bind_global_fn_t){
                     .name = "too_many",
                     .impl = native_answer,
-                    .arity = OAK_MAX_ARITY + 1u,
+                    .param_count = OAK_MAX_ARITY + 1u,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   EXPECT_EQ(-1,
             oak_bind_fn_global(
@@ -308,7 +308,7 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
                 &(oak_bind_global_fn_t){
                     .name = "wrapped",
                     .impl = native_answer,
-                    .arity = (usize)-1,
+                    .param_count = (usize)-1,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
 
   EXPECT_EQ(0u, oak_size(opts.native_global_fns));
@@ -321,9 +321,45 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
                 &(oak_bind_global_fn_t){
                     .name = "at_the_limit",
                     .impl = native_answer,
-                    .arity = OAK_MAX_ARITY,
+                    .param_count = OAK_MAX_ARITY,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   EXPECT_EQ(1u, oak_size(opts.native_global_fns));
+
+  oak_compile_options_free(&opts);
+}
+
+/* Instance methods add implicit self to the VM arity, so the user-visible
+ * ceiling is one lower than a global or static method. */
+UTEST_F(bind_fn, an_instance_method_reserves_one_slot_for_self)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* t;
+
+  oak_compile_options_init(&opts, OAK_A);
+  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Recv");
+  ASSERT_TRUE(t != null);
+
+  EXPECT_EQ(-1,
+            oak_bind_fn(&opts,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = t,
+                            .name = "too_many",
+                            .impl = native_answer,
+                            .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                            .param_count = OAK_MAX_ARITY }));
+  EXPECT_EQ(0u, oak_size(opts.native_fns));
+
+  EXPECT_EQ(0,
+            oak_bind_fn(&opts,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = t,
+                            .name = "at_the_limit",
+                            .impl = native_answer,
+                            .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                            .param_count = OAK_MAX_ARITY - 1u }));
+  EXPECT_EQ(1u, oak_size(opts.native_fns));
 
   oak_compile_options_free(&opts);
 }
@@ -350,7 +386,7 @@ UTEST_F(bind_fn, several_functions_can_be_registered)
                   &(oak_bind_global_fn_t){
                       .name = names[i],
                       .impl = native_answer,
-                      .arity = 0,
+                      .param_count = 0,
                       .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   }
   EXPECT_EQ(8u, oak_size(opts.native_global_fns));
@@ -369,37 +405,37 @@ static oak_run_result_t run_with_add(oak_allocator_t* a, const char* src)
                      &(oak_bind_global_fn_t){
                          .name = "native_add",
                          .impl = native_add,
-                         .arity = 2,
+                         .param_count = 2,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
   oak_bind_fn_global(&opts,
                      &(oak_bind_global_fn_t){
                          .name = "native_double",
                          .impl = native_double,
-                         .arity = 1,
+                         .param_count = 1,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
   oak_bind_fn_global(&opts,
                      &(oak_bind_global_fn_t){
                          .name = "native_answer",
                          .impl = native_answer,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
   oak_bind_fn_global(&opts,
                      &(oak_bind_global_fn_t){
                          .name = "native_void",
                          .impl = native_void,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
   oak_bind_fn_global(&opts,
                      &(oak_bind_global_fn_t){
                          .name = "native_explains",
                          .impl = native_explains,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
   oak_bind_fn_global(&opts,
                      &(oak_bind_global_fn_t){
                          .name = "native_silent",
                          .impl = native_silent,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
   r = oak_test_source_opts(a, src, &opts);
   oak_compile_options_free(&opts);
@@ -425,7 +461,7 @@ UTEST_F(bind_fn, bound_functions_run_and_return_their_value)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     const oak_run_result_t r = run_with_add(OAK_A, cases[i].src);
     if (!r.compiled || r.run != OAK_VM_OK ||
@@ -496,7 +532,7 @@ UTEST_F(bind_fn, call_sites_are_arity_and_type_checked)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     const oak_run_result_t r = run_with_add(OAK_A, cases[i].src);
     if (r.compiled)
@@ -526,7 +562,7 @@ UTEST_F(bind_fn, the_declared_return_type_is_inferred)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     const oak_run_result_t r = run_with_add(OAK_A, cases[i].src);
     EXPECT_TRUE(r.compiled);
@@ -545,13 +581,13 @@ UTEST_F(bind_fn, a_duplicate_global_name_fails_to_compile)
                      &(oak_bind_global_fn_t){
                          .name = "dup",
                          .impl = native_answer,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
   oak_bind_fn_global(&opts,
                      &(oak_bind_global_fn_t){
                          .name = "dup",
                          .impl = native_answer,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
 
   r = oak_test_source_opts(OAK_A, "let x = dup();\n", &opts);
@@ -621,10 +657,9 @@ static oak_run_result_t run_with_enum_param(oak_allocator_t* a,
                      &(oak_bind_global_fn_t){
                          .name = "takes_colour",
                          .impl = native_double,
-                         .arity = 1,
+                         .param_count = 1,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                         .param_types = params,
-                         .param_count = 1 });
+                         .param_types = params });
   r = oak_test_source_opts(a, src, &opts);
   oak_compile_options_free(&opts);
   return r;

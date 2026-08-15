@@ -46,8 +46,8 @@ static int failures = 0;
 
 /* ---- a native free function -------------------------------------------- */
 
-/* Declared so the compiler checks Oak call sites. OAK_BIND_PARAMS below fills
- * arity and param_count from it, so the count is written once. */
+/* Declared so the compiler checks Oak call sites. param_count is taken from
+ * this array so the length is written once. */
 static const oak_bind_type_ref_t add_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
@@ -161,23 +161,24 @@ int main(void)
   opts.source_name = "smoke";
   opts.emit_debug_info = 1;
 
-  /* Registration must precede oak_compile_ex. OAK_BIND_PARAMS fills arity,
-   * param_types and param_count from the one array, so they cannot drift. */
+  /* Registration must precede oak_compile_ex. */
   CHECK(oak_bind_fn_global(&opts,
                            &(oak_bind_global_fn_t){
                                .name = "native_add",
                                .impl = native_add,
-                               OAK_BIND_PARAMS(add_params),
                                .return_type =
                                    OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                               .param_types = add_params,
+                               .param_count = OAK_COUNT_OF(add_params),
                            }) == 0);
   CHECK(oak_bind_fn_global(&opts,
                            &(oak_bind_global_fn_t){
                                .name = "native_divide",
                                .impl = native_divide,
-                               OAK_BIND_PARAMS(add_params),
                                .return_type =
                                    OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                               .param_types = add_params,
+                               .param_count = OAK_COUNT_OF(add_params),
                            }) == 0);
 
   oak_bind_type_t* counter =
@@ -196,8 +197,8 @@ int main(void)
                         .receiver_type = counter,
                         .name = "bump",
                         .impl = counter_bump,
-                        .arity = 0,
                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                        .param_count = 0,
                     }) == 0);
   /* A native record implements an Oak interface only if it says so; the Oak
    * declaration below has to carry the same clause. */
@@ -209,7 +210,7 @@ int main(void)
     { "Red", 0 },
     { "Green", 1 },
   };
-  CHECK(oak_bind_enum_variants(colour, colours, (int)oak_count_of(colours)) ==
+  CHECK(oak_bind_enum_variants(colour, colours, (int)OAK_COUNT_OF(colours)) ==
         0);
 
   /* Rejected bindings are probed on a throwaway options struct, because a
@@ -222,9 +223,9 @@ int main(void)
     oak_compile_options_init(&probe, &allocator);
     oak_bind_enum_t* dup = oak_bind_enum(&probe, "Colour");
     CHECK(dup != null);
-    CHECK(oak_bind_enum_variants(dup, colours, (int)oak_count_of(colours)) == 0);
+    CHECK(oak_bind_enum_variants(dup, colours, (int)OAK_COUNT_OF(colours)) == 0);
     CHECK(oak_bind_enum_variant(dup, "Red", 7) == -1);
-    CHECK(oak_bind_enum_variants(dup, colours, (int)oak_count_of(colours)) ==
+    CHECK(oak_bind_enum_variants(dup, colours, (int)OAK_COUNT_OF(colours)) ==
           -1);
 
     /* And the rejection is reportable rather than silent. */

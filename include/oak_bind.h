@@ -33,10 +33,10 @@ enum oak_bind_type_kind
   OAK_BIND_TYPE_VALUE,
 };
 
-/* The largest arity a binding may declare.  Bytecode encodes a call's argument
- * count in a single byte, so this is a hard ceiling rather than a style limit:
- * oak_bind_fn and oak_bind_fn_global reject anything above it, instead of
- * letting the count wrap silently when the call is emitted. */
+/* The largest argument count a call instruction can encode (one byte).
+ * oak_bind_fn_global and oak_bind_fn reject a descriptor whose VM arity
+ * would exceed it -- for an instance method that is param_count + 1
+ * (implicit self), so the user-visible maximum there is 254. */
 #define OAK_MAX_ARITY 255u
 
 /* Where a native method is bound on its receiver type (see oak_bind_fn). */
@@ -259,14 +259,15 @@ struct oak_bind_global_fn
   const char* module_name;
   const char* name;
   oak_native_fn_t impl;
-  usize arity;
   /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
   oak_bind_type_ref_t return_type;
   /* Optional per-parameter types used for call-site type checking.  When
-   * non-NULL, param_types must list `arity` entries.  Registration copies this
-   * struct but not the array it points at, so the array is borrowed: the
-   * embedder owns it and it must outlive oak_compile_ex. */
+   * non-NULL, param_types must list `param_count` entries.  Registration
+   * copies this struct but not the array it points at, so the array is
+   * borrowed: the embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
+  /* User-visible parameter count, and the length of param_types when that
+   * pointer is non-NULL. */
   usize param_count;
   /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
    * borrowed and must outlive every chunk compiled with this binding. */
@@ -284,17 +285,17 @@ struct oak_bind_fn
   const oak_bind_type_t* receiver_type;
   const char* name;
   oak_native_fn_t impl;
-  /* User-visible arity: for STATIC_METHOD, full argument count;
-   * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM). */
-  usize arity;
   /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
   oak_bind_type_ref_t return_type;
   /* Optional per-parameter types used for call-site type checking.  param_types
    * lists the user-visible parameters (excluding the implicit self for instance
-   * methods) and must hold `arity` entries when non-NULL.  Registration copies
-   * this struct but not the array it points at, so the array is borrowed: the
-   * embedder owns it and it must outlive oak_compile_ex. */
+   * methods) and must hold `param_count` entries when non-NULL.  Registration
+   * copies this struct but not the array it points at, so the array is
+   * borrowed: the embedder owns it and it must outlive oak_compile_ex. */
   const oak_bind_type_ref_t* param_types;
+  /* User-visible parameter count: for STATIC_METHOD, the full argument count;
+   * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM).
+   * Also the length of param_types when that pointer is non-NULL. */
   usize param_count;
   /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
    * borrowed and must outlive every chunk compiled with this binding. */
@@ -555,28 +556,18 @@ OAK_API int oak_bind_field(oak_bind_type_t* type,
  *
  *   static const oak_bind_fn_t methods[] = {
  *     { .kind = OAK_BIND_FN_INSTANCE_METHOD, .receiver_type = t,
- *       .name = "read", .impl = file_read, .arity = 0,
+ *       .name = "read", .impl = file_read, .param_count = 0,
  *       .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
  *     ...
  *   };
- *   oak_bind_fns(opts, methods, (int)oak_count_of(methods));
+ *   oak_bind_fns(opts, methods, (int)OAK_COUNT_OF(methods));
  *
  * Note the table cannot be `static const` when it references a descriptor
  * returned at run time by oak_bind_type; make it a local array in that case.
- */
-/* Fills arity, param_types and param_count from one array, so the three cannot
- * disagree.  oak_bind_fn does reject a mismatch, but only after you have
- * written the count twice:
  *
- *   { .kind = OAK_BIND_FN_INSTANCE_METHOD, .receiver_type = t,
- *     .name = "write", .impl = file_write, OAK_BIND_PARAMS(write_params),
- *     .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) },
- *
- * For an instance method the array lists the explicit parameters only; the
- * implicit self is not one of them. */
-#define OAK_BIND_PARAMS(arr)                                                   \
-  .arity = oak_count_of(arr), .param_types = (arr),                            \
-  .param_count = oak_count_of(arr)
+ * Write .param_types and .param_count as separate fields.  For an instance
+ * method the array lists the explicit parameters only; the implicit self is
+ * not one of them. */
 
 OAK_API int oak_bind_fields(oak_bind_type_t* type,
                             const oak_bind_field_t* fields,
@@ -600,8 +591,10 @@ OAK_API int oak_bind_fn_global(oak_compile_options_t* opts,
 /* Register a native instance or static method on a native type.
  * `params->kind` must be OAK_BIND_FN_INSTANCE_METHOD or OAK_BIND_FN_STATIC_METHOD.
  * `params->receiver_type` must be a descriptor from a prior oak_bind_type() call.
- *   INSTANCE_METHOD: `arity` excludes implicit self (compiler adds +1 for VM).
- *   STATIC_METHOD: `arity` is the full argument count; called as TypeName.name(...).
+ *   INSTANCE_METHOD: `param_count` excludes implicit self (compiler adds +1
+ *   for VM).
+ *   STATIC_METHOD: `param_count` is the full argument count; called as
+ *   TypeName.name(...).
  * Returns 0 on success, -1 on invalid arguments. */
 OAK_API int oak_bind_fn(oak_compile_options_t* opts,
                         const oak_bind_fn_t* params);
@@ -834,7 +827,7 @@ OAK_API int oak_value_matches(oak_value_t value, oak_bind_type_ref_t ref);
  *                                     const oak_value_t* args,
  *                                     const usize argc, oak_value_t* out)
  *   {
- *     if (!oak_native_args_match(args, argc, params, oak_count_of(params)))
+ *     if (!oak_native_args_match(args, argc, params, OAK_COUNT_OF(params)))
  *       return OAK_FN_CALL_RUNTIME_ERROR;
  *     ...
  *   }

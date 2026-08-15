@@ -193,10 +193,13 @@ through the same type checker as Oak code.
 ```c
 oak_bind_fn_global(&opts,
                    &(oak_bind_global_fn_t){
+                       .module_name = null,
                        .name = "add",
                        .impl = native_add,
-                       OAK_BIND_PARAMS(add_params),
                        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                       .param_types = add_params,
+                       .param_count = OAK_COUNT_OF(add_params),
+                       .user_data = null,
                    });
 
 oak_program_t prog;
@@ -213,12 +216,6 @@ oak_program_free(&prog);
 The [C embedding guide](docs/embedding-c.md) has the full API.
 [`tests/public_api/oak_embed_smoke.c`](tests/public_api/oak_embed_smoke.c)
 is a complete program that CI compiles against the installed headers.
-
-After install:
-
-```sh
-cc myapp.c $(pkg-config --cflags --libs oak)
-```
 
 ## Documentation
 

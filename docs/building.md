@@ -66,13 +66,8 @@ An installed `oak` finds the stdlib next to the executable. Set
 ### Using Oak from another C program
 
 Install also ships the public headers under `<prefix>/include/oak` and a
-pkg-config file:
-
-```sh
-cc myapp.c $(pkg-config --cflags --libs oak)
-```
-
-If Oak is not in a system prefix, tell pkg-config where to look:
+pkg-config file. If Oak is not in a system prefix, tell pkg-config where
+to look:
 
 ```sh
 export PKG_CONFIG_PATH=<prefix>/lib/pkgconfig

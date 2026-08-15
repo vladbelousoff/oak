@@ -237,20 +237,13 @@ int oak_bind_fn_global(oak_compile_options_t* opts,
   if (!p->impl)
     return bind_reject(opts, "native function '%s' has no implementation",
                        p->name);
-  if (p->arity > OAK_MAX_ARITY)
+  if (p->param_count > OAK_MAX_ARITY)
     return bind_reject(opts,
-                       "native function '%s' declares arity %zu, above the "
-                       "maximum of %u",
+                       "native function '%s' declares %zu parameters, above "
+                       "the maximum of %u",
                        p->name,
-                       p->arity,
+                       p->param_count,
                        (unsigned)OAK_MAX_ARITY);
-  if (p->param_types && p->param_count != p->arity)
-    return bind_reject(opts,
-                       "native function '%s' declares arity %zu but %zu "
-                       "parameter types; use OAK_BIND_PARAMS to state it once",
-                       p->name,
-                       p->arity,
-                       p->param_count);
   oak_bind_global_fn_t entry = *p;
   oak_assert(oak_push_back(opts->native_global_fns, &entry));
   return 0;
@@ -266,20 +259,18 @@ int oak_bind_fn(oak_compile_options_t* opts,
   if (!p->impl)
     return bind_reject(opts, "native method '%s' has no implementation",
                        p->name);
-  if (p->arity > OAK_MAX_ARITY)
+  if (p->param_count > OAK_MAX_ARITY ||
+      (p->kind == OAK_BIND_FN_INSTANCE_METHOD &&
+       p->param_count + 1u > OAK_MAX_ARITY))
     return bind_reject(opts,
-                       "native method '%s' declares arity %zu, above the "
-                       "maximum of %u",
+                       "native method '%s' declares %zu parameters%s, above "
+                       "the maximum of %u",
                        p->name,
-                       p->arity,
+                       p->param_count,
+                       p->kind == OAK_BIND_FN_INSTANCE_METHOD
+                           ? " plus implicit self"
+                           : "",
                        (unsigned)OAK_MAX_ARITY);
-  if (p->param_types && p->param_count != p->arity)
-    return bind_reject(opts,
-                       "native method '%s' declares arity %zu but %zu "
-                       "parameter types; use OAK_BIND_PARAMS to state it once",
-                       p->name,
-                       p->arity,
-                       p->param_count);
   if (p->kind != OAK_BIND_FN_INSTANCE_METHOD &&
       p->kind != OAK_BIND_FN_STATIC_METHOD)
     return bind_reject(

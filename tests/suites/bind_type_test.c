@@ -224,7 +224,7 @@ UTEST_F(bind_type, a_native_type_can_be_used_like_a_declared_one)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     const oak_run_result_t r = compile_with_ntvec(OAK_A, cases[i]);
     if (!r.compiled)
@@ -254,7 +254,7 @@ UTEST_F(bind_type, native_types_are_checked_like_declared_ones)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     const oak_run_result_t r = compile_with_ntvec(OAK_A, cases[i].src);
     if (r.compiled)
@@ -592,7 +592,7 @@ UTEST_F(bind_type, a_module_scoped_type_is_not_also_a_global)
                             .receiver_type = scoped,
                             .name = "teeth",
                             .impl = stub_method,
-                            .arity = 0,
+                            .param_count = 0,
                             .return_type =
                                 OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
 
@@ -616,7 +616,7 @@ UTEST_F(bind_type, a_module_scoped_type_is_not_also_a_global)
                             .receiver_type = global,
                             .name = "teeth",
                             .impl = stub_method,
-                            .arity = 0,
+                            .param_count = 0,
                             .return_type =
                                 OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   unscoped = oak_test_source_opts(
@@ -710,13 +710,13 @@ static oak_bind_type_t* bind_handle(oak_compile_options_t* opts)
                   .receiver_type = h,
                   .name = "id",
                   .impl = handle_id,
-                  .arity = 0,
+                  .param_count = 0,
                   .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
   oak_bind_fn_global(opts,
                      &(oak_bind_global_fn_t){
                          .name = "make_handle",
                          .impl = make_handle,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_NATIVE(h) });
   return h;
 }
@@ -754,7 +754,7 @@ UTEST_F(bind_type, a_value_type_carries_its_payload_inline)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     const oak_run_result_t r = run_with_handle(OAK_A, cases[i].src);
     if (!r.compiled || r.run != OAK_VM_OK ||
@@ -805,7 +805,7 @@ UTEST_F(bind_type, value_types_reject_weak_literals_and_arithmetic)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     const oak_run_result_t r = run_with_handle(OAK_A, cases[i]);
     if (r.compiled)
@@ -832,7 +832,7 @@ UTEST_F(bind_type, value_types_of_different_types_are_not_comparable)
                      &(oak_bind_global_fn_t){
                          .name = "make_token",
                          .impl = make_handle,
-                         .arity = 0,
+                         .param_count = 0,
                          .return_type = OAK_BIND_NATIVE(other) });
 
   r = oak_test_source_opts(OAK_A,

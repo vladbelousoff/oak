@@ -196,7 +196,7 @@ void apply_native_module_function_exports(
     if (!symbol || symbol->kind != OAK_SYMBOL_FUNCTION)
       continue;
     oak_obj_native_fn_t* native = oak_native_fn_new(
-        mod->allocator, fn->impl, fn->arity, fn->name, fn->user_data);
+        mod->allocator, fn->impl, fn->param_count, fn->name, fn->user_data);
     oak_module_export_fn_t* exp =
         oak_get(mod->exports.fns, (usize)symbol->payload_index);
     if (exp->stub_attrs && exp->stub_attr_count > 0)
@@ -205,31 +205,32 @@ void apply_native_module_function_exports(
     const u16 const_idx =
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
     exp->const_idx = const_idx;
-    if (fn->param_types && fn->arity > 0)
+    if (fn->param_types && fn->param_count > 0)
     {
       /* The binding declares its own parameter types; adopt them so the
        * exported signature matches the installed native callback.  The native
        * binding API carries no mutability metadata, so preserve the stub's
-       * param_mut_flags when the arity is unchanged (the flags still align with
-       * the new param_types); only drop them if the arity actually changes. */
+       * param_mut_flags when the count is unchanged (the flags still align with
+       * the new param_types); only drop them if the count actually changes. */
       const usize old_arity = (usize)exp->arity;
       if (exp->param_types)
         oak_free(mod->allocator, exp->param_types, OAK_HERE);
-      if (exp->param_mut_flags && fn->arity != old_arity)
+      if (exp->param_mut_flags && fn->param_count != old_arity)
       {
         oak_free(mod->allocator, exp->param_mut_flags, OAK_HERE);
         exp->param_mut_flags = null;
       }
       exp->param_types = oak_alloc(
-          mod->allocator, (usize)fn->arity * sizeof(oak_type_t), OAK_HERE);
-      for (usize pi = 0; pi < fn->arity; ++pi)
+          mod->allocator, (usize)fn->param_count * sizeof(oak_type_t),
+          OAK_HERE);
+      for (usize pi = 0; pi < fn->param_count; ++pi)
         oak_lower_bind_ref(&fn->param_types[pi], &exp->param_types[pi]);
-      exp->arity = (int)fn->arity;
+      exp->arity = (int)fn->param_count;
     }
     /* Otherwise the stub's parameter contract is authoritative; keep arity
      * consistent with the stub's param_types (never index past it). */
-    else if (!exp->param_types || fn->arity == (usize)exp->arity)
-      exp->arity = (int)fn->arity;
+    else if (!exp->param_types || fn->param_count == (usize)exp->arity)
+      exp->arity = (int)fn->param_count;
     oak_lower_bind_ref(&fn->return_type, &exp->return_type);
   }
   oak_module_export_record_t* records =
@@ -391,7 +392,7 @@ static int native_global_fn_decl_exists(const oak_compile_options_t* opts,
   {
     const oak_bind_global_fn_t* fn = &global_fns[i];
     if (native_module_name_eq(fn->module_name, dotted) &&
-        strcmp(fn->name, name) == 0 && fn->arity == arity)
+        strcmp(fn->name, name) == 0 && fn->param_count == arity)
       return 1;
   }
   return 0;
@@ -413,7 +414,7 @@ static int native_method_decl_exists(const oak_compile_options_t* opts,
     const oak_bind_fn_kind_t want_kind =
         has_self ? OAK_BIND_FN_INSTANCE_METHOD : OAK_BIND_FN_STATIC_METHOD;
     if (fn->kind == want_kind && fn->receiver_type == receiver &&
-        strcmp(fn->name, name) == 0 && fn->arity == arity)
+        strcmp(fn->name, name) == 0 && fn->param_count == arity)
       return 1;
   }
   return 0;
@@ -551,21 +552,21 @@ oak_module_t* create_native_module(
     if (!native_module_name_eq(fn->module_name, dotted))
       continue;
     oak_obj_native_fn_t* native =
-        oak_native_fn_new(a, fn->impl, fn->arity, fn->name, fn->user_data);
+        oak_native_fn_new(a, fn->impl, fn->param_count, fn->name, fn->user_data);
     const u16 const_idx =
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
     oak_module_export_fn_t exp = {
       .name = fn->name,
       .const_idx = const_idx,
-      .arity = (int)fn->arity,
+      .arity = (int)fn->param_count,
       .return_type = native_ref_type(&fn->return_type),
     };
     /* Carry the parameter contract so imported calls are type-checked. */
-    if (fn->param_types && fn->arity > 0)
+    if (fn->param_types && fn->param_count > 0)
     {
       exp.param_types =
-          oak_alloc(a, (usize)fn->arity * sizeof(oak_type_t), OAK_HERE);
-      for (usize pi = 0; pi < fn->arity; ++pi)
+          oak_alloc(a, (usize)fn->param_count * sizeof(oak_type_t), OAK_HERE);
+      for (usize pi = 0; pi < fn->param_count; ++pi)
         oak_lower_bind_ref(&fn->param_types[pi], &exp.param_types[pi]);
     }
     oak_symbol_registry_insert_fn(

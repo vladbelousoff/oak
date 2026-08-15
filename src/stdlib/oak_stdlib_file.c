@@ -291,7 +291,7 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       { "Write", OAK_FILE_MODE_WRITE },
       { "Append", OAK_FILE_MODE_APPEND },
     };
-    oak_bind_enum_variants(mode, modes, (int)oak_count_of(modes));
+    oak_bind_enum_variants(mode, modes, (int)OAK_COUNT_OF(modes));
   }
 
   /* Not static: these reference `t` and `mode`, known only at run time.
@@ -305,56 +305,55 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
     { .module_name = "io",
       .name = "open",
       .impl = file_open,
-      .arity = 2,
       .return_type = OAK_BIND_NATIVE(t),
       .param_types = mode ? open_sig : null,
-      .param_count = mode ? oak_count_of(open_sig) : 0,
+      .param_count = 2,
       /* A global function has no receiver, so this is the only way the
        * descriptor reaches file_open; the static method below gets it as
        * self_type instead (see file_type_of). */
       .user_data = t },
   };
-  oak_bind_fns_global(opts, globals, (int)oak_count_of(globals));
+  oak_bind_fns_global(opts, globals, (int)OAK_COUNT_OF(globals));
 
   const oak_bind_fn_t methods[] = {
     { .kind = OAK_BIND_FN_STATIC_METHOD,
       .receiver_type = t,
       .name = "open",
       .impl = file_open,
-      .arity = 2,
       .return_type = OAK_BIND_NATIVE(t),
       .param_types = mode ? open_sig : null,
-      .param_count = mode ? oak_count_of(open_sig) : 0 },
+      .param_count = 2 },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "read",
       .impl = file_read,
-      .arity = 0,
-      .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
+      .param_count = 0 },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "read_all",
       .impl = file_read_all,
-      .arity = 0,
-      .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
+      .param_count = 0 },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "write",
       .impl = file_write,
-      OAK_BIND_PARAMS(file_write_params),
-      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) },
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
+      .param_types = file_write_params,
+      .param_count = OAK_COUNT_OF(file_write_params) },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "eof",
       .impl = file_eof,
-      .arity = 0,
-      .return_type = OAK_BIND_SCALAR(OAK_TYPE_BOOL) },
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_BOOL),
+      .param_count = 0 },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,
       .name = "close",
       .impl = file_close,
-      .arity = 0,
-      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) },
+      .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
+      .param_count = 0 },
   };
-  oak_bind_fns(opts, methods, (int)oak_count_of(methods));
+  oak_bind_fns(opts, methods, (int)OAK_COUNT_OF(methods));
 }

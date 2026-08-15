@@ -129,7 +129,7 @@ static const oak_native_binding_t native_builtins[] = {
 
 void oak_register_native_builtins(oak_compiler_t* c)
 {
-  for (usize i = 0; i < oak_count_of(native_builtins); ++i)
+  for (usize i = 0; i < OAK_COUNT_OF(native_builtins); ++i)
   {
     register_native_fn(c, &native_builtins[i]);
     if (c->has_error)

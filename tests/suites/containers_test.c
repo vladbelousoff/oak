@@ -189,7 +189,7 @@ static const char* const map_keys[] = { "alpha", "beta",  "gamma",  "delta",
 UTEST_F(containers, a_hash_map_stores_finds_and_overwrites)
 {
   oak_container_t* m = oak_hash_map_new(OAK_A, sizeof(int));
-  const int key_count = (int)oak_count_of(map_keys);
+  const int key_count = (int)OAK_COUNT_OF(map_keys);
   const int replaced = 4242;
   int i;
 
@@ -230,7 +230,7 @@ UTEST_F(containers, a_hash_map_stores_finds_and_overwrites)
 UTEST_F(containers, hash_map_tombstones_are_probed_past_reused_and_reclaimed)
 {
   oak_container_t* m = oak_hash_map_new(OAK_A, sizeof(int));
-  const int key_count = (int)oak_count_of(map_keys);
+  const int key_count = (int)OAK_COUNT_OF(map_keys);
   const int reinserted = 7;
   int i;
   int round;
@@ -273,7 +273,7 @@ UTEST_F(containers, hash_map_tombstones_are_probed_past_reused_and_reclaimed)
 UTEST_F(containers, hash_map_iteration_reaches_every_entry_once)
 {
   oak_container_t* m = oak_hash_map_new(OAK_A, sizeof(int));
-  const int key_count = (int)oak_count_of(map_keys);
+  const int key_count = (int)OAK_COUNT_OF(map_keys);
   oak_iterator_t it;
   int visited = 0;
   int i;
@@ -333,7 +333,7 @@ UTEST_F(containers, a_hash_set_holds_each_member_once)
   static const char* const names[] = { "one",  "two",   "three", "four", "five",
                                        "six",  "seven", "eight", "nine" };
   oak_container_t* s = oak_hash_set_new(OAK_A);
-  const int name_count = (int)oak_count_of(names);
+  const int name_count = (int)OAK_COUNT_OF(names);
   oak_iterator_t it;
   int visited = 0;
   int i;

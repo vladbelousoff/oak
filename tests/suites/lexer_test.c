@@ -248,7 +248,7 @@ UTEST_F(lexer, malformed_input_is_reported_and_terminates)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     oak_lexer_result_t* lexer = oak_lexer_tokenize(cases[i].src, OAK_A);
     const int errors = oak_lexer_error_count(lexer);

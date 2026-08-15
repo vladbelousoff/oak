@@ -68,7 +68,7 @@ oak_token_kind_t oak_keyword_lookup(const char* ident)
     { "true", OAK_TOKEN_TRUE },     { "while", OAK_TOKEN_WHILE },
   };
 
-  for (int i = 0; i < (int)oak_count_of(keywords); ++i)
+  for (int i = 0; i < (int)OAK_COUNT_OF(keywords); ++i)
   {
     const char* keyword = keywords[i].keyword;
     if (strcmp(ident, keyword) == 0)

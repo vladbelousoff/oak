@@ -18,7 +18,7 @@ int oak_parser_try_skip_token(oak_parser_t* p,
 usize oak_parser_grammar_rule_count(const oak_grammar_entry_t* entry)
 {
   usize n = 0;
-  while (n < oak_count_of(entry->rules) && entry->rules[n] != 0)
+  while (n < OAK_COUNT_OF(entry->rules) && entry->rules[n] != 0)
     ++n;
   return n;
 }

@@ -333,7 +333,7 @@ UTEST_F(module_loader, a_native_module_exports_its_enum_variants)
   const oak_module_export_enum_variant_t* variants =
       OAK_CDATA(oak_module_export_enum_variant_t, mode->variants);
   static const char* const expected[] = { "Read", "Write", "Append" };
-  for (usize i = 0; i < oak_count_of(expected); ++i)
+  for (usize i = 0; i < OAK_COUNT_OF(expected); ++i)
   {
     EXPECT_STREQ(expected[i], variants[i].name);
     EXPECT_EQ((int)i, variants[i].value);

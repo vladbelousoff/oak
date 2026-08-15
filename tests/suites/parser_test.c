@@ -325,7 +325,7 @@ UTEST_F(parser, malformed_sources_are_rejected)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     oak_parse_fixture_t fx = oak_test_parse(OAK_A, cases[i]);
     if (fx.root != null && oak_parser_error_count(fx.parsed) == 0)
@@ -348,7 +348,7 @@ UTEST_F(parser, parse_errors_say_what_was_expected)
   };
 
   usize i;
-  for (i = 0; i < oak_count_of(cases); ++i)
+  for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     oak_parse_fixture_t fx = oak_test_parse(OAK_A, cases[i].src);
     const int errors = oak_parser_error_count(fx.parsed);

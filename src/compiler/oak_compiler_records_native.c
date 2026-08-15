@@ -186,24 +186,24 @@ void oak_register_native_fns(oak_compiler_t* c,
       continue;
 
     oak_obj_native_fn_t* native = oak_native_fn_new(
-        c->allocator, b->impl, b->arity, b->name, b->user_data);
+        c->allocator, b->impl, b->param_count, b->name, b->user_data);
     const u16 idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
     oak_registered_fn_t entry = { 0 };
     entry.name = b->name;
     entry.const_idx = idx;
-    entry.arity = (int)b->arity;
+    entry.arity = (int)b->param_count;
     oak_lower_bind_ref(&b->return_type, &entry.return_type);
     entry.decl = null;
     entry.attrs = null;
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
-    if (b->param_types && b->arity > 0)
+    if (b->param_types && b->param_count > 0)
     {
       entry.param_types = oak_alloc(
-          c->allocator, (usize)b->arity * sizeof(oak_type_t), OAK_HERE);
-      for (usize pi = 0; pi < b->arity; ++pi)
+          c->allocator, (usize)b->param_count * sizeof(oak_type_t), OAK_HERE);
+      for (usize pi = 0; pi < b->param_count; ++pi)
         oak_lower_bind_ref(&b->param_types[pi], &entry.param_types[pi]);
     }
 
@@ -241,8 +241,8 @@ void oak_register_native_fns(oak_compiler_t* c,
      * count converts here, once, at the boundary. oak_bind_fn has already
      * capped it at OAK_MAX_ARITY. */
     const int vm_arity = (b->kind == OAK_BIND_FN_INSTANCE_METHOD)
-                             ? (int)b->arity + 1
-                             : (int)b->arity;
+                             ? (int)b->param_count + 1
+                             : (int)b->param_count;
     oak_obj_native_fn_t* native = oak_native_fn_new(
         c->allocator, b->impl, vm_arity, b->name, b->user_data);
     /* Reaches the callback as oak_native_call_t::self_type, so a method can
@@ -321,7 +321,7 @@ void oak_register_native_fns(oak_compiler_t* c,
         entry.param_types[slot].id = entry.receiver_type_id;
         ++slot;
       }
-      for (usize pi = 0; pi < b->arity; ++pi, ++slot)
+      for (usize pi = 0; pi < b->param_count; ++pi, ++slot)
         oak_lower_bind_ref(&b->param_types[pi], &entry.param_types[slot]);
     }
     const oak_registered_fn_t* methods =

@@ -229,7 +229,7 @@ void oak_register_array_methods(oak_compiler_t* c)
                                   OAK_MAX_ARRAY_METHODS,
                                   "array",
                                   array_method_table,
-                                  oak_count_of(array_method_table));
+                                  OAK_COUNT_OF(array_method_table));
 }
 
 const oak_method_binding_t* oak_find_array_method(
@@ -247,7 +247,7 @@ void oak_register_map_methods(oak_compiler_t* c)
                                   OAK_MAX_MAP_METHODS,
                                   "map",
                                   map_method_table,
-                                  oak_count_of(map_method_table));
+                                  OAK_COUNT_OF(map_method_table));
 }
 
 const oak_method_binding_t* oak_find_map_method(
@@ -265,7 +265,7 @@ void oak_register_string_methods(oak_compiler_t* c)
                                   OAK_MAX_STRING_METHODS,
                                   "string",
                                   string_method_table,
-                                  oak_count_of(string_method_table));
+                                  OAK_COUNT_OF(string_method_table));
 }
 
 const oak_method_binding_t* oak_find_string_method(
@@ -283,7 +283,7 @@ void oak_register_bool_methods(oak_compiler_t* c)
                                   OAK_MAX_BOOL_METHODS,
                                   "bool",
                                   bool_method_table,
-                                  oak_count_of(bool_method_table));
+                                  OAK_COUNT_OF(bool_method_table));
 }
 
 const oak_method_binding_t* oak_find_bool_method(
@@ -301,7 +301,7 @@ void oak_register_number_methods(oak_compiler_t* c)
                                   OAK_MAX_NUMBER_METHODS,
                                   "number",
                                   number_method_table,
-                                  oak_count_of(number_method_table));
+                                  OAK_COUNT_OF(number_method_table));
 }
 
 const oak_method_binding_t* oak_find_number_method(
@@ -319,7 +319,7 @@ void oak_register_record_methods(oak_compiler_t* c)
                                   OAK_MAX_RECORD_BUILTIN_METHODS,
                                   "record",
                                   record_builtin_method_table,
-                                  oak_count_of(record_builtin_method_table));
+                                  OAK_COUNT_OF(record_builtin_method_table));
 }
 
 const oak_method_binding_t* oak_find_record_builtin_method(
