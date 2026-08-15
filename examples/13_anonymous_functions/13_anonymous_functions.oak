@@ -1,15 +1,15 @@
-let double = fn(x: number) -> number {
+let double = (x: number) -> number {
   return x * 2;
 };
 
 print(double(5));
 print(double(21));
 
-fn apply(f: fn(number) -> number, x: number) -> number {
+fn apply(f: (number) -> number, x: number) -> number {
   return f(x);
 }
 
-let inc = fn(x: number) -> number { return x + 1; };
+let inc = (x: number) -> number { return x + 1; };
 print(apply(inc, 99));
 print(apply(double, 7));
 
@@ -20,10 +20,10 @@ fn add(a: number, b: number) -> number {
 let f = add;
 print(f(10, 20));
 
-fn compose(f: fn(number) -> number, g: fn(number) -> number, x: number) -> number {
+fn compose(f: (number) -> number, g: (number) -> number, x: number) -> number {
   return f(g(x));
 }
 
-let square = fn(x: number) -> number { return x * x; };
+let square = (x: number) -> number { return x * x; };
 print(compose(double, inc, 4));
 print(compose(inc, square, 5));

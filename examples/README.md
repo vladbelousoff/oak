@@ -28,3 +28,4 @@ Each runnable example lives in a folder with the same name as its entry file.
 10. `10_interfaces/10_interfaces.oak` - interfaces and virtual dispatch
 11. `11_weak_refs/11_weak_refs.oak` - weak references in records and function parameters
 12. `12_strings/12_strings.oak` - string methods and conversion built-ins
+13. `13_anonymous_functions/13_anonymous_functions.oak` - function values, lambdas, and higher-order functions

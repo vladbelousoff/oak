@@ -312,22 +312,22 @@ UTEST_F(vm_exec, virtual_dispatch_selects_the_concrete_implementation)
 UTEST_F(vm_exec, functions_are_values)
 {
   static const oak_case_t cases[] = {
-    { "let double = fn(x : number) -> number { return x * 2; };\n"
+    { "let double = (x : number) -> number { return x * 2; };\n"
       "print(double(21));\n",
       "42" },
     { "fn named(x : number) -> number { return x + 1; }\n"
       "let alias = named;\n"
       "print(alias(41));\n",
       "42" },
-    { "fn apply(f : fn(number) -> number, v : number) -> number {\n"
+    { "fn apply(f : (number) -> number, v : number) -> number {\n"
       "  return f(v);\n"
       "}\n"
-      "print(apply(fn(x : number) -> number { return x * 3; }, 14));\n",
+      "print(apply((x : number) -> number { return x * 3; }, 14));\n",
       "42" },
     /* Immediately invoked. */
-    { "print(fn(x : number) -> number { return x + 2; }(40));\n", "42" },
+    { "print(((x : number) -> number { return x + 2; })(40));\n", "42" },
     /* A void anonymous function. */
-    { "let shout = fn(s : string) { print(s); };\n"
+    { "let shout = (s : string) { print(s); };\n"
       "shout('hi');\n",
       "hi" },
   };
@@ -343,7 +343,7 @@ UTEST_F(vm_exec, anonymous_functions_cannot_close_over_locals)
   static const oak_case_t cases[] = {
     { "fn outer() -> number {\n"
       "  let captured = 5;\n"
-      "  let f = fn() -> number { return captured; };\n"
+      "  let f = () -> number { return captured; };\n"
       "  return f();\n"
       "}\n"
       "print(outer());\n",

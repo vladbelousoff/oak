@@ -118,8 +118,8 @@ for name, count in inventory {
 
 ### Functions
 
-Functions are typed, first-class values; anonymous functions use the same
-`fn` syntax as function types:
+Functions are typed, first-class values. Anonymous functions and function
+types share the `(...) -> T` shape; `fn` is only for named declarations:
 
 ```oak
 fn fib(n : number) -> number {
@@ -129,9 +129,9 @@ fn fib(n : number) -> number {
   return fib(n - 1) + fib(n - 2);
 }
 
-let double = fn(x : number) -> number { return x * 2; };
+let double = (x : number) -> number { return x * 2; };
 
-fn apply(f : fn(number) -> number, x : number) -> number {
+fn apply(f : (number) -> number, x : number) -> number {
   return f(x);
 }
 
