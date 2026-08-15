@@ -356,9 +356,10 @@ struct oak_case
     }                                                                          \
   } while (0)
 
-/* Every row must reach the compiler and be rejected, with a diagnostic
- * containing `want`. Asserting the message is what stops these tests from
- * passing when the compiler rejects the program for an unrelated reason. */
+/* Every row must be rejected before the VM runs, with a diagnostic containing
+ * `want`. Asserting the message is what stops these tests from passing when
+ * the program is rejected for an unrelated reason. Parse diagnostics count:
+ * they land in the same buffer, so a syntax message is assertable here too. */
 #define OAK_EXPECT_COMPILE_ERROR_CASES(tbl)                                    \
   do                                                                           \
   {                                                                            \

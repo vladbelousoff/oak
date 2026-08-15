@@ -23,8 +23,9 @@ oak_fn_decl_params_tail(const oak_ast_node_t* decl)
 static const oak_ast_node_t*
 oak_fn_param_list_regular_params(const oak_ast_node_t* plist)
 {
-  /* FN_PARAM_LIST is BINARY: lhs = FN_PARAM_SELF?, rhs = FN_PARAMS. */
-  return plist->rhs;
+  /* FN_PARAM_LIST is UNARY: child = FN_PARAMS. The receiver is not a
+   * parameter — it lives on FN_PREFIX, see oak_fn_receiver_mode. */
+  return plist->child;
 }
 
 const oak_ast_node_t*
@@ -43,20 +44,31 @@ oak_fn_name_node(const oak_ast_node_t* decl)
 }
 
 const oak_ast_node_t*
-oak_fn_self_param(const oak_ast_node_t* decl)
+oak_fn_receiver_mode(const oak_ast_node_t* decl)
 {
-  const oak_ast_node_t* plist = oak_fn_param_list(decl);
-  if (!plist)
+  /* EXPR_FN has no head at all — it is `fn` followed straight by the params,
+   * so it can never carry a mode. */
+  if (decl->kind == OAK_NODE_EXPR_FN)
     return null;
-  /* FN_PARAM_LIST is BINARY: lhs = FN_PARAM_SELF? (null when absent). */
-  return plist->lhs;
+  const oak_ast_node_t* head = oak_fn_decl_head(decl);
+  if (!head || !head->lhs)
+    return null;
+  /* FN_HEAD is BINARY: lhs = FN_PREFIX, which is UNARY with
+   * child = FN_RECEIVER_MODE? (null for a plain `fn`). The mode is a
+   * transparent choice, so the child is MUT_KEYWORD or STATIC_KEYWORD. */
+  return head->lhs->child;
 }
 
-int oak_self_is_mut(
-    const oak_ast_node_t* self_param)
+int oak_fn_is_static(const oak_ast_node_t* decl)
 {
-  /* FN_PARAM_SELF is BINARY: lhs = MUT_KEYWORD? (non-null iff mutable). */
-  return self_param->lhs != null;
+  const oak_ast_node_t* mode = oak_fn_receiver_mode(decl);
+  return mode != null && mode->kind == OAK_NODE_STATIC_KEYWORD;
+}
+
+int oak_fn_self_is_mut(const oak_ast_node_t* decl)
+{
+  const oak_ast_node_t* mode = oak_fn_receiver_mode(decl);
+  return mode != null && mode->kind == OAK_NODE_MUT_KEYWORD;
 }
 
 const oak_ast_node_t*

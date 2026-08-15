@@ -19,10 +19,20 @@ enum oak_node_kind
   OAK_NODE_RECORD_DECL,
   /* record Name;  — bodyless record (no fields) */
   OAK_NODE_RECORD_DECL_EMPTY,
+  /* What follows `record`. HEADER is a transparent choice, so a declaration's
+   * lhs (child, when bodyless) is either a bare TYPE_NAME or a
+   * HEADER_IMPL: binary lhs = TYPE_NAME, rhs = RECORD_IMPLEMENTATIONS, a list
+   * of IDENT interface names. */
+  OAK_NODE_RECORD_DECL_HEADER,
+  OAK_NODE_RECORD_DECL_HEADER_IMPL,
+  OAK_NODE_RECORD_IMPLEMENTATIONS,
   OAK_NODE_TYPE_NAME,
   OAK_NODE_RECORD_FIELD_DECL,
+  /* One entry in a record body: a field, or a method (optionally wrapped in
+   * `export` / `@Attr`). Transparent choice — the member node itself never
+   * reaches the compiler, only the field or fn it matched. */
   OAK_NODE_RECORD_MEMBER,
-  OAK_NODE_RECORD_FIELDS,
+  OAK_NODE_RECORD_MEMBERS,
   OAK_NODE_ENUM_DECL,
   OAK_NODE_IDENT,
   OAK_NODE_STMT,
@@ -64,9 +74,13 @@ enum oak_node_kind
   OAK_NODE_FN_PARAMS,
   OAK_NODE_FN_RETURN_TYPE,
   OAK_NODE_FN_PARAM,
-  OAK_NODE_FN_PARAM_SELF,
   OAK_NODE_SELF,
   OAK_NODE_MUT_KEYWORD,
+  OAK_NODE_STATIC_KEYWORD,
+  /* `mut` or `static` directly after `fn`, hanging off FN_PREFIX. Absent means
+   * an instance method with an immutable receiver. Transparent choice, so the
+   * node reaching the compiler is MUT_KEYWORD or STATIC_KEYWORD. */
+  OAK_NODE_FN_RECEIVER_MODE,
   OAK_NODE_FN_CALL,
   OAK_NODE_FN_CALL_ARG,
   OAK_NODE_STMT_RETURN,
@@ -107,16 +121,6 @@ enum oak_node_kind
    * Binary: lhs = IDENT (interface name), rhs = INTERFACE_MEMBERS */
   OAK_NODE_INTERFACE_DECL,
   OAK_NODE_INTERFACE_MEMBERS,
-  /* impl TypeName { fn_decl* } — kept for enum stability but no longer parsed */
-  OAK_NODE_IMPL_DECL,
-  OAK_NODE_IMPL_MEMBERS,
-  /* fn TypeName.method_name(self, ...) { ... }
-   * METHOD_DECL: binary lhs = METHOD_PROTO, rhs = FN_DECL_BODY
-   * METHOD_PROTO: binary lhs = METHOD_HEAD, rhs = FN_PARAMS_AND_RET
-   * METHOD_HEAD: binary lhs = type IDENT, rhs = method IDENT */
-  OAK_NODE_METHOD_DECL,
-  OAK_NODE_METHOD_PROTO,
-  OAK_NODE_METHOD_HEAD,
   /* @AttributeName syntax for records, enums, and functions.
    * ATTR: unary, child = IDENT (the attribute name after '@').
    * ATTR_DECL: sequence, children = ATTR... followed by the declaration node.

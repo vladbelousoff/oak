@@ -351,6 +351,16 @@ oak_bind_type_t* vec2 =
     oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Vec2");
 vec2->destructor = vec2_free;
 
+/* Native records declare their Oak interfaces explicitly, and the Oak
+   declaration of Vec2 must carry the same clause:
+
+       record Vec2 implements IVector { x : number; y : number; }
+
+   Neither side wins — a disagreement is rejected, exactly as a disagreement
+   about the field list is. In a program that never declares IVector at all,
+   the claim is simply inert. */
+oak_bind_type_implements(vec2, "IVector");
+
 oak_bind_field(vec2,
                &(oak_bind_field_t){
                    .name = "x",
@@ -483,11 +493,17 @@ work together:
    ```oak
    export enum FileMode { Read, Write, Append }
 
-   export record File;
-
-   export fn File.open(path : string, mode : FileMode) -> File;
-   export fn File.read(self) -> string;
+   export record File {
+     export fn static open(path : string, mode : FileMode) -> File;
+     export fn read() -> string;
+     export fn mut write(value : string);
+   }
    ```
+
+   A native record's fields are bound from C, so its body usually declares only
+   methods. Each one must agree with its binding on kind as well as name and
+   arity: `fn static` has to match `OAK_BIND_FN_STATIC_METHOD` and a bare `fn`
+   `OAK_BIND_FN_INSTANCE_METHOD`, or the module fails to load.
 
    Bodyless signatures compile only when `allow_bodyless_fns` is set on the
    compile options for that module.

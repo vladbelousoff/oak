@@ -6,6 +6,9 @@
 static void ensure_dep_type_imported(oak_compiler_t* c,
                                      const oak_module_t* dep,
                                      oak_type_id_t src_id);
+static void ensure_dep_named_type_imported(oak_compiler_t* c,
+                                           const oak_module_t* dep,
+                                           const char* name);
 static int ensure_full_type_imported(oak_compiler_t* c,
                                      const oak_module_t* dep,
                                      const oak_type_t* type);
@@ -209,7 +212,26 @@ static void import_record_from_dep(oak_compiler_t* c,
       oak_vector_new(c->allocator, sizeof(oak_record_field_t));
   proto.methods =
       oak_vector_new(c->allocator, sizeof(oak_registered_fn_t));
-  oak_assert(proto.fields && proto.methods);
+  proto.interface_names =
+      oak_vector_new(c->allocator, sizeof(const char*));
+  proto.interfaces = oak_vector_new(c->allocator, sizeof(oak_type_t));
+  oak_assert(proto.fields && proto.methods && proto.interface_names &&
+             proto.interfaces);
+
+  /* The record names its interfaces, so they have to come across with it —
+     otherwise conformance resolves against an interface registry that has
+     never heard of them and `import { Circle } from 'shapes'` is rejected for
+     naming an unknown interface. Same reasoning as the field and signature
+     types below. */
+  const char* const* exp_interface_names =
+      (const char* const*)oak_cdata(exp->interface_names);
+  for (usize ii = 0; ii < oak_size(exp->interface_names); ++ii)
+  {
+    ensure_dep_named_type_imported(c, dep, exp_interface_names[ii]);
+    if (c->has_error)
+      return;
+    oak_assert(oak_push_back(proto.interface_names, &exp_interface_names[ii]));
+  }
 
   /* Insert a provisional (empty) entry so self-referential and mutually
      recursive records short-circuit through the oak_records_find check
@@ -325,13 +347,10 @@ static int import_named_type_from_dep(oak_compiler_t* c,
   return 0;
 }
 
-static void ensure_dep_type_imported(oak_compiler_t* c,
-                                     const oak_module_t* dep,
-                                     oak_type_id_t src_id)
+static void ensure_dep_named_type_imported(oak_compiler_t* c,
+                                           const oak_module_t* dep,
+                                           const char* name)
 {
-  if (src_id < OAK_TYPE_FIRST_USER)
-    return;
-  const char* name = oak_type_registry_name(&dep->types, src_id);
   if (!name || name[0] == '<')
     return;
   if (import_named_type_from_dep(c, dep, name, null))
@@ -353,6 +372,16 @@ static void ensure_dep_type_imported(oak_compiler_t* c,
     if (import_named_type_from_dep(c, transitive, name, null))
       return;
   }
+}
+
+static void ensure_dep_type_imported(oak_compiler_t* c,
+                                     const oak_module_t* dep,
+                                     oak_type_id_t src_id)
+{
+  if (src_id < OAK_TYPE_FIRST_USER)
+    return;
+  ensure_dep_named_type_imported(
+      c, dep, oak_type_registry_name(&dep->types, src_id));
 }
 
 /* Import both the .id and .key_id of a type (handles map key types). */
@@ -598,8 +627,7 @@ static void lower_params_from_decl(oak_compiler_t* c,
   }
   if (has_self)
   {
-    const oak_ast_node_t* self_p = oak_fn_self_param(decl);
-    if (self_p && oak_self_is_mut(self_p))
+    if (oak_fn_self_is_mut(decl))
       pmuts[0] = 1;
   }
   for (int pi = 0; pi < arity - has_self; ++pi)
@@ -718,6 +746,8 @@ static void export_user_records(oak_compiler_t* c,
     exp.name = r->name;
     exp.fields = oak_vector_new(
         c->allocator, sizeof(oak_module_export_record_field_t));
+    exp.interface_names =
+        oak_vector_new(c->allocator, sizeof(const char*));
     oak_assert(exp.fields);
     const oak_record_field_t* fields =
         OAK_CDATA(oak_record_field_t, r->fields);
@@ -729,6 +759,10 @@ static void export_user_records(oak_compiler_t* c,
       };
       oak_assert(oak_push_back(exp.fields, &field));
     }
+    const char* const* interface_names =
+        (const char* const*)oak_cdata(r->interface_names);
+    for (usize ii = 0; ii < oak_size(r->interface_names); ++ii)
+      oak_assert(oak_push_back(exp.interface_names, &interface_names[ii]));
     export_record_methods(c, &exp, r);
     exp.layout_id = 0;
     oak_symbol_registry_insert_record(

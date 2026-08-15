@@ -120,10 +120,21 @@ void oak_register_native_types(
         oak_vector_new(c->allocator, sizeof(oak_record_field_t));
     proto.methods =
         oak_vector_new(c->allocator, sizeof(oak_registered_fn_t));
-    oak_assert(proto.fields && proto.methods);
+    proto.interface_names =
+        oak_vector_new(c->allocator, sizeof(const char*));
+    proto.interfaces = oak_vector_new(c->allocator, sizeof(oak_type_t));
+    oak_assert(proto.fields && proto.methods && proto.interface_names &&
+               proto.interfaces);
     proto.attrs = null;
     proto.attr_count = 0;
     proto.is_value = (nt->kind == OAK_BIND_TYPE_VALUE);
+
+    char* const* interface_names = OAK_DATA(char*, nt->interface_names);
+    for (usize ii = 0; ii < oak_size(nt->interface_names); ++ii)
+    {
+      const char* interface_name = interface_names[ii];
+      oak_assert(oak_push_back(proto.interface_names, &interface_name));
+    }
 
     const oak_bind_field_t* nt_fields =
         OAK_CDATA(oak_bind_field_t, nt->fields);

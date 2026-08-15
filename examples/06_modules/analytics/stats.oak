@@ -12,3 +12,15 @@ export fn average(values : number[]) -> number {
   }
   return sum(values) / values.size();
 }
+
+export interface IMetric {
+  fn value() -> number;
+}
+
+export record Series implements IMetric {
+  samples : number[];
+
+  export fn value() -> number {
+    return average(self.samples);
+  }
+}

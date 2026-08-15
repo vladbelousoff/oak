@@ -1,29 +1,31 @@
 interface IShape {
-  fn area(self) -> number;
-  fn describe(self) -> string;
+  fn area() -> number;
+  fn describe() -> string;
 }
 
-record Circle {
+record Circle implements IShape {
   radius : number;
+
+  fn area() -> number {
+    return 3.14159 * self.radius * self.radius;
+  }
+
+  fn describe() -> string {
+    return 'circle';
+  }
 }
 
-fn Circle.area(self) -> number {
-  return 3.14159 * self.radius * self.radius;
-}
-fn Circle.describe(self) -> string {
-  return 'circle';
-}
-
-record Rect {
+record Rect implements IShape {
   w : number;
   h : number;
-}
 
-fn Rect.area(self) -> number {
-  return self.w * self.h;
-}
-fn Rect.describe(self) -> string {
-  return 'rect';
+  fn area() -> number {
+    return self.w * self.h;
+  }
+
+  fn describe() -> string {
+    return 'rect';
+  }
 }
 
 fn print_shape(s: IShape) {

@@ -83,8 +83,10 @@ void oak_emit_interface_coerce(oak_compiler_t* c,
   {
     oak_compiler_error_at(c,
                           arg_expr ? arg_expr->token : null,
-                          "type '%s' does not implement interface '%s'",
+                          "type '%s' does not implement interface '%s'; "
+                          "add 'implements %s'",
                           sd->name,
+                          tr->name,
                           tr->name);
     return;
   }
@@ -209,9 +211,26 @@ void oak_register_program_interfaces(oak_compiler_t* c,
       }
 
       const char* mname = oak_token_text(name_node->token);
+
+      /* An interface value is a record instance behind a vtable, so there is
+         nothing for a receiverless member to dispatch on. Refusing it here is
+         also what keeps oak_interface_method_t from needing an is_static:
+         every member has a receiver. */
+      const oak_ast_node_t* mode = oak_fn_receiver_mode(mdecl);
+      if (mode && mode->kind == OAK_NODE_STATIC_KEYWORD)
+      {
+        oak_compiler_error_at(c,
+                              mode->token,
+                              "interface member '%s' cannot be 'static': an "
+                              "interface dispatches on an instance",
+                              mname);
+        return;
+      }
+
       const int explicit_arity = oak_count_fn_params(mdecl);
-      const oak_ast_node_t* self_p = oak_fn_self_param(mdecl);
-      const int total_arity = self_p ? explicit_arity + 1 : explicit_arity;
+      /* An interface member always dispatches on an instance, so its arity
+         always counts a receiver. `static` is refused below. */
+      const int total_arity = explicit_arity + 1;
 
       /* If the body is a real BLOCK (not just ';'), record the decl for
        * later compilation as a default implementation. */
@@ -221,7 +240,7 @@ void oak_register_program_interfaces(oak_compiler_t* c,
         .arity = total_arity,
         .sig_decl = mdecl,
         .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null,
-        .self_is_mut = (self_p && oak_self_is_mut(self_p)) ? 1 : 0,
+        .self_is_mut = oak_fn_self_is_mut(mdecl),
         .param_types = null,
         .return_type = { 0 },
       };
@@ -230,118 +249,27 @@ void oak_register_program_interfaces(oak_compiler_t* c,
   }
 }
 
-const oak_ast_node_t*
-oak_method_decl_type_ident(const oak_ast_node_t* decl)
-{
-  if (!decl->lhs || !decl->lhs->lhs)
-    return null;
-  return decl->lhs->lhs->lhs; /* METHOD_PROTO -> METHOD_HEAD -> type IDENT */
-}
+/* Why a record falls short of an interface, phrased to follow
+ * "record 'X' does not implement interface 'Y': ". Written into the caller's
+ * buffer so the message survives oak_type_full_name's rotating buffers. */
+#define OAK_INTERFACE_WHY_MAX 192
 
-void oak_register_method_decls(oak_compiler_t* c,
-                               const oak_ast_node_t* program)
-{
-  oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
-  {
-    const oak_ast_node_t* raw_item =
-        oak_container_of(pos, oak_ast_node_t, link);
-    const oak_ast_node_t* item = oak_unwrap_decl(raw_item);
-    if (!item || item->kind != OAK_NODE_METHOD_DECL)
-      continue;
+#define MISMATCH(...)                                                          \
+  do                                                                           \
+  {                                                                            \
+    if (why)                                                                   \
+      snprintf(why, OAK_INTERFACE_WHY_MAX, __VA_ARGS__);                       \
+    return 0;                                                                  \
+  } while (0)
 
-    const oak_ast_node_t* type_ident = oak_method_decl_type_ident(item);
-    if (!type_ident)
-    {
-      oak_compiler_error_at(c, null, "malformed method declaration");
-      return;
-    }
-
-    const char* rname = oak_token_text(type_ident->token);
-
-    oak_registered_record_t* sd = null;
-    oak_registered_record_t* records =
-        OAK_DATA(oak_registered_record_t, c->records.entries);
-    for (usize i = 0; i < oak_size(c->records.entries); ++i)
-    {
-      if (oak_name_eq(records[i].name, rname))
-      {
-        sd = &records[i];
-        break;
-      }
-    }
-    if (!sd)
-    {
-      oak_compiler_error_at(c,
-                            type_ident->token,
-                            "method declaration for unknown type '%s'",
-                            rname);
-      return;
-    }
-
-    oak_register_method_on_record(c, raw_item, item, sd);
-    if (c->has_error)
-      return;
-  }
-}
-
-void oak_compile_method_decl_bodies(oak_compiler_t* c,
-                                    const oak_ast_node_t* program)
-{
-  oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
-  {
-    const oak_ast_node_t* item =
-        oak_unwrap_decl(oak_container_of(pos, oak_ast_node_t, link));
-    if (!item || item->kind != OAK_NODE_METHOD_DECL)
-      continue;
-
-    const oak_ast_node_t* body = oak_fn_block(item);
-    if (!body || body->kind != OAK_NODE_BLOCK)
-    {
-      if (!c->allow_bodyless_fns)
-        oak_compiler_error_at(c, item->token, "method has no body");
-      continue;
-    }
-
-    const oak_ast_node_t* type_ident = oak_method_decl_type_ident(item);
-    if (!type_ident)
-      continue;
-    const char* rname = oak_token_text(type_ident->token);
-
-    const oak_registered_record_t* sd =
-        oak_records_find(&c->records, rname);
-    if (!sd)
-      continue;
-
-    const oak_ast_node_t* name_node = oak_fn_name_node(item);
-    if (!name_node)
-      continue;
-    const char* mname = oak_token_text(name_node->token);
-
-    const oak_registered_fn_t* sm = oak_find_record_method(sd, mname, 0);
-    if (!sm)
-      sm = oak_find_record_method(sd, mname, 1);
-    if (!sm)
-      continue;
-
-    const usize fn_offset = oak_chunk_size(c->chunk);
-    oak_obj_fn_t* fn_obj =
-        oak_as_fn(oak_chunk_constant(c->chunk, (usize)sm->const_idx));
-    fn_obj->code_offset = fn_offset;
-
-    const int is_static = oak_fn_self_param(item) == null;
-    oak_compile_fn_body(c, item, is_static ? null : sd);
-    if (c->has_error)
-      return;
-  }
-}
-
-/* Returns 1 if concrete record type `sd` structurally satisfies interface `tr`
- * (i.e. has all required methods with compatible arity). */
-int oak_record_satisfies_interface(oak_compiler_t* c,
-                                   const oak_registered_record_t* sd,
-                                   const oak_registered_interface_t* tr)
+/* Returns 1 if `sd` has every method `tr` requires with a compatible
+ * signature. `why` is optional: the coercion path passes null and only wants
+ * the answer, the declaration check passes a buffer and reports what it
+ * says. */
+static int record_methods_match_interface(oak_compiler_t* c,
+                                          const oak_registered_record_t* sd,
+                                          const oak_registered_interface_t* tr,
+                                          char* why)
 {
   const oak_interface_method_t* methods =
       OAK_CDATA(oak_interface_method_t, tr->methods);
@@ -351,9 +279,26 @@ int oak_record_satisfies_interface(oak_compiler_t* c,
     const oak_registered_fn_t* sm =
         oak_find_record_method(sd, tm->name, 0);
     if (!sm)
-      return 0;
+      MISMATCH("no method '%s'", tm->name);
+    /* A record method carries its mut-ness on the AST when it was declared in
+       source, and in param_mut_flags[0] when it came from a binding or an
+       import. */
+    const int sm_self_is_mut =
+        sm->decl ? oak_fn_self_is_mut(sm->decl)
+                 : sm->param_mut_flags && sm->param_mut_flags[0];
+    if (sm_self_is_mut != tm->self_is_mut)
+      MISMATCH("method '%s' is declared '%s', interface declares '%s'",
+               tm->name,
+               sm_self_is_mut ? "fn mut" : "fn",
+               tm->self_is_mut ? "fn mut" : "fn");
+    /* Arities count the receiver, the message counts what the caller writes. */
+    const int sm_params = sm->arity - 1;
     if (sm->arity != tm->arity)
-      return 0;
+      MISMATCH("method '%s' takes %d parameter%s, interface declares %d",
+               tm->name,
+               sm_params,
+               sm_params == 1 ? "" : "s",
+               tm->arity - 1);
 
     /* Compare parameter and return types. When both sides have AST decls
      * (local interface), lower from the AST. When the interface is imported
@@ -385,7 +330,10 @@ int oak_record_satisfies_interface(oak_compiler_t* c,
       }
       if (oak_type_is_known(&tr_ret) && oak_type_is_known(&sm_ret) &&
           !oak_type_equal(&tr_ret, &sm_ret))
-        return 0;
+        MISMATCH("method '%s' returns '%s', interface declares '%s'",
+                 tm->name,
+                 oak_type_full_name(c, sm_ret),
+                 oak_type_full_name(c, tr_ret));
 
       const int explicit_params = tm->arity - 1;
       for (int j = 0; j < explicit_params; ++j)
@@ -424,11 +372,85 @@ int oak_record_satisfies_interface(oak_compiler_t* c,
         }
         if (oak_type_is_known(&want_p) && oak_type_is_known(&got_p) &&
             !oak_type_equal(&want_p, &got_p))
-          return 0;
+          MISMATCH("method '%s' takes '%s' for parameter %d, interface "
+                   "declares '%s'",
+                   tm->name,
+                   oak_type_full_name(c, got_p),
+                   j + 1,
+                   oak_type_full_name(c, want_p));
       }
     }
   }
   return 1;
+}
+
+#undef MISMATCH
+
+static int record_declares_interface(const oak_registered_record_t* sd,
+                                     const oak_registered_interface_t* tr)
+{
+  const oak_type_t* interfaces = OAK_CDATA(oak_type_t, sd->interfaces);
+  for (usize i = 0; i < oak_size(sd->interfaces); ++i)
+    if (interfaces[i].kind == OAK_TYPE_KIND_INTERFACE &&
+        interfaces[i].id == tr->interface_id)
+      return 1;
+  return 0;
+}
+
+int oak_record_satisfies_interface(oak_compiler_t* c,
+                                   const oak_registered_record_t* sd,
+                                   const oak_registered_interface_t* tr)
+{
+  return record_declares_interface(sd, tr) &&
+         record_methods_match_interface(c, sd, tr, null);
+}
+
+void oak_validate_record_interfaces(oak_compiler_t* c)
+{
+  oak_registered_record_t* records =
+      OAK_DATA(oak_registered_record_t, c->records.entries);
+  for (usize ri = 0; ri < oak_size(c->records.entries); ++ri)
+  {
+    oak_registered_record_t* record = &records[ri];
+    const char* const* names =
+        (const char* const*)oak_cdata(record->interface_names);
+    for (usize ii = 0; ii < oak_size(record->interface_names); ++ii)
+    {
+      const oak_registered_interface_t* tr =
+          oak_interface_find(&c->interfaces, names[ii]);
+      if (!tr)
+      {
+        /* A clause in this program's source is a claim that can be checked
+           here and now. A native binding's is not: the same
+           oak_compile_options_t compiles many programs, and only some of them
+           declare the interface. Where it is absent the record simply does
+           not implement it, and any coercion says so at its own site. */
+        if (!record->decl_token)
+          continue;
+        oak_compiler_error_at(c, record->decl_token,
+                              "record '%s' declares unknown interface '%s'",
+                              record->name, names[ii]);
+        return;
+      }
+      if (!record_declares_interface(record, tr))
+      {
+        const oak_type_t interface_type = {
+          .id = tr->interface_id,
+          .kind = OAK_TYPE_KIND_INTERFACE,
+        };
+        oak_assert(oak_push_back(record->interfaces, &interface_type));
+      }
+      char why[OAK_INTERFACE_WHY_MAX] = { 0 };
+      if (!record_methods_match_interface(c, record, tr, why))
+      {
+        oak_compiler_error_at(
+            c, record->decl_token,
+            "record '%s' does not implement interface '%s': %s",
+            record->name, tr->name, why);
+        return;
+      }
+    }
+  }
 }
 
 /* Build (or return cached) vtable array const_idx for (sd, tr).

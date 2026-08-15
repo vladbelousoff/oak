@@ -47,7 +47,8 @@ UTEST_F(lexer, keywords)
 {
   oak_lexer_result_t* lexer = oak_lexer_tokenize(
       "let mut if else while for in break continue return true false "
-      "fn record enum import export as from to new self weak interface",
+      "fn record enum import export as from to new self weak interface "
+      "implements static",
       OAK_A);
 
   static const oak_expect_token_t expected[] = {
@@ -75,6 +76,8 @@ UTEST_F(lexer, keywords)
     OAK_TOKEN_AT(OAK_TOKEN_SELF, 107),
     OAK_TOKEN_AT(OAK_TOKEN_WEAK, 112),
     OAK_TOKEN_AT(OAK_TOKEN_INTERFACE, 117),
+    OAK_TOKEN_AT(OAK_TOKEN_IMPLEMENTS, 127),
+    OAK_TOKEN_AT(OAK_TOKEN_STATIC, 138),
   };
 
   OAK_EXPECT_TOKENS(lexer, expected);

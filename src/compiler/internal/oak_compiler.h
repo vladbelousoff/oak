@@ -253,20 +253,13 @@ void oak_register_program_enums(oak_compiler_t* c,
 void oak_register_program_interfaces(oak_compiler_t* c,
                                   const oak_ast_node_t* program);
 
-void oak_register_method_decls(oak_compiler_t* c,
-                                const oak_ast_node_t* program);
-
-void oak_compile_method_decl_bodies(oak_compiler_t* c,
-                                     const oak_ast_node_t* program);
-
-/* Returns the type-name IDENT node from a METHOD_DECL node.
- * Path: decl->lhs (METHOD_PROTO) -> lhs (METHOD_HEAD) -> lhs (type IDENT). */
-const oak_ast_node_t* oak_method_decl_type_ident(
-    const oak_ast_node_t* decl);
-
 int oak_record_satisfies_interface(oak_compiler_t* c,
                                 const oak_registered_record_t* sd,
                                 const oak_registered_interface_t* tr);
+
+/* Resolve declared record-interface pairs and reject incomplete contracts.
+ * Runs after all record method signatures are registered. */
+void oak_validate_record_interfaces(oak_compiler_t* c);
 
 u16 oak_get_or_build_vtable(oak_compiler_t* c,
                              const oak_registered_record_t* sd,
@@ -369,10 +362,16 @@ oak_fn_param_list(const oak_ast_node_t* decl);
 const oak_ast_node_t*
 oak_fn_name_node(const oak_ast_node_t* decl);
 
+/* The `mut` or `static` keyword node after `fn`, or null when the declaration
+ * carries neither. A record member with no mode is an instance method with an
+ * immutable receiver, which is why the two predicates below both answer 0 for
+ * a null mode rather than being undefined on it. */
 const oak_ast_node_t*
-oak_fn_self_param(const oak_ast_node_t* decl);
+oak_fn_receiver_mode(const oak_ast_node_t* decl);
 
-int oak_self_is_mut(const oak_ast_node_t* sp);
+int oak_fn_is_static(const oak_ast_node_t* decl);
+
+int oak_fn_self_is_mut(const oak_ast_node_t* decl);
 
 const oak_ast_node_t*
 oak_fn_block(const oak_ast_node_t* decl);

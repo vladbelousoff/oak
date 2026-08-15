@@ -308,6 +308,125 @@ UTEST_F(bind_type, a_record_declaration_must_match_its_native_binding)
   oak_compile_options_free(&opts);
 }
 
+#define IVALUED_SRC(implements_clause)                                         \
+  "interface IValued { fn value() -> number; }\n"                              \
+  "record Bound" implements_clause " {\n"                                      \
+  "  v : number;\n"                                                            \
+  "  fn value() -> number { return self.v; }\n"                                \
+  "}\n"                                                                        \
+  "fn show(x : IValued) { print(x.value()); }\n"                               \
+  "show(new Bound { v: 1 });\n"
+
+/*
+ * A native record declares its interfaces twice -- through
+ * oak_bind_type_implements and in the `implements` clause of the Oak
+ * declaration that mirrors it. Neither side wins: they have to agree, exactly
+ * as the field lists do.
+ */
+UTEST_F(bind_type, a_native_records_interfaces_must_match_its_binding)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* t;
+  oak_run_result_t agreeing;
+  oak_run_result_t binding_only;
+  oak_run_result_t decl_only;
+
+  oak_compile_options_init(&opts, OAK_A);
+  t = bind_record_with_field(&opts, "Bound", "v");
+  ASSERT_TRUE(t != null);
+  EXPECT_EQ(0, oak_bind_type_implements(t, "IValued"));
+  EXPECT_EQ(1u, oak_size(t->interface_names));
+
+  agreeing = oak_test_source_opts(
+      OAK_A, IVALUED_SRC(" implements IValued"),
+      &opts);
+  EXPECT_TRUE(agreeing.compiled);
+  if (!agreeing.compiled)
+    oak_test_explain(&agreeing, "native record implementing IValued");
+
+  /* Bound in C, silent in Oak. */
+  binding_only = oak_test_source_opts(
+      OAK_A, IVALUED_SRC(""), &opts);
+  EXPECT_FALSE(binding_only.compiled);
+  EXPECT_TRUE(oak_test_contains(binding_only.diag,
+                                "does not say 'implements IValued'"));
+
+  /* Declared in Oak, silent in C. */
+  {
+    oak_compile_options_t bare;
+    oak_compile_options_init(&bare, OAK_A);
+    bind_record_with_field(&bare, "Bound", "v");
+    decl_only = oak_test_source_opts(
+        OAK_A, IVALUED_SRC(" implements IValued"),
+        &bare);
+    EXPECT_FALSE(decl_only.compiled);
+    EXPECT_TRUE(oak_test_contains(decl_only.diag, "its binding does not"));
+    oak_compile_options_free(&bare);
+  }
+
+  oak_compile_options_free(&opts);
+}
+
+/* One oak_compile_options_t compiles many programs, and only some of them will
+ * declare the interface a binding names. Where it is absent the binding's
+ * claim is simply inert -- it must not turn every other program that uses the
+ * type into a compile error. */
+UTEST_F(bind_type, a_bound_interface_is_inert_where_it_is_not_declared)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* t;
+  oak_run_result_t unrelated;
+
+  oak_compile_options_init(&opts, OAK_A);
+  t = bind_record_with_field(&opts, "Bound", "v");
+  ASSERT_TRUE(t != null);
+  EXPECT_EQ(0, oak_bind_type_implements(t, "IValued"));
+
+  unrelated = oak_test_source_opts(OAK_A, "print(1);\n", &opts);
+  EXPECT_TRUE(unrelated.compiled);
+  if (!unrelated.compiled)
+    oak_test_explain(&unrelated, "print(1);");
+
+  oak_compile_options_free(&opts);
+}
+
+#undef IVALUED_SRC
+
+/* The same interface named twice on one side is a mistake, not a restatement,
+ * and the rejection has to reach the embedder rather than sit in the -1 that
+ * oak_bind_* calls routinely have discarded. */
+UTEST_F(bind_type, an_interface_named_twice_is_refused)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* t;
+  oak_run_result_t surfaced;
+
+  oak_compile_options_init(&opts, OAK_A);
+  t = bind_record_with_field(&opts, "Bound", "v");
+  ASSERT_TRUE(t != null);
+
+  EXPECT_EQ(0, oak_bind_type_implements(t, "IValued"));
+  EXPECT_NE(0, oak_bind_type_implements(t, "IValued"));
+  EXPECT_EQ(1u, oak_size(t->interface_names));
+  EXPECT_NE(0, oak_bind_type_implements(t, null));
+  EXPECT_NE(0, oak_bind_type_implements(t, ""));
+  EXPECT_NE(0, oak_bind_type_implements(null, "IValued"));
+
+  surfaced = oak_test_source_opts(
+      OAK_A,
+      "interface IValued { fn value() -> number; }\n"
+      "record Bound implements IValued {\n"
+      "  v : number;\n"
+      "  fn value() -> number { return self.v; }\n"
+      "}\n",
+      &opts);
+  EXPECT_FALSE(surfaced.compiled);
+  EXPECT_TRUE(oak_test_contains(surfaced.diag,
+                                "duplicate implemented interface 'IValued'"));
+
+  oak_compile_options_free(&opts);
+}
+
 /*
  * A field bound with OAK_BIND_NATIVE or OAK_BIND_ENUM names its type through a
  * descriptor rather than a type id, so the id is only known once registration

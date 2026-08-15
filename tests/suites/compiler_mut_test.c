@@ -199,11 +199,12 @@ UTEST_F(compiler_mut, mut_parameters_accept_mutable_and_copied_arguments)
 UTEST_F(compiler_mut, mut_self_methods_require_a_mutable_receiver)
 {
   static const oak_case_t cases[] = {
-    { "record Point { x : number; y : number; }\n"
-      "fn Point.shift(mut self, dx : number, dy : number) -> number {\n"
-      "  self.x = self.x + dx;\n"
-      "  self.y = self.y + dy;\n"
-      "  return self.x + self.y;\n"
+    { "record Point { x : number; y : number;\n"
+      "  fn mut shift(dx : number, dy : number) -> number {\n"
+      "    self.x = self.x + dx;\n"
+      "    self.y = self.y + dy;\n"
+      "    return self.x + self.y;\n"
+      "  }\n"
       "}\n"
       "let p = new Point { x : 1, y : 2 };\n"
       "p.shift(3, 4);\n",
@@ -216,18 +217,20 @@ UTEST_F(compiler_mut, mut_self_methods_require_a_mutable_receiver)
 UTEST_F(compiler_mut, self_methods_match_their_receivers_mutability)
 {
   static const oak_case_t cases[] = {
-    { "record Point { x : number; y : number; }\n"
-      "fn Point.shift(mut self, dx : number, dy : number) -> number {\n"
-      "  self.x = self.x + dx;\n"
-      "  self.y = self.y + dy;\n"
-      "  return self.x + self.y;\n"
+    { "record Point { x : number; y : number;\n"
+      "  fn mut shift(dx : number, dy : number) -> number {\n"
+      "    self.x = self.x + dx;\n"
+      "    self.y = self.y + dy;\n"
+      "    return self.x + self.y;\n"
+      "  }\n"
       "}\n"
       "let mut p = new Point { x : 1, y : 2 };\n"
       "print(p.shift(3, 4));\n",
       null },
     /* A read-only method is callable on an immutable receiver. */
-    { "record Point { x : number; y : number; }\n"
-      "fn Point.sum(self) -> number { return self.x + self.y; }\n"
+    { "record Point { x : number; y : number;\n"
+      "  fn sum() -> number { return self.x + self.y; }\n"
+      "}\n"
       "let p = new Point { x : 3, y : 4 };\n"
       "print(p.sum());\n",
       null },

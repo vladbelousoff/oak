@@ -170,8 +170,8 @@ static const char* oak_parser_token_kind_display(
       return "'export'";
     case OAK_TOKEN_INTERFACE:
       return "'interface'";
-    case OAK_TOKEN_IMPL:
-      return "'impl'";
+    case OAK_TOKEN_IMPLEMENTS:
+      return "'implements'";
     case OAK_TOKEN_WEAK:
       return "'weak'";
     case OAK_TOKEN_NONE:
@@ -204,8 +204,10 @@ static const char* oak_parser_node_display(const oak_node_kind_t kind)
       return "a type name";
     case OAK_NODE_RECORD_FIELD_DECL:
       return "a record field";
-    case OAK_NODE_RECORD_FIELDS:
-      return "record fields";
+    case OAK_NODE_RECORD_MEMBERS:
+      return "record fields and methods";
+    case OAK_NODE_RECORD_MEMBER:
+      return "a record field or method";
     case OAK_NODE_ENUM_DECL:
       return "an enum declaration";
     case OAK_NODE_IDENT:
@@ -247,8 +249,8 @@ static const char* oak_parser_node_display(const oak_node_kind_t kind)
       return "a return type";
     case OAK_NODE_FN_PARAM:
       return "a function parameter";
-    case OAK_NODE_FN_PARAM_SELF:
-      return "a self parameter";
+    case OAK_NODE_FN_RECEIVER_MODE:
+      return "'mut' or 'static'";
     case OAK_NODE_FN_CALL:
       return "a function call";
     case OAK_NODE_FN_CALL_ARG:
@@ -310,11 +312,6 @@ static const char* oak_parser_node_display(const oak_node_kind_t kind)
       return "an interface declaration";
     case OAK_NODE_INTERFACE_MEMBERS:
       return "interface members";
-    case OAK_NODE_METHOD_DECL:
-    case OAK_NODE_METHOD_PROTO:
-      return "a method declaration";
-    case OAK_NODE_METHOD_HEAD:
-      return "a method name";
     case OAK_NODE_ATTR:
       return "an attribute";
     case OAK_NODE_ATTR_DECL:
@@ -363,6 +360,41 @@ void oak_parser_detail_expected_node(oak_parser_t* p,
   oak_parser_set_detail(p, context, (oak_token_kind_t)0, expected);
 }
 
+/* Both spellings a pre-methods-in-records program uses are now dead grammar,
+ * and the token-level "expected X, got Y" they produce says nothing about why.
+ * Recognising the two shapes here costs one lookahead each and turns a puzzle
+ * into an instruction. Keyed on `self` and on `fn Ident .`, neither of which
+ * the current grammar can reach. */
+static const char* oak_parser_migration_hint(const oak_parser_t* parser,
+                                             const oak_token_t* token)
+{
+  if (!token)
+    return null;
+
+  /* Bare `self` stops at the param list; `mut self` gets as far as FN_PARAM,
+     having consumed the `mut` as the parameter's own qualifier. */
+  if (oak_token_kind(token) == OAK_TOKEN_SELF &&
+      (parser->detail_context == OAK_NODE_FN_PARAM_LIST ||
+       parser->detail_context == OAK_NODE_FN_PARAMS ||
+       parser->detail_context == OAK_NODE_FN_PARAM))
+  {
+    return "the receiver is not a parameter: write 'fn name()' for an "
+           "immutable receiver, or 'fn mut name()' for a mutable one";
+  }
+
+  if (oak_token_kind(token) == OAK_TOKEN_DOT &&
+      (parser->detail_context == OAK_NODE_FN_PARAMS_AND_RET ||
+       parser->detail_context == OAK_NODE_FN_PARAM_LIST ||
+       parser->detail_context == OAK_NODE_FN_PROTO ||
+       parser->detail_context == OAK_NODE_FN_DECL))
+  {
+    return "methods are declared inside their record: move this into the "
+           "'record' body and drop the type name prefix";
+  }
+
+  return null;
+}
+
 static void oak_parser_emit_detail(oak_parser_t* parser,
                                    oak_parser_result_t* out)
 {
@@ -391,6 +423,13 @@ static void oak_parser_emit_detail(oak_parser_t* parser,
     {
       d->column = 0;
     }
+  }
+
+  const char* hint = oak_parser_migration_hint(parser, token);
+  if (hint)
+  {
+    snprintf(d->message, sizeof(d->message), "%s", hint);
+    return;
   }
 
   if (parser->detail_has_expected_token)

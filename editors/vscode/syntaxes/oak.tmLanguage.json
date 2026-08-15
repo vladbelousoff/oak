@@ -91,7 +91,7 @@
         },
         {
           "name": "storage.modifier.oak",
-          "match": "\\b(mut|weak|impl)\\b"
+          "match": "\\b(mut|static|weak|implements)\\b"
         },
         {
           "name": "storage.type.oak",

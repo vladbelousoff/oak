@@ -1,10 +1,18 @@
-import { sum, average } from analytics.stats;
+/* Series carries its own interface across the module boundary: IMetric is
+   never named here, but coercing a Series to it still works. */
+import { sum, average, Series } from analytics.stats;
 import * from domain.project;
 import domain.project as project;
 
 let values = [3, 5, 8, 13];
 print(sum(values));
 print(average(values));
+
+fn report(metric : IMetric) {
+  print(metric.value());
+}
+
+report(new Series { samples : values });
 
 let high = project.Priority.High;
 let mut task = project.make_task('ship examples', 8, high);

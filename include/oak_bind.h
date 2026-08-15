@@ -236,6 +236,9 @@ struct oak_bind_type
    * registry. Embedders should reference the descriptor, not this value. */
   oak_type_id_t resolved_type_id; /* private */
   oak_container_t* fields; /* vector of oak_bind_field_t */
+  /* Owned vector of interface-name strings declared with
+   * oak_bind_type_implements(). */
+  oak_container_t* interface_names; /* vector of char* */
   /* The options this descriptor was registered on, so oak_bind_field can
    * record a rejection there.  Borrowed. */
   struct oak_compile_options* opts; /* private */
@@ -510,6 +513,18 @@ OAK_API void oak_compile_options_free(oak_compile_options_t* opts);
 OAK_API oak_bind_type_t* oak_bind_type(oak_compile_options_t* opts,
                                        oak_bind_type_kind_t kind,
                                        const char* name);
+
+/* Declare that a native record implements an Oak interface. The name is
+ * resolved during compilation, once source and imported interfaces are
+ * registered.
+ *
+ * If the type also has an Oak `record` declaration, that declaration must
+ * carry the same `implements` clause; a disagreement is a compile error, the
+ * same as one about the field list. In a program that declares no such
+ * interface the claim is inert. Declaring the same interface twice is
+ * refused. `interface_name` is copied. Returns 0, or -1 on rejection. */
+OAK_API int oak_bind_type_implements(oak_bind_type_t* type,
+                                     const char* interface_name);
 
 /* As oak_bind_type, but exports the type from the synthetic module
  * `module_name` so Oak source refers to it as `module.Type`.

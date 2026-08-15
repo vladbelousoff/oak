@@ -87,8 +87,9 @@ UTEST_F(compiler_semantics, let_initializers_report_the_specific_cause)
 UTEST_F(compiler_semantics, member_diagnostics_name_the_other_kind)
 {
   static const oak_case_t cases[] = {
-    { "record P { x : number; }\n"
-      "fn P.get(self) -> number { return self.x; }\n"
+    { "record P { x : number;\n"
+      "  fn get() -> number { return self.x; }\n"
+      "}\n"
       "let p = new P { x : 1 };\n"
       "print(p.get);\n",
       "'get' is a method, call it as 'get()'" },
@@ -96,13 +97,15 @@ UTEST_F(compiler_semantics, member_diagnostics_name_the_other_kind)
       "let p = new P { x : 1 };\n"
       "print(p.x());\n",
       "'x' is a field, drop the '()' to read it" },
-    { "record P { x : number; }\n"
-      "fn P.make() -> P { return new P { x : 1 }; }\n"
+    { "record P { x : number;\n"
+      "  fn static make() -> P { return new P { x : 1 }; }\n"
+      "}\n"
       "let p = new P { x : 1 };\n"
       "print(p.make());\n",
       "'make' is a static method, call it as 'P.make()'" },
-    { "record P { x : number; }\n"
-      "fn P.get(self) -> number { return self.x; }\n"
+    { "record P { x : number;\n"
+      "  fn get() -> number { return self.x; }\n"
+      "}\n"
       "let n = P.get();\n",
       "'get' is an instance method of record 'P'" },
   };
@@ -190,8 +193,9 @@ UTEST_F(compiler_semantics, module_scope_names_are_invisible_inside_bodies)
     { "let mut g = 1;\n"
       "fn f() { g = 2; }\n",
       "not visible here (module scope only)" },
-    { "record R { x : number; }\n"
-      "fn R.m(self) -> number { return g; }\n"
+    { "record R { x : number;\n"
+      "  fn m() -> number { return g; }\n"
+      "}\n"
       "let g = 1;\n",
       "not visible here (module scope only)" },
   };

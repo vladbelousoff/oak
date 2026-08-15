@@ -35,12 +35,14 @@ OAK_TEST_SUITE(compiler_cycles);
 
 #define INTERFACE_SHAPE                                                        \
   "interface IShape {\n"                                                       \
-  "  fn area(self) -> number;\n"                                               \
+  "  fn area() -> number;\n"                                                   \
   "}\n"
 
 #define RECORD_CIRCLE                                                          \
-  "record Circle { radius : number; }\n"                                       \
-  "fn Circle.area(self) -> number { return self.radius * self.radius; }\n"
+  "record Circle implements IShape {\n"                                        \
+  "  radius : number;\n"                                                       \
+  "  fn area() -> number { return self.radius * self.radius; }\n"              \
+  "}\n"
 
 UTEST_F(compiler_cycles, self_referential_strong_fields_are_write_once)
 {
@@ -58,8 +60,11 @@ UTEST_F(compiler_cycles, self_referential_strong_fields_are_write_once)
       "root.children = new Tree[];\n",
       "write-once" },
     /* The rule follows the field, so methods get no exemption. */
-    { RECORD_NODE
-      "fn Node.relink(mut self, other: Node) { self.next = other; }\n",
+    { "record Node {\n"
+      "  value : number;\n"
+      "  next : Node;\n"
+      "  fn mut relink(other: Node) { self.next = other; }\n"
+      "}\n",
       "write-once" },
   };
 
@@ -187,8 +192,11 @@ UTEST_F(compiler_cycles, weak_and_root_held_interface_values_are_allowed)
     /* An interface container owned only by a root can never be reached from
      * an element, so it stays mutable. */
     { INTERFACE_SHAPE RECORD_CIRCLE
-      "record Rect { w : number; h : number; }\n"
-      "fn Rect.area(self) -> number { return self.w * self.h; }\n"
+      "record Rect implements IShape {\n"
+      "  w : number;\n"
+      "  h : number;\n"
+      "  fn area() -> number { return self.w * self.h; }\n"
+      "}\n"
       "let mut shapes = new IShape[];\n"
       "shapes.push(new Circle { radius: 3 });\n"
       "shapes.push(new Rect { w: 2, h: 5 });\n"

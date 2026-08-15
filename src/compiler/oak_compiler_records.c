@@ -16,6 +16,8 @@ static const oak_ast_node_t* record_decl_name_ident(
     const oak_ast_node_t* type_name_node)
 {
   const oak_ast_node_t* name_ident = type_name_node;
+  if (name_ident->kind == OAK_NODE_RECORD_DECL_HEADER_IMPL)
+    name_ident = name_ident->lhs;
   if (name_ident->kind == OAK_NODE_TYPE_NAME)
   {
     const oak_list_entry_t* tn_first = name_ident->children.next;
@@ -34,6 +36,50 @@ static const oak_ast_node_t* record_decl_name_ident(
     return null;
   }
   return name_ident;
+}
+
+static const oak_ast_node_t* record_decl_implementations(
+    const oak_ast_node_t* type_name_node)
+{
+  return type_name_node &&
+                 type_name_node->kind == OAK_NODE_RECORD_DECL_HEADER_IMPL
+             ? type_name_node->rhs
+             : null;
+}
+
+/* Record the names from an `implements I, J` clause on `slot`. */
+static int collect_declared_interfaces(oak_compiler_t* c,
+                                       oak_registered_record_t* slot,
+                                       const oak_ast_node_t* type_name_node,
+                                       const char* record_name)
+{
+  const oak_ast_node_t* implementations =
+      record_decl_implementations(type_name_node);
+  if (!implementations)
+    return 1;
+
+  oak_list_entry_t* ipos;
+  oak_list_for_each(ipos, &implementations->children)
+  {
+    const oak_ast_node_t* impl_name =
+        oak_container_of(ipos, oak_ast_node_t, link);
+    if (!impl_name || impl_name->kind != OAK_NODE_IDENT)
+      continue;
+    const char* interface_name = oak_token_text(impl_name->token);
+
+    const char* const* names =
+        (const char* const*)oak_cdata(slot->interface_names);
+    for (usize i = 0; i < oak_size(slot->interface_names); ++i)
+      if (strcmp(names[i], interface_name) == 0)
+      {
+        oak_compiler_error_at(c, impl_name->token,
+                              "duplicate interface '%s' in record '%s'",
+                              interface_name, record_name);
+        return 0;
+      }
+    oak_assert(oak_push_back(slot->interface_names, &interface_name));
+  }
+  return 1;
 }
 
 static const oak_bind_type_t* native_record_binding(
@@ -77,26 +123,107 @@ static const oak_bind_field_t* native_record_field(
   return null;
 }
 
+static int decl_implements(const oak_ast_node_t* implementations,
+                           const char* name)
+{
+  if (!implementations)
+    return 0;
+  oak_list_entry_t* pos;
+  oak_list_for_each(pos, &implementations->children)
+  {
+    const oak_ast_node_t* ident = oak_container_of(pos, oak_ast_node_t, link);
+    if (ident && ident->kind == OAK_NODE_IDENT &&
+        strcmp(oak_token_text(ident->token), name) == 0)
+      return 1;
+  }
+  return 0;
+}
+
+/* A native record names its interfaces twice: through
+ * oak_bind_type_implements on the binding, and in the `implements` clause of
+ * the Oak declaration that mirrors it. Neither side is subordinate to the
+ * other, so they have to agree -- the same rule the field list already
+ * follows. */
+static int native_record_interfaces_match(oak_compiler_t* c,
+                                          const oak_bind_type_t* native,
+                                          const oak_ast_node_t* type_name_node,
+                                          const oak_ast_node_t* name_ident)
+{
+  const oak_ast_node_t* implementations =
+      record_decl_implementations(type_name_node);
+
+  char* const* bound = OAK_DATA(char*, native->interface_names);
+  for (usize i = 0; i < oak_size(native->interface_names); ++i)
+  {
+    if (decl_implements(implementations, bound[i]))
+      continue;
+    oak_compiler_error_at(c,
+                          name_ident->token,
+                          "native record '%s' is bound as implementing '%s', "
+                          "but its declaration does not say 'implements %s'",
+                          native->name,
+                          bound[i],
+                          bound[i]);
+    return 0;
+  }
+
+  if (!implementations)
+    return 1;
+  oak_list_entry_t* pos;
+  oak_list_for_each(pos, &implementations->children)
+  {
+    const oak_ast_node_t* ident = oak_container_of(pos, oak_ast_node_t, link);
+    if (!ident || ident->kind != OAK_NODE_IDENT)
+      continue;
+    const char* name = oak_token_text(ident->token);
+    int found = 0;
+    for (usize i = 0; i < oak_size(native->interface_names) && !found; ++i)
+      found = strcmp(bound[i], name) == 0;
+    if (!found)
+    {
+      oak_compiler_error_at(c,
+                            ident->token,
+                            "native record '%s' declares 'implements %s', but "
+                            "its binding does not",
+                            native->name,
+                            name);
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int native_record_decl_matches(oak_compiler_t* c,
                                       const oak_bind_type_t* native,
                                       const oak_ast_node_t* item,
+                                      const oak_ast_node_t* type_name_node,
                                       const oak_ast_node_t* name_ident)
 {
+  if (!native_record_interfaces_match(c, native, type_name_node, name_ident))
+    return 0;
+
   if (item->kind == OAK_NODE_RECORD_DECL_EMPTY)
     return 1;
 
   const oak_ast_node_t* fields_wrap = item->rhs;
-  if (!fields_wrap || fields_wrap->kind != OAK_NODE_RECORD_FIELDS)
+  if (!fields_wrap || fields_wrap->kind != OAK_NODE_RECORD_MEMBERS)
   {
     oak_compiler_error_at(c, item->token, "malformed record declaration");
     return 0;
   }
 
+  /* Counts fields only — a native record declares its methods in the same
+     member list, and those are matched against the binding separately. */
   int field_count = 0;
   for (oak_list_entry_t* fpos = fields_wrap->children.next;
        fpos != &fields_wrap->children;
        fpos = fpos->next)
-    ++field_count;
+  {
+    const oak_ast_node_t* member =
+        oak_container_of(fpos, oak_ast_node_t, link);
+    if (member->kind == OAK_NODE_RECORD_FIELD_DECL)
+      ++field_count;
+  }
 
   if ((usize)field_count != oak_size(native->fields))
   {
@@ -116,8 +243,11 @@ static int native_record_decl_matches(oak_compiler_t* c,
   {
     const oak_ast_node_t* fdecl =
         oak_container_of(fpos, oak_ast_node_t, link);
-    if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs ||
-        !fdecl->rhs)
+    /* Methods share the member list; oak_register_program_methods handles
+       them, and rejects any member that is neither a field nor a fn. */
+    if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL)
+      continue;
+    if (!fdecl->lhs || !fdecl->rhs)
     {
       oak_compiler_error_at(c, item->token, "malformed record field");
       return 0;
@@ -178,8 +308,8 @@ void oak_register_program_records(oak_compiler_t* c,
     if (!item || (item->kind != OAK_NODE_RECORD_DECL && !is_empty))
       continue;
 
-    /* RECORD_DECL_EMPTY: child = TYPE_NAME
-     * RECORD_DECL:       lhs   = TYPE_NAME, rhs = RECORD_FIELDS */
+    /* RECORD_DECL_EMPTY: child = RECORD_DECL_HEADER
+     * RECORD_DECL:       lhs   = RECORD_DECL_HEADER, rhs = RECORD_MEMBERS */
     const oak_ast_node_t* type_name_node =
         is_empty ? item->child : item->lhs;
     if (!type_name_node || (!is_empty && !item->rhs))
@@ -202,8 +332,24 @@ void oak_register_program_records(oak_compiler_t* c,
           native_record_binding(c, name);
       if (native && existing->type_id == native->resolved_type_id)
       {
-        if (!native_record_decl_matches(c, native, item, name_ident))
+        if (!native_record_decl_matches(
+                c, native, item, type_name_node, name_ident))
           return;
+
+        /* The interface list came from the binding when the type was
+           registered, and native_record_decl_matches has just confirmed the
+           declaration's clause says the same, so there is nothing to merge.
+           Recording the declaration token is still worth it: it makes this a
+           record declared in this source, which is what lets a bad interface
+           name be reported here rather than left to a coercion site. */
+        const usize* entry_idx =
+            (const usize*)oak_cfind_str(c->records.by_name, name);
+        if (entry_idx)
+        {
+          oak_registered_record_t* slot =
+              oak_get(c->records.entries, *entry_idx);
+          slot->decl_token = name_ident->token;
+        }
 
         int attr_count = 0;
         const char** attrs = oak_extract_attrs(c->allocator, raw_item, &attr_count);
@@ -222,19 +368,24 @@ void oak_register_program_records(oak_compiler_t* c,
 
     oak_registered_record_t proto = { 0 };
     proto.name = name;
+    proto.decl_token = name_ident->token;
     proto.type_id = oak_type_registry_intern(&c->types, name);
     proto.fields =
         oak_vector_new(c->allocator, sizeof(oak_record_field_t));
     proto.methods =
         oak_vector_new(c->allocator, sizeof(oak_registered_fn_t));
-    oak_assert(proto.fields && proto.methods);
+    proto.interface_names =
+        oak_vector_new(c->allocator, sizeof(const char*));
+    proto.interfaces = oak_vector_new(c->allocator, sizeof(oak_type_t));
+    oak_assert(proto.fields && proto.methods && proto.interface_names &&
+               proto.interfaces);
     proto.attrs = oak_extract_attrs(c->allocator, raw_item, &proto.attr_count);
 
     /* Pre-scan fields for attribute callbacks. */
     oak_attr_field_info_t* finfo = null;
     int finfo_count = 0;
     if (proto.attr_count > 0 && !is_empty && item->rhs &&
-        item->rhs->kind == OAK_NODE_RECORD_FIELDS)
+        item->rhs->kind == OAK_NODE_RECORD_MEMBERS)
     {
       const oak_ast_node_t* fw = item->rhs;
       oak_list_entry_t* fp;
@@ -292,22 +443,27 @@ void oak_register_program_records(oak_compiler_t* c,
     oak_registered_record_t* slot =
         oak_record_registry_insert(&c->records, &proto);
 
+    if (!collect_declared_interfaces(c, slot, type_name_node, name))
+      return;
+
     if (is_empty)
       continue; /* no fields to register */
 
     const oak_ast_node_t* fields_wrap = item->rhs;
-    if (fields_wrap->kind != OAK_NODE_RECORD_FIELDS)
+    if (fields_wrap->kind != OAK_NODE_RECORD_MEMBERS)
     {
       oak_compiler_error_at(c, item->token, "malformed record declaration");
       return;
     }
 
-    /* Reject 'record Foo {}' — use 'record Foo;' for empty records. */
+    /* Reject 'record Foo {}' — use 'record Foo;' for empty records. A body
+       holding only methods is fine, which is what native records look like. */
     if (fields_wrap->children.next == &fields_wrap->children)
     {
       oak_compiler_error_at(
           c, name_ident->token,
-          "record '%s' has no fields; use 'record %s;' instead of '{}'",
+          "record '%s' has no fields or methods; use 'record %s;' instead "
+          "of '{}'",
           name, name);
       return;
     }
@@ -332,7 +488,9 @@ static int register_record_field_decls(oak_compiler_t* c,
   {
     const oak_ast_node_t* fdecl =
         oak_container_of(fpos, oak_ast_node_t, link);
-    if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs || !fdecl->rhs)
+    if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL)
+      continue; /* a method; see oak_register_program_methods */
+    if (!fdecl->lhs || !fdecl->rhs)
     {
       oak_compiler_error_at(c, err_ctx_token, "malformed record field");
       return 0;

@@ -42,7 +42,6 @@ static int item_emits_top_level_code(const oak_ast_node_t* item)
   case OAK_NODE_IMPORT_WILDCARD:
   case OAK_NODE_IMPORT_DECL:
   case OAK_NODE_INTERFACE_DECL:
-  case OAK_NODE_METHOD_DECL:
   case OAK_NODE_ATTR_DECL:
   case OAK_NODE_EXPORT_DECL:
     return 0;
@@ -112,7 +111,7 @@ static void register_callable_symbols(oak_compiler_t* c,
   CHECK_ERROR(c);
   oak_register_program_methods(c, program);
   CHECK_ERROR(c);
-  oak_register_method_decls(c, program);
+  oak_validate_record_interfaces(c);
 }
 
 static void emit_deferred_bodies(oak_compiler_t* c,
@@ -124,8 +123,6 @@ static void emit_deferred_bodies(oak_compiler_t* c,
   oak_compile_fn_bodies(c);
   CHECK_ERROR(c);
   oak_compile_method_bodies(c);
-  CHECK_ERROR(c);
-  oak_compile_method_decl_bodies(c, program);
 }
 
 /* Surface anything the oak_bind_* calls rejected. Without this a malformed

@@ -52,6 +52,7 @@ static void free_record_entry(oak_allocator_t* a,
       oak_free(a, methods[mi].param_mut_flags, OAK_HERE);
   }
   oak_destroy(rec->methods);
+  oak_destroy(rec->interface_names);
 }
 
 static void free_enum_entry(oak_module_export_enum_t* en)

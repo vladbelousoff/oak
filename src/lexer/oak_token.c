@@ -60,8 +60,10 @@ oak_token_kind_t oak_keyword_lookup(const char* ident)
     { "in", OAK_TOKEN_IN },         { "let", OAK_TOKEN_LET },
     { "mut", OAK_TOKEN_MUT },       { "new", OAK_TOKEN_NEW },
     { "return", OAK_TOKEN_RETURN }, { "self", OAK_TOKEN_SELF },
-    { "record", OAK_TOKEN_RECORD }, { "to", OAK_TOKEN_TO },
-    { "interface", OAK_TOKEN_INTERFACE },   { "impl", OAK_TOKEN_IMPL },
+    { "record", OAK_TOKEN_RECORD }, { "static", OAK_TOKEN_STATIC },
+    { "to", OAK_TOKEN_TO },
+    { "interface", OAK_TOKEN_INTERFACE },
+    { "implements", OAK_TOKEN_IMPLEMENTS },
     { "none", OAK_TOKEN_NONE },      { "weak", OAK_TOKEN_WEAK },
     { "true", OAK_TOKEN_TRUE },     { "while", OAK_TOKEN_WHILE },
   };
@@ -136,6 +138,8 @@ const char* oak_token_name(const oak_token_kind_t token_kind)
       return "LET";
     case OAK_TOKEN_MUT:
       return "MUT";
+    case OAK_TOKEN_STATIC:
+      return "STATIC";
     case OAK_TOKEN_IF:
       return "IF";
     case OAK_TOKEN_ELSE:
@@ -200,8 +204,8 @@ const char* oak_token_name(const oak_token_kind_t token_kind)
       return "EXPORT";
     case OAK_TOKEN_INTERFACE:
       return "INTERFACE";
-    case OAK_TOKEN_IMPL:
-      return "IMPL";
+    case OAK_TOKEN_IMPLEMENTS:
+      return "IMPLEMENTS";
     case OAK_TOKEN_WEAK:
       return "WEAK";
     case OAK_TOKEN_NONE:

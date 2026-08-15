@@ -199,6 +199,9 @@ int main(void)
                         .arity = 0,
                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                     }) == 0);
+  /* A native record implements an Oak interface only if it says so; the Oak
+   * declaration below has to carry the same clause. */
+  CHECK(oak_bind_type_implements(counter, "ICounter") == 0);
 
   oak_bind_enum_t* colour = oak_bind_enum(&opts, "Colour");
   CHECK(colour != null);
@@ -243,6 +246,8 @@ int main(void)
   /* ---- compile ---------------------------------------------------------- */
 
   static const char* const src =
+      "interface ICounter { fn bump() -> number; }\n"
+      "record Counter implements ICounter { value : number; }\n"
       "let a = native_add(20, 22);\n"
       "let c = Colour.Green;\n"
       "print(a);\n";

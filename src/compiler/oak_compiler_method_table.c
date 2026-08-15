@@ -97,8 +97,10 @@ static void validate_array_push_args(oak_compiler_t* c,
       oak_compiler_error_at(c,
                             t,
                             "cannot push value of type '%s' to array of '%s': "
-                            "type does not implement interface '%s'",
+                            "type does not implement interface '%s'; "
+                            "add 'implements %s'",
                             sd->name,
+                            elem_tr->name,
                             elem_tr->name,
                             elem_tr->name);
     else

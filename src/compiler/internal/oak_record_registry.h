@@ -7,6 +7,8 @@
 #include "oak_type.h"
 #include "oak_vector.h"
 
+typedef struct oak_token oak_token_t;
+
 typedef struct oak_record_field oak_record_field_t;
 struct oak_record_field
 {
@@ -23,6 +25,10 @@ typedef struct oak_registered_record oak_registered_record_t;
 struct oak_registered_record
 {
   const char* name;
+  /* The name token of the `record` declaration, so a diagnostic about the
+   * record as a whole can point at it. Null for imported and native records,
+   * which have no declaration in this compilation's source. */
+  const oak_token_t* decl_token;
   oak_type_id_t type_id;
   u16 source_module_id;
   /* Vector of oak_record_field_t. */
@@ -31,6 +37,10 @@ struct oak_registered_record
    * distinguished by `is_static` on each entry. Freed by
    * oak_record_registry_free. */
   oak_container_t* methods;
+  /* Names as declared in source/native bindings, then resolved interface types.
+   * Both are vectors: const char* and oak_type_t respectively. */
+  oak_container_t* interface_names;
+  oak_container_t* interfaces;
   /* Attribute names.  Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;

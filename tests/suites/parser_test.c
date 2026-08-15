@@ -219,16 +219,17 @@ UTEST_F(parser, declarations_parse)
       "export enum ExportedStatus { Planned, Active, Done, }\n"
       "export record ExportedTask;\n"
       "@Native export fn attributed() -> number;\n"
-      "export interface IDescribed { fn describe(self) -> string; }\n"
+      "export interface IDescribed { fn describe() -> string; }\n"
       "enum Status { Planned, Active, Done, }\n"
       "record Task {\n"
       "  title : string;\n"
       "  points : number;\n"
       "  parent : Task weak;\n"
+      "  fn mut finish() { self.points = 0; }\n"
+      "  export fn mut exported_finish() { self.points = 0; }\n"
+      "  fn label() -> string { return self.title; }\n"
+      "  fn static blank() -> string { return ''; }\n"
       "}\n"
-      "fn Task.finish(mut self) { self.points = 0; }\n"
-      "export fn Task.exported_finish(mut self) { self.points = 0; }\n"
-      "fn Task.label(self) -> string { return self.title; }\n"
       "fn make(title : string, mut points : number) -> Task {\n"
       "  return new Task { title, points };\n"
       "}\n";
@@ -264,6 +265,24 @@ UTEST_F(parser, an_empty_record_has_its_own_declaration_form)
   ASSERT_TRUE(fx.root != null);
   OAK_EXPECT_KIND(oak_ast_node_child_at(fx.root, 0),
                   OAK_NODE_RECORD_DECL_EMPTY);
+
+  oak_test_parse_free(&fx);
+}
+
+UTEST_F(parser, records_parse_explicit_interface_declarations)
+{
+  oak_parse_fixture_t fx = oak_test_parse(
+      OAK_A, "record Shape implements IArea, ILabel { value : number; }\n"
+             "record Marker implements ITagged;\n");
+
+  ASSERT_TRUE(fx.root != null);
+  EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
+  const oak_ast_node_t* shape = oak_ast_node_child_at(fx.root, 0);
+  const oak_ast_node_t* marker = oak_ast_node_child_at(fx.root, 1);
+  OAK_EXPECT_KIND(shape, OAK_NODE_RECORD_DECL);
+  OAK_EXPECT_KIND(marker, OAK_NODE_RECORD_DECL_EMPTY);
+  OAK_EXPECT_KIND(shape->lhs, OAK_NODE_RECORD_DECL_HEADER_IMPL);
+  EXPECT_EQ(2, oak_ast_node_child_count(shape->lhs->rhs));
 
   oak_test_parse_free(&fx);
 }

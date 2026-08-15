@@ -73,6 +73,8 @@ struct oak_module_export_record
   oak_container_t* fields;  /* oak_module_export_record_field_t  */
   u16 layout_id; /* const-pool slot in this module's chunk (for new mod.T{}) */
   oak_container_t* methods; /* oak_module_export_record_method_t */
+  /* Explicitly declared interface names (const char*). */
+  oak_container_t* interface_names;
   /* 1 for inline value types (OAK_BIND_TYPE_VALUE): non-refcounted, inline. */
   int is_value;
 };

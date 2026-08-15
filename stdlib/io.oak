@@ -1,10 +1,10 @@
 export enum FileMode { Read, Write, Append }
 
-export record File;
-
-export fn File.open(path : string, mode : FileMode) -> File;
-export fn File.read(self) -> string;
-export fn File.read_all(self) -> string;
-export fn File.write(mut self, value : string);
-export fn File.eof(self) -> bool;
-export fn File.close(self);
+export record File {
+  export fn static open(path : string, mode : FileMode) -> File;
+  export fn read() -> string;
+  export fn read_all() -> string;
+  export fn mut write(value : string);
+  export fn eof() -> bool;
+  export fn close();
+}

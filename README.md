@@ -140,8 +140,10 @@ print(apply(double, fib(10)));
 
 ### Records and Enums
 
-Records are created with `new Type { ... }`; methods are declared as
-`fn Type.method(self, ...)`, with `mut self` for mutation. Enum variants get
+Records are created with `new Type { ... }`, and methods are declared inside
+the record body. The receiver is implicit: `fn name(...)` reads it through
+`self`, `fn mut name(...)` may also write through it, and `fn static name(...)`
+takes no receiver at all and is called on the type. Enum variants get
 enum-aware type checking:
 
 ```oak
@@ -150,26 +152,31 @@ enum Status { Planned, Active, Done }
 record Point {
   x : number;
   y : number;
-}
 
-fn Point.move_by(mut self, dx : number, dy : number) {
-  self.x = self.x + dx;
-  self.y = self.y + dy;
+  fn mut move_by(dx : number, dy : number) {
+    self.x = self.x + dx;
+    self.y = self.y + dy;
+  }
+
+  fn static origin() -> Point {
+    return new Point { x : 0, y : 0 };
+  }
 }
 
 record Job {
   title : string;
   status : Status;
   location : Point;
-}
 
-fn Job.label(self) -> string {
-  return self.title;
+  fn label() -> string {
+    return self.title;
+  }
 }
 
 let mut p = new Point { x : 3, y : 4 };
 p.move_by(10, -2);
 print(p.x);
+print(Point.origin().x);
 
 let job = new Job { title : 'release', status : Status.Planned, location : p };
 print(job.label());
@@ -179,28 +186,29 @@ print(job.status == Status.Planned);
 ### Interfaces
 
 Interfaces declare method signatures and dispatch virtually over the record
-methods that implement them. Interface names must start with `I`:
+methods that implement them. Interface names must start with `I`, and a record
+says which ones it implements — having every method is not enough on its own:
 
 ```oak
 interface IShape {
-  fn area(self) -> number;
+  fn area() -> number;
 }
 
-record Circle {
+record Circle implements IShape {
   radius : number;
+
+  fn area() -> number {
+    return 3.14159 * self.radius * self.radius;
+  }
 }
 
-fn Circle.area(self) -> number {
-  return 3.14159 * self.radius * self.radius;
-}
-
-record Rect {
+record Rect implements IShape {
   w : number;
   h : number;
-}
 
-fn Rect.area(self) -> number {
-  return self.w * self.h;
+  fn area() -> number {
+    return self.w * self.h;
+  }
 }
 
 let mut c = new Circle { radius : 5 };
@@ -217,6 +225,11 @@ for s in shapes {
 
 print(total);
 ```
+
+The clause is checked where it is written, so a missing or mismatched method is
+reported at the record rather than at the first place the record is used as an
+interface. An interface travels with the records that implement it: importing
+`Circle` brings `IShape` along, whether or not the importing module names it.
 
 ### Modules
 

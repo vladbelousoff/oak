@@ -178,7 +178,7 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_PROGRAM_ITEM | OAK_RULE_REPEAT,
     },
   },
-  // PROGRAM_ITEM -> ATTR_DECL | EXPORT_DECL | IMPORT_DECL | IMPORT_SELECTIVE | IMPORT_WILDCARD | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL | STMT
+  // PROGRAM_ITEM -> ATTR_DECL | EXPORT_DECL | IMPORT_DECL | IMPORT_SELECTIVE | IMPORT_WILDCARD | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL | STMT
   [OAK_NODE_PROGRAM_ITEM] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
@@ -187,7 +187,6 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IMPORT_DECL,
       OAK_NODE_IMPORT_SELECTIVE,
       OAK_NODE_IMPORT_WILDCARD,
-      OAK_NODE_METHOD_DECL,
       OAK_NODE_FN_DECL,
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
@@ -214,32 +213,70 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_DOT_SEP,
     },
   },
-  // RECORD_DECL_EMPTY -> 'record' TYPE_NAME ';'
-  //   (unary: child = TYPE_NAME)
+  // RECORD_DECL_EMPTY -> 'record' RECORD_DECL_HEADER ';'
+  //   (unary: child = RECORD_DECL_HEADER)
   [OAK_NODE_RECORD_DECL_EMPTY] = {
     .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_RECORD | OAK_RULE_TOKEN,
-      OAK_NODE_TYPE_NAME,
+      OAK_NODE_RECORD_DECL_HEADER,
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // RECORD_DECL -> 'record' TYPE_NAME '{' RECORD_FIELDS '}'
-  //   (binary: lhs = TYPE_NAME, rhs = RECORD_FIELDS)
+  // RECORD_DECL -> 'record' RECORD_DECL_HEADER '{' RECORD_MEMBERS '}'
+  //   (binary: lhs = RECORD_DECL_HEADER, rhs = RECORD_MEMBERS)
   [OAK_NODE_RECORD_DECL] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
       OAK_TOKEN_RECORD | OAK_RULE_TOKEN,
-      OAK_NODE_TYPE_NAME,
+      OAK_NODE_RECORD_DECL_HEADER,
       OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_RECORD_FIELDS,
+      OAK_NODE_RECORD_MEMBERS,
       OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
     },
   },
-  // RECORD_FIELDS -> RECORD_FIELD_DECL*
-  [OAK_NODE_RECORD_FIELDS] = {
+  // RECORD_DECL_HEADER -> RECORD_DECL_HEADER_IMPL | TYPE_NAME
+  [OAK_NODE_RECORD_DECL_HEADER] = {
+    .op = OAK_GRAMMAR_CHOICE,
     .rules = {
-      OAK_NODE_RECORD_FIELD_DECL | OAK_RULE_REPEAT,
+      OAK_NODE_RECORD_DECL_HEADER_IMPL,
+      OAK_NODE_TYPE_NAME,
+    },
+  },
+  // RECORD_DECL_HEADER_IMPL -> TYPE_NAME 'implements' RECORD_IMPLEMENTATIONS
+  [OAK_NODE_RECORD_DECL_HEADER_IMPL] = {
+    .op = OAK_GRAMMAR_BINARY,
+    .rules = {
+      OAK_NODE_TYPE_NAME,
+      OAK_TOKEN_IMPLEMENTS | OAK_RULE_TOKEN,
+      OAK_NODE_RECORD_IMPLEMENTATIONS,
+    },
+  },
+  // RECORD_IMPLEMENTATIONS -> IDENT (',' IDENT)*
+  [OAK_NODE_RECORD_IMPLEMENTATIONS] = {
+    .rules = {
+      OAK_NODE_IDENT | OAK_RULE_REPEAT | OAK_RULE_COMMA_SEP,
+    },
+  },
+  // RECORD_MEMBERS -> RECORD_MEMBER*
+  //   May be empty: a native record binds its fields from C and declares only
+  //   methods, and `record File { }` with neither is still a valid type.
+  [OAK_NODE_RECORD_MEMBERS] = {
+    .rules = {
+      OAK_NODE_RECORD_MEMBER | OAK_RULE_REPEAT,
+    },
+  },
+  // RECORD_MEMBER -> RECORD_FIELD_DECL | ATTR_DECL | EXPORT_DECL | FN_DECL
+  //   Transparent choice, so the collected child is the field or fn itself.
+  //   The wrappers admit nested records and enums grammatically; the compiler
+  //   rejects those in oak_register_program_methods.
+  [OAK_NODE_RECORD_MEMBER] = {
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_RECORD_FIELD_DECL,
+      OAK_NODE_ATTR_DECL,
+      OAK_NODE_EXPORT_DECL,
+      OAK_NODE_FN_DECL,
     },
   },
   // RECORD_FIELD_DECL -> IDENT ':' TYPE_NAME ';'
@@ -327,7 +364,7 @@ oak_grammar_entry_t oak_grammar[] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_IDENT,
   },
-  // SELF -> 'self' (used as a primary expression and inside FN_PARAM_SELF).
+  // SELF -> 'self' (the implicit receiver, valid only inside a method body).
   [OAK_NODE_SELF] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_SELF,
@@ -579,10 +616,26 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_FN_NAME,
     },
   },
-  // FN_PREFIX -> 'fn' (token leaf, same pattern as IDENT)
+  // FN_PREFIX -> 'fn' FN_RECEIVER_MODE?
+  //   (unary: child = FN_RECEIVER_MODE?, null for a plain `fn`)
+  //   Carrying the mode here rather than in FN_HEAD keeps FN_HEAD binary, so
+  //   oak_fn_name_node still reads head->rhs.
   [OAK_NODE_FN_PREFIX] = {
-    .op = OAK_GRAMMAR_TOKEN,
-    .token_kind = OAK_TOKEN_FN,
+    .op = OAK_GRAMMAR_UNARY,
+    .rules = {
+      OAK_TOKEN_FN | OAK_RULE_TOKEN,
+      OAK_NODE_FN_RECEIVER_MODE | OAK_RULE_OPTIONAL,
+    },
+  },
+  // FN_RECEIVER_MODE -> 'mut' | 'static'
+  //   Transparent choice: `mut` makes the receiver mutable, `static` says there
+  //   is no receiver. Absent means an instance method with an immutable one.
+  [OAK_NODE_FN_RECEIVER_MODE] = {
+    .op = OAK_GRAMMAR_CHOICE,
+    .rules = {
+      OAK_NODE_MUT_KEYWORD,
+      OAK_NODE_STATIC_KEYWORD,
+    },
   },
   // FN_PARAMS_AND_RET -> FN_PARAM_LIST FN_RETURN_TYPE?
   //   (binary: lhs = FN_PARAM_LIST, rhs = FN_RETURN_TYPE?)
@@ -593,13 +646,13 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_FN_RETURN_TYPE | OAK_RULE_OPTIONAL,
     },
   },
-  // FN_PARAM_LIST -> '(' FN_PARAM_SELF? FN_PARAMS ')'
-  //   (binary: lhs = FN_PARAM_SELF?, rhs = FN_PARAMS)
+  // FN_PARAM_LIST -> '(' FN_PARAMS ')'
+  //   (unary: child = FN_PARAMS)
+  //   The receiver is not a parameter — it lives on FN_PREFIX.
   [OAK_NODE_FN_PARAM_LIST] = {
-    .op = OAK_GRAMMAR_BINARY,
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
-      OAK_NODE_FN_PARAM_SELF | OAK_RULE_OPTIONAL,
       OAK_NODE_FN_PARAMS,
       OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,
     },
@@ -628,19 +681,13 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
     },
   },
-  // FN_PARAM_SELF -> MUT_KEYWORD? 'self' ','?
-  //   (binary: lhs = MUT_KEYWORD?, rhs = SELF)
-  [OAK_NODE_FN_PARAM_SELF] = {
-    .op = OAK_GRAMMAR_BINARY,
-    .rules = {
-      OAK_NODE_MUT_KEYWORD | OAK_RULE_OPTIONAL,
-      OAK_NODE_SELF,
-      OAK_TOKEN_COMMA | OAK_RULE_TOKEN | OAK_RULE_OPTIONAL,
-    },
-  },
   [OAK_NODE_MUT_KEYWORD] = {
     .op = OAK_GRAMMAR_TOKEN,
     .token_kind = OAK_TOKEN_MUT,
+  },
+  [OAK_NODE_STATIC_KEYWORD] = {
+    .op = OAK_GRAMMAR_TOKEN,
+    .token_kind = OAK_TOKEN_STATIC,
   },
   [OAK_NODE_BINARY_ADD]        = { .op = OAK_GRAMMAR_BINARY },
   [OAK_NODE_BINARY_SUB]        = { .op = OAK_GRAMMAR_BINARY },
@@ -818,53 +865,6 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_FN_DECL | OAK_RULE_REPEAT,
     },
   },
-  // IMPL_DECL -> 'impl' IDENT '{' IMPL_MEMBERS '}'
-  //   (binary: lhs = IDENT (type name), rhs = IMPL_MEMBERS)
-  [OAK_NODE_IMPL_DECL] = {
-    .op = OAK_GRAMMAR_BINARY,
-    .rules = {
-      OAK_TOKEN_IMPL | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT,
-      OAK_TOKEN_LBRACE | OAK_RULE_TOKEN,
-      OAK_NODE_IMPL_MEMBERS,
-      OAK_TOKEN_RBRACE | OAK_RULE_TOKEN,
-    },
-  },
-  // IMPL_MEMBERS -> FN_DECL*
-  [OAK_NODE_IMPL_MEMBERS] = {
-    .rules = {
-      OAK_NODE_FN_DECL | OAK_RULE_REPEAT,
-    },
-  },
-  // METHOD_DECL -> METHOD_PROTO FN_DECL_BODY
-  //   (binary: lhs = METHOD_PROTO, rhs = FN_DECL_BODY)
-  [OAK_NODE_METHOD_DECL] = {
-    .op = OAK_GRAMMAR_BINARY,
-    .rules = {
-      OAK_NODE_METHOD_PROTO,
-      OAK_NODE_FN_DECL_BODY,
-    },
-  },
-  // METHOD_PROTO -> METHOD_HEAD FN_PARAMS_AND_RET
-  //   (binary: lhs = METHOD_HEAD, rhs = FN_PARAMS_AND_RET)
-  [OAK_NODE_METHOD_PROTO] = {
-    .op = OAK_GRAMMAR_BINARY,
-    .rules = {
-      OAK_NODE_METHOD_HEAD,
-      OAK_NODE_FN_PARAMS_AND_RET,
-    },
-  },
-  // METHOD_HEAD -> 'fn' IDENT '.' IDENT
-  //   (binary: lhs = type IDENT, rhs = method IDENT)
-  [OAK_NODE_METHOD_HEAD] = {
-    .op = OAK_GRAMMAR_BINARY,
-    .rules = {
-      OAK_TOKEN_FN | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT,
-      OAK_TOKEN_DOT | OAK_RULE_TOKEN,
-      OAK_NODE_IDENT,
-    },
-  },
   // ATTR -> '@' IDENT
   //   (unary: child = IDENT — the attribute name)
   [OAK_NODE_ATTR] = {
@@ -874,7 +874,7 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // ATTR_DECL -> ATTR ATTR* (EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL)
+  // ATTR_DECL -> ATTR ATTR* (EXPORT_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL)
   //   Sequence node; children: one or more ATTR nodes followed by the declaration node.
   //   The required first ATTR ensures ATTR_DECL fails immediately if no '@' is present,
   //   preventing it from accidentally consuming plain declarations.
@@ -885,13 +885,12 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_ATTR_DECL_BODY,          /* the actual declaration */
     },
   },
-  // ATTR_DECL_BODY -> EXPORT_DECL | METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL
+  // ATTR_DECL_BODY -> EXPORT_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL
   //   Transparent choice — returns the matched declaration node directly.
   [OAK_NODE_ATTR_DECL_BODY] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
       OAK_NODE_EXPORT_DECL,
-      OAK_NODE_METHOD_DECL,
       OAK_NODE_FN_DECL,
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,
@@ -899,7 +898,7 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_INTERFACE_DECL,
     },
   },
-  // EXPORT_DECL -> 'export' (METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL)
+  // EXPORT_DECL -> 'export' (FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL)
   //   Unary: child = exported declaration. Attributes go before export:
   //   @Attr export fn ...
   [OAK_NODE_EXPORT_DECL] = {
@@ -909,12 +908,11 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_EXPORT_DECL_BODY,
     },
   },
-  // EXPORT_DECL_BODY -> METHOD_DECL | FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL
+  // EXPORT_DECL_BODY -> FN_DECL | RECORD_DECL_EMPTY | RECORD_DECL | ENUM_DECL | INTERFACE_DECL
   //   Transparent choice — returns the matched declaration node directly.
   [OAK_NODE_EXPORT_DECL_BODY] = {
     .op = OAK_GRAMMAR_CHOICE,
     .rules = {
-      OAK_NODE_METHOD_DECL,
       OAK_NODE_FN_DECL,
       OAK_NODE_RECORD_DECL_EMPTY,
       OAK_NODE_RECORD_DECL,

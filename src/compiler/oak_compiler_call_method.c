@@ -58,8 +58,7 @@ static int method_self_is_mut(const oak_ast_node_t* decl,
 {
   if (!decl)
     return lowered_self_is_mut;
-  const oak_ast_node_t* self_p = oak_fn_self_param(decl);
-  return self_p && oak_self_is_mut(self_p);
+  return oak_fn_self_is_mut(decl);
 }
 
 static void compile_builtin_call_args(oak_compiler_t* c,

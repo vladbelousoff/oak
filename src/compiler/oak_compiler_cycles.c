@@ -107,6 +107,8 @@ field_decl_token(const oak_ast_node_t* program,
       continue;
 
     const oak_ast_node_t* name_ident = item->lhs;
+    if (name_ident->kind == OAK_NODE_RECORD_DECL_HEADER_IMPL)
+      name_ident = name_ident->lhs;
     if (name_ident->kind == OAK_NODE_TYPE_NAME)
     {
       const oak_list_entry_t* first = name_ident->children.next;
@@ -123,6 +125,7 @@ field_decl_token(const oak_ast_node_t* program,
     {
       const oak_ast_node_t* fdecl =
           oak_container_of(fpos, oak_ast_node_t, link);
+      /* Skips methods, which share the member list with fields. */
       if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs)
         continue;
       if (fdecl->lhs->kind == OAK_NODE_IDENT &&

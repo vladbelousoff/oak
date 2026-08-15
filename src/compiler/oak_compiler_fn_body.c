@@ -114,15 +114,15 @@ void oak_compile_fn_body(
   int slot = 0;
   if (recv)
   {
-    const oak_ast_node_t* sp = oak_fn_self_param(decl);
-    oak_assert(sp != null);
+    /* `self` is not written in the parameter list; the caller passing a
+     * receiver is what puts it in scope, at slot 0 ahead of the params. */
     oak_type_t self_ty;
     oak_type_clear(&self_ty);
     self_ty.id = recv->type_id;
     oak_compiler_add_local(c,
                            "self",
                            slot++,
-                           oak_self_is_mut(sp),
+                           oak_fn_self_is_mut(decl),
                            self_ty);
   }
 
@@ -134,8 +134,8 @@ void oak_compile_fn_body(
     return;
   }
 
-  /* FN_PARAM_LIST is BINARY: lhs = FN_PARAM_SELF?, rhs = FN_PARAMS. */
-  const oak_ast_node_t* params = plist->rhs;
+  /* FN_PARAM_LIST is UNARY: child = FN_PARAMS. */
+  const oak_ast_node_t* params = plist->child;
   if (!params)
   {
     oak_compiler_error_at(c, decl->token, "malformed function declaration");

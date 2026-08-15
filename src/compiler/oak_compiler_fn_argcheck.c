@@ -35,8 +35,9 @@ static int check_interface_coercion(oak_compiler_t* c,
     return 1;
   if (sd)
     oak_compiler_error_at(c, err_tok,
-                          "argument %d: type '%s' does not implement interface '%s'",
-                          arg_num, sd->name, tr->name);
+                          "argument %d: type '%s' does not implement "
+                          "interface '%s'; add 'implements %s'",
+                          arg_num, sd->name, tr->name, tr->name);
   else
     oak_compiler_error_at(c, err_tok,
                           "argument %d: cannot coerce '%s' to interface '%s'",

@@ -319,22 +319,63 @@ UTEST_F(compiler_types, weak_rejects_temporaries_and_does_not_satisfy_strong)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* Methods are declared as `fn TypeName.method(...)` at module scope; a `fn`
- * inside the record body is not accepted syntax. */
-UTEST_F(compiler_types, functions_inside_a_record_body_are_rejected)
+/* The record body is where methods live: a `static` one alongside an instance
+ * one, both reached through the type they are declared in. */
+UTEST_F(compiler_types, functions_inside_a_record_body_are_methods)
 {
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number;\n"
-      "  fn origin() -> Point {\n"
+      "  fn static origin() -> Point {\n"
       "    return new Point { x : 0, y : 0 };\n"
       "  }\n"
-      "}\n",
-      null },
-    { "record Point { x : number; y : number;\n"
-      "  fn dup(self) -> number { return self.x; }\n"
-      "}\n",
+      "  fn dup() -> number { return self.x; }\n"
+      "}\n"
+      "print(Point.origin().dup());\n",
       null },
   };
 
-  OAK_EXPECT_REJECTED_CASES(cases);
+  OAK_EXPECT_OK_CASES(cases);
+}
+
+/* The `export` and `@Attr` wrappers accept any declaration, so a nested record
+ * or enum reaches the compiler and has to be turned away there rather than by
+ * the grammar. */
+UTEST_F(compiler_types, a_record_body_holds_only_fields_and_methods)
+{
+  static const oak_case_t cases[] = {
+    { "record P { x : number;\n"
+      "  export enum E { A }\n"
+      "}\n",
+      "move this declaration out of record 'P'" },
+    { "record P { x : number;\n"
+      "  export record Q { y : number; }\n"
+      "}\n",
+      "move this declaration out of record 'P'" },
+    /* An empty body is still a mistake; `record P;` is how you spell it. */
+    { "record P {}\n", "use 'record P;' instead of '{}'" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/* The two spellings a pre-methods-in-records program uses. Both are dead
+ * grammar, so the token-level "expected X, got Y" would say nothing about why;
+ * these pin the hints that replace it. */
+UTEST_F(compiler_types, the_old_method_syntax_explains_itself)
+{
+  static const oak_case_t cases[] = {
+    { "record Point { x : number; }\n"
+      "fn Point.dup(self) -> number { return self.x; }\n",
+      "methods are declared inside their record" },
+    { "record Point { x : number;\n"
+      "  fn dup(self) -> number { return self.x; }\n"
+      "}\n",
+      "the receiver is not a parameter" },
+    { "record Point { x : number;\n"
+      "  fn bump(mut self, d : number) { self.x += d; }\n"
+      "}\n",
+      "'fn mut name()' for a mutable one" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }

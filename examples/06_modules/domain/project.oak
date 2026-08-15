@@ -5,6 +5,22 @@ export record Task {
   points : number;
   priority : Priority;
   done : bool;
+
+  export fn describe() -> string {
+    if self.done {
+      return self.title + ' [done]';
+    }
+    return self.title + ' [open]';
+  }
+
+  export fn mut mark_done() {
+    self.done = true;
+  }
+
+  /* Not exported: reachable from inside this module only. */
+  fn internal_helper() -> string {
+    return 'internal';
+  }
 }
 
 export fn make_task(title : string, points : number, priority : Priority) -> Task {
@@ -35,19 +51,4 @@ export fn summary(task : Task) -> string {
     return task.title + ' done';
   }
   return task.title + ' open';
-}
-
-export fn Task.describe(self) -> string {
-  if self.done {
-    return self.title + ' [done]';
-  }
-  return self.title + ' [open]';
-}
-
-export fn Task.mark_done(mut self) {
-  self.done = true;
-}
-
-fn Task.internal_helper(self) -> string {
-  return 'internal';
 }

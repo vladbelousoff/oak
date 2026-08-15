@@ -87,14 +87,20 @@ const char* oak_ast_node_kind_name(const oak_node_kind_t kind)
       return "RECORD_DECL";
     case OAK_NODE_RECORD_DECL_EMPTY:
       return "RECORD_DECL_EMPTY";
+    case OAK_NODE_RECORD_DECL_HEADER:
+      return "RECORD_DECL_HEADER";
+    case OAK_NODE_RECORD_DECL_HEADER_IMPL:
+      return "RECORD_DECL_HEADER_IMPL";
+    case OAK_NODE_RECORD_IMPLEMENTATIONS:
+      return "RECORD_IMPLEMENTATIONS";
     case OAK_NODE_TYPE_NAME:
       return "TYPE_NAME";
     case OAK_NODE_RECORD_FIELD_DECL:
       return "RECORD_FIELD_DECL";
     case OAK_NODE_RECORD_MEMBER:
       return "RECORD_MEMBER";
-    case OAK_NODE_RECORD_FIELDS:
-      return "RECORD_FIELDS";
+    case OAK_NODE_RECORD_MEMBERS:
+      return "RECORD_MEMBERS";
     case OAK_NODE_ENUM_DECL:
       return "ENUM_DECL";
     case OAK_NODE_IDENT:
@@ -177,12 +183,14 @@ const char* oak_ast_node_kind_name(const oak_node_kind_t kind)
       return "FN_RETURN_TYPE";
     case OAK_NODE_FN_PARAM:
       return "FN_PARAM";
-    case OAK_NODE_FN_PARAM_SELF:
-      return "FN_PARAM_SELF";
     case OAK_NODE_SELF:
       return "SELF";
     case OAK_NODE_MUT_KEYWORD:
       return "MUT_KEYWORD";
+    case OAK_NODE_STATIC_KEYWORD:
+      return "STATIC_KEYWORD";
+    case OAK_NODE_FN_RECEIVER_MODE:
+      return "FN_RECEIVER_MODE";
     case OAK_NODE_FN_CALL:
       return "FN_CALL";
     case OAK_NODE_FN_CALL_ARG:
@@ -273,16 +281,6 @@ const char* oak_ast_node_kind_name(const oak_node_kind_t kind)
       return "INTERFACE_DECL";
     case OAK_NODE_INTERFACE_MEMBERS:
       return "INTERFACE_MEMBERS";
-    case OAK_NODE_IMPL_DECL:
-      return "IMPL_DECL";
-    case OAK_NODE_IMPL_MEMBERS:
-      return "IMPL_MEMBERS";
-    case OAK_NODE_METHOD_DECL:
-      return "METHOD_DECL";
-    case OAK_NODE_METHOD_PROTO:
-      return "METHOD_PROTO";
-    case OAK_NODE_METHOD_HEAD:
-      return "METHOD_HEAD";
     case OAK_NODE_ATTR:
       return "ATTR";
     case OAK_NODE_ATTR_DECL:

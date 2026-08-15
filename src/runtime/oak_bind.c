@@ -93,6 +93,11 @@ void oak_compile_options_free(oak_compile_options_t* opts)
     for (usize fi = 0; fi < oak_size(types[i]->fields); ++fi)
       oak_free(opts->allocator, (void*)fields[fi].name, OAK_HERE);
     oak_destroy(types[i]->fields);
+    char* const* interface_names =
+        OAK_DATA(char*, types[i]->interface_names);
+    for (usize ii = 0; ii < oak_size(types[i]->interface_names); ++ii)
+      oak_free(opts->allocator, interface_names[ii], OAK_HERE);
+    oak_destroy(types[i]->interface_names);
     oak_free(opts->allocator, types[i], OAK_HERE);
   }
   oak_destroy(opts->native_types);
@@ -146,13 +151,34 @@ oak_bind_type_t* oak_bind_type_in_module(
   t->resolved_type_id = OAK_TYPE_VOID;
   t->allocator = opts->allocator;
   t->fields = oak_vector_new(t->allocator, sizeof(oak_bind_field_t));
-  oak_assert(t->fields);
+  t->interface_names = oak_vector_new(t->allocator, sizeof(char*));
+  oak_assert(t->fields && t->interface_names);
   t->opts = opts;
   t->destructor = null;
   t->user_data = null;
 
   oak_assert(oak_push_back(opts->native_types, &t));
   return t;
+}
+
+int oak_bind_type_implements(oak_bind_type_t* type,
+                             const char* interface_name)
+{
+  if (!type || !interface_name || !interface_name[0])
+    return -1;
+  char* const* names = OAK_DATA(char*, type->interface_names);
+  for (usize i = 0; i < oak_size(type->interface_names); ++i)
+    if (strcmp(names[i], interface_name) == 0)
+      return bind_reject(type->opts,
+                         "duplicate implemented interface '%s' on '%s'",
+                         interface_name, type->name);
+  const usize len = strlen(interface_name) + 1u;
+  char* copy = oak_alloc(type->allocator, len, OAK_HERE);
+  if (!copy)
+    return -1;
+  memcpy(copy, interface_name, len);
+  oak_assert(oak_push_back(type->interface_names, &copy));
+  return 0;
 }
 
 int oak_bind_field(oak_bind_type_t* type,

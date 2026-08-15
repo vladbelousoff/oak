@@ -313,18 +313,29 @@ loader_fn_decl_param_list(const oak_ast_node_t* decl)
   return tail ? tail->lhs : null;
 }
 
+/* FN_HEAD is BINARY: lhs = FN_PREFIX, which is UNARY with
+ * child = FN_RECEIVER_MODE? — MUT_KEYWORD, STATIC_KEYWORD, or null. */
+static const oak_ast_node_t*
+loader_fn_decl_receiver_mode(const oak_ast_node_t* decl)
+{
+  const oak_ast_node_t* proto = decl ? decl->lhs : null;
+  const oak_ast_node_t* head = proto ? proto->lhs : null;
+  const oak_ast_node_t* prefix = head ? head->lhs : null;
+  return prefix ? prefix->child : null;
+}
+
 static int loader_fn_decl_has_self(const oak_ast_node_t* decl)
 {
-  const oak_ast_node_t* plist = loader_fn_decl_param_list(decl);
-  return plist && plist->lhs;
+  const oak_ast_node_t* mode = loader_fn_decl_receiver_mode(decl);
+  return !(mode && mode->kind == OAK_NODE_STATIC_KEYWORD);
 }
 
 static usize loader_fn_decl_param_count(const oak_ast_node_t* decl)
 {
   const oak_ast_node_t* plist = loader_fn_decl_param_list(decl);
-  if (!plist || !plist->rhs)
+  if (!plist || !plist->child)
     return 0;
-  return oak_list_length(&plist->rhs->children);
+  return oak_list_length(&plist->child->children);
 }
 
 static int loader_fn_decl_is_bodyless(const oak_ast_node_t* decl)
@@ -332,52 +343,12 @@ static int loader_fn_decl_is_bodyless(const oak_ast_node_t* decl)
   return decl && decl->rhs && decl->rhs->kind == OAK_NODE_FN_DECL_SEMICOLON;
 }
 
-/* Helpers for top-level METHOD_DECL nodes:
- *   METHOD_DECL (binary: lhs=METHOD_PROTO, rhs=FN_DECL_BODY)
- *     METHOD_PROTO (binary: lhs=METHOD_HEAD, rhs=FN_PARAMS_AND_RET)
- *       METHOD_HEAD (binary: lhs=type IDENT, rhs=method IDENT) */
-static const oak_ast_node_t*
-loader_method_decl_type_node(const oak_ast_node_t* decl)
-{
-  const oak_ast_node_t* proto = decl ? decl->lhs : null;
-  const oak_ast_node_t* head = proto ? proto->lhs : null;
-  return head ? head->lhs : null;
-}
-
-static const oak_ast_node_t*
-loader_method_decl_name_node(const oak_ast_node_t* decl)
-{
-  const oak_ast_node_t* proto = decl ? decl->lhs : null;
-  const oak_ast_node_t* head = proto ? proto->lhs : null;
-  return head ? head->rhs : null;
-}
-
-static const oak_ast_node_t*
-loader_method_decl_param_list(const oak_ast_node_t* decl)
-{
-  const oak_ast_node_t* proto = decl ? decl->lhs : null;
-  const oak_ast_node_t* params_ret = proto ? proto->rhs : null;
-  return params_ret ? params_ret->lhs : null;
-}
-
-static int loader_method_decl_has_self(const oak_ast_node_t* decl)
-{
-  const oak_ast_node_t* plist = loader_method_decl_param_list(decl);
-  return plist && plist->lhs;
-}
-
-static usize loader_method_decl_param_count(const oak_ast_node_t* decl)
-{
-  const oak_ast_node_t* plist = loader_method_decl_param_list(decl);
-  if (!plist || !plist->rhs)
-    return 0;
-  return oak_list_length(&plist->rhs->children);
-}
-
 static const oak_ast_node_t*
 loader_record_decl_name_node(const oak_ast_node_t* record_decl)
 {
   const oak_ast_node_t* name = record_decl ? record_decl->lhs : null;
+  if (name && name->kind == OAK_NODE_RECORD_DECL_HEADER_IMPL)
+    name = name->lhs;
   if (name && name->kind == OAK_NODE_TYPE_NAME)
   {
     const oak_list_entry_t* first = name->children.next;
@@ -475,29 +446,6 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
         loader_error(out,
                      "%s: bodyless function '%s' has no native binding",
                      mod->dotted_name,
-                     name);
-        ok = 0;
-      }
-      continue;
-    }
-    if (item->kind == OAK_NODE_METHOD_DECL && loader_fn_decl_is_bodyless(item))
-    {
-      const oak_ast_node_t* type_node = loader_method_decl_type_node(item);
-      const oak_ast_node_t* name_node = loader_method_decl_name_node(item);
-      if (!type_node || !name_node)
-        continue;
-      const char* type_name = oak_token_text(type_node->token);
-      const char* name = oak_token_text(name_node->token);
-      const int has_self = loader_method_decl_has_self(item);
-      const usize arity = loader_method_decl_param_count(item);
-      const oak_bind_type_t* receiver =
-          find_native_type_decl(opts, mod->dotted_name, type_name);
-      if (!native_method_decl_exists(opts, receiver, name, has_self, arity))
-      {
-        loader_error(out,
-                     "%s: bodyless method '%s.%s' has no native binding",
-                     mod->dotted_name,
-                     type_name,
                      name);
         ok = 0;
       }
@@ -636,7 +584,14 @@ oak_module_t* create_native_module(
         a, sizeof(oak_module_export_record_field_t));
     exp.methods = oak_vector_new(
         a, sizeof(oak_module_export_record_method_t));
-    oak_assert(exp.fields && exp.methods);
+    exp.interface_names = oak_vector_new(a, sizeof(const char*));
+    oak_assert(exp.fields && exp.methods && exp.interface_names);
+    char* const* interface_names = OAK_DATA(char*, type->interface_names);
+    for (usize ii = 0; ii < oak_size(type->interface_names); ++ii)
+    {
+      const char* interface_name = interface_names[ii];
+      oak_assert(oak_push_back(exp.interface_names, &interface_name));
+    }
     const oak_bind_field_t* type_fields =
         OAK_CDATA(oak_bind_field_t, type->fields);
     for (usize fi = 0; fi < oak_size(type->fields); ++fi)

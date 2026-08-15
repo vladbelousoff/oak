@@ -208,6 +208,27 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
   root = oak_parser_root(parsed);
   r.parsed = root != null;
 
+  if (!root)
+  {
+    /* Parse diagnostics go in the same buffer as compile ones, so a test can
+     * assert on a syntax message the way it asserts on a type error. Without
+     * this a rejected-at-parse row could only be checked for "was rejected",
+     * which passes just as happily when the parser choked for another
+     * reason. */
+    const oak_diagnostic_t* errors = oak_parser_errors(parsed);
+    const int count = oak_parser_error_count(parsed);
+    usize used = 0;
+    for (int i = 0; i < count && errors; ++i)
+    {
+      const usize space = sizeof(r.diag) - used;
+      const int written = snprintf(
+          r.diag + used, space, "%s%s", used ? "\n" : "", errors[i].message);
+      if (written < 0 || (usize)written >= space)
+        break;
+      used += (usize)written;
+    }
+  }
+
   if (root)
   {
     oak_compile_ex(root, opts, &compiled);
@@ -489,6 +510,7 @@ void oak_test_explain(const oak_run_result_t* r, const char* src)
   if (!r->parsed)
   {
     printf("    stage:  parse failed\n");
+    printf("    diag:   %s\n", r->diag[0] ? r->diag : "(none)");
     return;
   }
   if (!r->compiled)

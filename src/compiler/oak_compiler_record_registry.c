@@ -34,6 +34,8 @@ void oak_record_registry_free(oak_record_registry_t* r)
     }
     oak_destroy(e->fields);
     oak_destroy(e->methods);
+    oak_destroy(e->interface_names);
+    oak_destroy(e->interfaces);
   }
   oak_destroy(r->entries);
 }
