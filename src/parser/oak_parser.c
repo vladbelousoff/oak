@@ -319,7 +319,7 @@ static const char* oak_parser_node_display(const oak_node_kind_t kind)
     case OAK_NODE_EXPORT_DECL:
     case OAK_NODE_EXPORT_DECL_BODY:
       return "an exported declaration";
-    case OAK_NODE_EXPR_FN:
+    case OAK_NODE_EXPR_LAMBDA:
       return "an anonymous function";
     case OAK_NODE_TYPE_FN:
       return "a function type";

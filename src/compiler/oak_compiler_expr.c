@@ -246,7 +246,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
     case OAK_NODE_STMT_MOD_ASSIGN:
       oak_compiler_compile_compound_assign(c, node);
       break;
-    case OAK_NODE_EXPR_FN:
+    case OAK_NODE_EXPR_LAMBDA:
       oak_compile_expr_fn(c, node);
       break;
     case OAK_NODE_FN_CALL:

@@ -69,20 +69,31 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         find_pratt_rule(entry->pratt.prefix, oak_token_kind(token));
     if (r)
     {
+      oak_list_entry_t* saved = p->curr;
       p->curr = p->curr->next;
       switch (r->kind)
       {
         case OAK_PRATT_GROUP:
+          /* A '(' does not have to open a grouped expression: it also opens an
+           * anonymous function's parameter list. Rather than look ahead, fall
+           * back to the primary rule -- which offers EXPR_LAMBDA -- the way
+           * oak_parser_parse_choice retries its alternatives. The failure
+           * detail is still recorded, and oak_parser_should_replace_detail
+           * keeps whichever attempt got furthest, so a genuinely malformed
+           * '(1 +' still reports the error from inside the parens. */
           lhs = oak_parser_parse_pratt(p, kind, 0);
           if (!lhs)
           {
             oak_parser_detail_expected_node(p, kind, kind);
-            return null;
+            p->curr = saved;
+            break;
           }
           if (!oak_parser_try_skip_token(p, r->close_token))
           {
             oak_parser_detail_expected_token(p, kind, r->close_token);
-            return null;
+            lhs = null;
+            p->curr = saved;
+            break;
           }
           break;
         default:

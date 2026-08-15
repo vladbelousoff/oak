@@ -141,11 +141,12 @@ enum oak_node_kind
   /* Restricted choice for function names.
    * Transparent (CHOICE): returns the matched child directly. */
   OAK_NODE_FN_NAME,
-  /* fn(x: number) -> number { return x; }
-   * Anonymous function expression.
+  /* (x: number) -> number { return x; }
+   * Anonymous function expression. Carries no keyword: every parameter's
+   * mandatory `:` is what separates it from a parenthesized expression.
    * Binary: lhs = FN_PARAMS_AND_RET, rhs = BLOCK. */
-  OAK_NODE_EXPR_FN,
-  /* fn(number, string) -> bool — function type annotation.
+  OAK_NODE_EXPR_LAMBDA,
+  /* (number, string) -> bool — function type annotation.
    * Binary: lhs = TYPE_FN_PARAMS, rhs = FN_RETURN_TYPE?. */
   OAK_NODE_TYPE_FN,
   /* (number, string) — comma-separated parameter types inside a fn type. */

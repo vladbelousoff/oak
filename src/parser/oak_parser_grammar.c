@@ -425,7 +425,7 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_EXPR_NEW_ARRAY,
       OAK_NODE_EXPR_NEW_MAP,
       OAK_NODE_EXPR_RECORD_LITERAL,
-      OAK_NODE_EXPR_FN,
+      OAK_NODE_EXPR_LAMBDA,
       OAK_NODE_SELF,
       OAK_NODE_IDENT,
     },
@@ -976,22 +976,23 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_NODE_IDENT,
     },
   },
-  // EXPR_FN -> 'fn' FN_PARAMS_AND_RET BLOCK
+  // EXPR_LAMBDA -> FN_PARAMS_AND_RET BLOCK
   //   (binary: lhs = FN_PARAMS_AND_RET, rhs = BLOCK)
-  [OAK_NODE_EXPR_FN] = {
+  //   No leading keyword: an expression in value position is already a value.
+  //   The mandatory `:` on every parameter is what keeps this unambiguous with
+  //   a parenthesized expression -- see oak_parser_parse_pratt.
+  [OAK_NODE_EXPR_LAMBDA] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_TOKEN_FN | OAK_RULE_TOKEN,
       OAK_NODE_FN_PARAMS_AND_RET,
       OAK_NODE_BLOCK,
     },
   },
-  // TYPE_FN -> 'fn' '(' TYPE_FN_PARAMS ')' FN_RETURN_TYPE?
+  // TYPE_FN -> '(' TYPE_FN_PARAMS ')' FN_RETURN_TYPE?
   //   (binary: lhs = TYPE_FN_PARAMS, rhs = FN_RETURN_TYPE?)
   [OAK_NODE_TYPE_FN] = {
     .op = OAK_GRAMMAR_BINARY,
     .rules = {
-      OAK_TOKEN_FN | OAK_RULE_TOKEN,
       OAK_TOKEN_LPAREN | OAK_RULE_TOKEN,
       OAK_NODE_TYPE_FN_PARAMS,
       OAK_TOKEN_RPAREN | OAK_RULE_TOKEN,

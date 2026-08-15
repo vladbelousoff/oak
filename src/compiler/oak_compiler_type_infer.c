@@ -230,7 +230,7 @@ void oak_infer_type(oak_compiler_t* c,
                  ->type;
       return;
     }
-    case OAK_NODE_EXPR_FN:
+    case OAK_NODE_EXPR_LAMBDA:
       out->id = OAK_TYPE_FN;
       out->kind = OAK_TYPE_KIND_FN;
       return;

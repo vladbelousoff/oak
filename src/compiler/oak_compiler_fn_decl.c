@@ -15,7 +15,7 @@ oak_fn_decl_head(const oak_ast_node_t* decl)
 static const oak_ast_node_t*
 oak_fn_decl_params_tail(const oak_ast_node_t* decl)
 {
-  if (decl->kind == OAK_NODE_EXPR_FN)
+  if (decl->kind == OAK_NODE_EXPR_LAMBDA)
     return decl->lhs;
   return oak_fn_decl_proto(decl)->rhs;
 }
@@ -48,7 +48,7 @@ oak_fn_receiver_mode(const oak_ast_node_t* decl)
 {
   /* EXPR_FN has no head at all — it is `fn` followed straight by the params,
    * so it can never carry a mode. */
-  if (decl->kind == OAK_NODE_EXPR_FN)
+  if (decl->kind == OAK_NODE_EXPR_LAMBDA)
     return null;
   const oak_ast_node_t* head = oak_fn_decl_head(decl);
   if (!head || !head->lhs)
