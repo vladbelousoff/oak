@@ -8,7 +8,7 @@ int oak_parser_try_skip_token(oak_parser_t* p,
   if (p->curr == p->head)
     return 0;
   const oak_token_t* token =
-      oak_container_of(p->curr, oak_token_t, link);
+      OAK_CONTAINER_OF(p->curr, oak_token_t, link);
   if (oak_token_kind(token) != token_kind)
     return 0;
   p->curr = p->curr->next;
@@ -26,18 +26,18 @@ usize oak_parser_grammar_rule_count(const oak_grammar_entry_t* entry)
 oak_ast_node_t* oak_parser_parse_token(oak_parser_t* p,
                                               const oak_node_kind_t kind)
 {
-  oak_assert(p);
-  oak_assert(p->curr);
-  oak_assert(p->curr->next);
+  OAK_ASSERT(p);
+  OAK_ASSERT(p->curr);
+  OAK_ASSERT(p->curr->next);
   const oak_token_t* token =
-      oak_container_of(p->curr, oak_token_t, link);
+      OAK_CONTAINER_OF(p->curr, oak_token_t, link);
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
   if (oak_token_kind(token) != entry->token_kind)
-    return null;
+    return OAK_NULL;
   oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
-    return null;
+    return OAK_NULL;
   node->kind = kind;
   node->token = token;
   p->curr = p->curr->next;
@@ -61,7 +61,7 @@ oak_ast_node_t* oak_parser_parse_choice(oak_parser_t* p,
   }
 
   p->curr = saved;
-  return null;
+  return OAK_NULL;
 }
 
 oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
@@ -80,7 +80,7 @@ oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
    * (child for UNARY; lhs/rhs for BINARY). Optional rules that don't match
    * still occupy their slot, storing null so the shape of the node is
    * stable regardless of whether the optional was present. */
-  oak_ast_node_t* slots[2] = { null, null };
+  oak_ast_node_t* slots[2] = { OAK_NULL, OAK_NULL };
   usize slot_count = 0;
   const usize max_slots = is_binary ? 2u : (is_unary ? 1u : 0u);
 
@@ -111,7 +111,7 @@ oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
       {
         oak_parser_detail_expected_token(p, kind, tok);
         p->curr = saved;
-        return null;
+        return OAK_NULL;
       }
       continue;
     }
@@ -122,7 +122,7 @@ oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
         (oak_node_kind_t)(rule & OAK_RULE_KIND_MASK);
     if (is_repeat)
     {
-      oak_assert(!is_fixed);
+      OAK_ASSERT(!is_fixed);
       int is_first = 1;
       for (;;)
       {
@@ -154,12 +154,12 @@ oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
     {
       oak_parser_detail_expected_node(p, kind, child_kind);
       p->curr = saved;
-      return null;
+      return OAK_NULL;
     }
 
     if (is_fixed)
     {
-      oak_assert(slot_count < max_slots);
+      OAK_ASSERT(slot_count < max_slots);
       slots[slot_count++] = child;
       continue;
     }
@@ -172,7 +172,7 @@ oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
   {
     oak_parser_detail_expected_node(p, kind, kind);
     p->curr = saved;
-    return null;
+    return OAK_NULL;
   }
 
   oak_ast_node_t* node =
@@ -180,7 +180,7 @@ oak_ast_node_t* oak_parser_parse_rules(oak_parser_t* p,
   if (!node)
   {
     p->curr = saved;
-    return null;
+    return OAK_NULL;
   }
   node->kind = kind;
 

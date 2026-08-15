@@ -94,7 +94,7 @@ static int rehash(oak_hash_table_t* t, usize new_capacity)
     return 0;
   memset(new_slots, 0, new_capacity * sizeof *new_slots);
 
-  u8* new_values = null;
+  u8* new_values = OAK_NULL;
   if (t->value_size)
   {
     new_values = oak_alloc(allocator, new_capacity * t->value_size, OAK_HERE);
@@ -222,9 +222,9 @@ void* oak_hash_table_find(oak_container_t* c,
 {
   oak_hash_table_t* t = as_table(c);
   if (!key || t->value_size == 0)
-    return null;
+    return OAK_NULL;
   const usize i = find_slot(t, key, key_len, oak_hash_bytes(key, key_len));
-  return i == NO_SLOT ? null : t->values + i * t->value_size;
+  return i == NO_SLOT ? OAK_NULL : t->values + i * t->value_size;
 }
 
 int oak_hash_table_put(oak_container_t* c,
@@ -239,7 +239,7 @@ int oak_hash_table_add(oak_container_t* c,
                        const void* value,
                        usize value_len)
 {
-  return table_store(as_table(c), value, value_len, null, 0);
+  return table_store(as_table(c), value, value_len, OAK_NULL, 0);
 }
 
 int oak_hash_table_erase_key(oak_container_t* c,
@@ -281,7 +281,7 @@ static int seek_live(oak_iterator_t* it, usize from)
       return 1;
     }
   }
-  it->owner = null;
+  it->owner = OAK_NULL;
   return 0;
 }
 
@@ -302,7 +302,7 @@ void* oak_hash_table_iter_get(oak_iterator_t* it)
 {
   oak_hash_table_t* t = as_table((oak_container_t*)it->owner);
   if (t->value_size == 0)
-    return null;
+    return OAK_NULL;
   return t->values + it->state.index * t->value_size;
 }
 
@@ -333,14 +333,14 @@ oak_container_t* oak_hash_table_new(
     const oak_container_vtable_t* vt)
 {
   if (!allocator)
-    return null;
+    return OAK_NULL;
 
   oak_hash_table_t* t = oak_base_alloc(allocator, sizeof *t, &vt->object);
   if (!t)
-    return null;
+    return OAK_NULL;
 
-  t->slots = null;
-  t->values = null;
+  t->slots = OAK_NULL;
+  t->values = OAK_NULL;
   t->capacity = 0;
   t->count = 0;
   t->tombstones = 0;

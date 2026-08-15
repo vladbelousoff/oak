@@ -147,7 +147,7 @@ void oak_compiler_compile_stmt_assignment(oak_compiler_t* c,
     oak_emit_weak_coerce(c, rhs, element_ty, OAK_LOC_SYNTHETIC);
     if (c->has_error)
       return;
-    oak_compiler_emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
     return;
   }
 
@@ -155,7 +155,7 @@ void oak_compiler_compile_stmt_assignment(oak_compiler_t* c,
   {
     const oak_ast_node_t* recv;
     const oak_ast_node_t* fname;
-    const oak_registered_record_t* sd = null;
+    const oak_registered_record_t* sd = OAK_NULL;
     const int idx =
         validate_field_assign_target(c, lhs, &recv, &fname, &sd);
     if (idx < 0)
@@ -202,7 +202,7 @@ void oak_compiler_compile_stmt_assignment(oak_compiler_t* c,
                           oak_compiler_loc_from_token(fname->token));
     if (c->has_error)
       return;
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          OAK_OP_SET_FIELD,
                          oak_compiler_loc_from_token(fname->token),
                          OAK_ARG_U8((u8)idx));
@@ -228,7 +228,7 @@ void oak_compiler_compile_stmt_assignment(oak_compiler_t* c,
     return;
 
   oak_compiler_compile_node(c, rhs);
-  oak_compiler_emit_op(c,
+  OAK_COMPILER_EMIT_OP(c,
                        OAK_OP_SET_LOCAL,
                        oak_compiler_loc_from_token(lhs->token),
                        OAK_ARG_U8((u8)slot));
@@ -253,16 +253,16 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
     oak_compiler_compile_node(c, lhs->rhs);
     oak_compiler_compile_node(c, lhs->lhs);
     oak_compiler_compile_node(c, lhs->rhs);
-    oak_compiler_emit_op(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
     oak_compiler_compile_node(c, node->rhs);
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          oak_binop_for_node(node->kind),
                          oak_compiler_loc_from_token(lhs->token));
     const oak_type_t element_ty = { .id = coll_ty.id };
     oak_emit_weak_coerce(c, node->rhs, element_ty, OAK_LOC_SYNTHETIC);
     if (c->has_error)
       return;
-    oak_compiler_emit_op(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_SET_INDEX, OAK_LOC_SYNTHETIC);
     return;
   }
 
@@ -270,7 +270,7 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
   {
     const oak_ast_node_t* recv;
     const oak_ast_node_t* fname;
-    const oak_registered_record_t* sd = null;
+    const oak_registered_record_t* sd = OAK_NULL;
     const int idx =
         validate_field_assign_target(c, lhs, &recv, &fname, &sd);
     if (idx < 0)
@@ -283,12 +283,12 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
     const oak_record_field_t* field = oak_cget(sd->fields, (usize)idx);
     oak_compiler_compile_node(c, recv);
     oak_compiler_compile_node(c, recv);
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          OAK_OP_GET_FIELD,
                          oak_compiler_loc_from_token(fname->token),
                          OAK_ARG_U8((u8)idx));
     oak_compiler_compile_node(c, node->rhs);
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          oak_binop_for_node(node->kind),
                          oak_compiler_loc_from_token(lhs->token));
     oak_emit_interface_coerce(c,
@@ -303,7 +303,7 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
                           oak_compiler_loc_from_token(fname->token));
     if (c->has_error)
       return;
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          OAK_OP_SET_FIELD,
                          oak_compiler_loc_from_token(fname->token),
                          OAK_ARG_U8((u8)idx));
@@ -318,7 +318,7 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
   if (node->kind == OAK_NODE_STMT_ADD_ASSIGN &&
       oak_is_int_literal(node->rhs, 1))
   {
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          OAK_OP_INC_LOCAL,
                          oak_compiler_loc_from_token(lhs->token),
                          OAK_ARG_U8((u8)slot));
@@ -327,7 +327,7 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
   if (node->kind == OAK_NODE_STMT_SUB_ASSIGN &&
       oak_is_int_literal(node->rhs, 1))
   {
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          OAK_OP_DEC_LOCAL,
                          oak_compiler_loc_from_token(lhs->token),
                          OAK_ARG_U8((u8)slot));
@@ -338,15 +338,15 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
   if (c->has_error)
     return;
 
-  oak_compiler_emit_op(c,
+  OAK_COMPILER_EMIT_OP(c,
                        OAK_OP_GET_LOCAL,
                        oak_compiler_loc_from_token(lhs->token),
                        OAK_ARG_U8((u8)slot));
   oak_compiler_compile_node(c, node->rhs);
-  oak_compiler_emit_op(c,
+  OAK_COMPILER_EMIT_OP(c,
                        oak_binop_for_node(node->kind),
                        oak_compiler_loc_from_token(lhs->token));
-  oak_compiler_emit_op(c,
+  OAK_COMPILER_EMIT_OP(c,
                        OAK_OP_SET_LOCAL,
                        oak_compiler_loc_from_token(lhs->token),
                        OAK_ARG_U8((u8)slot));
@@ -357,12 +357,12 @@ void oak_compiler_compile_let_assignment(oak_compiler_t* c,
 {
   /* STMT_LET_ASSIGNMENT is BINARY: lhs = MUT_KEYWORD? (non-null iff
    * mutable), rhs = STMT_ASSIGNMENT. */
-  const int is_mutable = node->lhs != null;
+  const int is_mutable = node->lhs != OAK_NULL;
   const oak_ast_node_t* assign = node->rhs;
 
   if (!assign || assign->kind != OAK_NODE_STMT_ASSIGNMENT)
   {
-    oak_compiler_error_at(c, null, "malformed 'let' statement");
+    oak_compiler_error_at(c, OAK_NULL, "malformed 'let' statement");
     return;
   }
 

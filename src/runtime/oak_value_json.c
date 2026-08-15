@@ -21,7 +21,7 @@ static char* oak_map_key_cstr(oak_value_t key, unsigned depth)
   {
     char* t = (char*)malloc(5u);
     if (!t)
-      return null;
+      return OAK_NULL;
     memcpy(t, "null", 5u);
     return t;
   }
@@ -30,7 +30,7 @@ static char* oak_map_key_cstr(oak_value_t key, unsigned depth)
     const oak_obj_string_t* s = oak_as_string(key);
     char* t = (char*)malloc(s->length + 1u);
     if (!t)
-      return null;
+      return OAK_NULL;
     memcpy(t, s->chars, s->length);
     t[s->length] = '\0';
     return t;
@@ -39,7 +39,7 @@ static char* oak_map_key_cstr(oak_value_t key, unsigned depth)
   {
     char* t = (char*)malloc(32u);
     if (!t)
-      return null;
+      return OAK_NULL;
     (void)snprintf(t, 32, "%d", oak_as_i32(key));
     return t;
   }
@@ -47,7 +47,7 @@ static char* oak_map_key_cstr(oak_value_t key, unsigned depth)
   {
     char* t = (char*)malloc(32u);
     if (!t)
-      return null;
+      return OAK_NULL;
     (void)snprintf(t, 32, "%.9g", (double)oak_as_f32(key));
     return t;
   }
@@ -57,19 +57,19 @@ static char* oak_map_key_cstr(oak_value_t key, unsigned depth)
     const usize n = (usize)strlen(s) + 1u;
     char* t = (char*)malloc(n);
     if (!t)
-      return null;
+      return OAK_NULL;
     memcpy(t, s, n);
     return t;
   }
   {
     yyjson_mut_doc* const tmp = yyjson_mut_doc_new(NULL);
     if (!tmp)
-      return null;
+      return OAK_NULL;
     yyjson_mut_val* j = oak_value_to_yyjson(tmp, key, depth + 1u);
     if (!j)
     {
       yyjson_mut_doc_free(tmp);
-      return null;
+      return OAK_NULL;
     }
     yyjson_mut_doc_set_root(tmp, j);
     size_t plen;
@@ -142,15 +142,15 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
   {
     yyjson_mut_val* a = yyjson_mut_arr(doc);
     if (!a)
-      return null;
+      return OAK_NULL;
     const oak_obj_array_t* ar = oak_as_array(value);
     for (usize i = 0; i < ar->length; ++i)
     {
       yyjson_mut_val* e = oak_value_to_yyjson(doc, ar->items[i], depth + 1u);
       if (!e)
-        return null;
+        return OAK_NULL;
       if (!yyjson_mut_arr_add_val(a, e))
-        return null;
+        return OAK_NULL;
     }
     return a;
   }
@@ -158,23 +158,23 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
   {
     yyjson_mut_val* o = yyjson_mut_obj(doc);
     if (!o)
-      return null;
+      return OAK_NULL;
     const oak_obj_map_t* m = oak_as_map(value);
     for (usize i = 0; i < m->length; ++i)
     {
       char* kc = oak_map_key_cstr(m->entries[i].key, depth);
       if (!kc)
-        return null;
+        return OAK_NULL;
       yyjson_mut_val* const kj = yyjson_mut_strcpy(doc, kc);
       free(kc);
       if (!kj)
-        return null;
+        return OAK_NULL;
       yyjson_mut_val* vj =
           oak_value_to_yyjson(doc, m->entries[i].value, depth + 1u);
       if (!vj)
-        return null;
+        return OAK_NULL;
       if (!yyjson_mut_obj_add(o, kj, vj))
-        return null;
+        return OAK_NULL;
     }
     return o;
   }
@@ -182,7 +182,7 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
   {
     yyjson_mut_val* o = yyjson_mut_obj(doc);
     if (!o)
-      return null;
+      return OAK_NULL;
     const oak_obj_record_t* s = oak_as_record(value);
     for (int i = 0; i < s->field_count; ++i)
     {
@@ -197,12 +197,12 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
       }
       yyjson_mut_val* fj = oak_value_to_yyjson(doc, s->fields[i], depth + 1u);
       if (!fj)
-        return null;
+        return OAK_NULL;
       yyjson_mut_val* kjv = yyjson_mut_strcpy(doc, key);
       if (!kjv)
-        return null;
+        return OAK_NULL;
       if (!yyjson_mut_obj_add(o, kjv, fj))
-        return null;
+        return OAK_NULL;
     }
     return o;
   }
@@ -214,7 +214,7 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
       return yyjson_mut_null(doc);
     yyjson_mut_val* o = yyjson_mut_obj(doc);
     if (!o)
-      return null;
+      return OAK_NULL;
     {
       const oak_value_t self = value;
       const oak_bind_field_t* type_fields =
@@ -226,9 +226,9 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
         yyjson_mut_val* fj = oak_value_to_yyjson(doc, fv, depth + 1u);
         oak_value_decref(fv);
         if (!fj)
-          return null;
+          return OAK_NULL;
         if (!yyjson_mut_obj_add_val(doc, o, f->name, fj))
-          return null;
+          return OAK_NULL;
       }
     }
     return o;
@@ -257,7 +257,7 @@ oak_value_to_string_in_table(oak_allocator_t* allocator,
     else
       n = snprintf(buf, sizeof(buf), "%d", oak_as_i32(value));
     if (n < 0)
-      return null;
+      return OAK_NULL;
     return oak_string_new_len_in_table(allocator, table_id, buf, (usize)n);
   }
   if (oak_is_string(value))
@@ -281,24 +281,24 @@ oak_value_to_string_in_table(oak_allocator_t* allocator,
                            "%llu",
                            (unsigned long long)oak_value_as_handle(value));
     if (n < 0)
-      return null;
+      return OAK_NULL;
     return oak_string_new_len_in_table(allocator, table_id, buf, (usize)n);
   }
   yyjson_mut_doc* const doc = yyjson_mut_doc_new(NULL);
   if (!doc)
-    return null;
+    return OAK_NULL;
   yyjson_mut_val* const root = oak_value_to_yyjson(doc, value, 0u);
   if (!root)
   {
     yyjson_mut_doc_free(doc);
-    return null;
+    return OAK_NULL;
   }
   yyjson_mut_doc_set_root(doc, root);
   size_t json_len;
   char* p = yyjson_mut_write(doc, YYJSON_WRITE_PRETTY_TWO_SPACES, &json_len);
   yyjson_mut_doc_free(doc);
   if (!p)
-    return null;
+    return OAK_NULL;
   oak_obj_string_t* s =
       oak_string_new_len_in_table(allocator, table_id, p, json_len);
   free(p);

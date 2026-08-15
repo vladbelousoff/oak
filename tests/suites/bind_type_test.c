@@ -48,7 +48,7 @@ static oak_bind_type_t* bind_record_with_field(oak_compile_options_t* opts,
                        .name = field,
                        .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                        .getter = stub_getter,
-                       .setter = null });
+                       .setter = OAK_NULL });
   return t;
 }
 
@@ -60,7 +60,7 @@ UTEST_F(bind_type, a_type_descriptor_is_created_and_registered)
   oak_compile_options_init(&opts, OAK_A);
   t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "MyType");
 
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
   EXPECT_STREQ("MyType", t->name);
   EXPECT_EQ(1u, oak_size(opts.native_types));
 
@@ -72,7 +72,7 @@ UTEST_F(bind_type, a_type_without_a_name_is_refused)
   oak_compile_options_t opts;
 
   oak_compile_options_init(&opts, OAK_A);
-  EXPECT_TRUE(oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, null) == null);
+  EXPECT_TRUE(oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, OAK_NULL) == OAK_NULL);
   EXPECT_EQ(0u, oak_size(opts.native_types));
   oak_compile_options_free(&opts);
 }
@@ -87,7 +87,7 @@ UTEST_F(bind_type, fields_are_recorded_in_registration_order)
 
   oak_compile_options_init(&opts, OAK_A);
   t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTColor");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
 
   ASSERT_EQ(0,
             oak_bind_field(t,
@@ -95,7 +95,7 @@ UTEST_F(bind_type, fields_are_recorded_in_registration_order)
                                .name = "r",
                                .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
   ASSERT_EQ(0,
             oak_bind_field(t,
                            &(oak_bind_field_t){
@@ -109,7 +109,7 @@ UTEST_F(bind_type, fields_are_recorded_in_registration_order)
                                .name = "b",
                                .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
 
   ASSERT_EQ(3u, oak_size(t->fields));
   fields = OAK_CDATA(oak_bind_field_t, t->fields);
@@ -119,7 +119,7 @@ UTEST_F(bind_type, fields_are_recorded_in_registration_order)
   EXPECT_EQ(OAK_TYPE_NUMBER, fields[0].type.id);
   EXPECT_TRUE(fields[0].getter == stub_getter);
   /* A field with no setter is read-only. */
-  EXPECT_TRUE(fields[0].setter == null);
+  EXPECT_TRUE(fields[0].setter == OAK_NULL);
   EXPECT_TRUE(fields[1].setter == stub_setter);
 
   oak_compile_options_free(&opts);
@@ -134,7 +134,7 @@ UTEST_F(bind_type, malformed_fields_are_refused)
 
   oak_compile_options_init(&opts, OAK_A);
   t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBad");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
 
   /* No getter. */
   EXPECT_EQ(-1,
@@ -142,18 +142,18 @@ UTEST_F(bind_type, malformed_fields_are_refused)
                            &(oak_bind_field_t){
                                .name = "x",
                                .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                               .getter = null,
-                               .setter = null }));
+                               .getter = OAK_NULL,
+                               .setter = OAK_NULL }));
   /* No name. */
   EXPECT_EQ(-1,
             oak_bind_field(t,
                            &(oak_bind_field_t){
-                               .name = null,
+                               .name = OAK_NULL,
                                .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
   /* No parameter block at all. */
-  EXPECT_EQ(-1, oak_bind_field(t, null));
+  EXPECT_EQ(-1, oak_bind_field(t, OAK_NULL));
 
   EXPECT_EQ(0u, oak_size(t->fields));
 
@@ -167,7 +167,7 @@ UTEST_F(bind_type, a_duplicate_field_name_is_refused)
 
   oak_compile_options_init(&opts, OAK_A);
   t = bind_record_with_field(&opts, "NTDup", "x");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
   ASSERT_EQ(1u, oak_size(t->fields));
 
   EXPECT_EQ(-1,
@@ -176,7 +176,7 @@ UTEST_F(bind_type, a_duplicate_field_name_is_refused)
                                .name = "x",
                                .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
   EXPECT_EQ(1u, oak_size(t->fields));
 
   oak_compile_options_free(&opts);
@@ -197,13 +197,13 @@ static oak_run_result_t compile_with_ntvec(oak_allocator_t* a,
                      .name = "x",
                      .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                      .getter = stub_getter,
-                     .setter = null });
+                     .setter = OAK_NULL });
   oak_bind_field(t,
                  &(oak_bind_field_t){
                      .name = "y",
                      .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                      .getter = stub_getter,
-                     .setter = null });
+                     .setter = OAK_NULL });
 
   r = oak_test_source_opts(a, src, &opts);
   oak_compile_options_free(&opts);
@@ -333,7 +333,7 @@ UTEST_F(bind_type, a_native_records_interfaces_must_match_its_binding)
 
   oak_compile_options_init(&opts, OAK_A);
   t = bind_record_with_field(&opts, "Bound", "v");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
   EXPECT_EQ(0, oak_bind_type_implements(t, "IValued"));
   EXPECT_EQ(1u, oak_size(t->interface_names));
 
@@ -379,7 +379,7 @@ UTEST_F(bind_type, a_bound_interface_is_inert_where_it_is_not_declared)
 
   oak_compile_options_init(&opts, OAK_A);
   t = bind_record_with_field(&opts, "Bound", "v");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
   EXPECT_EQ(0, oak_bind_type_implements(t, "IValued"));
 
   unrelated = oak_test_source_opts(OAK_A, "print(1);\n", &opts);
@@ -403,14 +403,14 @@ UTEST_F(bind_type, an_interface_named_twice_is_refused)
 
   oak_compile_options_init(&opts, OAK_A);
   t = bind_record_with_field(&opts, "Bound", "v");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
 
   EXPECT_EQ(0, oak_bind_type_implements(t, "IValued"));
   EXPECT_NE(0, oak_bind_type_implements(t, "IValued"));
   EXPECT_EQ(1u, oak_size(t->interface_names));
-  EXPECT_NE(0, oak_bind_type_implements(t, null));
+  EXPECT_NE(0, oak_bind_type_implements(t, OAK_NULL));
   EXPECT_NE(0, oak_bind_type_implements(t, ""));
-  EXPECT_NE(0, oak_bind_type_implements(null, "IValued"));
+  EXPECT_NE(0, oak_bind_type_implements(OAK_NULL, "IValued"));
 
   surfaced = oak_test_source_opts(
       OAK_A,
@@ -447,27 +447,27 @@ UTEST_F(bind_type, descriptor_typed_fields_match_their_record_declaration)
 
   oak_compile_options_init(&opts, OAK_A);
   inner = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Inner");
-  ASSERT_TRUE(inner != null);
+  ASSERT_TRUE(inner != OAK_NULL);
   colour = oak_bind_enum(&opts, "Tint");
-  ASSERT_TRUE(colour != null);
+  ASSERT_TRUE(colour != OAK_NULL);
   EXPECT_EQ(0, oak_bind_enum_variant(colour, "Red", 0));
 
   owner = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Owner");
-  ASSERT_TRUE(owner != null);
+  ASSERT_TRUE(owner != OAK_NULL);
   EXPECT_EQ(0,
             oak_bind_field(owner,
                            &(oak_bind_field_t){
                                .name = "inner",
                                .type = OAK_BIND_NATIVE(inner),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
   EXPECT_EQ(0,
             oak_bind_field(owner,
                            &(oak_bind_field_t){
                                .name = "tint",
                                .type = OAK_BIND_ENUM(colour),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
 
   matching = oak_test_source_opts(
       OAK_A, "record Owner { inner : Inner; tint : Tint; }\n", &opts);
@@ -536,7 +536,7 @@ UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
   oak_compile_options_init(&opts, OAK_A);
   mine = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Mine");
   theirs = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Theirs");
-  ASSERT_TRUE(mine != null && theirs != null);
+  ASSERT_TRUE(mine != OAK_NULL && theirs != OAK_NULL);
 
   /* The receiver check compares descriptors by identity, so nothing here needs
    * compiling -- only a VM to own the records and carry the error. */
@@ -546,7 +546,7 @@ UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
 
   call.vm = &vm;
   call.allocator = OAK_A;
-  call.user_data = null;
+  call.user_data = OAK_NULL;
   call.fn_name = "peek";
   call.self_type = mine;
 
@@ -554,7 +554,7 @@ UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
   OAK_EXPECT_ENUM(OAK_FN_CALL_RUNTIME_ERROR,
                   reads_own_instance(&call, &wrong, 1, &result));
   EXPECT_EQ(0, s_wrong_self_instance_seen);
-  EXPECT_TRUE(oak_vm_last_error(&vm) != null);
+  EXPECT_TRUE(oak_vm_last_error(&vm) != OAK_NULL);
 
   /* The right receiver still goes through, so the check is not a blanket no. */
   OAK_EXPECT_ENUM(OAK_FN_CALL_OK,
@@ -584,7 +584,7 @@ UTEST_F(bind_type, a_module_scoped_type_is_not_also_a_global)
 
   oak_compile_options_init(&opts, OAK_A);
   scoped = oak_bind_type_in_module(&opts, "gear", OAK_BIND_TYPE_RECORD, "Cog");
-  ASSERT_TRUE(scoped != null);
+  ASSERT_TRUE(scoped != OAK_NULL);
   EXPECT_EQ(0,
             oak_bind_fn(&opts,
                         &(oak_bind_fn_t){
@@ -608,7 +608,7 @@ UTEST_F(bind_type, a_module_scoped_type_is_not_also_a_global)
   /* A type bound with no module is still global, so this is a filter on
    * module_name and not a blanket refusal. */
   global = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Sprocket");
-  ASSERT_TRUE(global != null);
+  ASSERT_TRUE(global != OAK_NULL);
   EXPECT_EQ(0,
             oak_bind_fn(&opts,
                         &(oak_bind_fn_t){
@@ -636,7 +636,7 @@ UTEST_F(bind_type, a_fieldless_native_type_rejects_a_record_body)
   oak_run_result_t r;
 
   oak_compile_options_init(&opts, OAK_A);
-  ASSERT_TRUE(oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Shared") != null);
+  ASSERT_TRUE(oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Shared") != OAK_NULL);
 
   r = oak_test_source_opts(OAK_A, "record Shared { x : number; }\n", &opts);
   EXPECT_FALSE(r.compiled);
@@ -779,7 +779,7 @@ UTEST_F(bind_type, a_value_type_has_no_fields_and_no_identity_to_reference)
 
   oak_compile_options_init(&opts, OAK_A);
   h = bind_handle(&opts);
-  ASSERT_TRUE(h != null);
+  ASSERT_TRUE(h != OAK_NULL);
 
   /* oak_bind_field refuses a VALUE type outright. */
   EXPECT_EQ(-1,
@@ -788,7 +788,7 @@ UTEST_F(bind_type, a_value_type_has_no_fields_and_no_identity_to_reference)
                                .name = "x",
                                .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
 
   oak_compile_options_free(&opts);
 }
@@ -860,21 +860,21 @@ UTEST_F(bind_type, a_native_field_can_be_declared_weak)
 
   oak_compile_options_init(&opts, OAK_A);
   node = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Node");
-  ASSERT_TRUE(node != null);
+  ASSERT_TRUE(node != OAK_NULL);
   EXPECT_EQ(0,
             oak_bind_field(node,
                            &(oak_bind_field_t){
                                .name = "parent",
                                .type = OAK_BIND_WEAK(OAK_BIND_NATIVE(node)),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
   EXPECT_EQ(0,
             oak_bind_field(node,
                            &(oak_bind_field_t){
                                .name = "tag",
                                .type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                                .getter = stub_getter,
-                               .setter = null }));
+                               .setter = OAK_NULL }));
 
   fields = OAK_CDATA(oak_bind_field_t, node->fields);
   EXPECT_EQ(1, fields[0].type.is_weak);

@@ -33,25 +33,25 @@ void oak_type_registry_init(oak_type_registry_t* reg,
   reg->owner_module_id = OAK_TYPE_ID_MODULE_NONE;
   reg->next_local_slot = OAK_TYPE_FIRST_USER;
   reg->entries = oak_vector_new(allocator, sizeof(oak_type_entry_t));
-  oak_assert(reg->entries);
+  OAK_ASSERT(reg->entries);
 
   /* Slot 0 is OAK_TYPE_VOID; pre-register it so name lookup finds "void". */
   oak_type_entry_t void_entry = {
     .name = "void", .id = OAK_TYPE_VOID
   };
-  oak_assert(oak_push_back(reg->entries, &void_entry));
+  OAK_ASSERT(oak_push_back(reg->entries, &void_entry));
 
   for (int i = 0; i < OAK_BUILTIN_COUNT; ++i)
   {
     const oak_builtin_type_t* b = &builtin_types[i];
-    oak_assert(b->id == (oak_type_id_t)oak_size(reg->entries));
+    OAK_ASSERT(b->id == (oak_type_id_t)oak_size(reg->entries));
     oak_type_entry_t entry = {
       .name = b->name,
       .id = b->id,
     };
-    oak_assert(oak_push_back(reg->entries, &entry));
+    OAK_ASSERT(oak_push_back(reg->entries, &entry));
   }
-  oak_assert(oak_size(reg->entries) == OAK_TYPE_FIRST_USER);
+  OAK_ASSERT(oak_size(reg->entries) == OAK_TYPE_FIRST_USER);
 }
 
 void oak_type_registry_set_owner(oak_type_registry_t* reg,
@@ -98,7 +98,7 @@ oak_type_id_t oak_type_registry_intern(oak_type_registry_t* reg,
           ? (oak_type_id_t)slot
           : oak_type_id_make(reg->owner_module_id, slot);
   oak_type_entry_t entry = { .name = name, .id = id };
-  oak_assert(oak_push_back(reg->entries, &entry));
+  OAK_ASSERT(oak_push_back(reg->entries, &entry));
   return id;
 }
 
@@ -124,7 +124,7 @@ oak_type_id_t oak_type_registry_intern_with_id(oak_type_registry_t* reg,
       return -1;
 
   oak_type_entry_t entry = { .name = name, .id = id };
-  oak_assert(oak_push_back(reg->entries, &entry));
+  OAK_ASSERT(oak_push_back(reg->entries, &entry));
   const u16 slot = oak_type_id_local_slot(id);
   if (oak_type_id_module(id) == reg->owner_module_id &&
       slot >= reg->next_local_slot)

@@ -21,7 +21,7 @@ void oak_symbol_registry_init(oak_symbol_registry_t* registry,
       oak_vector_new(allocator, sizeof(oak_module_export_enum_t));
   registry->interfaces = oak_vector_new(
       allocator, sizeof(oak_module_export_interface_t));
-  oak_assert(registry->by_name && registry->symbols && registry->fns &&
+  OAK_ASSERT(registry->by_name && registry->symbols && registry->fns &&
              registry->records && registry->enums && registry->interfaces);
 }
 
@@ -109,13 +109,13 @@ oak_symbol_t* oak_symbol_registry_insert(
     oak_symbol_registry_t* registry, const oak_symbol_t* symbol)
 {
   if (!symbol || !symbol->name || !symbol->name[0])
-    return null;
+    return OAK_NULL;
   if (oak_symbol_registry_find(registry, symbol->name))
-    return null;
-  oak_assert(oak_push_back(registry->symbols, symbol));
+    return OAK_NULL;
+  OAK_ASSERT(oak_push_back(registry->symbols, symbol));
   const usize index = oak_size(registry->symbols) - 1;
   oak_symbol_t* stored = oak_get(registry->symbols, index);
-  oak_assert(oak_put_str(registry->by_name, stored->name, &index));
+  OAK_ASSERT(oak_put_str(registry->by_name, stored->name, &index));
   return stored;
 }
 
@@ -123,7 +123,7 @@ const oak_symbol_t* oak_symbol_registry_find(
     const oak_symbol_registry_t* registry, const char* name)
 {
   const usize* index = oak_cfind_str(registry->by_name, name);
-  return index ? oak_cget(registry->symbols, *index) : null;
+  return index ? oak_cget(registry->symbols, *index) : OAK_NULL;
 }
 
 oak_module_export_fn_t*
@@ -133,7 +133,7 @@ oak_symbol_registry_insert_fn(oak_symbol_registry_t* registry,
                               const oak_module_export_fn_t* fn)
 {
   const usize idx = oak_size(registry->fns);
-  oak_assert(oak_push_back(registry->fns, fn));
+  OAK_ASSERT(oak_push_back(registry->fns, fn));
   oak_symbol_t symbol = {
     .name = name,
     .kind = OAK_SYMBOL_FUNCTION,
@@ -142,7 +142,7 @@ oak_symbol_registry_insert_fn(oak_symbol_registry_t* registry,
     .is_exported = 1,
   };
   if (!oak_symbol_registry_insert(registry, &symbol))
-    return null;
+    return OAK_NULL;
   return oak_get(registry->fns, idx);
 }
 
@@ -153,7 +153,7 @@ oak_symbol_registry_insert_record(oak_symbol_registry_t* registry,
                                   const oak_module_export_record_t* rec)
 {
   const usize idx = oak_size(registry->records);
-  oak_assert(oak_push_back(registry->records, rec));
+  OAK_ASSERT(oak_push_back(registry->records, rec));
   oak_symbol_t symbol = {
     .name = name,
     .kind = OAK_SYMBOL_RECORD,
@@ -162,7 +162,7 @@ oak_symbol_registry_insert_record(oak_symbol_registry_t* registry,
     .is_exported = 1,
   };
   if (!oak_symbol_registry_insert(registry, &symbol))
-    return null;
+    return OAK_NULL;
   return oak_get(registry->records, idx);
 }
 
@@ -173,7 +173,7 @@ oak_symbol_registry_insert_enum(oak_symbol_registry_t* registry,
                                 const oak_module_export_enum_t* en)
 {
   const usize idx = oak_size(registry->enums);
-  oak_assert(oak_push_back(registry->enums, en));
+  OAK_ASSERT(oak_push_back(registry->enums, en));
   oak_symbol_t symbol = {
     .name = name,
     .kind = OAK_SYMBOL_ENUM,
@@ -182,7 +182,7 @@ oak_symbol_registry_insert_enum(oak_symbol_registry_t* registry,
     .is_exported = 1,
   };
   if (!oak_symbol_registry_insert(registry, &symbol))
-    return null;
+    return OAK_NULL;
   return oak_get(registry->enums, idx);
 }
 
@@ -193,7 +193,7 @@ oak_symbol_registry_insert_interface(oak_symbol_registry_t* registry,
                                  const oak_module_export_interface_t* tr)
 {
   const usize idx = oak_size(registry->interfaces);
-  oak_assert(oak_push_back(registry->interfaces, tr));
+  OAK_ASSERT(oak_push_back(registry->interfaces, tr));
   oak_symbol_t symbol = {
     .name = name,
     .kind = OAK_SYMBOL_INTERFACE,
@@ -202,7 +202,7 @@ oak_symbol_registry_insert_interface(oak_symbol_registry_t* registry,
     .is_exported = 1,
   };
   if (!oak_symbol_registry_insert(registry, &symbol))
-    return null;
+    return OAK_NULL;
   return oak_get(registry->interfaces, idx);
 }
 
@@ -213,7 +213,7 @@ oak_symbol_registry_find_fn(const oak_symbol_registry_t* registry,
 {
   const oak_symbol_t* s = oak_symbol_registry_find(registry, name);
   if (!s || s->kind != OAK_SYMBOL_FUNCTION)
-    return null;
+    return OAK_NULL;
   return oak_cget(registry->fns, (usize)s->payload_index);
 }
 
@@ -223,7 +223,7 @@ oak_symbol_registry_find_record(const oak_symbol_registry_t* registry,
 {
   const oak_symbol_t* s = oak_symbol_registry_find(registry, name);
   if (!s || s->kind != OAK_SYMBOL_RECORD)
-    return null;
+    return OAK_NULL;
   return oak_cget(registry->records, (usize)s->payload_index);
 }
 
@@ -233,7 +233,7 @@ oak_symbol_registry_find_enum(const oak_symbol_registry_t* registry,
 {
   const oak_symbol_t* s = oak_symbol_registry_find(registry, name);
   if (!s || s->kind != OAK_SYMBOL_ENUM)
-    return null;
+    return OAK_NULL;
   return oak_cget(registry->enums, (usize)s->payload_index);
 }
 
@@ -243,6 +243,6 @@ oak_symbol_registry_find_interface(const oak_symbol_registry_t* registry,
 {
   const oak_symbol_t* s = oak_symbol_registry_find(registry, name);
   if (!s || s->kind != OAK_SYMBOL_INTERFACE)
-    return null;
+    return OAK_NULL;
   return oak_cget(registry->interfaces, (usize)s->payload_index);
 }

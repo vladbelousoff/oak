@@ -11,7 +11,7 @@ find_module_by_dotted(const oak_module_registry_t* reg,
                       const char* dotted)
 {
   if (!reg || !dotted)
-    return null;
+    return OAK_NULL;
   oak_module_t* const* modules =
       OAK_DATA(oak_module_t*, reg->modules);
   for (usize i = 0; i < oak_size(reg->modules); ++i)
@@ -20,7 +20,7 @@ find_module_by_dotted(const oak_module_registry_t* reg,
     if (m && m->dotted_name && strcmp(m->dotted_name, dotted) == 0)
       return m;
   }
-  return null;
+  return OAK_NULL;
 }
 
 /* Whether a module-scoped binding belongs in the namespace being compiled.
@@ -53,7 +53,7 @@ find_method_export(const oak_module_export_record_t* rec,
   for (usize i = 0; i < oak_size(rec->methods); ++i)
     if (strcmp(methods[i].name, name) == 0)
       return &methods[i];
-  return null;
+  return OAK_NULL;
 }
 
 
@@ -96,7 +96,7 @@ void oak_register_native_types(
     {
       oak_compiler_error_at(
           c,
-          null,
+          OAK_NULL,
           "native type '%s' conflicts with an already-registered type",
           nt->name);
       return;
@@ -106,7 +106,7 @@ void oak_register_native_types(
     if (tid < 0)
     {
       oak_compiler_error_at(c,
-                            null,
+                            OAK_NULL,
                             "failed to register native type '%s' (type "
                             "registry full or id conflict)",
                             nt->name);
@@ -123,9 +123,9 @@ void oak_register_native_types(
     proto.interface_names =
         oak_vector_new(c->allocator, sizeof(const char*));
     proto.interfaces = oak_vector_new(c->allocator, sizeof(oak_type_t));
-    oak_assert(proto.fields && proto.methods && proto.interface_names &&
+    OAK_ASSERT(proto.fields && proto.methods && proto.interface_names &&
                proto.interfaces);
-    proto.attrs = null;
+    proto.attrs = OAK_NULL;
     proto.attr_count = 0;
     proto.is_value = (nt->kind == OAK_BIND_TYPE_VALUE);
 
@@ -133,7 +133,7 @@ void oak_register_native_types(
     for (usize ii = 0; ii < oak_size(nt->interface_names); ++ii)
     {
       const char* interface_name = interface_names[ii];
-      oak_assert(oak_push_back(proto.interface_names, &interface_name));
+      OAK_ASSERT(oak_push_back(proto.interface_names, &interface_name));
     }
 
     const oak_bind_field_t* nt_fields =
@@ -145,11 +145,11 @@ void oak_register_native_types(
         .name = nf->name,
       };
       oak_lower_bind_ref(&nf->type, &sf.type);
-      oak_assert(oak_push_back(proto.fields, &sf));
+      OAK_ASSERT(oak_push_back(proto.fields, &sf));
     }
 
     if (!oak_compiler_declare_symbol(
-            c, null, proto.name, OAK_SYMBOL_RECORD,
+            c, OAK_NULL, proto.name, OAK_SYMBOL_RECORD,
             (int)oak_size(c->records.entries), OAK_MODULE_ID_NONE, 0))
       return;
     oak_record_registry_insert(&c->records, &proto);
@@ -164,7 +164,7 @@ void oak_register_native_types(
 static void record_append_method(oak_registered_record_t* sd,
                                  const oak_registered_fn_t* m)
 {
-  oak_assert(oak_push_back(sd->methods, m));
+  OAK_ASSERT(oak_push_back(sd->methods, m));
 }
 
 void oak_register_native_fns(oak_compiler_t* c,
@@ -195,8 +195,8 @@ void oak_register_native_fns(oak_compiler_t* c,
     entry.const_idx = idx;
     entry.arity = (int)b->param_count;
     oak_lower_bind_ref(&b->return_type, &entry.return_type);
-    entry.decl = null;
-    entry.attrs = null;
+    entry.decl = OAK_NULL;
+    entry.attrs = OAK_NULL;
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
     if (b->param_types && b->param_count > 0)
@@ -209,11 +209,11 @@ void oak_register_native_fns(oak_compiler_t* c,
 
     if (oak_fn_registry_find(&c->fns, b->name))
     {
-      oak_compiler_error_at(c, null, "duplicate native function '%s'", b->name);
+      oak_compiler_error_at(c, OAK_NULL, "duplicate native function '%s'", b->name);
       return;
     }
     if (!oak_compiler_declare_symbol(
-            c, null, entry.name, OAK_SYMBOL_FUNCTION,
+            c, OAK_NULL, entry.name, OAK_SYMBOL_FUNCTION,
             (int)oak_size(c->fns.entries), OAK_MODULE_ID_NONE, 0))
       return;
     oak_fn_registry_insert(&c->fns, &entry);
@@ -270,7 +270,7 @@ void oak_register_native_fns(oak_compiler_t* c,
                 find_method_export(rec_exp, b->name);
             if (mexp && mexp->stub_attr_count > 0)
               oak_apply_attr_hooks(c->opts,
-                                   null,
+                                   OAK_NULL,
                                    native,
                                    mexp->stub_attrs,
                                    mexp->stub_attr_count);
@@ -287,8 +287,8 @@ void oak_register_native_fns(oak_compiler_t* c,
     entry.const_idx = idx;
     entry.receiver_type_id = b->receiver_type->resolved_type_id;
     oak_lower_bind_ref(&b->return_type, &entry.return_type);
-    entry.decl = null;
-    entry.attrs = null;
+    entry.decl = OAK_NULL;
+    entry.attrs = OAK_NULL;
     entry.attr_count = 0;
     entry.source_module_id = OAK_MODULE_ID_NONE;
 
@@ -298,7 +298,7 @@ void oak_register_native_fns(oak_compiler_t* c,
     if (!sd)
     {
       oak_compiler_error_at(c,
-                            null,
+                            OAK_NULL,
                             "native method '%s': no record registered for "
                             "receiver type id %d",
                             b->name,
@@ -331,7 +331,7 @@ void oak_register_native_fns(oak_compiler_t* c,
       if (strcmp(methods[j].name, b->name) == 0)
       {
         oak_compiler_error_at(c,
-                              null,
+                              OAK_NULL,
                               is_static
                                   ? "duplicate native static method '%s' on "
                                     "record '%s'"

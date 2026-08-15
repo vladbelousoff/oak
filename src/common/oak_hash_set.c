@@ -23,7 +23,7 @@ static void* hash_set_query_interface(void* obj,
     case OAK_IID_ITERABLE:
       return obj;
     default:
-      return null;
+      return OAK_NULL;
   }
 }
 

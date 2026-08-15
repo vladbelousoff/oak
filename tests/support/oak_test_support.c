@@ -7,21 +7,21 @@
 #if defined(_WIN32)
 #include <fcntl.h>
 #include <io.h>
-#define oak_fileno _fileno
-#define oak_fdopen _fdopen
-#define oak_dup    _dup
-#define oak_dup2   _dup2
-#define oak_close  _close
-#define oak_read   _read
+#define OAK_FILENO _fileno
+#define OAK_FDOPEN _fdopen
+#define OAK_DUP    _dup
+#define OAK_DUP2   _dup2
+#define OAK_CLOSE  _close
+#define OAK_READ   _read
 #else
 #include <fcntl.h>
 #include <unistd.h>
-#define oak_fileno fileno
-#define oak_fdopen fdopen
-#define oak_dup    dup
-#define oak_dup2   dup2
-#define oak_close  close
-#define oak_read   read
+#define OAK_FILENO fileno
+#define OAK_FDOPEN fdopen
+#define OAK_DUP    dup
+#define OAK_DUP2   dup2
+#define OAK_CLOSE  close
+#define OAK_READ   read
 #endif
 
 /*
@@ -64,7 +64,7 @@ static usize oak_pipe_drain(const int fd, char* out, const usize cap)
   usize n = 0;
   while (n + 1 < cap)
   {
-    const int got = oak_read(fd, out + n, (unsigned)(cap - 1 - n));
+    const int got = OAK_READ(fd, out + n, (unsigned)(cap - 1 - n));
     if (got <= 0)
       break;
     n += (usize)got;
@@ -77,14 +77,14 @@ int oak_test_pipe_new(oak_test_pipe_t* p)
 {
   int fds[2];
 
-  p->read_end = null;
-  p->write_end = null;
+  p->read_end = OAK_NULL;
+  p->write_end = OAK_NULL;
 
   if (!oak_pipe_open(fds))
     return 0;
 
-  p->read_end = oak_fdopen(fds[0], "rb");
-  p->write_end = oak_fdopen(fds[1], "wb");
+  p->read_end = OAK_FDOPEN(fds[0], "rb");
+  p->write_end = OAK_FDOPEN(fds[1], "wb");
   if (!p->read_end || !p->write_end)
   {
     oak_test_pipe_free(p);
@@ -103,12 +103,12 @@ usize oak_test_pipe_read(oak_test_pipe_t* p, char* out, const usize cap)
   if (p->write_end)
   {
     fclose(p->write_end);
-    p->write_end = null;
+    p->write_end = OAK_NULL;
   }
   if (!p->read_end || !cap)
     return 0;
 
-  return oak_pipe_drain(oak_fileno(p->read_end), out, cap);
+  return oak_pipe_drain(OAK_FILENO(p->read_end), out, cap);
 }
 
 void oak_test_pipe_free(oak_test_pipe_t* p)
@@ -117,8 +117,8 @@ void oak_test_pipe_free(oak_test_pipe_t* p)
     fclose(p->write_end);
   if (p->read_end)
     fclose(p->read_end);
-  p->write_end = null;
-  p->read_end = null;
+  p->write_end = OAK_NULL;
+  p->read_end = OAK_NULL;
 }
 
 /*
@@ -144,22 +144,22 @@ void oak_capture_begin(oak_capture_t* c, FILE* stream)
     return;
 
   fflush(stream);
-  c->saved_fd = oak_dup(oak_fileno(stream));
-  if (c->saved_fd < 0 || oak_dup2(fds[1], oak_fileno(stream)) < 0)
+  c->saved_fd = OAK_DUP(OAK_FILENO(stream));
+  if (c->saved_fd < 0 || OAK_DUP2(fds[1], OAK_FILENO(stream)) < 0)
   {
     if (c->saved_fd >= 0)
     {
-      oak_close(c->saved_fd);
+      OAK_CLOSE(c->saved_fd);
       c->saved_fd = -1;
     }
-    oak_close(fds[0]);
-    oak_close(fds[1]);
+    OAK_CLOSE(fds[0]);
+    OAK_CLOSE(fds[1]);
     return;
   }
 
   /* fd 1/2 is now a second handle on the write end, so drop this one: the
    * restore in oak_capture_end() then leaves no writer and the read sees EOF. */
-  oak_close(fds[1]);
+  OAK_CLOSE(fds[1]);
   c->read_fd = fds[0];
 }
 
@@ -180,13 +180,13 @@ void oak_capture_end(oak_capture_t* c, char* out, const usize cap)
   fflush(c->stream);
   if (c->saved_fd >= 0)
   {
-    oak_dup2(c->saved_fd, oak_fileno(c->stream));
-    oak_close(c->saved_fd);
+    OAK_DUP2(c->saved_fd, OAK_FILENO(c->stream));
+    OAK_CLOSE(c->saved_fd);
     c->saved_fd = -1;
   }
 
   oak_pipe_drain(c->read_fd, out, cap);
-  oak_close(c->read_fd);
+  OAK_CLOSE(c->read_fd);
   c->read_fd = -1;
 }
 
@@ -196,7 +196,7 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
 {
   oak_run_result_t r;
   oak_lexer_result_t* lexer;
-  oak_parser_result_t* parsed = null;
+  oak_parser_result_t* parsed = OAK_NULL;
   const oak_ast_node_t* root;
   oak_compile_result_t compiled = { 0 };
 
@@ -206,7 +206,7 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
   lexer = oak_lexer_tokenize(src, a);
   parsed = oak_parse(lexer, OAK_NODE_PROGRAM, a);
   root = oak_parser_root(parsed);
-  r.parsed = root != null;
+  r.parsed = root != OAK_NULL;
 
   if (!root)
   {
@@ -232,7 +232,7 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
   if (root)
   {
     oak_compile_ex(root, opts, &compiled);
-    r.compiled = compiled.chunk != null;
+    r.compiled = compiled.chunk != OAK_NULL;
     r.error_count = compiled.error_count;
 
     /* Join every diagnostic, not just the first. A single mistake often
@@ -307,12 +307,12 @@ oak_run_result_t oak_test_source(oak_allocator_t* a, const char* src)
 
 const oak_ast_node_t* oak_test_lhs(const oak_ast_node_t* node)
 {
-  return node ? node->lhs : null;
+  return node ? node->lhs : OAK_NULL;
 }
 
 const oak_ast_node_t* oak_test_rhs(const oak_ast_node_t* node)
 {
-  return node ? node->rhs : null;
+  return node ? node->rhs : OAK_NULL;
 }
 
 oak_parse_fixture_t oak_test_parse(oak_allocator_t* a, const char* src)
@@ -328,10 +328,10 @@ oak_parse_fixture_t oak_test_parse(oak_allocator_t* a, const char* src)
 void oak_test_parse_free(oak_parse_fixture_t* fx)
 {
   oak_parser_free(fx->parsed);
-  fx->parsed = null;
+  fx->parsed = OAK_NULL;
   oak_lexer_free(fx->lexer);
-  fx->lexer = null;
-  fx->root = null;
+  fx->lexer = OAK_NULL;
+  fx->root = OAK_NULL;
 }
 
 int oak_test_contains(const char* haystack, const char* needle)
@@ -340,7 +340,7 @@ int oak_test_contains(const char* haystack, const char* needle)
     return 1;
   if (!haystack)
     return 0;
-  return strstr(haystack, needle) != null;
+  return strstr(haystack, needle) != OAK_NULL;
 }
 
 /* Returns 0 and fills `msg` on the first field that differs. */
@@ -435,9 +435,9 @@ int oak_test_tokens_match(const oak_lexer_result_t* lexer,
 
   msg[0] = '\0';
 
-  oak_list_for_each_indexed(index, entry, oak_lexer_tokens(lexer))
+  OAK_LIST_FOR_EACH_INDEXED(index, entry, oak_lexer_tokens(lexer))
   {
-    const oak_token_t* tok = oak_container_of(entry, oak_token_t, link);
+    const oak_token_t* tok = OAK_CONTAINER_OF(entry, oak_token_t, link);
 
     if (index >= count)
     {

@@ -28,8 +28,8 @@ void oak_compiler_emit_op_impl(oak_compiler_t* c,
                                const oak_emit_arg_t* args,
                                int n_args);
 
-/* Variadic emit: oak_compiler_emit_op(c, op, loc [, OAK_ARG_U8/U16, ...]) */
-#define oak_compiler_emit_op(c, op, loc, ...)                                  \
+/* Variadic emit: OAK_COMPILER_EMIT_OP(c, op, loc [, OAK_ARG_U8/U16, ...]) */
+#define OAK_COMPILER_EMIT_OP(c, op, loc, ...)                                  \
   oak_compiler_emit_op_impl(                                                   \
       c,                                                                       \
       op,                                                                      \

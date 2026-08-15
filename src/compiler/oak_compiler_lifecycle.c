@@ -20,7 +20,7 @@ oak_chunk_t* oak_compiler_init(oak_compiler_t* c,
     .scope_depth = 0,
     .stack_depth = 0,
     .declared_return_type = no_return_type,
-    .current_loop = null,
+    .current_loop = OAK_NULL,
     .fn_depth = 0,
   };
 
@@ -34,7 +34,7 @@ oak_chunk_t* oak_compiler_init(oak_compiler_t* c,
   c->native_types_cursor = 0;
   c->native_global_fns_cursor = 0;
   c->native_fns_cursor = 0;
-  c->cycle_reach = null;
+  c->cycle_reach = OAK_NULL;
   c->cycle_reach_count = 0;
 
   return chunk;
@@ -73,5 +73,5 @@ void oak_compiler_move_types_to_module(oak_compiler_t* c)
     return;
 
   c->current_module->types = c->types;
-  c->types.entries = null;
+  c->types.entries = OAK_NULL;
 }

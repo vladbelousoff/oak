@@ -5,7 +5,7 @@ void oak_compile_return(oak_compiler_t* c,
 {
   if (c->scope.fn_depth == 0)
   {
-    oak_compiler_error_at(c, null, "'return' outside of a function");
+    oak_compiler_error_at(c, OAK_NULL, "'return' outside of a function");
     return;
   }
 
@@ -59,13 +59,13 @@ void oak_compile_return(oak_compiler_t* c,
                           OAK_LOC_SYNTHETIC);
     if (c->has_error)
       return;
-    oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
     return;
   }
 
   const u16 z = oak_compiler_intern_constant(c, OAK_VALUE_I32(0));
   oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
-  oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 }
 
 /* If `recv` is non-null, the fn is treated as a method: an
@@ -87,7 +87,7 @@ void oak_compile_fn_body(
   c->scope.local_count = 0;
   c->scope.scope_depth = 0;
   c->scope.stack_depth = 0;
-  c->scope.current_loop = null;
+  c->scope.current_loop = OAK_NULL;
 
   /* Return type: omitted `->` means void. */
   oak_type_clear(&c->scope.declared_return_type);
@@ -144,10 +144,10 @@ void oak_compile_fn_body(
   }
 
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &params->children)
+  OAK_LIST_FOR_EACH(pos, &params->children)
   {
     const oak_ast_node_t* ch =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (ch->kind != OAK_NODE_FN_PARAM)
       continue;
     const oak_ast_node_t* id = oak_fn_param_ident(ch);
@@ -175,7 +175,7 @@ void oak_compile_fn_body(
 
   const u16 z = oak_compiler_intern_constant(c, OAK_VALUE_I32(0));
   oak_compiler_emit_constant(c, z, OAK_LOC_SYNTHETIC);
-  oak_compiler_emit_op(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_RETURN, OAK_LOC_SYNTHETIC);
 
   for (int i = 0; i < c->scope.local_count; ++i)
     oak_chunk_end_debug_local(c->chunk, c->scope.locals[i].slot);
@@ -204,7 +204,7 @@ void oak_compile_fn_bodies(oak_compiler_t* c)
     oak_value_t fn_val = oak_chunk_constant(c->chunk, (usize)e->const_idx);
     oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
     fn_obj->code_offset = oak_chunk_size(c->chunk);
-    oak_compile_fn_body(c, e->decl, null);
+    oak_compile_fn_body(c, e->decl, OAK_NULL);
     if (c->has_error)
       return;
   }
@@ -231,7 +231,7 @@ void oak_compile_method_bodies(oak_compiler_t* c)
       oak_obj_fn_t* fn_obj = oak_as_fn(fn_val);
       fn_obj->code_offset = oak_chunk_size(c->chunk);
       oak_compile_fn_body(
-          c, me->decl, me->is_static ? null : sd);
+          c, me->decl, me->is_static ? OAK_NULL : sd);
       if (c->has_error)
         return;
     }

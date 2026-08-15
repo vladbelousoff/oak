@@ -43,7 +43,7 @@ static void infer_method_call_type(oak_compiler_t* c,
     if (oak_compiler_module_export_record(c,
                                           oak_token_text(recv->lhs->token),
                                           oak_token_text(recv->rhs->token),
-                                          null))
+                                          OAK_NULL))
     {
       const oak_registered_record_t* sd =
           oak_records_find(
@@ -76,7 +76,7 @@ static void infer_method_call_type(oak_compiler_t* c,
     /* Case 2: alias.fn — cross-module free function. */
     {
       const oak_module_export_fn_t* fexp =
-          oak_compiler_module_export_fn(c, rname, mn, null);
+          oak_compiler_module_export_fn(c, rname, mn, OAK_NULL);
       if (fexp)
       {
         *out = fexp->return_type;
@@ -183,7 +183,7 @@ static void infer_method_call_type(oak_compiler_t* c,
     }
     return;
   }
-  const oak_method_binding_t* m = null;
+  const oak_method_binding_t* m = OAK_NULL;
   if (recv_ty.kind == OAK_TYPE_KIND_ARRAY)
     m = oak_find_array_method(c, mn);
   else if (recv_ty.kind == OAK_TYPE_KIND_MAP)
@@ -201,7 +201,7 @@ void oak_infer_fn_call_type(oak_compiler_t* c,
   if (first == &expr->children)
     return;
   const oak_ast_node_t* callee =
-      oak_container_of(first, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(first, oak_ast_node_t, link);
   if (!callee)
     return;
 

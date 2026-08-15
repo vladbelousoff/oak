@@ -28,7 +28,7 @@ static int check_interface_coercion(oak_compiler_t* c,
     return 0;
   if (oak_type_equal(want, got))
     return 1;
-  const oak_registered_record_t* sd = null;
+  const oak_registered_record_t* sd = OAK_NULL;
   if (got->kind == OAK_TYPE_KIND_SCALAR)
     sd = oak_records_find_by_id(&c->records, got->id);
   if (sd && oak_record_satisfies_interface(c, sd, tr))
@@ -58,7 +58,7 @@ static void validate_call_arg_types_for_decl(oak_compiler_t* c,
   for (usize i = 0; pos != &call->children; pos = pos->next, ++i)
   {
     const oak_ast_node_t* arg_wrap =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     const oak_ast_node_t* arg_expr = arg_wrap;
     if (arg_wrap->kind == OAK_NODE_FN_CALL_ARG)
       arg_expr = arg_wrap->child;
@@ -68,7 +68,7 @@ static void validate_call_arg_types_for_decl(oak_compiler_t* c,
     if (!param)
     {
       oak_compiler_error_at(
-          c, null, "internal error: missing parameter %zu", i);
+          c, OAK_NULL, "internal error: missing parameter %zu", i);
       return;
     }
     const oak_ast_node_t* want_type_node =
@@ -154,7 +154,7 @@ static void validate_call_arg_types_for_imported(
     if (slot >= fn->arity)
       break;
     const oak_ast_node_t* arg_wrap =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     const oak_ast_node_t* arg_expr = arg_wrap;
     if (arg_wrap->kind == OAK_NODE_FN_CALL_ARG)
       arg_expr = arg_wrap->child;
@@ -259,7 +259,7 @@ void oak_check_interface_method_args(
   oak_registered_fn_t tmp = { 0 };
   tmp.arity = tm->arity;
   tmp.param_types = tm->param_types;
-  tmp.param_mut_flags = null;
+  tmp.param_mut_flags = OAK_NULL;
   tmp.receiver_type_id = 1;
   tmp.is_static = 0;
   validate_call_arg_types_for_imported(c, call, &tmp);

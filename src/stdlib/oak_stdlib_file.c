@@ -259,7 +259,7 @@ static oak_fn_call_result_t file_close(oak_native_call_t* call,
   fclose(h->fp);
   /* The handle stays alive (freed by file_destroy) so that read/write/close
    * on an already-closed File fail cleanly instead of touching freed memory. */
-  h->fp = null;
+  h->fp = OAK_NULL;
   *out = OAK_VALUE_I32(0);
   return OAK_FN_CALL_OK;
 }
@@ -306,7 +306,7 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .name = "open",
       .impl = file_open,
       .return_type = OAK_BIND_NATIVE(t),
-      .param_types = mode ? open_sig : null,
+      .param_types = mode ? open_sig : OAK_NULL,
       .param_count = 2,
       /* A global function has no receiver, so this is the only way the
        * descriptor reaches file_open; the static method below gets it as
@@ -321,7 +321,7 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .name = "open",
       .impl = file_open,
       .return_type = OAK_BIND_NATIVE(t),
-      .param_types = mode ? open_sig : null,
+      .param_types = mode ? open_sig : OAK_NULL,
       .param_count = 2 },
     { .kind = OAK_BIND_FN_INSTANCE_METHOD,
       .receiver_type = t,

@@ -52,7 +52,7 @@ static void send_doc(oak_dap_t* dap, yyjson_mut_doc* doc)
 static yyjson_mut_doc*
 message_doc(oak_dap_t* dap, const char* type, yyjson_mut_val** out)
 {
-  yyjson_mut_doc* doc = yyjson_mut_doc_new(null);
+  yyjson_mut_doc* doc = yyjson_mut_doc_new(OAK_NULL);
   yyjson_mut_val* root = yyjson_mut_obj(doc);
   yyjson_mut_doc_set_root(doc, root);
   yyjson_mut_obj_add_int(doc, root, "seq", ++dap->outgoing_seq);
@@ -104,12 +104,12 @@ send_empty_response(oak_dap_t* dap, int request_seq, const char* command)
 {
   yyjson_mut_val* root;
   yyjson_mut_doc* doc = response_doc(dap, request_seq, command, &root);
-  send_response(dap, request_seq, command, null, doc, root);
+  send_response(dap, request_seq, command, OAK_NULL, doc, root);
 }
 
 static yyjson_val* obj_get(yyjson_val* obj, const char* key)
 {
-  return obj ? yyjson_obj_get(obj, key) : null;
+  return obj ? yyjson_obj_get(obj, key) : OAK_NULL;
 }
 
 static const char* obj_str(yyjson_val* obj, const char* key)
@@ -315,7 +315,7 @@ static void handle_set_breakpoints(oak_dap_t* dap,
         vm->modules ? (int)oak_size(vm->modules->modules) : 0;
     oak_module_t* const* modules =
         vm->modules ? OAK_DATA(oak_module_t*, vm->modules->modules)
-                    : null;
+                    : OAK_NULL;
     for (int module_idx = -1; module_idx < module_count && !executable;
          ++module_idx)
     {
@@ -360,7 +360,7 @@ static void handle_stack_trace(oak_dap_t* dap,
       continue;
     int line = 0;
     int column = 1;
-    const char* source = null;
+    const char* source = OAK_NULL;
     if (frame.chunk->debug && frame.offset < oak_chunk_size(frame.chunk))
     {
       line = oak_chunk_loc(frame.chunk, frame.offset).line;
@@ -397,7 +397,7 @@ static void handle_variables(oak_dap_t* dap,
   yyjson_mut_val* vars = yyjson_mut_obj_add_arr(doc, body, "variables");
 
   if (ref >= 1000)
-    add_frame_locals(dap, vm, ref - 1000, doc, vars, null);
+    add_frame_locals(dap, vm, ref - 1000, doc, vars, OAK_NULL);
   else if (ref > 0 && ref <= dap->ref_count)
   {
     const oak_value_t value = dap->refs[ref - 1].value;
@@ -463,7 +463,7 @@ static void handle_request(oak_dap_t* dap,
     send_response(dap, seq, command, body, doc, root);
     yyjson_mut_val* eroot;
     yyjson_mut_doc* edoc = message_doc(dap, "event", &eroot);
-    send_event(dap, "initialized", null, edoc);
+    send_event(dap, "initialized", OAK_NULL, edoc);
   }
   else if (strcmp(command, "launch") == 0 || strcmp(command, "attach") == 0)
   {
@@ -584,7 +584,7 @@ static int process_messages(oak_dap_t* dap,
   int processed = 0;
   for (;;)
   {
-    char* header_end = null;
+    char* header_end = OAK_NULL;
     for (usize i = 3; i < dap->input_len; ++i)
     {
       if (memcmp(dap->input + i - 3, "\r\n\r\n", 4) == 0)
@@ -711,9 +711,9 @@ oak_vm_result_t oak_dap_serve(oak_debugger_t* dbg,
   yyjson_mut_obj_add_int(doc, body, "exitCode", result == OAK_VM_OK ? 0 : 1);
   send_event(&dap, "exited", body, doc);
   doc = message_doc(&dap, "event", &root);
-  send_event(&dap, "terminated", null, doc);
+  send_event(&dap, "terminated", OAK_NULL, doc);
 
-  dbg->dap_ctx = null;
+  dbg->dap_ctx = OAK_NULL;
   oak_net_close(dap.client);
   oak_net_shutdown();
   return result;

@@ -9,23 +9,23 @@
 #endif
 
 #if defined(_MSC_VER)
-#define oak_debug_break() __debugbreak()
+#define OAK_DEBUG_BREAK() __debugbreak()
 #elif defined(__clang__) || defined(__GNUC__)
-#define oak_debug_break() __builtin_trap()
+#define OAK_DEBUG_BREAK() __builtin_trap()
 #else
 #include <signal.h>
-#define oak_debug_break() raise(SIGTRAP)
+#define OAK_DEBUG_BREAK() raise(SIGTRAP)
 #endif
 
 #ifdef OAK_DEBUG_LOGGING
-#define oak_assert(condition)                                                  \
+#define OAK_ASSERT(condition)                                                  \
   do                                                                           \
   {                                                                            \
     if (!(condition))                                                          \
-      oak_debug_break();                                                       \
+      OAK_DEBUG_BREAK();                                                       \
   } while (0)
 #else
-#define oak_assert(condition)                                                  \
+#define OAK_ASSERT(condition)                                                  \
   do                                                                           \
   {                                                                            \
     (void)(condition);                                                         \
@@ -54,13 +54,13 @@ OAK_API void _oak_log_printf(oak_log_level_t lvl,
 
 #ifdef OAK_DEBUG_LOGGING
 
-#define oak_log(lvl, fmt, ...)                                                 \
+#define OAK_LOG(lvl, fmt, ...)                                                 \
   do                                                                           \
   {                                                                            \
     _oak_log_printf(lvl, __FILE__, __LINE__, fmt, ##__VA_ARGS__);              \
   } while (0)
 
-#define oak_log_cond(cond, lvl, fmt, ...)                                      \
+#define OAK_LOG_COND(cond, lvl, fmt, ...)                                      \
   do                                                                           \
   {                                                                            \
     if (cond)                                                                  \
@@ -71,7 +71,7 @@ OAK_API void _oak_log_printf(oak_log_level_t lvl,
 
 #else
 
-#define oak_log(lvl, fmt, ...)                                                 \
+#define OAK_LOG(lvl, fmt, ...)                                                 \
   do                                                                           \
   {                                                                            \
     if ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO)                       \
@@ -80,7 +80,7 @@ OAK_API void _oak_log_printf(oak_log_level_t lvl,
     }                                                                          \
   } while (0)
 
-#define oak_log_cond(cond, lvl, fmt, ...)                                      \
+#define OAK_LOG_COND(cond, lvl, fmt, ...)                                      \
   do                                                                           \
   {                                                                            \
     if ((cond) && ((lvl) == OAK_LOG_ERROR || (lvl) == OAK_LOG_INFO))           \

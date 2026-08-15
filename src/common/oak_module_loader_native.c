@@ -82,7 +82,7 @@ void module_loader_filter_native_decls(
       oak_vector_new(opts->allocator, sizeof(oak_bind_global_fn_t));
   opts->native_enums =
       oak_vector_new(opts->allocator, sizeof(oak_bind_enum_t*));
-  oak_assert(opts->native_types && opts->native_fns &&
+  OAK_ASSERT(opts->native_types && opts->native_fns &&
              opts->native_global_fns && opts->native_enums);
 
   oak_bind_type_t** base_types =
@@ -92,7 +92,7 @@ void module_loader_filter_native_decls(
     oak_bind_type_t* type = base_types[i];
     if (is_native_module && type && native_module_name_eq(type->module_name, dotted))
       continue;
-    oak_assert(oak_push_back(opts->native_types, &type));
+    OAK_ASSERT(oak_push_back(opts->native_types, &type));
   }
 
   const oak_bind_fn_t* base_fns =
@@ -102,7 +102,7 @@ void module_loader_filter_native_decls(
     const oak_bind_fn_t* fn = &base_fns[i];
     if (is_native_module && native_type_in_module(fn->receiver_type, dotted))
       continue;
-    oak_assert(oak_push_back(opts->native_fns, fn));
+    OAK_ASSERT(oak_push_back(opts->native_fns, fn));
   }
 
   const oak_bind_global_fn_t* base_global_fns =
@@ -112,7 +112,7 @@ void module_loader_filter_native_decls(
     const oak_bind_global_fn_t* fn = &base_global_fns[i];
     if (is_native_module && native_module_name_eq(fn->module_name, dotted))
       continue;
-    oak_assert(oak_push_back(opts->native_global_fns, fn));
+    OAK_ASSERT(oak_push_back(opts->native_global_fns, fn));
   }
 
   oak_bind_enum_t** base_enums =
@@ -122,7 +122,7 @@ void module_loader_filter_native_decls(
     oak_bind_enum_t* e = base_enums[i];
     if (is_native_module && e && native_module_name_eq(e->module_name, dotted))
       continue;
-    oak_assert(oak_push_back(opts->native_enums, &e));
+    OAK_ASSERT(oak_push_back(opts->native_enums, &e));
   }
 }
 
@@ -201,7 +201,7 @@ void apply_native_module_function_exports(
         oak_get(mod->exports.fns, (usize)symbol->payload_index);
     if (exp->stub_attrs && exp->stub_attr_count > 0)
       oak_apply_attr_hooks(
-          opts, null, native, exp->stub_attrs, exp->stub_attr_count);
+          opts, OAK_NULL, native, exp->stub_attrs, exp->stub_attr_count);
     const u16 const_idx =
         (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
     exp->const_idx = const_idx;
@@ -218,7 +218,7 @@ void apply_native_module_function_exports(
       if (exp->param_mut_flags && fn->param_count != old_arity)
       {
         oak_free(mod->allocator, exp->param_mut_flags, OAK_HERE);
-        exp->param_mut_flags = null;
+        exp->param_mut_flags = OAK_NULL;
       }
       exp->param_types = oak_alloc(
           mod->allocator, (usize)fn->param_count * sizeof(oak_type_t),
@@ -266,7 +266,7 @@ void apply_native_module_function_exports(
         native->self_type = fn->receiver_type;
         if (me->stub_attrs && me->stub_attr_count > 0)
           oak_apply_attr_hooks(
-              opts, null, native, me->stub_attrs, me->stub_attr_count);
+              opts, OAK_NULL, native, me->stub_attrs, me->stub_attr_count);
         me->const_idx =
             (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
         oak_lower_bind_ref(&fn->return_type, &me->return_type);
@@ -288,30 +288,30 @@ loader_unwrap_decl(const oak_ast_node_t* item)
   if (item->kind != OAK_NODE_ATTR_DECL)
     return item;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &item->children)
+  OAK_LIST_FOR_EACH(pos, &item->children)
   {
     const oak_ast_node_t* child =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
       return loader_unwrap_decl(child);
   }
-  return null;
+  return OAK_NULL;
 }
 
 static const oak_ast_node_t*
 loader_fn_decl_name_node(const oak_ast_node_t* decl)
 {
-  const oak_ast_node_t* proto = decl ? decl->lhs : null;
-  const oak_ast_node_t* head = proto ? proto->lhs : null;
-  return head ? head->rhs : null;
+  const oak_ast_node_t* proto = decl ? decl->lhs : OAK_NULL;
+  const oak_ast_node_t* head = proto ? proto->lhs : OAK_NULL;
+  return head ? head->rhs : OAK_NULL;
 }
 
 static const oak_ast_node_t*
 loader_fn_decl_param_list(const oak_ast_node_t* decl)
 {
-  const oak_ast_node_t* proto = decl ? decl->lhs : null;
-  const oak_ast_node_t* tail = proto ? proto->rhs : null;
-  return tail ? tail->lhs : null;
+  const oak_ast_node_t* proto = decl ? decl->lhs : OAK_NULL;
+  const oak_ast_node_t* tail = proto ? proto->rhs : OAK_NULL;
+  return tail ? tail->lhs : OAK_NULL;
 }
 
 /* FN_HEAD is BINARY: lhs = FN_PREFIX, which is UNARY with
@@ -319,10 +319,10 @@ loader_fn_decl_param_list(const oak_ast_node_t* decl)
 static const oak_ast_node_t*
 loader_fn_decl_receiver_mode(const oak_ast_node_t* decl)
 {
-  const oak_ast_node_t* proto = decl ? decl->lhs : null;
-  const oak_ast_node_t* head = proto ? proto->lhs : null;
-  const oak_ast_node_t* prefix = head ? head->lhs : null;
-  return prefix ? prefix->child : null;
+  const oak_ast_node_t* proto = decl ? decl->lhs : OAK_NULL;
+  const oak_ast_node_t* head = proto ? proto->lhs : OAK_NULL;
+  const oak_ast_node_t* prefix = head ? head->lhs : OAK_NULL;
+  return prefix ? prefix->child : OAK_NULL;
 }
 
 static int loader_fn_decl_has_self(const oak_ast_node_t* decl)
@@ -347,17 +347,17 @@ static int loader_fn_decl_is_bodyless(const oak_ast_node_t* decl)
 static const oak_ast_node_t*
 loader_record_decl_name_node(const oak_ast_node_t* record_decl)
 {
-  const oak_ast_node_t* name = record_decl ? record_decl->lhs : null;
+  const oak_ast_node_t* name = record_decl ? record_decl->lhs : OAK_NULL;
   if (name && name->kind == OAK_NODE_RECORD_DECL_HEADER_IMPL)
     name = name->lhs;
   if (name && name->kind == OAK_NODE_TYPE_NAME)
   {
     const oak_list_entry_t* first = name->children.next;
     if (first == &name->children)
-      return null;
-    name = oak_container_of(first, oak_ast_node_t, link);
+      return OAK_NULL;
+    name = OAK_CONTAINER_OF(first, oak_ast_node_t, link);
   }
-  return (name && name->kind == OAK_NODE_IDENT) ? name : null;
+  return (name && name->kind == OAK_NODE_IDENT) ? name : OAK_NULL;
 }
 
 static const oak_bind_type_t*
@@ -366,7 +366,7 @@ find_native_type_decl(const oak_compile_options_t* opts,
                       const char* name)
 {
   if (!opts)
-    return null;
+    return OAK_NULL;
   oak_bind_type_t** types =
       OAK_DATA(oak_bind_type_t*, opts->native_types);
   for (usize i = 0; i < oak_size(opts->native_types); ++i)
@@ -376,7 +376,7 @@ find_native_type_decl(const oak_compile_options_t* opts,
         strcmp(type->name, name) == 0)
       return type;
   }
-  return null;
+  return OAK_NULL;
 }
 
 static int native_global_fn_decl_exists(const oak_compile_options_t* opts,
@@ -431,10 +431,10 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
     return 1;
   int ok = 1;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &root->children)
+  OAK_LIST_FOR_EACH(pos, &root->children)
   {
     const oak_ast_node_t* item =
-        loader_unwrap_decl(oak_container_of(pos, oak_ast_node_t, link));
+        loader_unwrap_decl(OAK_CONTAINER_OF(pos, oak_ast_node_t, link));
     if (!item)
       continue;
     if (item->kind == OAK_NODE_FN_DECL && loader_fn_decl_is_bodyless(item))
@@ -462,10 +462,10 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
     const oak_bind_type_t* receiver =
         find_native_type_decl(opts, mod->dotted_name, record_name);
     oak_list_entry_t* mpos;
-    oak_list_for_each(mpos, &item->rhs->children)
+    OAK_LIST_FOR_EACH(mpos, &item->rhs->children)
     {
       const oak_ast_node_t* member =
-          loader_unwrap_decl(oak_container_of(mpos, oak_ast_node_t, link));
+          loader_unwrap_decl(OAK_CONTAINER_OF(mpos, oak_ast_node_t, link));
       if (!member)
         continue;
       if (member->kind != OAK_NODE_FN_DECL || !loader_fn_decl_is_bodyless(member))
@@ -510,7 +510,7 @@ oak_module_t* create_native_module(
   if (!mod)
   {
     loader_error(out, "out of memory creating native module '%s'", dotted);
-    return null;
+    return OAK_NULL;
   }
 
   mod->chunk = oak_alloc(a, sizeof(oak_chunk_t), OAK_HERE);
@@ -586,12 +586,12 @@ oak_module_t* create_native_module(
     exp.methods = oak_vector_new(
         a, sizeof(oak_module_export_record_method_t));
     exp.interface_names = oak_vector_new(a, sizeof(const char*));
-    oak_assert(exp.fields && exp.methods && exp.interface_names);
+    OAK_ASSERT(exp.fields && exp.methods && exp.interface_names);
     char* const* interface_names = OAK_DATA(char*, type->interface_names);
     for (usize ii = 0; ii < oak_size(type->interface_names); ++ii)
     {
       const char* interface_name = interface_names[ii];
-      oak_assert(oak_push_back(exp.interface_names, &interface_name));
+      OAK_ASSERT(oak_push_back(exp.interface_names, &interface_name));
     }
     const oak_bind_field_t* type_fields =
         OAK_CDATA(oak_bind_field_t, type->fields);
@@ -601,7 +601,7 @@ oak_module_t* create_native_module(
         .name = type_fields[fi].name,
         .type = native_ref_type(&type_fields[fi].type),
       };
-      oak_assert(oak_push_back(exp.fields, &field));
+      OAK_ASSERT(oak_push_back(exp.fields, &field));
     }
     oak_symbol_registry_insert_record(
         &mod->exports, exp.name, mod->module_id, &exp);
@@ -622,7 +622,7 @@ oak_module_t* create_native_module(
     exp.name = e->name;
     exp.variants = oak_vector_new(
         a, sizeof(oak_module_export_enum_variant_t));
-    oak_assert(exp.variants);
+    OAK_ASSERT(exp.variants);
     const oak_bind_enum_variant_t* variants =
         OAK_CDATA(oak_bind_enum_variant_t, e->variants);
     for (usize vi = 0; vi < oak_size(e->variants); ++vi)
@@ -631,7 +631,7 @@ oak_module_t* create_native_module(
         .name = variants[vi].name,
         .value = variants[vi].value,
       };
-      oak_assert(oak_push_back(exp.variants, &variant));
+      OAK_ASSERT(oak_push_back(exp.variants, &variant));
     }
     oak_symbol_registry_insert_enum(
         &mod->exports, exp.name, mod->module_id, &exp);

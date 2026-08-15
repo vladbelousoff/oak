@@ -28,7 +28,7 @@ static int parse_positive_int(const char* arg, int* out)
     ++arg;
   if (*arg == '\0')
     return 0;
-  char* end = null;
+  char* end = OAK_NULL;
   const long value = strtol(arg, &end, 10);
   while (*end == ' ')
     ++end;
@@ -74,7 +74,7 @@ void oak_debugger_init(oak_debugger_t* dbg,
   dbg->allocator = allocator;
   dbg->breakpoints = oak_vector_new(allocator, sizeof(oak_breakpoint_t));
   dbg->line_offsets = oak_vector_new(allocator, sizeof(int));
-  oak_assert(dbg->breakpoints && dbg->line_offsets);
+  OAK_ASSERT(dbg->breakpoints && dbg->line_offsets);
   dbg->mode = OAK_DEBUG_MODE_RUN;
   dbg->next_bp_id = 1;
   dbg->initial_break = 1;
@@ -85,7 +85,7 @@ void oak_debugger_init(oak_debugger_t* dbg,
    * blob at exit rather than at the stop it belongs to. Unbuffer for the
    * session; a normal run keeps stdio's own policy. _IOLBF is not an option:
    * MSVC accepts it and silently buffers fully anyway. */
-  setvbuf(stdout, null, _IONBF, 0);
+  setvbuf(stdout, OAK_NULL, _IONBF, 0);
 }
 
 void oak_debugger_free(oak_debugger_t* dbg)
@@ -106,7 +106,7 @@ void oak_debugger_free(oak_debugger_t* dbg)
 int oak_debugger_add_breakpoint(oak_debugger_t* dbg, const int line,
                                 const char* source_name)
 {
-  char* owned_name = null;
+  char* owned_name = OAK_NULL;
   if (source_name)
   {
     const usize len = strlen(source_name);
@@ -188,14 +188,14 @@ static void cache_source(oak_debugger_t* dbg, const char* path)
   if (dbg->source_map.data)
   {
     oak_file_unmap(&dbg->source_map);
-    dbg->source_map.data = null;
+    dbg->source_map.data = OAK_NULL;
     dbg->source_map.size = 0;
   }
   oak_clear(dbg->line_offsets);
   if (dbg->cached_source_path)
   {
     oak_free(dbg->allocator, (void*)dbg->cached_source_path, OAK_HERE);
-    dbg->cached_source_path = null;
+    dbg->cached_source_path = OAK_NULL;
   }
 
   if (oak_file_map(path, &dbg->source_map) != 0)
@@ -215,13 +215,13 @@ static void cache_source(oak_debugger_t* dbg, const char* path)
   const usize size = dbg->source_map.size;
 
   const int zero = 0;
-  oak_assert(oak_push_back(dbg->line_offsets, &zero));
+  OAK_ASSERT(oak_push_back(dbg->line_offsets, &zero));
   for (usize i = 0; i < size; ++i)
   {
     if (data[i] == '\n')
     {
       const int offset = (int)(i + 1);
-      oak_assert(oak_push_back(dbg->line_offsets, &offset));
+      OAK_ASSERT(oak_push_back(dbg->line_offsets, &offset));
     }
   }
 }
@@ -332,7 +332,7 @@ static void cmd_backtrace(const oak_vm_t* vm, FILE* out)
     if (off < oak_chunk_size(chunk))
       line = oak_chunk_loc(chunk, off).line;
   }
-  const char* src = chunk->debug ? chunk->debug->source_name : null;
+  const char* src = chunk->debug ? chunk->debug->source_name : OAK_NULL;
   fprintf(out, "#0  <current> at %s:%d\n", src ? src : "?", line);
 
   for (int i = vm->frame_count - 1; i >= 0; --i)
@@ -360,7 +360,7 @@ static void cmd_backtrace(const oak_vm_t* vm, FILE* out)
       }
     }
     int ret_line = 0;
-    const char* ret_src = null;
+    const char* ret_src = OAK_NULL;
     if (fr->return_chunk && fr->return_chunk->debug &&
         ip_in_chunk(fr->return_ip, fr->return_chunk))
     {
@@ -669,7 +669,7 @@ oak_debug_action_t oak_debugger_hook(oak_vm_t* vm, void* ctx)
       vm->frame_count != dbg->prev_frame_count)
   {
     dbg->last_stopped_offset = (usize)-1;
-    dbg->last_stopped_chunk = null;
+    dbg->last_stopped_chunk = OAK_NULL;
   }
   dbg->prev_offset = offset;
   dbg->prev_frame_count = vm->frame_count;

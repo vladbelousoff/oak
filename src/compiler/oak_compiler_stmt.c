@@ -60,12 +60,12 @@ void oak_compiler_compile_block(oak_compiler_t* c,
 {
   oak_compiler_begin_scope(c);
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &block->children)
+  OAK_LIST_FOR_EACH(pos, &block->children)
   {
     const int saved_stack = c->scope.stack_depth;
     const int saved_locals = c->scope.local_count;
     oak_compiler_compile_node(
-        c, oak_container_of(pos, oak_ast_node_t, link));
+        c, OAK_CONTAINER_OF(pos, oak_ast_node_t, link));
     /* On statement-level error, record it and continue with the next statement
      * so the compiler can report as many independent errors as possible. */
     if (c->has_error)
@@ -83,19 +83,19 @@ void oak_compiler_compile_block(oak_compiler_t* c,
 void oak_compiler_compile_stmt_if(oak_compiler_t* c,
                                   const oak_ast_node_t* node)
 {
-  oak_assert(oak_child_count(node) >= 2u);
+  OAK_ASSERT(oak_child_count(node) >= 2u);
 
   oak_list_entry_t* pos = node->children.next;
   const oak_ast_node_t* cond =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   pos = pos->next;
   const oak_ast_node_t* body =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   pos = pos->next;
   const oak_ast_node_t* else_node =
       (pos != &node->children)
-          ? oak_container_of(pos, oak_ast_node_t, link)
-          : null;
+          ? OAK_CONTAINER_OF(pos, oak_ast_node_t, link)
+          : OAK_NULL;
 
   oak_reject_void(c, cond);
   if (c->has_error)
@@ -132,7 +132,7 @@ void oak_compile_while(oak_compiler_t* c,
 {
   if (!node->lhs || !node->rhs)
   {
-    oak_compiler_error_at(c, null, "malformed 'while' statement");
+    oak_compiler_error_at(c, OAK_NULL, "malformed 'while' statement");
     return;
   }
 
@@ -141,12 +141,12 @@ void oak_compile_while(oak_compiler_t* c,
     .loop_start = oak_chunk_size(c->chunk),
     .exit_depth = c->scope.stack_depth,
     .continue_depth = c->scope.stack_depth,
-    .break_jumps = null,
-    .continue_jumps = null,
+    .break_jumps = OAK_NULL,
+    .continue_jumps = OAK_NULL,
   };
   loop.break_jumps = oak_vector_new(c->allocator, sizeof(usize));
   loop.continue_jumps = oak_vector_new(c->allocator, sizeof(usize));
-  oak_assert(loop.break_jumps && loop.continue_jumps);
+  OAK_ASSERT(loop.break_jumps && loop.continue_jumps);
 
   /* current_loop points at a stack-allocated frame; reset before return. */
   c->scope.current_loop = &loop;

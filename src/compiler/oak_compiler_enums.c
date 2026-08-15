@@ -12,7 +12,7 @@ void oak_enum_registry_init(oak_enum_registry_t* r,
   r->enum_names = oak_hash_set_new(allocator);
   r->variants = oak_vector_new(allocator, sizeof(oak_enum_variant_t));
   r->enums = oak_vector_new(allocator, sizeof(oak_registered_enum_t));
-  oak_assert(r->by_name && r->enum_names && r->variants && r->enums);
+  OAK_ASSERT(r->by_name && r->enum_names && r->variants && r->enums);
 }
 
 void oak_enum_registry_free(oak_enum_registry_t* r)
@@ -40,21 +40,21 @@ const oak_registered_enum_t* oak_enum_find(
     if (strcmp(enums[i].name, name) == 0)
       return &enums[i];
   }
-  return null;
+  return OAK_NULL;
 }
 
 oak_enum_variant_t*
 oak_enum_registry_insert(oak_enum_registry_t* r,
                          const oak_enum_variant_t* v)
 {
-  oak_assert(oak_push_back(r->variants, v));
+  OAK_ASSERT(oak_push_back(r->variants, v));
   const usize idx = oak_size(r->variants) - 1;
   oak_enum_variant_t* variant = oak_get(r->variants, idx);
 
   /* Index by unqualified variant name (first-wins for unqualified lookup;
    * qualified lookup uses a linear scan and always works). */
   if (!oak_contains_str(r->by_name, variant->name))
-    oak_assert(oak_put_str(r->by_name, variant->name, &idx));
+    OAK_ASSERT(oak_put_str(r->by_name, variant->name, &idx));
 
   /* Record the enum type name as a set member if not already present. */
   oak_add_str(r->enum_names, variant->enum_name);
@@ -66,7 +66,7 @@ const oak_enum_variant_t* oak_enum_registry_find(
     const oak_enum_registry_t* r, const char* name)
 {
   const usize* idx = oak_cfind_str(r->by_name, name);
-  return idx ? oak_cget(r->variants, *idx) : null;
+  return idx ? oak_cget(r->variants, *idx) : OAK_NULL;
 }
 
 const oak_enum_variant_t*
@@ -85,7 +85,7 @@ oak_enums_find_qualified(const oak_enum_registry_t* r,
         strcmp(v->name, variant_name) == 0)
       return v;
   }
-  return null;
+  return OAK_NULL;
 }
 
 int oak_is_enum_name(const oak_enum_registry_t* r, const char* name)
@@ -114,7 +114,7 @@ void oak_register_native_enums(
     {
       oak_compiler_error_at(
           c,
-          null,
+          OAK_NULL,
           "native enum '%s' conflicts with an already-registered enum",
           ne->name);
       return;
@@ -125,7 +125,7 @@ void oak_register_native_enums(
     if (enum_type_id < 0)
     {
       oak_compiler_error_at(
-          c, null, "failed to register native enum '%s' as a type", ne->name);
+          c, OAK_NULL, "failed to register native enum '%s' as a type", ne->name);
       return;
     }
     /* Published on the descriptor so OAK_BIND_ENUM refs can resolve to it. */
@@ -136,14 +136,14 @@ void oak_register_native_enums(
         .name = ne->name,
         .type_id = enum_type_id,
         .source_module_id = OAK_MODULE_ID_NONE,
-        .attrs = null,
+        .attrs = OAK_NULL,
         .attr_count = 0,
       };
       if (!oak_compiler_declare_symbol(
-              c, null, re.name, OAK_SYMBOL_ENUM,
+              c, OAK_NULL, re.name, OAK_SYMBOL_ENUM,
               (int)oak_size(c->enums.enums), OAK_MODULE_ID_NONE, 0))
         return;
-      oak_assert(oak_push_back(c->enums.enums, &re));
+      OAK_ASSERT(oak_push_back(c->enums.enums, &re));
     }
 
     const oak_bind_enum_variant_t* bind_variants =
@@ -156,7 +156,7 @@ void oak_register_native_enums(
       {
         oak_compiler_error_at(
             c,
-            null,
+            OAK_NULL,
             "native enum variant '%s' conflicts with an already-registered "
             "variant",
             nv->name);
@@ -183,10 +183,10 @@ void oak_register_program_enums(oak_compiler_t* c,
                                          const oak_ast_node_t* program)
 {
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
+  OAK_LIST_FOR_EACH(pos, &program->children)
   {
     const oak_ast_node_t* raw_item =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     const oak_ast_node_t* item = oak_unwrap_decl(raw_item);
     if (!item || item->kind != OAK_NODE_ENUM_DECL)
       continue;
@@ -225,7 +225,7 @@ void oak_register_program_enums(oak_compiler_t* c,
       const char* enum_name = oak_token_text(name_node->token);
       oak_compiler_dispatch_attr_cbs(
           c, attrs, attr_count, enum_name, OAK_ATTR_TARGET_ENUM,
-          null, 0, null, 0, -1);
+          OAK_NULL, 0, OAK_NULL, 0, -1);
       oak_registered_enum_t re = {
         .name = enum_name,
         .type_id = enum_type_id,
@@ -240,15 +240,15 @@ void oak_register_program_enums(oak_compiler_t* c,
         return;
       if (oak_decl_is_exported(raw_item))
         oak_compiler_mark_symbol_exported(c, re.name);
-      oak_assert(oak_push_back(c->enums.enums, &re));
+      OAK_ASSERT(oak_push_back(c->enums.enums, &re));
     }
 
     int ordinal = 0;
     oak_list_entry_t* vpos;
-    oak_list_for_each(vpos, &variants_node->children)
+    OAK_LIST_FOR_EACH(vpos, &variants_node->children)
     {
       const oak_ast_node_t* variant =
-          oak_container_of(vpos, oak_ast_node_t, link);
+          OAK_CONTAINER_OF(vpos, oak_ast_node_t, link);
       if (variant->kind != OAK_NODE_IDENT)
         continue;
 

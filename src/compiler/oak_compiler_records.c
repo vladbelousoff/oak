@@ -25,15 +25,15 @@ static const oak_ast_node_t* record_decl_name_ident(
     {
       oak_compiler_error_at(
           c, item->token, "record type name must be an identifier");
-      return null;
+      return OAK_NULL;
     }
-    name_ident = oak_container_of(tn_first, oak_ast_node_t, link);
+    name_ident = OAK_CONTAINER_OF(tn_first, oak_ast_node_t, link);
   }
   if (name_ident->kind != OAK_NODE_IDENT)
   {
     oak_compiler_error_at(
         c, item->token, "record type name must be an identifier");
-    return null;
+    return OAK_NULL;
   }
   return name_ident;
 }
@@ -44,7 +44,7 @@ static const oak_ast_node_t* record_decl_implementations(
   return type_name_node &&
                  type_name_node->kind == OAK_NODE_RECORD_DECL_HEADER_IMPL
              ? type_name_node->rhs
-             : null;
+             : OAK_NULL;
 }
 
 /* Record the names from an `implements I, J` clause on `slot`. */
@@ -59,10 +59,10 @@ static int collect_declared_interfaces(oak_compiler_t* c,
     return 1;
 
   oak_list_entry_t* ipos;
-  oak_list_for_each(ipos, &implementations->children)
+  OAK_LIST_FOR_EACH(ipos, &implementations->children)
   {
     const oak_ast_node_t* impl_name =
-        oak_container_of(ipos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(ipos, oak_ast_node_t, link);
     if (!impl_name || impl_name->kind != OAK_NODE_IDENT)
       continue;
     const char* interface_name = oak_token_text(impl_name->token);
@@ -77,7 +77,7 @@ static int collect_declared_interfaces(oak_compiler_t* c,
                               interface_name, record_name);
         return 0;
       }
-    oak_assert(oak_push_back(slot->interface_names, &interface_name));
+    OAK_ASSERT(oak_push_back(slot->interface_names, &interface_name));
   }
   return 1;
 }
@@ -87,7 +87,7 @@ static const oak_bind_type_t* native_record_binding(
     const char* name)
 {
   if (!c->opts)
-    return null;
+    return OAK_NULL;
   oak_bind_type_t** native_types =
       OAK_DATA(oak_bind_type_t*, c->opts->native_types);
   for (usize i = 0; i < oak_size(c->opts->native_types); ++i)
@@ -98,7 +98,7 @@ static const oak_bind_type_t* native_record_binding(
     if (strcmp(native->name, name) == 0)
       return native;
   }
-  return null;
+  return OAK_NULL;
 }
 
 static oak_type_t native_field_type(const oak_bind_field_t* field)
@@ -120,7 +120,7 @@ static const oak_bind_field_t* native_record_field(
     if (strcmp(field->name, name) == 0)
       return field;
   }
-  return null;
+  return OAK_NULL;
 }
 
 static int decl_implements(const oak_ast_node_t* implementations,
@@ -129,9 +129,9 @@ static int decl_implements(const oak_ast_node_t* implementations,
   if (!implementations)
     return 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &implementations->children)
+  OAK_LIST_FOR_EACH(pos, &implementations->children)
   {
-    const oak_ast_node_t* ident = oak_container_of(pos, oak_ast_node_t, link);
+    const oak_ast_node_t* ident = OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (ident && ident->kind == OAK_NODE_IDENT &&
         strcmp(oak_token_text(ident->token), name) == 0)
       return 1;
@@ -170,9 +170,9 @@ static int native_record_interfaces_match(oak_compiler_t* c,
   if (!implementations)
     return 1;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &implementations->children)
+  OAK_LIST_FOR_EACH(pos, &implementations->children)
   {
-    const oak_ast_node_t* ident = oak_container_of(pos, oak_ast_node_t, link);
+    const oak_ast_node_t* ident = OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (!ident || ident->kind != OAK_NODE_IDENT)
       continue;
     const char* name = oak_token_text(ident->token);
@@ -220,7 +220,7 @@ static int native_record_decl_matches(oak_compiler_t* c,
        fpos = fpos->next)
   {
     const oak_ast_node_t* member =
-        oak_container_of(fpos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(fpos, oak_ast_node_t, link);
     if (member->kind == OAK_NODE_RECORD_FIELD_DECL)
       ++field_count;
   }
@@ -242,7 +242,7 @@ static int native_record_decl_matches(oak_compiler_t* c,
        fpos = fpos->next)
   {
     const oak_ast_node_t* fdecl =
-        oak_container_of(fpos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(fpos, oak_ast_node_t, link);
     /* Methods share the member list; oak_register_program_methods handles
        them, and rejects any member that is neither a field nor a fn. */
     if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL)
@@ -298,10 +298,10 @@ void oak_register_program_records(oak_compiler_t* c,
                                            const oak_ast_node_t* program)
 {
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
+  OAK_LIST_FOR_EACH(pos, &program->children)
   {
     const oak_ast_node_t* raw_item =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     const oak_ast_node_t* item = oak_unwrap_decl(raw_item);
 
     const int is_empty = item && item->kind == OAK_NODE_RECORD_DECL_EMPTY;
@@ -357,7 +357,7 @@ void oak_register_program_records(oak_compiler_t* c,
         {
           oak_compiler_dispatch_attr_cbs(
               c, attrs, attr_count, name, OAK_ATTR_TARGET_RECORD,
-              null, 0, null, 0, -1);
+              OAK_NULL, 0, OAK_NULL, 0, -1);
         }
         continue;
       }
@@ -377,29 +377,29 @@ void oak_register_program_records(oak_compiler_t* c,
     proto.interface_names =
         oak_vector_new(c->allocator, sizeof(const char*));
     proto.interfaces = oak_vector_new(c->allocator, sizeof(oak_type_t));
-    oak_assert(proto.fields && proto.methods && proto.interface_names &&
+    OAK_ASSERT(proto.fields && proto.methods && proto.interface_names &&
                proto.interfaces);
     proto.attrs = oak_extract_attrs(c->allocator, raw_item, &proto.attr_count);
 
     /* Pre-scan fields for attribute callbacks. */
-    oak_attr_field_info_t* finfo = null;
+    oak_attr_field_info_t* finfo = OAK_NULL;
     int finfo_count = 0;
     if (proto.attr_count > 0 && !is_empty && item->rhs &&
         item->rhs->kind == OAK_NODE_RECORD_MEMBERS)
     {
       const oak_ast_node_t* fw = item->rhs;
       oak_list_entry_t* fp;
-      oak_list_for_each(fp, &fw->children) { ++finfo_count; }
+      OAK_LIST_FOR_EACH(fp, &fw->children) { ++finfo_count; }
       if (finfo_count > 0)
       {
         finfo = oak_alloc(c->allocator,
                           (usize)finfo_count * sizeof(oak_attr_field_info_t),
                           OAK_HERE);
         int fi = 0;
-        oak_list_for_each(fp, &fw->children)
+        OAK_LIST_FOR_EACH(fp, &fw->children)
         {
           const oak_ast_node_t* fd =
-              oak_container_of(fp, oak_ast_node_t, link);
+              OAK_CONTAINER_OF(fp, oak_ast_node_t, link);
           if (fd->kind == OAK_NODE_RECORD_FIELD_DECL && fd->lhs && fd->rhs)
           {
             finfo[fi].name = oak_token_text(fd->lhs->token);
@@ -421,7 +421,7 @@ void oak_register_program_records(oak_compiler_t* c,
 
     oak_compiler_dispatch_attr_cbs(
         c, proto.attrs, proto.attr_count, name, OAK_ATTR_TARGET_RECORD,
-        null, 0, finfo, finfo_count, -1);
+        OAK_NULL, 0, finfo, finfo_count, -1);
     if (finfo)
       oak_free(c->allocator, finfo, OAK_HERE);
 
@@ -487,7 +487,7 @@ static int register_record_field_decls(oak_compiler_t* c,
        fpos = fpos->next)
   {
     const oak_ast_node_t* fdecl =
-        oak_container_of(fpos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(fpos, oak_ast_node_t, link);
     if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL)
       continue; /* a method; see oak_register_program_methods */
     if (!fdecl->lhs || !fdecl->rhs)
@@ -534,7 +534,7 @@ static int register_record_field_decls(oak_compiler_t* c,
           "record field must be 'name : type'");
       return 0;
     }
-    oak_assert(oak_push_back(slot->fields, &f));
+    OAK_ASSERT(oak_push_back(slot->fields, &f));
   }
   return 1;
 }

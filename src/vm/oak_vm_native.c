@@ -27,7 +27,7 @@ oak_fn_call_result_t oak_native_error(oak_native_call_t* call,
     /* No VM to record against -- a native invoked outside a call, or a test
      * harness driving the callback directly.  Log it so the reason is not
      * lost entirely. */
-    oak_log(OAK_LOG_ERROR, "error: %s", buf);
+    OAK_LOG(OAK_LOG_ERROR, "error: %s", buf);
     return OAK_FN_CALL_RUNTIME_ERROR;
   }
 

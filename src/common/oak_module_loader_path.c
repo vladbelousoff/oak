@@ -13,7 +13,7 @@
 
 char* path_dirname_dup(oak_allocator_t* a, const char* path)
 {
-  const char* last = null;
+  const char* last = OAK_NULL;
   for (const char* p = path; *p; ++p)
   {
     if (*p == '/' || *p == '\\')
@@ -78,17 +78,17 @@ char* path_executable_dir(oak_allocator_t* a)
   char buf[4096];
   buf[0] = 0;
 #if defined(_WIN32)
-  const DWORD n = GetModuleFileNameA(null, buf, (DWORD)sizeof(buf));
+  const DWORD n = GetModuleFileNameA(OAK_NULL, buf, (DWORD)sizeof(buf));
   if (n == 0u || n >= (DWORD)sizeof(buf))
-    return null;
+    return OAK_NULL;
 #elif defined(__APPLE__)
   uint32_t size = (uint32_t)sizeof(buf);
   if (_NSGetExecutablePath(buf, &size) != 0)
-    return null;
+    return OAK_NULL;
 #else
   const ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1u);
   if (n <= 0 || (usize)n >= sizeof(buf))
-    return null;
+    return OAK_NULL;
   buf[n] = 0;
 #endif
   return path_dirname_dup(a, buf);
@@ -97,7 +97,7 @@ char* path_executable_dir(oak_allocator_t* a)
 char* path_canonicalize(oak_allocator_t* a, const char* path)
 {
 #if defined(_WIN32)
-  char* abs = _fullpath(null, path, 0);
+  char* abs = _fullpath(OAK_NULL, path, 0);
   if (abs)
   {
     const usize n = strlen(abs);
@@ -149,10 +149,10 @@ char* dotted_name_from_path(oak_allocator_t* a,
   usize total = 0;
   int count = 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &path_node->children)
+  OAK_LIST_FOR_EACH(pos, &path_node->children)
   {
     const oak_ast_node_t* ident =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     total += oak_token_size(ident->token);
     ++count;
   }
@@ -166,10 +166,10 @@ char* dotted_name_from_path(oak_allocator_t* a,
   char* buf = oak_alloc(a, total + 1u, OAK_HERE);
   usize w = 0;
   int first = 1;
-  oak_list_for_each(pos, &path_node->children)
+  OAK_LIST_FOR_EACH(pos, &path_node->children)
   {
     const oak_ast_node_t* ident =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (!first)
       buf[w++] = '.';
     const int len = oak_token_size(ident->token);
@@ -184,9 +184,9 @@ char* dotted_name_from_path(oak_allocator_t* a,
 const oak_ast_node_t* dotted_path_last_segment(
     const oak_ast_node_t* path_node)
 {
-  const oak_ast_node_t* last = null;
+  const oak_ast_node_t* last = OAK_NULL;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &path_node->children) last =
-      oak_container_of(pos, oak_ast_node_t, link);
+  OAK_LIST_FOR_EACH(pos, &path_node->children) last =
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   return last;
 }

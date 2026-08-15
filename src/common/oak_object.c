@@ -11,7 +11,7 @@
 
 const oak_type_info_t oak_type_info_object = {
   .name = "object",
-  .parent = null,
+  .parent = OAK_NULL,
 };
 
 const oak_type_info_t oak_type_info_container = {
@@ -24,14 +24,14 @@ void* oak_base_alloc(oak_allocator_t* allocator,
                        const oak_base_vtable_t* vt)
 {
   if (!allocator || !vt)
-    return null;
+    return OAK_NULL;
   if (body_size > SIZE_MAX - OAK_OBJECT_HEADER_SIZE)
-    return null;
+    return OAK_NULL;
 
   u8* const base =
       oak_alloc(allocator, OAK_OBJECT_HEADER_SIZE + body_size, OAK_HERE);
   if (!base)
-    return null;
+    return OAK_NULL;
 
   oak_base_header_t* const header = (oak_base_header_t*)base;
   header->vt = vt;
@@ -80,7 +80,7 @@ void oak_destroy(void* obj)
 const oak_type_info_t* oak_type_of(const void* obj)
 {
   if (!obj)
-    return null;
+    return OAK_NULL;
   oak_base_check(obj);
   return oak_base_header(obj)->vt->type_of(obj);
 }
@@ -101,7 +101,7 @@ int oak_is(const void* obj, const oak_type_info_t* wanted)
 void* oak_query_interface(void* obj, oak_interface_id_t iid)
 {
   if (!obj)
-    return null;
+    return OAK_NULL;
   oak_base_check(obj);
   return oak_base_header(obj)->vt->query_interface(obj, iid);
 }
@@ -109,7 +109,7 @@ void* oak_query_interface(void* obj, oak_interface_id_t iid)
 oak_allocator_t* oak_allocator_of(const void* obj)
 {
   if (!obj)
-    return null;
+    return OAK_NULL;
   oak_base_check(obj);
   return oak_base_header(obj)->allocator;
 }

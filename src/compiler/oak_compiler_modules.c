@@ -7,10 +7,10 @@ const oak_module_t* oak_compiler_module_for_alias(
     const oak_compiler_t* c, const char* name)
 {
   if (!c->current_module || !c->module_registry)
-    return null;
+    return OAK_NULL;
   const usize* mod_id = oak_cfind_str(c->current_module->imports, name);
   if (!mod_id)
-    return null;
+    return OAK_NULL;
   return oak_module_registry_get(c->module_registry, (u16)*mod_id);
 }
 
@@ -24,7 +24,7 @@ oak_compiler_module_export_fn(const oak_compiler_t* c,
   if (out_mod)
     *out_mod = mod;
   if (!mod)
-    return null;
+    return OAK_NULL;
   return oak_module_find_export_fn(mod, fn_name);
 }
 
@@ -38,7 +38,7 @@ oak_compiler_module_export_record(const oak_compiler_t* c,
   if (out_mod)
     *out_mod = mod;
   if (!mod)
-    return null;
+    return OAK_NULL;
   return oak_module_find_export_record(mod, type_name);
 }
 
@@ -52,7 +52,7 @@ oak_compiler_module_export_enum(const oak_compiler_t* c,
   if (out_mod)
     *out_mod = mod;
   if (!mod)
-    return null;
+    return OAK_NULL;
   return oak_module_find_export_enum(mod, enum_name);
 }
 
@@ -62,15 +62,15 @@ oak_compiler_match_module_member(const oak_compiler_t* c,
                                  const oak_token_t** out_member)
 {
   if (!node || node->kind != OAK_NODE_MEMBER_ACCESS)
-    return null;
+    return OAK_NULL;
   const oak_ast_node_t* lhs = node->lhs;
   const oak_ast_node_t* rhs = node->rhs;
   if (!lhs || !rhs || lhs->kind != OAK_NODE_IDENT ||
       rhs->kind != OAK_NODE_IDENT)
-    return null;
+    return OAK_NULL;
   const oak_module_t* mod = oak_compiler_module_for_alias(c, oak_token_text(lhs->token));
   if (!mod)
-    return null;
+    return OAK_NULL;
   if (out_member)
     *out_member = rhs->token;
   return mod;
@@ -84,10 +84,10 @@ int oak_compiler_import_path_segments(const oak_ast_node_t* path_node,
   if (!path_node)
     return 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &path_node->children)
+  OAK_LIST_FOR_EACH(pos, &path_node->children)
   {
     const oak_ast_node_t* s =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (count < cap)
       out_segs[count] = s;
     ++count;

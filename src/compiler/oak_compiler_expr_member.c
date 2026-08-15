@@ -15,7 +15,7 @@ void oak_compiler_compile_member_access(oak_compiler_t* c,
 
   /* Cross-module enum variant: alias.EnumName.Variant */
   {
-    const oak_token_t* ename_tok = null;
+    const oak_token_t* ename_tok = OAK_NULL;
     if (oak_compiler_match_module_member(c, recv, &ename_tok))
     {
       const char* ename = oak_token_text(ename_tok);
@@ -61,13 +61,13 @@ void oak_compiler_compile_member_access(oak_compiler_t* c,
   oak_reject_void(c, recv);
   if (c->has_error)
     return;
-  const oak_registered_record_t* sd = null;
+  const oak_registered_record_t* sd = OAK_NULL;
   const int idx = oak_require_record_field(c, recv, fname, 0, &sd);
   (void)sd;
   if (idx < 0)
     return;
   oak_compiler_compile_node(c, recv);
-  oak_compiler_emit_op(c,
+  OAK_COMPILER_EMIT_OP(c,
                        OAK_OP_GET_FIELD,
                        oak_compiler_loc_from_token(fname->token),
                        OAK_ARG_U8((u8)idx));

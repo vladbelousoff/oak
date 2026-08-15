@@ -9,7 +9,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 typedef SOCKET oak_native_socket_t;
-#define oak_native_close closesocket
+#define OAK_NATIVE_CLOSE closesocket
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -17,7 +17,7 @@ typedef SOCKET oak_native_socket_t;
 #include <sys/socket.h>
 #include <unistd.h>
 typedef int oak_native_socket_t;
-#define oak_native_close close
+#define OAK_NATIVE_CLOSE close
 #endif
 
 static oak_native_socket_t native_socket(const oak_net_socket_t socket)
@@ -28,9 +28,9 @@ static oak_native_socket_t native_socket(const oak_net_socket_t socket)
 static void log_socket_error(const char* action)
 {
 #if defined(_WIN32)
-  oak_log(OAK_LOG_ERROR, "%s (Winsock error %d)", action, WSAGetLastError());
+  OAK_LOG(OAK_LOG_ERROR, "%s (Winsock error %d)", action, WSAGetLastError());
 #else
-  oak_log(OAK_LOG_ERROR, "%s: %s", action, strerror(errno));
+  OAK_LOG(OAK_LOG_ERROR, "%s: %s", action, strerror(errno));
 #endif
 }
 
@@ -41,7 +41,7 @@ int oak_net_init(void)
   const int result = WSAStartup(MAKEWORD(2, 2), &data);
   if (result != 0)
   {
-    oak_log(OAK_LOG_ERROR, "could not initialize Winsock (error %d)", result);
+    OAK_LOG(OAK_LOG_ERROR, "could not initialize Winsock (error %d)", result);
     return 0;
   }
   return 1;
@@ -79,7 +79,7 @@ int oak_net_listen_loopback(const int requested_port,
       0)
   {
     log_socket_error("could not configure socket");
-    oak_native_close(server);
+    OAK_NATIVE_CLOSE(server);
     return 0;
   }
 #endif
@@ -92,13 +92,13 @@ int oak_net_listen_loopback(const int requested_port,
   if (bind(server, (struct sockaddr*)&addr, sizeof(addr)) != 0)
   {
     log_socket_error("could not bind socket");
-    oak_native_close(server);
+    OAK_NATIVE_CLOSE(server);
     return 0;
   }
   if (listen(server, 1) != 0)
   {
     log_socket_error("could not listen on socket");
-    oak_native_close(server);
+    OAK_NATIVE_CLOSE(server);
     return 0;
   }
 
@@ -110,7 +110,7 @@ int oak_net_listen_loopback(const int requested_port,
   if (getsockname(server, (struct sockaddr*)&addr, &len) != 0)
   {
     log_socket_error("could not query socket address");
-    oak_native_close(server);
+    OAK_NATIVE_CLOSE(server);
     return 0;
   }
   *actual_port = ntohs(addr.sin_port);
@@ -122,7 +122,7 @@ int oak_net_accept(const oak_net_socket_t listener,
                    oak_net_socket_t* out)
 {
   const oak_native_socket_t client =
-      accept(native_socket(listener), null, null);
+      accept(native_socket(listener), OAK_NULL, OAK_NULL);
 #if defined(_WIN32)
   if (client == INVALID_SOCKET)
 #else
@@ -139,7 +139,7 @@ int oak_net_accept(const oak_net_socket_t listener,
 void oak_net_close(const oak_net_socket_t socket)
 {
   if (socket.handle != OAK_NET_INVALID)
-    oak_native_close(native_socket(socket));
+    OAK_NATIVE_CLOSE(native_socket(socket));
 }
 
 int oak_net_wait_readable(const oak_net_socket_t socket,
@@ -150,14 +150,14 @@ int oak_net_wait_readable(const oak_net_socket_t socket,
   FD_ZERO(&reads);
   FD_SET(native, &reads);
   struct timeval tv;
-  struct timeval* tv_ptr = null;
+  struct timeval* tv_ptr = OAK_NULL;
   if (timeout_ms >= 0)
   {
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
     tv_ptr = &tv;
   }
-  const int result = select((int)native + 1, &reads, null, null, tv_ptr);
+  const int result = select((int)native + 1, &reads, OAK_NULL, OAK_NULL, tv_ptr);
   if (result < 0)
     log_socket_error("socket readiness check failed");
   return result;

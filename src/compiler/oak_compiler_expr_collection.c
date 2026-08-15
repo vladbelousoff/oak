@@ -8,19 +8,19 @@ void oak_compiler_compile_array_literal(oak_compiler_t* c,
   if (count == 0)
   {
     oak_compiler_error_at(
-        c, null, "internal error: array literal with no elements");
+        c, OAK_NULL, "internal error: array literal with no elements");
     return;
   }
   if (count > 255)
   {
     oak_compiler_error_at(
-        c, null, "array literal too large (max 255 elements)");
+        c, OAK_NULL, "array literal too large (max 255 elements)");
     return;
   }
 
   const oak_list_entry_t* first = node->children.next;
   const oak_ast_node_t* first_wrap =
-      oak_container_of(first, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(first, oak_ast_node_t, link);
   const oak_ast_node_t* first_elem =
       first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
                                                          : first_wrap;
@@ -30,16 +30,16 @@ void oak_compiler_compile_array_literal(oak_compiler_t* c,
   if (!oak_type_is_known(&elem_ty))
   {
     oak_compiler_error_at(c,
-                          first_elem ? first_elem->token : null,
+                          first_elem ? first_elem->token : OAK_NULL,
                           "cannot infer array element type from first element");
     return;
   }
 
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &node->children)
+  OAK_LIST_FOR_EACH(pos, &node->children)
   {
     const oak_ast_node_t* wrap =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     const oak_ast_node_t* elem =
         wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
 
@@ -48,7 +48,7 @@ void oak_compiler_compile_array_literal(oak_compiler_t* c,
     if (oak_type_is_known(&et) && !oak_type_equal(&elem_ty, &et))
     {
       oak_compiler_error_at(c,
-                            elem ? elem->token : null,
+                            elem ? elem->token : OAK_NULL,
                             "array literal element type mismatch "
                             "(expected '%s', got '%s')",
                             oak_type_full_name(c, elem_ty),
@@ -61,7 +61,7 @@ void oak_compiler_compile_array_literal(oak_compiler_t* c,
       return;
   }
 
-  oak_compiler_emit_op(
+  OAK_COMPILER_EMIT_OP(
       c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
   c->scope.stack_depth -= (int)count;
 }
@@ -73,21 +73,21 @@ void oak_compiler_compile_map_literal(oak_compiler_t* c,
   const oak_ast_node_t* more = node->rhs;
   if (!first_entry || !more || more->kind != OAK_NODE_MAP_LITERAL_ENTRIES)
   {
-    oak_compiler_error_at(c, null, "malformed map literal");
+    oak_compiler_error_at(c, OAK_NULL, "malformed map literal");
     return;
   }
 
   const usize count = 1u + oak_list_length(&more->children);
   if (count > 255)
   {
-    oak_compiler_error_at(c, null, "map literal too large (max 255 entries)");
+    oak_compiler_error_at(c, OAK_NULL, "map literal too large (max 255 entries)");
     return;
   }
 
   if (first_entry->kind != OAK_NODE_MAP_LITERAL_ENTRY || !first_entry->lhs ||
       !first_entry->rhs)
   {
-    oak_compiler_error_at(c, null, "malformed map literal entry");
+    oak_compiler_error_at(c, OAK_NULL, "malformed map literal entry");
     return;
   }
 
@@ -118,13 +118,13 @@ void oak_compiler_compile_map_literal(oak_compiler_t* c,
   }
 
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &more->children)
+  OAK_LIST_FOR_EACH(pos, &more->children)
   {
     const oak_ast_node_t* entry =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (entry->kind != OAK_NODE_MAP_LITERAL_ENTRY || !entry->lhs || !entry->rhs)
     {
-      oak_compiler_error_at(c, null, "malformed map literal entry");
+      oak_compiler_error_at(c, OAK_NULL, "malformed map literal entry");
       return;
     }
 
@@ -160,10 +160,10 @@ void oak_compiler_compile_map_literal(oak_compiler_t* c,
   oak_compiler_compile_node(c, first_entry->rhs);
   if (c->has_error)
     return;
-  oak_list_for_each(pos, &more->children)
+  OAK_LIST_FOR_EACH(pos, &more->children)
   {
     const oak_ast_node_t* entry =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     oak_compiler_compile_node(c, entry->lhs);
     if (c->has_error)
       return;
@@ -172,7 +172,7 @@ void oak_compiler_compile_map_literal(oak_compiler_t* c,
       return;
   }
 
-  oak_compiler_emit_op(
+  OAK_COMPILER_EMIT_OP(
       c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC, OAK_ARG_U8((u8)count));
   c->scope.stack_depth -= (int)count * 2;
 }
@@ -183,17 +183,17 @@ void oak_compiler_compile_new_array(oak_compiler_t* c,
   const oak_ast_node_t* type_node = node->child;
   if (!type_node || type_node->kind != OAK_NODE_TYPE_ARRAY)
   {
-    oak_compiler_error_at(c, null, "malformed 'new' array expression");
+    oak_compiler_error_at(c, OAK_NULL, "malformed 'new' array expression");
     return;
   }
   const oak_ast_node_t* elem = type_node->child;
   if (!elem || elem->kind != OAK_NODE_IDENT)
   {
     oak_compiler_error_at(
-        c, null, "array constructor requires an element type (e.g. 'new number[]')");
+        c, OAK_NULL, "array constructor requires an element type (e.g. 'new number[]')");
     return;
   }
-  oak_compiler_emit_op(c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_NEW_ARR, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
 }
 
 void oak_compiler_compile_new_map(oak_compiler_t* c,
@@ -202,7 +202,7 @@ void oak_compiler_compile_new_map(oak_compiler_t* c,
   const oak_ast_node_t* type_node = node->child;
   if (!type_node || type_node->kind != OAK_NODE_TYPE_MAP)
   {
-    oak_compiler_error_at(c, null, "malformed 'new' map expression");
+    oak_compiler_error_at(c, OAK_NULL, "malformed 'new' map expression");
     return;
   }
   const oak_ast_node_t* key = type_node->lhs;
@@ -212,10 +212,10 @@ void oak_compiler_compile_new_map(oak_compiler_t* c,
   {
     oak_compiler_error_at(
         c,
-        null,
+        OAK_NULL,
         "map constructor requires key and value types "
         "(e.g. 'new [string:number]')");
     return;
   }
-  oak_compiler_emit_op(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_NEW_MAP, OAK_LOC_SYNTHETIC, OAK_ARG_U8(0));
 }

@@ -16,19 +16,19 @@ UTEST_F(compiler_types, records_bind_their_name_and_fields)
     { "record Color { r : number; g : number; b : number; }\n"
       "let c = new Color { r : 255, g : 128, b : 0 };\n"
       "print(c.r);\n",
-      null },
+      OAK_NULL },
     { "record Wrapper { value : number; }\n"
       "let w = new Wrapper { value : 42 };\n"
       "print(w.value);\n",
-      null },
+      OAK_NULL },
     /* A record with no fields is declared without a body block. */
     { "record Empty;\n"
       "let e = new Empty {};\n",
-      null },
+      OAK_NULL },
     { "record Named { label : string; }\n"
       "let n = new Named { label : 'hello' };\n"
       "print(n.label);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -75,21 +75,21 @@ UTEST_F(compiler_types, record_types_flow_through_signatures_and_fields)
       "fn area(s : Size) -> number { return s.w * s.h; }\n"
       "let sz = new Size { w : 4, h : 5 };\n"
       "print(area(sz));\n",
-      null },
+      OAK_NULL },
     { "record Pair { a : number; b : number; }\n"
       "fn make_pair(x : number, y : number) -> Pair {\n"
       "  return new Pair { a : x, b : y };\n"
       "}\n"
       "let p = make_pair(3, 7);\n"
       "print(p.a);\n",
-      null },
+      OAK_NULL },
     /* A record may be the declared type of another record's field... */
     { "record Inner { z : number; }\n"
       "record Outer { inner : Inner; }\n"
       "let i = new Inner { z : 9 };\n"
       "let o = new Outer { inner : i };\n"
       "print(o.inner.z);\n",
-      null },
+      OAK_NULL },
     /* ...to arbitrary depth, with the chain typed at every step. */
     { "record A { x : number; }\n"
       "record B { a : A; }\n"
@@ -98,7 +98,7 @@ UTEST_F(compiler_types, record_types_flow_through_signatures_and_fields)
       "let b = new B { a : a };\n"
       "let c = new C { b : b };\n"
       "print(c.b.a.x);\n",
-      null },
+      OAK_NULL },
     /* A record-typed field read is itself typed, so it can be passed on. */
     { "record Inner { v : number; }\n"
       "record Outer { inner : Inner; }\n"
@@ -106,7 +106,7 @@ UTEST_F(compiler_types, record_types_flow_through_signatures_and_fields)
       "let i = new Inner { v : 3 };\n"
       "let o = new Outer { inner : i };\n"
       "print(read(o.inner));\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -172,7 +172,7 @@ UTEST_F(compiler_types, field_reads_carry_their_declared_type)
       "fn double(n : number) -> number { return n * 2; }\n"
       "let p = new Point { x : 5, y : 6 };\n"
       "print(double(p.x));\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -230,12 +230,12 @@ UTEST_F(compiler_types, field_assignment_on_a_mutable_record_works)
       "let mut p = new Point { x : 1, y : 2 };\n"
       "p.x = 10;\n"
       "print(p.x);\n",
-      null },
+      OAK_NULL },
     { "record Named { label : string; }\n"
       "let mut n = new Named { label : 'old' };\n"
       "n.label = 'new';\n"
       "print(n.label);\n",
-      null },
+      OAK_NULL },
     /* A chain built entirely from inline literals is rooted in the mutable
      * binding, so no immutable reference is being written through. */
     { "record A { n : number; }\n"
@@ -243,7 +243,7 @@ UTEST_F(compiler_types, field_assignment_on_a_mutable_record_works)
       "record C { b : B; }\n"
       "let mut c = new C { b : new B { a : new A { n : 123 } } };\n"
       "c.b.a.n = 100;\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -286,7 +286,7 @@ UTEST_F(compiler_types, weak_annotates_fields_and_parameters)
       "let l = new Link { target : n };\n"
       "print(read(n));\n"
       "print(l.target.value);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -331,7 +331,7 @@ UTEST_F(compiler_types, functions_inside_a_record_body_are_methods)
       "  fn dup() -> number { return self.x; }\n"
       "}\n"
       "print(Point.origin().dup());\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);

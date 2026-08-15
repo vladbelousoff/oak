@@ -32,7 +32,7 @@ void oak_lexer_save_token(oak_lexer_result_t* lexer,
                           const char* buffer,
                           const usize buffer_size)
 {
-  oak_assert(buffer_size <= (usize)INT_MAX);
+  OAK_ASSERT(buffer_size <= (usize)INT_MAX);
 
   usize token_size = sizeof(oak_token_t);
   if (buffer_size > 0)
@@ -371,7 +371,7 @@ static oak_lex_status_t scan_number(const oak_lexer_ctx_t* ctx,
   if (len == 0)
     return OAK_LEX_NO_MATCH;
 
-  static _Thread_local char tls_buffer[64];
+  static OAK_THREAD_LOCAL char tls_buffer[64];
   if (len >= sizeof(tls_buffer))
     return OAK_LEX_NUMBER_TOO_LONG;
 
@@ -380,7 +380,7 @@ static oak_lex_status_t scan_number(const oak_lexer_ctx_t* ctx,
 
   if (has_dot || has_exp)
   {
-    char* parse_end = null;
+    char* parse_end = OAK_NULL;
     errno = 0;
     const float val = strtof(tls_buffer, &parse_end);
     if (parse_end != tls_buffer + len)
@@ -393,7 +393,7 @@ static oak_lex_status_t scan_number(const oak_lexer_ctx_t* ctx,
   }
   else
   {
-    char* parse_end = null;
+    char* parse_end = OAK_NULL;
     errno = 0;
     const long lval = strtol(tls_buffer, &parse_end, 10);
     if (parse_end != tls_buffer + len)
@@ -503,12 +503,12 @@ oak_lexer_result_t* oak_lexer_tokenize_len(
     const char* input, const usize len, oak_allocator_t* allocator)
 {
   if (len > 0 && !input)
-    return null;
+    return OAK_NULL;
 
   oak_lexer_result_t* result =
       oak_alloc(allocator, sizeof(oak_lexer_result_t), OAK_HERE);
   if (!result)
-    return null;
+    return OAK_NULL;
 
   oak_lexer_cur_t cur = {
     .buf_pos = 0, .pos = 1, .line = 1, .column = 1
@@ -536,9 +536,9 @@ oak_lexer_result_t* oak_lexer_tokenize_len(
       const usize rem = len - (usize)cur.buf_pos;
       const int n = oak_utf8_next_bounded(&input[cur.buf_pos], rem, &cp);
       if (n < 0)
-        oak_log(OAK_LOG_ERROR, "invalid utf8 character: 0x%.8X", cp);
+        OAK_LOG(OAK_LOG_ERROR, "invalid utf8 character: 0x%.8X", cp);
       else
-        oak_log(OAK_LOG_ERROR,
+        OAK_LOG(OAK_LOG_ERROR,
                 "unexpected character U+%04X at line %d, column %d",
                 cp,
                 cur.line,
@@ -549,7 +549,7 @@ oak_lexer_result_t* oak_lexer_tokenize_len(
     }
     else
     {
-      oak_log(OAK_LOG_ERROR, "lexer: status %d", (int)step);
+      OAK_LOG(OAK_LOG_ERROR, "lexer: status %d", (int)step);
       result->error_count++;
       break;
     }
@@ -562,14 +562,14 @@ oak_lexer_result_t* oak_lexer_tokenize(
     const char* input, oak_allocator_t* allocator)
 {
   if (!input)
-    return null;
+    return OAK_NULL;
   return oak_lexer_tokenize_len(input, strlen(input), allocator);
 }
 
 const oak_list_entry_t*
 oak_lexer_tokens(const oak_lexer_result_t* result)
 {
-  return result ? &result->tokens : null;
+  return result ? &result->tokens : OAK_NULL;
 }
 
 int oak_lexer_error_count(const oak_lexer_result_t* result)

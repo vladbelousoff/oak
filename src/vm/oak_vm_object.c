@@ -186,7 +186,7 @@ oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,
     case OAK_OP_NEW_ARR:
     {
       const u8 count = oak_vm_read_u8(vm);
-      oak_assert((usize)(vm->sp - vm->stack) >= (usize)count);
+      OAK_ASSERT((usize)(vm->sp - vm->stack) >= (usize)count);
       oak_obj_array_t* arr =
           oak_array_new_in_table(vm->allocator, vm->object_table);
       oak_value_t* base = vm->sp - (int)count;
@@ -215,7 +215,7 @@ oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,
     {
       const u8 count = oak_vm_read_u8(vm);
       const usize slots = (usize)count * 2u;
-      oak_assert((usize)(vm->sp - vm->stack) >= slots);
+      OAK_ASSERT((usize)(vm->sp - vm->stack) >= slots);
       oak_obj_map_t* map =
           oak_map_new_in_table(vm->allocator, vm->object_table);
       oak_value_t* base = vm->sp - (int)slots;
@@ -271,15 +271,15 @@ oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,
        * Result: [..., record]. */
       const u8 count = oak_vm_read_u8(vm);
       const u16 layout_id = oak_vm_read_u16(vm);
-      oak_assert((usize)(vm->sp - vm->stack) >= (usize)count + 1u);
-      oak_assert((usize)layout_id < oak_size(chunk->field_layouts));
+      OAK_ASSERT((usize)(vm->sp - vm->stack) >= (usize)count + 1u);
+      OAK_ASSERT((usize)layout_id < oak_size(chunk->field_layouts));
       const oak_chunk_field_layout_t* const lay =
           oak_cget(chunk->field_layouts, layout_id);
-      oak_assert(lay->field_count == (int)count);
+      OAK_ASSERT(lay->field_count == (int)count);
 
       oak_value_t* base = vm->sp - (int)count;
       const oak_value_t type_name_val = base[-1];
-      const char* type_name = null;
+      const char* type_name = OAK_NULL;
       if (oak_is_string(type_name_val))
         type_name = oak_as_string(type_name_val)->chars;
 
@@ -327,7 +327,7 @@ oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,
       if (oak_is_record(recv))
       {
         const oak_obj_record_t* s = oak_as_record(recv);
-        oak_assert((int)idx < s->field_count);
+        OAK_ASSERT((int)idx < s->field_count);
         const oak_value_t field = s->fields[idx];
         const oak_vm_result_t pr = oak_vm_push(vm, field);
         oak_value_decref(recv);
@@ -372,7 +372,7 @@ oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,
     {
       /* Stack: [..., recv, value]; pops both. */
       const u8 idx = oak_vm_read_u8(vm);
-      oak_assert(vm->sp - vm->stack >= 2);
+      OAK_ASSERT(vm->sp - vm->stack >= 2);
       const oak_value_t value = oak_vm_pop(vm);
       const oak_value_t recv = oak_vm_pop(vm);
       if (oak_is_none_like(recv))
@@ -386,7 +386,7 @@ oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,
       if (oak_is_record(recv))
       {
         oak_obj_record_t* s = oak_as_record(recv);
-        oak_assert((int)idx < s->field_count);
+        OAK_ASSERT((int)idx < s->field_count);
         if (!vm_value_can_store(vm, value, s->obj.table_id))
         {
           oak_value_decref(recv);

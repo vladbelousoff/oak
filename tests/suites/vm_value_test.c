@@ -209,7 +209,7 @@ UTEST_F(vm_value, each_vm_owns_a_table_that_is_recycled_on_free)
   /* The last object is already gone, so freeing the VM releases the entry. */
   oak_vm_free(&vm);
   OAK_EXPECT_ENUM(OAK_OBJ_TABLE_FREE, oak_obj_tables[table].state);
-  EXPECT_EQ(null, oak_obj_tables[table].slots);
+  EXPECT_EQ(OAK_NULL, oak_obj_tables[table].slots);
   EXPECT_TRUE(oak_is_expired_weak(weak));
 
   /* Reacquiring the same entry must not revive the stale weak: fresh slots
@@ -343,11 +343,11 @@ UTEST_F(vm_value, vm_call_rejects_a_callable_from_another_vm)
   /* A dummy chunk is enough to reach the argument-transfer boundary. */
   vm_b.chunk = &dummy_chunk;
   OAK_EXPECT_ENUM(OAK_VM_RUNTIME_ERROR,
-                  oak_vm_call(&vm_b, a_value, null, 0, null));
+                  oak_vm_call(&vm_b, a_value, OAK_NULL, 0, OAK_NULL));
   EXPECT_EQ(vm_b.stack, vm_b.sp);
   OAK_EXPECT_ENUM(
       OAK_VM_RUNTIME_ERROR,
-      oak_vm_call(&vm_b, oak_value_weaken(a_value), null, 0, null));
+      oak_vm_call(&vm_b, oak_value_weaken(a_value), OAK_NULL, 0, OAK_NULL));
   EXPECT_EQ(vm_b.stack, vm_b.sp);
 
   oak_obj_decref((oak_obj_t*)owned_by_a);

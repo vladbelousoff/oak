@@ -35,7 +35,7 @@ Public headers live in `include/`. Internal compiler headers are in `src/compile
   Keep the conditional in a private header and expose only the
   configuration-independent type (see `oak_refcount.h` vs
   `src/common/oak_refcount_ops.h`). Public inline code uses `<assert.h>`, not
-  `oak_assert`. `OAK_BUILDING_ACORN`/`OAK_STATIC` in `oak_export.h` are the
+  `OAK_ASSERT`. `OAK_BUILDING_ACORN`/`OAK_STATIC` in `oak_export.h` are the
   deliberate exceptions.
 
 The `public_api` test enforces the first: `tests/public_api/oak_embed_smoke.c`
@@ -48,7 +48,7 @@ header to `include/` also means adding it to `oak_public_headers` in
 
 - C17, built with Meson/Ninja
 - Prefix all symbols (public API and internal compiler) with `oak_`
-- `null` macro (not `NULL`), `u8`/`u16`/`u32`/`usize` typedefs from `oakc_defs.h`
+- `OAK_NULL` macro (not `NULL`), `u8`/`u16`/`u32`/`usize` typedefs from `oakc_defs.h`
 - All heap allocation goes through `oak_allocator_t`: `oak_alloc`,
   `oak_realloc` and `oak_free`, each taking an explicit `oak_source_loc_t`.
   Pass `OAK_HERE` when this call site is where the memory was asked for. When

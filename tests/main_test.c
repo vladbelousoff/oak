@@ -24,7 +24,7 @@ UTEST_STATE();
 
 int main(int argc, const char* const argv[])
 {
-  const char* filter = null;
+  const char* filter = OAK_NULL;
   int i;
 
   for (i = 1; i < argc; ++i)

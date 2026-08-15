@@ -35,7 +35,7 @@ u16 oak_compiler_intern_constant(oak_compiler_t* c,
   if (oak_size(c->chunk->constants) >= 65536)
   {
     oak_compiler_error_at(
-        c, null, "too many constants in one chunk (max 65536)");
+        c, OAK_NULL, "too many constants in one chunk (max 65536)");
     return 0;
   }
   /* Deduplicate integer and float constants to conserve pool slots. */
@@ -50,7 +50,7 @@ u16 oak_compiler_intern_constant(oak_compiler_t* c,
     }
   }
   const usize idx = oak_chunk_add_constant(c->chunk, value);
-  oak_assert(idx <= 65535);
+  OAK_ASSERT(idx <= 65535);
   return (u16)idx;
 }
 
@@ -60,14 +60,14 @@ void oak_compiler_emit_constant(oak_compiler_t* c,
                                 const u16 idx,
                                 const oak_code_loc_t loc)
 {
-  oak_compiler_emit_op(c, OAK_OP_CONSTANT, loc, OAK_ARG_U16(idx));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_CONSTANT, loc, OAK_ARG_U16(idx));
 }
 
 usize oak_compiler_emit_jump(oak_compiler_t* c,
                              const u8 op,
                              const oak_code_loc_t loc)
 {
-  oak_compiler_emit_op(c, op, loc);
+  OAK_COMPILER_EMIT_OP(c, op, loc);
   /* Reserve 2 bytes for the 16-bit forward jump offset (big-endian). */
   oak_compiler_emit_byte(c, 0xff, loc);
   oak_compiler_emit_byte(c, 0xff, loc);
@@ -81,7 +81,7 @@ void oak_compiler_patch_jump(oak_compiler_t* c, const usize offset)
   if (jump > 0xFFFFu)
   {
     oak_compiler_error_at(
-        c, null, "jump distance %zu exceeds 16-bit limit (max 65535)", jump);
+        c, OAK_NULL, "jump distance %zu exceeds 16-bit limit (max 65535)", jump);
     return;
   }
   u8* const code = OAK_DATA(u8, c->chunk->code);
@@ -101,13 +101,13 @@ void oak_compiler_emit_loop(oak_compiler_t* c,
                             const usize loop_start,
                             const oak_code_loc_t loc)
 {
-  oak_compiler_emit_op(c, OAK_OP_LOOP, loc);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_LOOP, loc);
   /* The 2-byte operand itself is included in the backward distance. */
   const usize jump = oak_chunk_size(c->chunk) - loop_start + 2;
   if (jump > 0xFFFFu)
   {
     oak_compiler_error_at(
-        c, null, "loop distance %zu exceeds 16-bit limit (max 65535)", jump);
+        c, OAK_NULL, "loop distance %zu exceeds 16-bit limit (max 65535)", jump);
     oak_compiler_emit_byte(c, 0, loc);
     oak_compiler_emit_byte(c, 0, loc);
     return;
@@ -124,7 +124,7 @@ void oak_compiler_emit_pops(oak_compiler_t* c,
     return;
   if (count == 1)
   {
-    oak_compiler_emit_op(c, OAK_OP_POP, loc);
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_POP, loc);
     return;
   }
   /* OP_POP_N has variadic stack effect; track it manually here. */
@@ -147,6 +147,6 @@ void oak_emit_loop_jump(oak_compiler_t* c,
       c, c->scope.stack_depth - target_depth, OAK_LOC_SYNTHETIC);
 
   const usize jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, OAK_LOC_SYNTHETIC);
-  oak_assert(oak_push_back(jumps, &jump));
+  OAK_ASSERT(oak_push_back(jumps, &jump));
   c->scope.stack_depth = saved_depth;
 }

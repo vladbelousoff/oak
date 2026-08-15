@@ -18,11 +18,11 @@ static void oak_compile_indirect_call(oak_compiler_t* c,
   for (pos = first->next; pos != &node->children; pos = pos->next)
   {
     const oak_ast_node_t* arg =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     oak_compile_call_arg(c, arg);
   }
 
-  oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)argc));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)argc));
   c->scope.stack_depth -= (int)argc;
 }
 
@@ -32,12 +32,12 @@ void oak_compiler_compile_fn_call(oak_compiler_t* c,
   const oak_list_entry_t* first = node->children.next;
   if (first == &node->children)
   {
-    oak_compiler_error_at(c, null, "malformed call (no callee)");
+    oak_compiler_error_at(c, OAK_NULL, "malformed call (no callee)");
     return;
   }
 
   const oak_ast_node_t* callee =
-      oak_container_of(first, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(first, oak_ast_node_t, link);
 
   if (callee && callee->kind == OAK_NODE_MEMBER_ACCESS)
   {
@@ -74,7 +74,7 @@ void oak_compiler_compile_fn_call(oak_compiler_t* c,
 
       if (entry->source_module_id != OAK_MODULE_ID_NONE)
       {
-        oak_compiler_emit_op(c,
+        OAK_COMPILER_EMIT_OP(c,
                              OAK_OP_GET_MODULE_FN,
                              call_loc,
                              OAK_ARG_U16(entry->source_module_id),
@@ -91,7 +91,7 @@ void oak_compiler_compile_fn_call(oak_compiler_t* c,
            pos = pos->next, ++arg_idx)
       {
         const oak_ast_node_t* arg =
-            oak_container_of(pos, oak_ast_node_t, link);
+            OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
 
         int compiled = 0;
         if (entry->decl)
@@ -126,13 +126,13 @@ void oak_compiler_compile_fn_call(oak_compiler_t* c,
           oak_compile_call_arg(c, arg);
       }
 
-      oak_compiler_emit_op(
+      OAK_COMPILER_EMIT_OP(
           c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)argc));
       c->scope.stack_depth -= (int)argc;
       return;
     }
 
-    const int slot = oak_compiler_find_local(c, callee_name, null);
+    const int slot = oak_compiler_find_local(c, callee_name, OAK_NULL);
     if (slot >= 0)
     {
       oak_compile_indirect_call(c, node, callee);

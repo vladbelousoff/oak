@@ -52,7 +52,7 @@ struct oak_base_vtable
 /* The `magic` field is present only under OAK_DEBUG_LOGGING, so this struct —
  * and therefore OAK_OBJECT_HEADER_SIZE — differs between debug and release.
  * That is invisible within a build, but a shared library and its consumer
- * must be built with matching settings, as they already must for oak_assert. */
+ * must be built with matching settings, as they already must for OAK_ASSERT. */
 typedef struct oak_base_header oak_base_header_t;
 struct oak_base_header
 {
@@ -91,7 +91,7 @@ static inline oak_base_header_t* oak_base_header(const void* obj)
 static inline void oak_base_check(const void* obj)
 {
 #ifdef OAK_DEBUG_LOGGING
-  oak_assert(oak_base_header(obj)->magic == OAK_OBJECT_MAGIC);
+  OAK_ASSERT(oak_base_header(obj)->magic == OAK_OBJECT_MAGIC);
 #else
   (void)obj;
 #endif
@@ -178,5 +178,5 @@ u32 oak_hash_bytes(const void* data, usize len);
 static inline const oak_container_vtable_t*
 oak_container_vt(const oak_container_t* c)
 {
-  return c ? (const oak_container_vtable_t*)oak_base_header(c)->vt : null;
+  return c ? (const oak_container_vtable_t*)oak_base_header(c)->vt : OAK_NULL;
 }

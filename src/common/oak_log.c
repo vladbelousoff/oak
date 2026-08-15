@@ -34,8 +34,8 @@ const char* oak_path_basename(const char* path)
 
 static const char* oak_time_stamp(void)
 {
-  static _Thread_local char buf[16];
-  time_t now = time(null);
+  static OAK_THREAD_LOCAL char buf[16];
+  time_t now = time(OAK_NULL);
   struct tm tmv;
 
 #if defined(_WIN32)
@@ -62,7 +62,7 @@ void _oak_log_printf(const oak_log_level_t lvl,
                      const char* fmt,
                      ...)
 {
-  static _Thread_local char buf[4096];
+  static OAK_THREAD_LOCAL char buf[4096];
 
   int off = 0;
 #ifdef OAK_DEBUG_LOGGING

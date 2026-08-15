@@ -4,10 +4,10 @@ static void collect_module_scope_names(oak_compiler_t* c,
                                        const oak_ast_node_t* program)
 {
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
+  OAK_LIST_FOR_EACH(pos, &program->children)
   {
     const oak_ast_node_t* item =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (!item || item->kind != OAK_NODE_STMT_LET_ASSIGNMENT)
       continue;
     const oak_ast_node_t* assign = item->rhs;
@@ -54,10 +54,10 @@ static void compile_program_items(oak_compiler_t* c,
                                   const oak_ast_node_t* program)
 {
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
+  OAK_LIST_FOR_EACH(pos, &program->children)
   {
     const oak_ast_node_t* item =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (!item_emits_top_level_code(item))
       continue;
 
@@ -119,7 +119,7 @@ static void emit_deferred_bodies(oak_compiler_t* c,
 {
   for (int i = 0; i < c->scope.local_count; ++i)
     oak_chunk_end_debug_local(c->chunk, c->scope.locals[i].slot);
-  oak_compiler_emit_op(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_HALT, OAK_LOC_SYNTHETIC);
   oak_compile_fn_bodies(c);
   CHECK_ERROR(c);
   oak_compile_method_bodies(c);
@@ -139,7 +139,7 @@ void oak_compiler_report_bind_errors(oak_compiler_t* c,
   for (usize i = (usize)c->bind_errors_cursor;
        i < oak_size(opts->bind_errors);
        ++i)
-    oak_compiler_error_at(c, null, "native binding: %s", messages[i]);
+    oak_compiler_error_at(c, OAK_NULL, "native binding: %s", messages[i]);
   c->bind_errors_cursor = (int)oak_size(opts->bind_errors);
 }
 

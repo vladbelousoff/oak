@@ -36,7 +36,7 @@ int main(const int argc, const char* argv[])
    * opts out of that, at a write syscall per print. A debug session does the
    * same on its own -- see oak_debugger_init(). */
   if (cli.unbuffered)
-    setvbuf(stdout, null, _IONBF, 0);
+    setvbuf(stdout, OAK_NULL, _IONBF, 0);
 
   oak_allocator_t allocator;
   if (cli.track_memory)
@@ -70,7 +70,7 @@ int main(const int argc, const char* argv[])
       for (usize i = 0; i < oak_size(registry.modules); ++i)
       {
         const oak_module_t* m = modules[i];
-        oak_log(OAK_LOG_INFO,
+        OAK_LOG(OAK_LOG_INFO,
                 "==== module [%s] ====",
                 oak_module_dotted_name(m) ? oak_module_dotted_name(m) : "<entry>");
         oak_chunk_disassemble(oak_module_chunk(m));

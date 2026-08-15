@@ -115,7 +115,7 @@ void oak_infer_type(oak_compiler_t* c,
       if (first == &expr->children)
         return;
       const oak_ast_node_t* first_wrap =
-          oak_container_of(first, oak_ast_node_t, link);
+          OAK_CONTAINER_OF(first, oak_ast_node_t, link);
       const oak_ast_node_t* first_elem =
           first_wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? first_wrap->child
                                                              : first_wrap;
@@ -163,12 +163,12 @@ void oak_infer_type(oak_compiler_t* c,
       const oak_ast_node_t* path_node = expr->lhs;
       if (!path_node || path_node->kind != OAK_NODE_IMPORT_PATH)
         return;
-      const oak_ast_node_t* type_seg = null;
+      const oak_ast_node_t* type_seg = OAK_NULL;
       {
         oak_list_entry_t* pos;
-        oak_list_for_each(pos, &path_node->children)
+        OAK_LIST_FOR_EACH(pos, &path_node->children)
         {
-          type_seg = oak_container_of(pos, oak_ast_node_t, link);
+          type_seg = OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
         }
       }
       if (!type_seg)
@@ -188,7 +188,7 @@ void oak_infer_type(oak_compiler_t* c,
         return;
       /* Cross-module enum variant: alias.EnumName.Variant → enum type. */
       {
-        const oak_token_t* ename_tok = null;
+        const oak_token_t* ename_tok = OAK_NULL;
         if (oak_compiler_match_module_member(c, recv, &ename_tok))
         {
           const char* ename = oak_token_text(ename_tok);
@@ -217,7 +217,7 @@ void oak_infer_type(oak_compiler_t* c,
       }
       oak_type_t recv_ty;
       oak_infer_type(c, recv, &recv_ty);
-      const oak_registered_record_t* sd = null;
+      const oak_registered_record_t* sd = OAK_NULL;
       const int idx =
           oak_record_field_index(c,
                                 recv_ty,
@@ -251,8 +251,8 @@ const char* oak_type_kind_name(oak_compiler_t* c,
 const char* oak_type_full_name(oak_compiler_t* c,
                                const oak_type_t t)
 {
-  static _Thread_local char bufs[4][128];
-  static _Thread_local int slot = 0;
+  static OAK_THREAD_LOCAL char bufs[4][128];
+  static OAK_THREAD_LOCAL int slot = 0;
   char* buf = bufs[slot % 4];
   ++slot;
   if (t.kind == OAK_TYPE_KIND_FN)

@@ -18,7 +18,7 @@ void oak_growable_buf_free(oak_growable_buf_t* b)
 {
   if (b->heap)
     oak_free(b->allocator, b->data, OAK_HERE);
-  b->data = null;
+  b->data = OAK_NULL;
   b->len = 0u;
   b->cap = 0u;
   b->heap = 0;
@@ -50,7 +50,7 @@ oak_lex_status_t oak_growable_buf_reserve(oak_growable_buf_t* b,
   if (!new_buf)
   {
     oak_free(b->allocator, b->data, OAK_HERE);
-    b->data = null;
+    b->data = OAK_NULL;
     return OAK_LEX_ALLOC_FAILED;
   }
   b->data = new_buf;

@@ -149,7 +149,7 @@ oak_fn_call_result_t oak_math_random(oak_native_call_t* call,
   (void)argc;
   if (!s_rand_seeded)
   {
-    srand((unsigned)time(null));
+    srand((unsigned)time(OAK_NULL));
     s_rand_seeded = 1;
   }
   *out = OAK_VALUE_F32((float)rand() / (float)RAND_MAX);

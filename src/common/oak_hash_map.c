@@ -23,7 +23,7 @@ static void* hash_map_query_interface(void* obj,
     case OAK_IID_ITERABLE:
       return obj;
     default:
-      return null;
+      return OAK_NULL;
   }
 }
 
@@ -51,7 +51,7 @@ oak_container_t* oak_hash_map_new(oak_allocator_t* allocator,
                                             usize value_size)
 {
   if (value_size == 0)
-    return null;
+    return OAK_NULL;
   return oak_hash_table_new(allocator, value_size, &hash_map_vtable);
 }
 

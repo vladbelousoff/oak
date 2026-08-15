@@ -29,7 +29,7 @@ u32 oak_obj_table_acquire(void)
   /* Table 0 is process-owned.  Giving it to a VM would make values from that
 
    * * VM indistinguishable from deliberately shared constants. */
-  oak_log(OAK_LOG_ERROR, "oak: object-table registry exhausted");
+  OAK_LOG(OAK_LOG_ERROR, "oak: object-table registry exhausted");
   oak_panic();
 }
 
@@ -49,7 +49,7 @@ static void oak_obj_table_try_recycle(oak_obj_table_t* table)
   table->nonce_floor = (max_nonce + 1u) & OAK_OBJ_NONCE_MASK;
 
   free(table->slots);
-  table->slots = null;
+  table->slots = OAK_NULL;
   table->capacity = 0u;
   table->free_head = OAK_OBJ_SLOT_NONE;
   table->state = OAK_OBJ_TABLE_FREE;
@@ -60,7 +60,7 @@ void oak_obj_table_detach(const u32 table_id)
   if (table_id == 0u || table_id >= OAK_OBJ_TABLE_COUNT)
     return;
   oak_obj_table_t* table = &oak_obj_tables[table_id];
-  oak_assert(table->state == OAK_OBJ_TABLE_ACTIVE);
+  OAK_ASSERT(table->state == OAK_OBJ_TABLE_ACTIVE);
   table->state = OAK_OBJ_TABLE_DETACHED;
   oak_obj_table_try_recycle(table);
 }
@@ -68,7 +68,7 @@ void oak_obj_table_detach(const u32 table_id)
 static u32 oak_obj_table_insert(const u32 table_id, oak_obj_t* obj)
 {
   oak_obj_table_t* table = &oak_obj_tables[table_id];
-  oak_assert(table_id == 0u || table->state == OAK_OBJ_TABLE_ACTIVE);
+  OAK_ASSERT(table_id == 0u || table->state == OAK_OBJ_TABLE_ACTIVE);
 
   /* A zero-initialized registry entry has free_head == 0 with no slots, so
    * an empty capacity must be normalized before the freelist check. */
@@ -90,7 +90,7 @@ static u32 oak_obj_table_insert(const u32 table_id, oak_obj_t* obj)
      * object dies. */
     for (u32 i = new_cap; i-- > old_cap;)
     {
-      slots[i].obj = null;
+      slots[i].obj = OAK_NULL;
       slots[i].nonce = table->nonce_floor;
       slots[i].next_free = table->free_head;
       table->free_head = i;
@@ -111,7 +111,7 @@ static void oak_obj_table_release(const oak_obj_t* obj)
 {
   oak_obj_table_t* table = &oak_obj_tables[obj->table_id];
   oak_obj_slot_t* slot = &table->slots[obj->slot_index];
-  slot->obj = null;
+  slot->obj = OAK_NULL;
   /* Expire every outstanding weak reference to this slot's object. */
   slot->nonce = (slot->nonce + 1u) & OAK_OBJ_NONCE_MASK;
   slot->next_free = table->free_head;
@@ -125,8 +125,8 @@ static void oak_obj_init(oak_obj_t* obj,
                          oak_allocator_t* allocator,
                          const u32 table_id)
 {
-  oak_assert(table_id < OAK_OBJ_TABLE_COUNT);
-  oak_assert(table_id == 0u ||
+  OAK_ASSERT(table_id < OAK_OBJ_TABLE_COUNT);
+  OAK_ASSERT(table_id == 0u ||
              oak_obj_tables[table_id].state == OAK_OBJ_TABLE_ACTIVE);
   obj->type = type;
   oak_refcount_init(&obj->refcount, 1);
@@ -273,8 +273,8 @@ oak_obj_fn_t* oak_fn_new(oak_allocator_t* a,
   fn->code_offset = code_offset;
   fn->arity = arity;
   fn->module_id = module_id;
-  fn->name = null;
-  fn->attr_hooks = null;
+  fn->name = OAK_NULL;
+  fn->attr_hooks = OAK_NULL;
   fn->attr_hook_count = 0;
   return fn;
 }
@@ -292,8 +292,8 @@ oak_obj_native_fn_t* oak_native_fn_new(oak_allocator_t* a,
   native->arity = arity;
   native->name = name;
   native->user_data = user_data;
-  native->self_type = null;
-  native->attr_hooks = null;
+  native->self_type = OAK_NULL;
+  native->attr_hooks = OAK_NULL;
   native->attr_hook_count = 0;
   return native;
 }
@@ -320,7 +320,7 @@ oak_obj_array_t* oak_array_new_in_table(oak_allocator_t* a,
   oak_obj_init(&arr->obj, OAK_OBJ_ARRAY, a, table_id);
   arr->length = 0;
   arr->capacity = 0;
-  arr->items = null;
+  arr->items = OAK_NULL;
   return arr;
 }
 
@@ -354,15 +354,15 @@ oak_record_new_in_table(oak_allocator_t* a,
                         const char* const type_name,
                         const char* const* const field_names)
 {
-  oak_assert(field_count >= 0);
+  OAK_ASSERT(field_count >= 0);
   const usize size = sizeof(oak_obj_record_t) +
                      (usize)field_count * sizeof(oak_value_t);
   oak_obj_record_t* s = oak_alloc(a, size, OAK_HERE);
   oak_obj_init(&s->obj, OAK_OBJ_RECORD, a, table_id);
-  s->type_name = null;
+  s->type_name = OAK_NULL;
   s->field_count = field_count;
-  s->field_name_ptrs = null;
-  s->field_name_storage = null;
+  s->field_name_ptrs = OAK_NULL;
+  s->field_name_storage = OAK_NULL;
   for (int i = 0; i < field_count; ++i)
     s->fields[i] = OAK_VALUE_I32(0);
 
@@ -450,7 +450,7 @@ oak_interface_object_new_in_table(oak_allocator_t* a,
   {
     oak_obj_table_release(&to->obj);
     oak_free(a, to, OAK_HERE);
-    return null;
+    return OAK_NULL;
   }
   oak_value_incref(value);
   to->value = value;
@@ -474,9 +474,9 @@ oak_obj_map_t* oak_map_new_in_table(oak_allocator_t* a,
   oak_obj_init(&map->obj, OAK_OBJ_MAP, a, table_id);
   map->length = 0;
   map->capacity = 0;
-  map->entries = null;
+  map->entries = OAK_NULL;
   map->ht_capacity = 0;
-  map->ht = null;
+  map->ht = OAK_NULL;
   map->ht_tombstones = 0;
   return map;
 }
@@ -652,14 +652,14 @@ int oak_map_delete(oak_obj_map_t* map, const oak_value_t key)
 oak_value_t oak_map_key_at(const oak_obj_map_t* map,
                                   const usize index)
 {
-  oak_assert(index < map->length);
+  OAK_ASSERT(index < map->length);
   return map->entries[index].key;
 }
 
 oak_value_t oak_map_value_at(const oak_obj_map_t* map,
                                     const usize index)
 {
-  oak_assert(index < map->length);
+  OAK_ASSERT(index < map->length);
   return map->entries[index].value;
 }
 

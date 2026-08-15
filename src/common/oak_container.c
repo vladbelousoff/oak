@@ -32,7 +32,7 @@ void oak_clear(oak_container_t* c)
 void* oak_get(oak_container_t* c, usize index)
 {
   const oak_container_vtable_t* vt = oak_container_vt(c);
-  return vt && vt->get ? vt->get(c, index) : null;
+  return vt && vt->get ? vt->get(c, index) : OAK_NULL;
 }
 
 const void* oak_cget(const oak_container_t* c, usize index)
@@ -85,7 +85,7 @@ usize oak_capacity(const oak_container_t* c)
 void* oak_data(oak_container_t* c)
 {
   const oak_container_vtable_t* vt = oak_container_vt(c);
-  return vt && vt->data ? vt->data(c) : null;
+  return vt && vt->data ? vt->data(c) : OAK_NULL;
 }
 
 const void* oak_cdata(const oak_container_t* c)
@@ -96,7 +96,7 @@ const void* oak_cdata(const oak_container_t* c)
 void* oak_find(oak_container_t* c, const void* key, usize key_len)
 {
   const oak_container_vtable_t* vt = oak_container_vt(c);
-  return vt && vt->find ? vt->find(c, key, key_len) : null;
+  return vt && vt->find ? vt->find(c, key, key_len) : OAK_NULL;
 }
 
 const void* oak_cfind(const oak_container_t* c,
@@ -141,7 +141,7 @@ oak_iterator_t oak_begin(oak_container_t* c)
   if (vt && vt->begin)
     return vt->begin(c);
   /* An exhausted cursor: oak_next reports 0, oak_iter_get reports null. */
-  oak_iterator_t it = { .owner = null };
+  oak_iterator_t it = { .owner = OAK_NULL };
   return it;
 }
 
@@ -152,7 +152,7 @@ static const oak_container_vtable_t* iter_vt(
     const oak_iterator_t* it)
 {
   if (!it || !it->owner)
-    return null;
+    return OAK_NULL;
   return oak_container_vt((const oak_container_t*)it->owner);
 }
 
@@ -165,7 +165,7 @@ int oak_next(oak_iterator_t* it)
 void* oak_iter_get(oak_iterator_t* it)
 {
   const oak_container_vtable_t* vt = iter_vt(it);
-  return vt && vt->iter_get ? vt->iter_get(it) : null;
+  return vt && vt->iter_get ? vt->iter_get(it) : OAK_NULL;
 }
 
 const void* oak_iter_key(oak_iterator_t* it, usize* out_key_len)
@@ -175,5 +175,5 @@ const void* oak_iter_key(oak_iterator_t* it, usize* out_key_len)
     return vt->iter_key(it, out_key_len);
   if (out_key_len)
     *out_key_len = 0;
-  return null;
+  return OAK_NULL;
 }

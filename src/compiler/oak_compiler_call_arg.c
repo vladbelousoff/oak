@@ -32,7 +32,7 @@ void oak_compiler_compile_call_args_after_callee(oak_compiler_t* c,
        pos = pos->next)
   {
     const oak_ast_node_t* arg =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     oak_compile_call_arg(c, arg);
   }
 }
@@ -43,7 +43,7 @@ oak_compiler_fn_call_arg_expr_at(const oak_ast_node_t* call,
 {
   const oak_list_entry_t* first = call->children.next;
   if (first == &call->children)
-    return null;
+    return OAK_NULL;
   const oak_list_entry_t* pos = first->next;
   usize i = 0;
   for (; pos != &call->children; pos = pos->next, ++i)
@@ -51,10 +51,10 @@ oak_compiler_fn_call_arg_expr_at(const oak_ast_node_t* call,
     if (i != index)
       continue;
     const oak_ast_node_t* arg =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (arg->kind == OAK_NODE_FN_CALL_ARG)
       return arg->child;
     return arg;
   }
-  return null;
+  return OAK_NULL;
 }

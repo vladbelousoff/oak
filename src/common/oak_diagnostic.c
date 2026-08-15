@@ -10,8 +10,8 @@ void oak_diagnostics_print(const oak_diagnostic_t* diags, const int count)
   {
     const oak_diagnostic_t* d = &diags[i];
     if (d->line > 0)
-      oak_log(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
+      OAK_LOG(OAK_LOG_ERROR, "%d:%d: %s", d->line, d->column, d->message);
     else
-      oak_log(OAK_LOG_ERROR, "%s", d->message);
+      OAK_LOG(OAK_LOG_ERROR, "%s", d->message);
   }
 }

@@ -84,9 +84,9 @@ static inline oak_bind_type_ref_t oak_bind_type_ref_make(
   oak_bind_type_ref_t ref;
   ref.id = id;
   ref.key_id = key_id;
-  ref.type = null;
-  ref.key_type = null;
-  ref.enum_type = null;
+  ref.type = OAK_NULL;
+  ref.key_type = OAK_NULL;
+  ref.enum_type = OAK_NULL;
   ref.kind = kind;
   ref.is_weak = 0;
   return ref;
@@ -113,9 +113,9 @@ static inline oak_bind_type_ref_t oak_bind_type_ref_native_make(
 }
 
 #define OAK_BIND_NATIVE(t)                                                     \
-  oak_bind_type_ref_native_make((t), null, OAK_TYPE_KIND_SCALAR)
+  oak_bind_type_ref_native_make((t), OAK_NULL, OAK_TYPE_KIND_SCALAR)
 #define OAK_BIND_NATIVE_ARRAY(t)                                               \
-  oak_bind_type_ref_native_make((t), null, OAK_TYPE_KIND_ARRAY)
+  oak_bind_type_ref_native_make((t), OAK_NULL, OAK_TYPE_KIND_ARRAY)
 #define OAK_BIND_NATIVE_MAP(k, v)                                              \
   oak_bind_type_ref_native_make((v), (k), OAK_TYPE_KIND_MAP)
 

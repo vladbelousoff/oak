@@ -209,7 +209,7 @@ UTEST_F(compiler_semantics, a_local_may_shadow_a_module_scope_name)
     { "let g = 1;\n"
       "fn f() -> number { let g = 2; return g; }\n"
       "print(f());\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -230,7 +230,7 @@ UTEST_F(compiler_semantics, loop_control_outside_a_loop_is_rejected)
 UTEST_F(compiler_semantics, return_at_module_scope_is_rejected)
 {
   static const oak_case_t cases[] = {
-    { "return 1;\n", null },
+    { "return 1;\n", OAK_NULL },
   };
 
   OAK_EXPECT_REJECTED_CASES(cases);
@@ -242,10 +242,10 @@ UTEST_F(compiler_semantics, functions_without_an_arrow_are_void)
     { "fn side() { return; }\n"
       "fn main() { side(); }\n"
       "main();\n",
-      null },
+      OAK_NULL },
     { "fn noop() { }\n"
       "noop();\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -272,22 +272,22 @@ UTEST_F(compiler_semantics, enum_variants_are_accessed_through_their_type)
     { "enum Color { Red, Green, Blue }\n"
       "let c = Color.Green;\n"
       "print(c == Color.Green);\n",
-      null },
+      OAK_NULL },
     /* A trailing comma in the variant list is accepted. */
     { "enum Status { Off, On, }\n"
       "let s = Status.On;\n",
-      null },
+      OAK_NULL },
     /* Two enums keep independent ordinals. */
     { "enum A { X, Y }\n"
       "enum B { P, Q }\n"
       "let x = A.X;\n"
       "let q = B.Q;\n",
-      null },
+      OAK_NULL },
     /* An enum round-trips through a parameter of its own type. */
     { "enum Color { Red, Green, Blue }\n"
       "fn use_color(c : Color) -> Color { return c; }\n"
       "use_color(Color.Blue);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -335,7 +335,7 @@ UTEST_F(compiler_semantics, space_separated_variants_are_rejected)
   static const oak_case_t cases[] = {
     { "enum Dir { North South East West }\n"
       "let a = Dir.North;\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_REJECTED_CASES(cases);

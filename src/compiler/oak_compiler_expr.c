@@ -51,7 +51,7 @@ u8 oak_binop_for_node(const oak_node_kind_t kind)
     case OAK_NODE_BINARY_GREATER_EQ:
       return OAK_OP_GREATER_EQUAL;
     default:
-      oak_assert(0);
+      OAK_ASSERT(0);
       return 0;
   }
 }
@@ -65,7 +65,7 @@ u8 oak_op_for_node(const oak_node_kind_t kind)
     case OAK_NODE_UNARY_NOT:
       return OAK_OP_NOT;
     default:
-      oak_assert(0);
+      OAK_ASSERT(0);
       return 0;
   }
 }
@@ -80,7 +80,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
   {
     case OAK_NODE_PROGRAM:
       oak_compiler_error_at(
-          c, null, "internal error: nested program in compilation");
+          c, OAK_NULL, "internal error: nested program in compilation");
       break;
     case OAK_NODE_FN_DECL:
       break;
@@ -94,7 +94,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
           oak_compiler_loc_from_token(node->token);
       if (value >= -128 && value <= 127)
       {
-        oak_compiler_emit_op(
+        OAK_COMPILER_EMIT_OP(
             c, OAK_OP_PUSH_INT8, loc, OAK_ARG_U8((u8)(value & 0xFF)));
       }
       else
@@ -123,24 +123,24 @@ void oak_compiler_compile_node(oak_compiler_t* c,
       break;
     }
     case OAK_NODE_TRUE:
-      oak_compiler_emit_op(
+      OAK_COMPILER_EMIT_OP(
           c, OAK_OP_TRUE, oak_compiler_loc_from_token(node->token));
       break;
     case OAK_NODE_FALSE:
-      oak_compiler_emit_op(
+      OAK_COMPILER_EMIT_OP(
           c, OAK_OP_FALSE, oak_compiler_loc_from_token(node->token));
       break;
     case OAK_NODE_NONE_LITERAL:
-      oak_compiler_emit_op(
+      OAK_COMPILER_EMIT_OP(
           c, OAK_OP_NONE, oak_compiler_loc_from_token(node->token));
       break;
     case OAK_NODE_IDENT:
     {
       const char* name = oak_token_text(node->token);
-      const int slot = oak_compiler_find_local(c, name, null);
+      const int slot = oak_compiler_find_local(c, name, OAK_NULL);
       if (slot >= 0)
       {
-        oak_compiler_emit_op(c,
+        OAK_COMPILER_EMIT_OP(c,
                              OAK_OP_GET_LOCAL,
                              oak_compiler_loc_from_token(node->token),
                              OAK_ARG_U8((u8)slot));
@@ -152,7 +152,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
         const oak_code_loc_t loc =
             oak_compiler_loc_from_token(node->token);
         if (fn_entry->source_module_id != OAK_MODULE_ID_NONE)
-          oak_compiler_emit_op(c,
+          OAK_COMPILER_EMIT_OP(c,
                                OAK_OP_GET_MODULE_FN,
                                loc,
                                OAK_ARG_U16(fn_entry->source_module_id),
@@ -175,14 +175,14 @@ void oak_compiler_compile_node(oak_compiler_t* c,
     }
     case OAK_NODE_SELF:
     {
-      const int slot = oak_compiler_find_local(c, "self", null);
+      const int slot = oak_compiler_find_local(c, "self", OAK_NULL);
       if (slot < 0)
       {
         oak_compiler_error_at(
             c, node->token, "'self' is only valid inside a method body");
         return;
       }
-      oak_compiler_emit_op(c,
+      OAK_COMPILER_EMIT_OP(c,
                            OAK_OP_GET_LOCAL,
                            oak_compiler_loc_from_token(node->token),
                            OAK_ARG_U8((u8)slot));
@@ -215,7 +215,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
       if (c->has_error)
         return;
       oak_compiler_compile_node(c, node->child);
-      oak_compiler_emit_op(c,
+      OAK_COMPILER_EMIT_OP(c,
                            oak_op_for_node(node->kind),
                            oak_compiler_loc_from_token(node->child->token));
       break;
@@ -230,7 +230,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
        * nested native + user calls inside a for-body), leaving garbage above
        * locals so OP_RETURN decref'd the wrong slots and crashed. */
       while (c->scope.stack_depth > depth_before)
-        oak_compiler_emit_op(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
+        OAK_COMPILER_EMIT_OP(c, OAK_OP_POP, OAK_LOC_SYNTHETIC);
       break;
     }
     case OAK_NODE_STMT_LET_ASSIGNMENT:
@@ -274,7 +274,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
         return;
       oak_compiler_compile_node(c, node->lhs);
       oak_compiler_compile_node(c, node->rhs);
-      oak_compiler_emit_op(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
+      OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_INDEX, OAK_LOC_SYNTHETIC);
       break;
     }
     case OAK_NODE_MEMBER_ACCESS:
@@ -302,7 +302,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
       const char* keyword = is_break ? "break" : "continue";
       if (!c->scope.current_loop)
       {
-        oak_compiler_error_at(c, null, "'%s' used outside of a loop", keyword);
+        oak_compiler_error_at(c, OAK_NULL, "'%s' used outside of a loop", keyword);
         return;
       }
       oak_loop_frame_t* loop = c->scope.current_loop;
@@ -314,7 +314,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
     }
     default:
       oak_compiler_error_at(
-          c, null, "unsupported AST node kind (%d)", node->kind);
+          c, OAK_NULL, "unsupported AST node kind (%d)", node->kind);
       break;
   }
 }

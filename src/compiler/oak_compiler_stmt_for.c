@@ -3,20 +3,20 @@
 void oak_compile_for_from(oak_compiler_t* c,
                                         const oak_ast_node_t* node)
 {
-  oak_assert(oak_child_count(node) >= 4u);
+  OAK_ASSERT(oak_child_count(node) >= 4u);
 
   oak_list_entry_t* pos = node->children.next;
   const oak_ast_node_t* ident =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   pos = pos->next;
   const oak_ast_node_t* from_expr =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   pos = pos->next;
   const oak_ast_node_t* to_expr =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   pos = pos->next;
   const oak_ast_node_t* body =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
 
   oak_compiler_begin_scope(c);
 
@@ -60,19 +60,19 @@ void oak_compile_for_from(oak_compiler_t* c,
     .loop_start = oak_chunk_size(c->chunk),
     .exit_depth = c->scope.stack_depth - 2,
     .continue_depth = c->scope.stack_depth,
-    .break_jumps = null,
-    .continue_jumps = null,
+    .break_jumps = OAK_NULL,
+    .continue_jumps = OAK_NULL,
   };
   loop.break_jumps = oak_vector_new(c->allocator, sizeof(usize));
   loop.continue_jumps = oak_vector_new(c->allocator, sizeof(usize));
-  oak_assert(loop.break_jumps && loop.continue_jumps);
+  OAK_ASSERT(loop.break_jumps && loop.continue_jumps);
 
   c->scope.current_loop = &loop;
 
   {
     const oak_code_loc_t ident_loc =
         oak_compiler_loc_from_token(ident->token);
-    oak_compiler_emit_op(
+    OAK_COMPILER_EMIT_OP(
         c, OAK_OP_GET_LOCAL_GET_LOCAL, ident_loc,
         OAK_ARG_U8((u8)loop_var_slot), OAK_ARG_U8((u8)limit_slot));
     const usize exit_jump =
@@ -92,7 +92,7 @@ void oak_compile_for_from(oak_compiler_t* c,
       if (jump > 0xFFFFu)
       {
         oak_compiler_error_at(
-            c, null,
+            c, OAK_NULL,
             "loop distance %zu exceeds 16-bit limit (max 65535)", jump);
         oak_compiler_emit_byte(c, 0, ident_loc);
         oak_compiler_emit_byte(c, 0, ident_loc);
@@ -140,8 +140,8 @@ static void for_in_init_hidden_state(oak_compiler_t* c,
   oak_compiler_add_local(c, "$i", *out_idx_slot, 1, num_ty);
 
   oak_compiler_emit_constant(c, len_m->const_idx, loc);
-  oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
-  oak_compiler_emit_op(c, OAK_OP_CALL, loc, OAK_ARG_U8((u8)len_m->total_arity));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_CALL, loc, OAK_ARG_U8((u8)len_m->total_arity));
   c->scope.stack_depth -= len_m->total_arity;
   *out_limit_slot = c->scope.stack_depth - 1;
   oak_compiler_add_local(c, "$n", *out_limit_slot, 0, num_ty);
@@ -159,9 +159,9 @@ static void for_in_bind_loop_idents(oak_compiler_t* c,
   {
     if (coll_ty->kind == OAK_TYPE_KIND_MAP)
     {
-      oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
-      oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
-      oak_compiler_emit_op(c, OAK_OP_MAP_KEY_AT, loc);
+      OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
+      OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
+      OAK_COMPILER_EMIT_OP(c, OAK_OP_MAP_KEY_AT, loc);
       const oak_type_t key_ty = { .id = coll_ty->key_id };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
@@ -171,7 +171,7 @@ static void for_in_bind_loop_idents(oak_compiler_t* c,
     }
     else
     {
-      oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
+      OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
       const oak_type_t num_ty = { .id = OAK_TYPE_NUMBER };
       oak_compiler_add_local(c,
                              oak_token_text(k_ident->token),
@@ -182,9 +182,9 @@ static void for_in_bind_loop_idents(oak_compiler_t* c,
   }
   if (v_ident)
   {
-    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
-    oak_compiler_emit_op(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)coll_slot));
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
+    OAK_COMPILER_EMIT_OP(c,
                          coll_ty->kind == OAK_TYPE_KIND_MAP ? OAK_OP_MAP_VAL_AT
                                                             : OAK_OP_GET_INDEX,
                          loc);
@@ -206,25 +206,25 @@ void oak_compile_for_in(oak_compiler_t* c,
   const usize child_count = oak_child_count(node);
   if (child_count != 3 && child_count != 4)
   {
-    oak_compiler_error_at(c, null, "malformed 'for ... in' statement");
+    oak_compiler_error_at(c, OAK_NULL, "malformed 'for ... in' statement");
     return;
   }
 
   oak_list_entry_t* pos = node->children.next;
   const oak_ast_node_t* first_ident =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   pos = pos->next;
-  const oak_ast_node_t* second_ident = null;
+  const oak_ast_node_t* second_ident = OAK_NULL;
   if (child_count == 4)
   {
-    second_ident = oak_container_of(pos, oak_ast_node_t, link);
+    second_ident = OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     pos = pos->next;
   }
   const oak_ast_node_t* coll_expr =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   pos = pos->next;
   const oak_ast_node_t* body =
-      oak_container_of(pos, oak_ast_node_t, link);
+      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
 
   const oak_code_loc_t loc =
       oak_compiler_loc_from_token(first_ident->token);
@@ -257,8 +257,8 @@ void oak_compile_for_in(oak_compiler_t* c,
 
   /* Names of the loop variables. Two-var form binds both; one-var form binds
    * only the value (k for maps, v for arrays). */
-  const oak_ast_node_t* k_ident = null;
-  const oak_ast_node_t* v_ident = null;
+  const oak_ast_node_t* k_ident = OAK_NULL;
+  const oak_ast_node_t* v_ident = OAK_NULL;
   if (second_ident)
   {
     k_ident = first_ident;
@@ -290,16 +290,16 @@ void oak_compile_for_in(oak_compiler_t* c,
     .loop_start = oak_chunk_size(c->chunk),
     .exit_depth = base_depth,
     .continue_depth = base_depth + 3,
-    .break_jumps = null,
-    .continue_jumps = null,
+    .break_jumps = OAK_NULL,
+    .continue_jumps = OAK_NULL,
   };
   loop.break_jumps = oak_vector_new(c->allocator, sizeof(usize));
   loop.continue_jumps = oak_vector_new(c->allocator, sizeof(usize));
-  oak_assert(loop.break_jumps && loop.continue_jumps);
+  OAK_ASSERT(loop.break_jumps && loop.continue_jumps);
   c->scope.current_loop = &loop;
 
   /* Loop condition: idx < limit (fused compare+branch). */
-  oak_compiler_emit_op(
+  OAK_COMPILER_EMIT_OP(
       c, OAK_OP_GET_LOCAL_GET_LOCAL, loc,
       OAK_ARG_U8((u8)idx_slot), OAK_ARG_U8((u8)limit_slot));
   const usize exit_jump =
@@ -319,7 +319,7 @@ void oak_compile_for_in(oak_compiler_t* c,
   /* `continue` lands here (after k/v are popped). */
   oak_compiler_patch_jumps(c, loop.continue_jumps);
 
-  oak_compiler_emit_op(c, OAK_OP_INC_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_INC_LOCAL, loc, OAK_ARG_U8((u8)idx_slot));
   oak_compiler_emit_loop(c, loop.loop_start, loc);
   oak_compiler_patch_jump(c, exit_jump);
 

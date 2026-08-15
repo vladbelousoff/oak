@@ -70,7 +70,7 @@ oak_vm_push_owned(oak_vm_t* vm, const oak_value_t value)
 
 static inline oak_value_t oak_vm_pop(oak_vm_t* vm)
 {
-  oak_assert(vm->sp > vm->stack);
+  OAK_ASSERT(vm->sp > vm->stack);
   return *--vm->sp;
 }
 

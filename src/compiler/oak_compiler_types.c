@@ -20,7 +20,7 @@ static const oak_token_t* type_node_token(
     const oak_ast_node_t* type_node)
 {
   if (!type_node)
-    return null;
+    return OAK_NULL;
   if (type_node->token)
     return type_node->token;
   if (type_node->child)
@@ -33,10 +33,10 @@ static const oak_token_t* type_node_token(
   if (first != &type_node->children)
   {
     const oak_ast_node_t* child =
-        oak_container_of(first, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(first, oak_ast_node_t, link);
     return type_node_token(child);
   }
-  return null;
+  return OAK_NULL;
 }
 
 void oak_lower_type_node(oak_compiler_t* c,

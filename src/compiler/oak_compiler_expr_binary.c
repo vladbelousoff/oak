@@ -122,7 +122,7 @@ void oak_compiler_compile_binary_op(oak_compiler_t* c,
     return;
   oak_compiler_compile_node(c, node->lhs);
   oak_compiler_compile_node(c, node->rhs);
-  oak_compiler_emit_op(
+  OAK_COMPILER_EMIT_OP(
       c,
       oak_binop_for_node(node->kind),
       oak_compiler_loc_from_token(node->lhs->token));
@@ -155,11 +155,11 @@ void oak_compiler_compile_binary_and(oak_compiler_t* c,
   oak_compiler_compile_node(c, node->rhs);
   if (c->has_error)
     return;
-  oak_compiler_emit_op(c, OAK_OP_BOOL, loc);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_BOOL, loc);
   const usize end_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, loc);
   oak_compiler_patch_jump(c, false_jump);
   c->scope.stack_depth = depth_after_jif;
-  oak_compiler_emit_op(c, OAK_OP_FALSE, loc);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_FALSE, loc);
   oak_compiler_patch_jump(c, end_jump);
 }
 
@@ -190,10 +190,10 @@ void oak_compiler_compile_binary_or(oak_compiler_t* c,
   oak_compiler_compile_node(c, node->rhs);
   if (c->has_error)
     return;
-  oak_compiler_emit_op(c, OAK_OP_BOOL, loc);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_BOOL, loc);
   const usize end_jump = oak_compiler_emit_jump(c, OAK_OP_JUMP, loc);
   oak_compiler_patch_jump(c, true_jump);
   c->scope.stack_depth = depth_after_jif;
-  oak_compiler_emit_op(c, OAK_OP_TRUE, loc);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_TRUE, loc);
   oak_compiler_patch_jump(c, end_jump);
 }

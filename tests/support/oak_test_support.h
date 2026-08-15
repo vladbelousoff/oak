@@ -189,7 +189,7 @@ void oak_test_pipe_free(oak_test_pipe_t* p);
 /*
  * Redirection of one whole stream, for the cases oak_test_source() does not
  * cover: code that writes straight to stdout/stderr rather than through the
- * pipeline. oak_log() is the one that matters -- it holds no configurable
+ * pipeline. OAK_LOG() is the one that matters -- it holds no configurable
  * stream, so the only way to read an allocator's leak report back is to point
  * fd 2 somewhere else for the duration.
  *
@@ -232,7 +232,7 @@ struct oak_expect_token
 /* A single-line token on line 1, where column and offset coincide. */
 #define OAK_TOKEN_AT(k, pos)                                                   \
   {                                                                            \
-    (k), 1, (pos), (pos), null, 0, 0.0f                                        \
+    (k), 1, (pos), (pos), OAK_NULL, 0, 0.0f                                        \
   }
 
 /* Compares the lexer's tokens against `expected` element for element, and
@@ -325,7 +325,7 @@ struct oak_case
  * Every string contains the empty string, so an empty expectation quietly
  * degrades the row to "some error happened" -- the exact weakness these tables
  * exist to remove, and invisible at the call site next to rows that do assert.
- * `null` is the deliberate way to say "any message will do".
+ * `OAK_NULL` is the deliberate way to say "any message will do".
  */
 #define OAK_REQUIRE_WANT(tbl, i)                                               \
   do                                                                           \
@@ -333,7 +333,7 @@ struct oak_case
     if ((tbl)[i].want && !(tbl)[i].want[0])                                    \
     {                                                                          \
       UTEST_PRINTF("  row %u: empty expectation matches every message; "       \
-                   "give a substring, or null to skip the check\n",            \
+                   "give a substring, or OAK_NULL to skip the check\n",        \
                    (unsigned)(i));                                             \
       *utest_result = UTEST_TEST_FAILURE;                                      \
     }                                                                          \

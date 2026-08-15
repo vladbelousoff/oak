@@ -6,17 +6,17 @@
 extern "C" {
 #endif
 
-#define oak_container_of(address, type, field)                                 \
+#define OAK_CONTAINER_OF(address, type, field)                                 \
   ((type*)((char*)(address) - (char*)(&((type*)0)->field)))
 
-#define oak_list_for_each(position, head)                                      \
+#define OAK_LIST_FOR_EACH(position, head)                                      \
   for (position = (head)->next; position != head; position = position->next)
 
-#define oak_list_for_each_safe(position, n, head)                              \
+#define OAK_LIST_FOR_EACH_SAFE(position, n, head)                              \
   for (position = (head)->next, n = position->next; position != (head);        \
        position = n, n = position->next)
 
-#define oak_list_for_each_indexed(index, position, head)                       \
+#define OAK_LIST_FOR_EACH_INDEXED(index, position, head)                       \
   for (position = (head)->next, index = 0; position != (head);                 \
        position = position->next, ++index)
 
@@ -91,7 +91,7 @@ static inline usize oak_list_length(const oak_list_entry_t* head)
 {
   usize length = 0;
   oak_list_entry_t* current;
-  oak_list_for_each_indexed(length, current, head)
+  OAK_LIST_FOR_EACH_INDEXED(length, current, head)
   {
   }
   return length;

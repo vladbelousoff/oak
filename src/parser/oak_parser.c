@@ -9,16 +9,16 @@ static const oak_token_t* oak_parser_current_token(
     const oak_parser_t* p)
 {
   if (!p || p->curr == p->head)
-    return null;
-  return oak_container_of(p->curr, oak_token_t, link);
+    return OAK_NULL;
+  return OAK_CONTAINER_OF(p->curr, oak_token_t, link);
 }
 
 static const oak_token_t* oak_parser_last_token(
     const oak_parser_t* p)
 {
   if (!p || p->head->prev == p->head)
-    return null;
-  return oak_container_of(p->head->prev, oak_token_t, link);
+    return OAK_NULL;
+  return OAK_CONTAINER_OF(p->head->prev, oak_token_t, link);
 }
 
 static int oak_parser_token_offset_or_eof(const oak_parser_t* p,
@@ -369,7 +369,7 @@ static const char* oak_parser_migration_hint(const oak_parser_t* parser,
                                              const oak_token_t* token)
 {
   if (!token)
-    return null;
+    return OAK_NULL;
 
   /* Bare `self` stops at the param list; `mut self` gets as far as FN_PARAM,
      having consumed the `mut` as the parameter's own qualifier. */
@@ -392,7 +392,7 @@ static const char* oak_parser_migration_hint(const oak_parser_t* parser,
            "'record' body and drop the type name prefix";
   }
 
-  return null;
+  return OAK_NULL;
 }
 
 static void oak_parser_emit_detail(oak_parser_t* parser,
@@ -464,9 +464,9 @@ oak_ast_node_t* oak_parser_parse_rule(oak_parser_t* p,
                                              const oak_node_kind_t kind)
 {
   if (kind == OAK_NODE_NONE)
-    return null;
+    return OAK_NULL;
   if (p->curr == p->head)
-    return null;
+    return OAK_NULL;
 
   switch (oak_grammar[kind].op)
   {
@@ -481,7 +481,7 @@ oak_ast_node_t* oak_parser_parse_rule(oak_parser_t* p,
     case OAK_GRAMMAR_SEQUENCE:
       return oak_parser_parse_rules(p, kind);
   }
-  return null;
+  return OAK_NULL;
 }
 
 oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
@@ -491,7 +491,7 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
   oak_parser_result_t* out =
       oak_alloc(allocator, sizeof(oak_parser_result_t), OAK_HERE);
   if (!out)
-    return null;
+    return OAK_NULL;
   memset(out, 0, sizeof *out);
   out->allocator = allocator;
   oak_arena_init(&out->arena, 0, allocator);
@@ -508,14 +508,14 @@ oak_parser_result_t* oak_parse(const oak_lexer_result_t* lexer,
   if (parser.curr != parser.head)
   {
     oak_parser_emit_detail(&parser, out);
-    out->root = null;
+    out->root = OAK_NULL;
   }
   return out;
 }
 
 oak_ast_node_t* oak_parser_root(const oak_parser_result_t* result)
 {
-  return result ? result->root : null;
+  return result ? result->root : OAK_NULL;
 }
 
 int oak_parser_error_count(const oak_parser_result_t* result)
@@ -526,7 +526,7 @@ int oak_parser_error_count(const oak_parser_result_t* result)
 const oak_diagnostic_t*
 oak_parser_errors(const oak_parser_result_t* result)
 {
-  return result ? result->errors : null;
+  return result ? result->errors : OAK_NULL;
 }
 
 void oak_parser_free(oak_parser_result_t* result)

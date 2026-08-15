@@ -12,7 +12,7 @@
 static void oom_abort(const usize size, const oak_source_loc_t at)
 {
   const char* file = at.file ? oak_path_basename(at.file) : "?";
-  oak_log(OAK_LOG_ERROR,
+  OAK_LOG(OAK_LOG_ERROR,
           "out of memory allocating %lu bytes (%s:%d)",
           (unsigned long)size,
           file,
@@ -59,7 +59,7 @@ oak_allocator_t oak_system_allocator = {
   .realloc = custom_realloc,
   .free = custom_free,
   .shutdown = sys_shutdown,
-  .state = null,
+  .state = OAK_NULL,
   .malloc_fn = malloc,
   .realloc_fn = realloc,
   .free_fn = free,
@@ -92,7 +92,7 @@ void oak_allocator_init(oak_allocator_t* a,
   a->realloc = custom_realloc;
   a->free = custom_free;
   a->shutdown = sys_shutdown;
-  a->state = null;
+  a->state = OAK_NULL;
   a->malloc_fn = malloc_fn;
   a->realloc_fn = realloc_fn;
   a->free_fn = free_fn;
@@ -162,7 +162,7 @@ static void* track_realloc(oak_allocator_t* self,
   {
     oak_list_remove(&old_header->link);
     free(old_header);
-    return null;
+    return OAK_NULL;
   }
 
   oak_list_remove(&old_header->link);
@@ -192,7 +192,7 @@ static void track_free(oak_allocator_t* self, void* ptr, oak_source_loc_t at)
   if (header->signature != TRACK_SIG)
   {
     const char* file = at.file ? oak_path_basename(at.file) : "?";
-    oak_log(OAK_LOG_ERROR, "memory signature mismatch: %s:%d", file, at.line);
+    OAK_LOG(OAK_LOG_ERROR, "memory signature mismatch: %s:%d", file, at.line);
   }
   else
   {
@@ -210,13 +210,13 @@ static int track_shutdown(oak_allocator_t* self)
   int leak_count = 0;
   oak_list_entry_t* entry;
   oak_list_entry_t* safe;
-  oak_list_for_each_safe(entry, safe, &st->allocations)
+  OAK_LIST_FOR_EACH_SAFE(entry, safe, &st->allocations)
   {
     oak_track_header_t* header =
-        oak_container_of(entry, oak_track_header_t, link);
+        OAK_CONTAINER_OF(entry, oak_track_header_t, link);
     const char* file =
         header->at.file ? oak_path_basename(header->at.file) : "?";
-    oak_log(OAK_LOG_ERROR,
+    OAK_LOG(OAK_LOG_ERROR,
             "leaked memory: %s:%d, size: %lu",
             file,
             header->at.line,
@@ -226,7 +226,7 @@ static int track_shutdown(oak_allocator_t* self)
     ++leak_count;
   }
   free(st);
-  self->state = null;
+  self->state = OAK_NULL;
   return leak_count;
 }
 
@@ -244,7 +244,7 @@ void oak_tracking_allocator_init(oak_allocator_t* a)
   a->free = track_free;
   a->shutdown = track_shutdown;
   a->state = st;
-  a->malloc_fn = null;
-  a->realloc_fn = null;
-  a->free_fn = null;
+  a->malloc_fn = OAK_NULL;
+  a->realloc_fn = OAK_NULL;
+  a->free_fn = OAK_NULL;
 }

@@ -39,7 +39,7 @@ const oak_token_t* loader_import_alias_token(
 {
   if (imp->alias_node)
     return imp->alias_node->token;
-  return null;
+  return OAK_NULL;
 }
 
 int collect_imports(const oak_module_t* mod, oak_container_t* out)
@@ -48,20 +48,20 @@ int collect_imports(const oak_module_t* mod, oak_container_t* out)
   if (!root)
     return 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &root->children)
+  OAK_LIST_FOR_EACH(pos, &root->children)
   {
     const oak_ast_node_t* item =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     loader_import_t imp = { 0 };
     if (item->kind == OAK_NODE_IMPORT_SELECTIVE)
     {
       imp.path = item->rhs;
-      imp.alias_node = null;
+      imp.alias_node = OAK_NULL;
     }
     else if (item->kind == OAK_NODE_IMPORT_WILDCARD)
     {
       imp.path = item->child;
-      imp.alias_node = null;
+      imp.alias_node = OAK_NULL;
     }
     else if (item->kind == OAK_NODE_IMPORT_DECL)
     {
@@ -72,7 +72,7 @@ int collect_imports(const oak_module_t* mod, oak_container_t* out)
     {
       continue;
     }
-    oak_assert(oak_push_back(out, &imp));
+    OAK_ASSERT(oak_push_back(out, &imp));
   }
   return (int)oak_size(out);
 }
@@ -84,10 +84,10 @@ static int validate_imported_module_body(
 {
   int ok = 1;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &root->children)
+  OAK_LIST_FOR_EACH(pos, &root->children)
   {
     const oak_ast_node_t* item =
-        loader_unwrap_decl(oak_container_of(pos, oak_ast_node_t, link));
+        loader_unwrap_decl(OAK_CONTAINER_OF(pos, oak_ast_node_t, link));
     if (!item)
       continue;
     switch (item->kind)
@@ -176,14 +176,14 @@ oak_module_t* parse_or_get_module(
   if (!mod)
   {
     loader_error(out, "out of memory creating module '%s'", canonical_path);
-    return null;
+    return OAK_NULL;
   }
   mod->is_entry = is_entry;
 
   if (oak_file_map(canonical_path, &mod->source) != 0)
   {
     loader_error(out, "could not open '%s'", canonical_path);
-    return null;
+    return OAK_NULL;
   }
   mod->lexer =
       oak_lexer_tokenize_len(mod->source.data, mod->source.size, mod->allocator);
@@ -206,9 +206,9 @@ oak_module_t* parse_or_get_module(
 
   const oak_ast_node_t* root = oak_parser_root(mod->parser);
   if (!root)
-    return null;
+    return OAK_NULL;
   if (!is_entry && !validate_imported_module_body(out, mod, root))
-    return null;
+    return OAK_NULL;
 
   return mod;
 }

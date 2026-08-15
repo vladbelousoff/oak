@@ -9,7 +9,7 @@ void oak_interface_registry_init(oak_interface_registry_t* r,
   r->interfaces =
       oak_vector_new(allocator, sizeof(oak_registered_interface_t));
   r->impls = oak_vector_new(allocator, sizeof(oak_interface_impl_t));
-  oak_assert(r->interfaces && r->impls);
+  OAK_ASSERT(r->interfaces && r->impls);
 }
 
 void oak_interface_registry_free(oak_interface_registry_t* r)
@@ -35,7 +35,7 @@ void oak_interface_registry_free(oak_interface_registry_t* r)
   {
     if (impls[i].vtable)
       oak_free(r->allocator, impls[i].vtable, OAK_HERE);
-    impls[i].vtable = null;
+    impls[i].vtable = OAK_NULL;
     impls[i].vtable_count = 0;
   }
   oak_destroy(r->impls);
@@ -64,7 +64,7 @@ void oak_emit_interface_coerce(oak_compiler_t* c,
   if (oak_type_equal(&want, &got))
     return;
 
-  const oak_registered_record_t* sd = null;
+  const oak_registered_record_t* sd = OAK_NULL;
   if (got.kind == OAK_TYPE_KIND_SCALAR)
     sd = oak_records_find_by_id(&c->records, got.id);
 
@@ -72,7 +72,7 @@ void oak_emit_interface_coerce(oak_compiler_t* c,
   {
     oak_compiler_error_at(
         c,
-        arg_expr ? arg_expr->token : null,
+        arg_expr ? arg_expr->token : OAK_NULL,
         "cannot coerce type '%s' to interface '%s': not a record type",
         oak_type_full_name(c, got),
         tr->name);
@@ -82,7 +82,7 @@ void oak_emit_interface_coerce(oak_compiler_t* c,
   if (!oak_record_satisfies_interface(c, sd, tr))
   {
     oak_compiler_error_at(c,
-                          arg_expr ? arg_expr->token : null,
+                          arg_expr ? arg_expr->token : OAK_NULL,
                           "type '%s' does not implement interface '%s'; "
                           "add 'implements %s'",
                           sd->name,
@@ -94,7 +94,7 @@ void oak_emit_interface_coerce(oak_compiler_t* c,
   const u16 vtable_idx = oak_get_or_build_vtable(c, sd, tr);
   if (c->has_error)
     return;
-  oak_compiler_emit_op(
+  OAK_COMPILER_EMIT_OP(
       c, OAK_OP_MAKE_INTERFACE_OBJECT, loc, OAK_ARG_U16(vtable_idx));
 }
 
@@ -118,22 +118,22 @@ void oak_emit_weak_coerce(oak_compiler_t* c,
   {
     oak_compiler_error_at(
         c,
-        arg_expr ? arg_expr->token : null,
+        arg_expr ? arg_expr->token : OAK_NULL,
         "cannot create weak reference from a temporary value");
     return;
   }
 
-  oak_compiler_emit_op(c, OAK_OP_WEAKEN, loc);
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_WEAKEN, loc);
 }
 
 void oak_register_program_interfaces(oak_compiler_t* c,
                                      const oak_ast_node_t* program)
 {
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
+  OAK_LIST_FOR_EACH(pos, &program->children)
   {
     const oak_ast_node_t* raw_item =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     const oak_ast_node_t* item = oak_unwrap_decl(raw_item);
     if (!item || item->kind != OAK_NODE_INTERFACE_DECL)
       continue;
@@ -162,12 +162,12 @@ void oak_register_program_interfaces(oak_compiler_t* c,
     oak_registered_interface_t proto = {
       .name = tname,
       .interface_id = oak_type_registry_intern(&c->types, tname),
-      .methods = null,
+      .methods = OAK_NULL,
     };
 
     proto.methods =
         oak_vector_new(c->allocator, sizeof(oak_interface_method_t));
-    oak_assert(proto.methods);
+    OAK_ASSERT(proto.methods);
 
     if (proto.interface_id < 0)
     {
@@ -187,7 +187,7 @@ void oak_register_program_interfaces(oak_compiler_t* c,
       return;
     if (oak_decl_is_exported(raw_item))
       oak_compiler_mark_symbol_exported(c, tname);
-    oak_assert(oak_push_back(c->interfaces.interfaces, &proto));
+    OAK_ASSERT(oak_push_back(c->interfaces.interfaces, &proto));
     oak_registered_interface_t* tr =
         oak_get(c->interfaces.interfaces,
                 oak_size(c->interfaces.interfaces) - 1);
@@ -199,7 +199,7 @@ void oak_register_program_interfaces(oak_compiler_t* c,
          mp = mp->next)
     {
       const oak_ast_node_t* mdecl =
-          oak_container_of(mp, oak_ast_node_t, link);
+          OAK_CONTAINER_OF(mp, oak_ast_node_t, link);
       if (mdecl->kind != OAK_NODE_FN_DECL)
         continue;
 
@@ -239,12 +239,12 @@ void oak_register_program_interfaces(oak_compiler_t* c,
         .name = mname,
         .arity = total_arity,
         .sig_decl = mdecl,
-        .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : null,
+        .decl = (body && body->kind == OAK_NODE_BLOCK) ? mdecl : OAK_NULL,
         .self_is_mut = oak_fn_self_is_mut(mdecl),
-        .param_types = null,
+        .param_types = OAK_NULL,
         .return_type = { 0 },
       };
-      oak_assert(oak_push_back(tr->methods, &tm));
+      OAK_ASSERT(oak_push_back(tr->methods, &tm));
     }
   }
 }
@@ -402,7 +402,7 @@ int oak_record_satisfies_interface(oak_compiler_t* c,
                                    const oak_registered_interface_t* tr)
 {
   return record_declares_interface(sd, tr) &&
-         record_methods_match_interface(c, sd, tr, null);
+         record_methods_match_interface(c, sd, tr, OAK_NULL);
 }
 
 void oak_validate_record_interfaces(oak_compiler_t* c)
@@ -438,7 +438,7 @@ void oak_validate_record_interfaces(oak_compiler_t* c)
           .id = tr->interface_id,
           .kind = OAK_TYPE_KIND_INTERFACE,
         };
-        oak_assert(oak_push_back(record->interfaces, &interface_type));
+        OAK_ASSERT(oak_push_back(record->interfaces, &interface_type));
       }
       char why[OAK_INTERFACE_WHY_MAX] = { 0 };
       if (!record_methods_match_interface(c, record, tr, why))
@@ -484,7 +484,7 @@ u16 oak_get_or_build_vtable(oak_compiler_t* c,
           oak_find_record_method(sd, methods[i].name, 0);
       proto.vtable[i] = sm ? sm->const_idx : 0;
     }
-    oak_assert(oak_push_back(c->interfaces.impls, &proto));
+    OAK_ASSERT(oak_push_back(c->interfaces.impls, &proto));
     impl = oak_get(c->interfaces.impls, oak_size(c->interfaces.impls) - 1);
   }
 
@@ -515,7 +515,7 @@ u16 oak_get_or_build_vtable(oak_compiler_t* c,
       fn_val = oak_chunk_constant(c->chunk, (usize)impl->vtable[i]);
     }
     /* Compiler-created vtables and functions both live in shared table 0. */
-    oak_assert(oak_array_push(arr, fn_val));
+    OAK_ASSERT(oak_array_push(arr, fn_val));
   }
 
   const u16 arr_idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&arr->obj));

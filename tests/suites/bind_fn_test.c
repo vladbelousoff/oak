@@ -148,7 +148,7 @@ UTEST_F(bind_fn, an_attribute_hook_runs_before_each_call)
   s_hook_calls = 0;
   s_hook_should_abort = 0;
   s_hook_last_fn[0] = '\0';
-  s_hook_ctx_user_data = null;
+  s_hook_ctx_user_data = OAK_NULL;
 
   const oak_run_result_t r =
       run_with_hook(OAK_A,
@@ -245,7 +245,7 @@ UTEST_F(bind_fn, an_instance_method_is_recorded_against_its_receiver)
 
   oak_compile_options_init(&opts, OAK_A);
   t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "MyVec");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
 
   ASSERT_EQ(0,
             oak_bind_fn(&opts,
@@ -277,7 +277,7 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
             oak_bind_fn_global(
                 &opts,
                 &(oak_bind_global_fn_t){
-                    .name = null,
+                    .name = OAK_NULL,
                     .impl = native_answer,
                     .param_count = 0,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
@@ -287,7 +287,7 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
                 &opts,
                 &(oak_bind_global_fn_t){
                     .name = "no_impl",
-                    .impl = null,
+                    .impl = OAK_NULL,
                     .param_count = 0,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   /* An arity a call could not encode. Bytecode carries the argument count in
@@ -337,7 +337,7 @@ UTEST_F(bind_fn, an_instance_method_reserves_one_slot_for_self)
 
   oak_compile_options_init(&opts, OAK_A);
   t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Recv");
-  ASSERT_TRUE(t != null);
+  ASSERT_TRUE(t != OAK_NULL);
 
   EXPECT_EQ(-1,
             oak_bind_fn(&opts,
@@ -558,7 +558,7 @@ UTEST_F(bind_fn, the_declared_return_type_is_inferred)
   static const oak_case_t cases[] = {
     { "fn takes_number(n : number) -> number { return n; }\n"
       "print(takes_number(native_answer()));\n",
-      null },
+      OAK_NULL },
   };
 
   usize i;
@@ -602,15 +602,15 @@ UTEST_F(bind_fn, a_duplicate_global_name_fails_to_compile)
 UTEST_F(bind_fn, a_native_function_formats_with_a_single_arity)
 {
   oak_obj_native_fn_t* fn =
-      oak_native_fn_new(OAK_A, native_answer, 3, "my_fn", null);
+      oak_native_fn_new(OAK_A, native_answer, 3, "my_fn", OAK_NULL);
   char buf[128];
 
-  ASSERT_TRUE(fn != null);
+  ASSERT_TRUE(fn != OAK_NULL);
   oak_native_fn_format(buf, sizeof(buf), fn);
 
-  EXPECT_TRUE(strstr(buf, "arity=3") != null);
-  EXPECT_TRUE(strstr(buf, "arity=3..") == null);
-  EXPECT_TRUE(strstr(buf, "my_fn") != null);
+  EXPECT_TRUE(strstr(buf, "arity=3") != OAK_NULL);
+  EXPECT_TRUE(strstr(buf, "arity=3..") == OAK_NULL);
+  EXPECT_TRUE(strstr(buf, "my_fn") != OAK_NULL);
 
   oak_obj_decref((oak_obj_t*)fn);
 }
@@ -619,12 +619,12 @@ UTEST_F(bind_fn, a_native_function_formats_with_a_single_arity)
 UTEST_F(bind_fn, an_anonymous_native_function_formats)
 {
   oak_obj_native_fn_t* fn =
-      oak_native_fn_new(OAK_A, native_answer, 1, null, null);
+      oak_native_fn_new(OAK_A, native_answer, 1, OAK_NULL, OAK_NULL);
   char buf[128];
 
-  ASSERT_TRUE(fn != null);
+  ASSERT_TRUE(fn != OAK_NULL);
   oak_native_fn_format(buf, sizeof(buf), fn);
-  EXPECT_TRUE(strstr(buf, "arity=1") != null);
+  EXPECT_TRUE(strstr(buf, "arity=1") != OAK_NULL);
 
   oak_obj_decref((oak_obj_t*)fn);
 }

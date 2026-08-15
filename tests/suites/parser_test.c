@@ -29,7 +29,7 @@ UTEST_F(parser, multiplication_binds_tighter_than_addition)
   const oak_ast_node_t* stmt;
   const oak_ast_node_t* add;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   OAK_EXPECT_KIND(fx.root, OAK_NODE_PROGRAM);
 
   stmt = oak_ast_node_child_at(fx.root, 0);
@@ -53,7 +53,7 @@ UTEST_F(parser, subtraction_is_left_associative)
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, "x = 10 - 4 - 3;\n");
   const oak_ast_node_t* outer;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   outer = oak_ast_node_child_at(oak_ast_node_child_at(fx.root, 0), 1);
   OAK_EXPECT_KIND(outer, OAK_NODE_BINARY_SUB);
   OAK_EXPECT_KIND(oak_test_lhs(outer), OAK_NODE_BINARY_SUB);
@@ -70,7 +70,7 @@ UTEST_F(parser, logical_operators_sit_above_comparison)
       oak_test_parse(OAK_A, "x = a == b && c > d || e;\n");
   const oak_ast_node_t* or_node;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   or_node = oak_ast_node_child_at(oak_ast_node_child_at(fx.root, 0), 1);
   OAK_EXPECT_KIND(or_node, OAK_NODE_BINARY_OR);
   OAK_EXPECT_KIND(oak_test_rhs(or_node), OAK_NODE_IDENT);
@@ -88,7 +88,7 @@ UTEST_F(parser, unary_operators_nest)
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, "x = !!a;\ny = 0 - 1;\n");
   const oak_ast_node_t* not_node;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   not_node = oak_ast_node_child_at(oak_ast_node_child_at(fx.root, 0), 1);
   OAK_EXPECT_KIND(not_node, OAK_NODE_UNARY_NOT);
   OAK_EXPECT_CHILDREN(not_node, 1);
@@ -103,7 +103,7 @@ UTEST_F(parser, parentheses_regroup_the_tree)
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, "x = (1 + 2) * 3;\n");
   const oak_ast_node_t* mul;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   mul = oak_ast_node_child_at(oak_ast_node_child_at(fx.root, 0), 1);
   OAK_EXPECT_KIND(mul, OAK_NODE_BINARY_MUL);
   OAK_EXPECT_KIND(oak_test_lhs(mul), OAK_NODE_BINARY_ADD);
@@ -122,7 +122,7 @@ UTEST_F(parser, postfix_chains_nest_left)
   const oak_ast_node_t* index;
   const oak_ast_node_t* member_chain;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
 
   assign = oak_ast_node_child_at(fx.root, 0);
   OAK_EXPECT_KIND(assign, OAK_NODE_STMT_ASSIGNMENT);
@@ -145,7 +145,7 @@ UTEST_F(parser, calls_carry_one_node_per_argument)
   const oak_ast_node_t* stmt;
   const oak_ast_node_t* call;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   stmt = oak_ast_node_child_at(fx.root, 0);
   /* A bare call may be the statement itself or be wrapped; oak_ast_node_child_at
    * tolerates null, so a missing statement reports as a kind miss below rather
@@ -172,7 +172,7 @@ UTEST_F(parser, control_flow_statements_parse)
 
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, src);
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
   OAK_EXPECT_KIND(fx.root, OAK_NODE_PROGRAM);
   OAK_EXPECT_CHILDREN(fx.root, 6);
@@ -197,8 +197,8 @@ UTEST_F(parser, else_is_optional)
   const oak_ast_node_t* bare_if;
   const oak_ast_node_t* full_if;
 
-  ASSERT_TRUE(bare.root != null);
-  ASSERT_TRUE(with_else.root != null);
+  ASSERT_TRUE(bare.root != OAK_NULL);
+  ASSERT_TRUE(with_else.root != OAK_NULL);
 
   bare_if = oak_ast_node_child_at(bare.root, 0);
   full_if = oak_ast_node_child_at(with_else.root, 0);
@@ -236,7 +236,7 @@ UTEST_F(parser, declarations_parse)
 
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, src);
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
   OAK_EXPECT_KIND(fx.root, OAK_NODE_PROGRAM);
 
@@ -249,7 +249,7 @@ UTEST_F(parser, record_fields_are_one_node_each)
       OAK_A, "record Task { title : string; points : number; }\n");
   const oak_ast_node_t* decl;
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   decl = oak_ast_node_child_at(fx.root, 0);
   OAK_EXPECT_KIND(decl, OAK_NODE_RECORD_DECL);
 
@@ -262,7 +262,7 @@ UTEST_F(parser, an_empty_record_has_its_own_declaration_form)
 {
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, "record Empty;\n");
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   OAK_EXPECT_KIND(oak_ast_node_child_at(fx.root, 0),
                   OAK_NODE_RECORD_DECL_EMPTY);
 
@@ -275,7 +275,7 @@ UTEST_F(parser, records_parse_explicit_interface_declarations)
       OAK_A, "record Shape implements IArea, ILabel { value : number; }\n"
              "record Marker implements ITagged;\n");
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
   const oak_ast_node_t* shape = oak_ast_node_child_at(fx.root, 0);
   const oak_ast_node_t* marker = oak_ast_node_child_at(fx.root, 1);
@@ -299,7 +299,7 @@ UTEST_F(parser, collection_types_and_literals_parse)
 
   oak_parse_fixture_t fx = oak_test_parse(OAK_A, src);
 
-  ASSERT_TRUE(fx.root != null);
+  ASSERT_TRUE(fx.root != OAK_NULL);
   EXPECT_EQ(0, oak_parser_error_count(fx.parsed));
   OAK_EXPECT_CHILDREN(fx.root, 6);
 
@@ -328,7 +328,7 @@ UTEST_F(parser, malformed_sources_are_rejected)
   for (i = 0; i < OAK_COUNT_OF(cases); ++i)
   {
     oak_parse_fixture_t fx = oak_test_parse(OAK_A, cases[i]);
-    if (fx.root != null && oak_parser_error_count(fx.parsed) == 0)
+    if (fx.root != OAK_NULL && oak_parser_error_count(fx.parsed) == 0)
     {
       UTEST_PRINTF("  parsed cleanly but should not have: %s\n", cases[i]);
       *utest_result = UTEST_TEST_FAILURE;
@@ -353,7 +353,7 @@ UTEST_F(parser, parse_errors_say_what_was_expected)
     oak_parse_fixture_t fx = oak_test_parse(OAK_A, cases[i].src);
     const int errors = oak_parser_error_count(fx.parsed);
 
-    if (fx.root != null || errors == 0)
+    if (fx.root != OAK_NULL || errors == 0)
     {
       UTEST_PRINTF("  expected a parse error: %s\n", cases[i].src);
       *utest_result = UTEST_TEST_FAILURE;

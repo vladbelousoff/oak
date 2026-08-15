@@ -101,7 +101,7 @@ int oak_module_loader_load_program(const char* entry_path,
                                    oak_module_registry_t* out_reg,
                                    oak_module_loader_result_t* out)
 {
-  out->entry = null;
+  out->entry = OAK_NULL;
   out->error_count = 0;
   oak_allocator_t* a = out_reg->allocator;
 
@@ -119,7 +119,7 @@ int oak_module_loader_load_program(const char* entry_path,
   /* Per-module-id DFS colours, indexed by module_id. */
   oak_container_t* visiting = oak_vector_new(a, sizeof(char));
   oak_container_t* visited = oak_vector_new(a, sizeof(char));
-  oak_assert(stack && topo && visiting && visited);
+  OAK_ASSERT(stack && topo && visiting && visited);
 
 #define ENSURE_FLAGS(_id)                                                      \
   do                                                                           \
@@ -127,9 +127,9 @@ int oak_module_loader_load_program(const char* entry_path,
     /* Grow only. oak_resize would truncate, losing colours, if a lower       \
      * module id turned up later; new slots are zero-filled. */               \
     if (oak_size(visiting) <= (usize)(_id))                                   \
-      oak_assert(oak_resize(visiting, (usize)(_id) + 1u));                    \
+      OAK_ASSERT(oak_resize(visiting, (usize)(_id) + 1u));                    \
     if (oak_size(visited) <= (usize)(_id))                                    \
-      oak_assert(oak_resize(visited, (usize)(_id) + 1u));                     \
+      OAK_ASSERT(oak_resize(visited, (usize)(_id) + 1u));                     \
   } while (0)
 
   ENSURE_FLAGS(entry->module_id);
@@ -138,10 +138,10 @@ int oak_module_loader_load_program(const char* entry_path,
     loader_frame_t entry_frame;
     entry_frame.mod = entry;
     entry_frame.imports = oak_vector_new(a, sizeof(loader_import_t));
-    oak_assert(entry_frame.imports);
+    OAK_ASSERT(entry_frame.imports);
     collect_imports(entry, entry_frame.imports);
     entry_frame.next_import_idx = 0;
-    oak_assert(oak_push_back(stack, &entry_frame));
+    OAK_ASSERT(oak_push_back(stack, &entry_frame));
   }
 
 #define RECORD_ALIAS(_parent_mod, _imp, _dep_id)                               \
@@ -175,9 +175,9 @@ int oak_module_loader_load_program(const char* entry_path,
     {
       OAK_DATA(char, visiting)[top->mod->module_id] = 0;
       OAK_DATA(char, visited)[top->mod->module_id] = 1;
-      oak_assert(oak_push_back(topo, &top->mod));
+      OAK_ASSERT(oak_push_back(topo, &top->mod));
       oak_destroy(top->imports);
-      oak_assert(oak_pop_back(stack, null));
+      OAK_ASSERT(oak_pop_back(stack, OAK_NULL));
       continue;
     }
 
@@ -193,7 +193,7 @@ int oak_module_loader_load_program(const char* entry_path,
     char* dotted = dotted_name_from_path(a, imp->path);
     const int is_native = opts_has_native_module(opts, dotted);
 
-    char* file_path = null;
+    char* file_path = OAK_NULL;
     if (is_native)
     {
       /* Native stdlib modules (e.g. io) resolve against the stdlib BEFORE any
@@ -274,7 +274,7 @@ int oak_module_loader_load_program(const char* entry_path,
         const usize dep_module_id = dep->module_id;
         oak_put(top->mod->imports, alias, (usize)alen, &dep_module_id);
       }
-      oak_assert(oak_push_back(top->mod->import_modules, &dep->module_id));
+      OAK_ASSERT(oak_push_back(top->mod->import_modules, &dep->module_id));
       ENSURE_FLAGS(dep->module_id);
       OAK_DATA(char, visited)[dep->module_id] = 1;
       oak_free(a, dotted, OAK_HERE);
@@ -329,7 +329,7 @@ int oak_module_loader_load_program(const char* entry_path,
         oak_free(a, canonical, OAK_HERE);
         break;
       }
-      oak_assert(oak_push_back(top->mod->import_modules, &found->module_id));
+      OAK_ASSERT(oak_push_back(top->mod->import_modules, &found->module_id));
       oak_free(a, dotted, OAK_HERE);
       oak_free(a, file_path, OAK_HERE);
       oak_free(a, canonical, OAK_HERE);
@@ -371,7 +371,7 @@ int oak_module_loader_load_program(const char* entry_path,
         oak_put(top->mod->imports, alias, (usize)alen, &dep_module_id);
       }
     }
-    oak_assert(oak_push_back(top->mod->import_modules, &dep->module_id));
+    OAK_ASSERT(oak_push_back(top->mod->import_modules, &dep->module_id));
 
     oak_free(a, dotted, OAK_HERE);
     oak_free(a, file_path, OAK_HERE);
@@ -386,10 +386,10 @@ int oak_module_loader_load_program(const char* entry_path,
       loader_frame_t f;
       f.mod = dep;
       f.imports = oak_vector_new(a, sizeof(loader_import_t));
-      oak_assert(f.imports);
+      OAK_ASSERT(f.imports);
       collect_imports(dep, f.imports);
       f.next_import_idx = 0;
-      oak_assert(oak_push_back(stack, &f));
+      OAK_ASSERT(oak_push_back(stack, &f));
     }
   }
 

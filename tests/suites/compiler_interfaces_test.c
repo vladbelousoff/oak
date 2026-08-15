@@ -29,19 +29,19 @@ UTEST_F(compiler_interfaces, conforming_records_coerce_and_dispatch)
       "fn use_shape(s: IShape) { print(s.area()); }\n"
       "let c = new Circle { radius: 3 };\n"
       "use_shape(c);\n",
-      null },
+      OAK_NULL },
     { INTERFACE_SHAPE RECORD_CIRCLE
       "fn use_shape(s: IShape) { print(s.describe()); print(s.area()); }\n"
       "let c = new Circle { radius: 2 };\n"
       "use_shape(c);\n",
-      null },
+      OAK_NULL },
     /* An already-coerced interface object passes straight through. */
     { INTERFACE_SHAPE RECORD_CIRCLE
       "fn inner(s: IShape) { print(s.area()); }\n"
       "fn outer(s: IShape) { inner(s); }\n"
       "let c = new Circle { radius: 1 };\n"
       "outer(c);\n",
-      null },
+      OAK_NULL },
     /* Coercion works for method arguments too, not just free functions. */
     { INTERFACE_SHAPE RECORD_CIRCLE
       "record Renderer {\n"
@@ -50,7 +50,7 @@ UTEST_F(compiler_interfaces, conforming_records_coerce_and_dispatch)
       "let r = new Renderer {};\n"
       "let c = new Circle { radius: 4 };\n"
       "r.render(c);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -72,12 +72,12 @@ UTEST_F(compiler_interfaces, interface_arrays_hold_mixed_implementations)
       "let mut total = 0;\n"
       "for s in shapes { total += s.area(); }\n"
       "print(total);\n",
-      null },
+      OAK_NULL },
     { INTERFACE_SHAPE RECORD_CIRCLE
       "let mut shapes = new IShape[];\n"
       "shapes.push(new Circle { radius: 4 });\n"
       "print(shapes[0].area());\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -185,7 +185,7 @@ UTEST_F(compiler_interfaces, a_mutable_receiver_is_part_of_the_contract)
       "fn run(mut c : ICounter) { print(c.bump()); }\n"
       "let mut c = new Counter { n: 1 };\n"
       "run(c);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
@@ -264,7 +264,7 @@ UTEST_F(compiler_interfaces, a_default_body_does_not_satisfy_conformance)
       "}\n"
       "let p = new Person { n: 'world' };\n"
       "print(p.greet());\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_COMPILE_ERROR_CASES(missing);

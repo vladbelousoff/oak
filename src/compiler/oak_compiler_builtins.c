@@ -8,7 +8,7 @@ u16 oak_intern_native_const(oak_compiler_t* c,
                                         const char* name)
 {
   oak_obj_native_fn_t* native =
-      oak_native_fn_new(c->allocator, impl, arity, name, null);
+      oak_native_fn_new(c->allocator, impl, arity, name, OAK_NULL);
   return oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 }
 
@@ -16,7 +16,7 @@ static void register_native_fn(oak_compiler_t* c,
                                const oak_native_binding_t* binding)
 {
   oak_obj_native_fn_t* native = oak_native_fn_new(
-      c->allocator, binding->impl, binding->arity, binding->name, null);
+      c->allocator, binding->impl, binding->arity, binding->name, OAK_NULL);
   const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
   oak_registered_fn_t entry = {
@@ -24,12 +24,12 @@ static void register_native_fn(oak_compiler_t* c,
     .const_idx = idx,
     .arity = binding->arity,
     .return_type = { .id = binding->return_type_id },
-    .decl = null,
-    .attrs = null,
+    .decl = OAK_NULL,
+    .attrs = OAK_NULL,
     .attr_count = 0,
     .source_module_id = OAK_MODULE_ID_NONE,
   };
-  if (!oak_compiler_declare_symbol(c, null, entry.name,
+  if (!oak_compiler_declare_symbol(c, OAK_NULL, entry.name,
                                    OAK_SYMBOL_FUNCTION,
                                    (int)oak_size(c->fns.entries),
                                    OAK_MODULE_ID_NONE, 0))

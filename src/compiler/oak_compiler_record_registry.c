@@ -8,7 +8,7 @@ void oak_record_registry_init(oak_record_registry_t* r,
   r->by_name = oak_hash_map_new(allocator, sizeof(usize));
   r->entries =
       oak_vector_new(allocator, sizeof(oak_registered_record_t));
-  oak_assert(r->by_name && r->entries);
+  OAK_ASSERT(r->by_name && r->entries);
 }
 
 void oak_record_registry_free(oak_record_registry_t* r)
@@ -44,10 +44,10 @@ oak_registered_record_t*
 oak_record_registry_insert(oak_record_registry_t* r,
                            const oak_registered_record_t* s)
 {
-  oak_assert(oak_push_back(r->entries, s));
+  OAK_ASSERT(oak_push_back(r->entries, s));
   const usize idx = oak_size(r->entries) - 1;
   oak_registered_record_t* entry = oak_get(r->entries, idx);
-  oak_assert(oak_put_str(r->by_name, entry->name, &idx));
+  OAK_ASSERT(oak_put_str(r->by_name, entry->name, &idx));
   return entry;
 }
 
@@ -55,7 +55,7 @@ const oak_registered_record_t* oak_records_find(
     const oak_record_registry_t* r, const char* name)
 {
   const usize* idx = oak_cfind_str(r->by_name, name);
-  return idx ? oak_cget(r->entries, *idx) : null;
+  return idx ? oak_cget(r->entries, *idx) : OAK_NULL;
 }
 
 const oak_registered_record_t*
@@ -63,7 +63,7 @@ oak_records_find_by_id(const oak_record_registry_t* r,
                                     oak_type_id_t type_id)
 {
   if (type_id == OAK_TYPE_VOID)
-    return null;
+    return OAK_NULL;
   const oak_registered_record_t* entries =
       OAK_CDATA(oak_registered_record_t, r->entries);
   for (usize i = 0; i < oak_size(r->entries); ++i)
@@ -71,7 +71,7 @@ oak_records_find_by_id(const oak_record_registry_t* r,
     if (entries[i].type_id == type_id)
       return &entries[i];
   }
-  return null;
+  return OAK_NULL;
 }
 
 
@@ -94,7 +94,7 @@ oak_find_record_method(const oak_registered_record_t* sd,
                                 const int static_only)
 {
   if (!sd)
-    return null;
+    return OAK_NULL;
   const oak_registered_fn_t* methods =
       OAK_CDATA(oak_registered_fn_t, sd->methods);
   for (usize i = 0; i < oak_size(sd->methods); ++i)
@@ -105,7 +105,7 @@ oak_find_record_method(const oak_registered_record_t* sd,
     if (strcmp(m->name, name) == 0)
       return m;
   }
-  return null;
+  return OAK_NULL;
 }
 
 void oak_report_no_record_method(oak_compiler_t* c,
@@ -168,7 +168,7 @@ int oak_require_record_field(
   oak_type_t recv_ty;
   oak_infer_type(c, recv, &recv_ty);
   const char* ftext = oak_token_text(fname->token);
-  const oak_registered_record_t* sd = null;
+  const oak_registered_record_t* sd = OAK_NULL;
   const int idx = oak_record_field_index(c, recv_ty, ftext, &sd);
   if (!oak_type_is_known(&recv_ty) || !sd)
   {

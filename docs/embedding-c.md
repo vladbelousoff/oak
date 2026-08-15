@@ -231,13 +231,13 @@ without calling it still aborts the script, but the message is only
 ```c
 oak_bind_fn_global(&opts,
                    &(oak_bind_global_fn_t){
-                       .module_name = null,
+                       .module_name = OAK_NULL,
                        .name = "add",
                        .impl = add,
                        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
                        .param_types = add_params,
                        .param_count = OAK_COUNT_OF(add_params),
-                       .user_data = null,
+                       .user_data = OAK_NULL,
                    });
 ```
 

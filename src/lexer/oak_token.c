@@ -37,13 +37,13 @@ const char* oak_token_text(const oak_token_t* token)
 
 int oak_token_as_i32(const oak_token_t* token)
 {
-  oak_assert(token->kind == OAK_TOKEN_INT);
+  OAK_ASSERT(token->kind == OAK_TOKEN_INT);
   return *(const int*)token->text;
 }
 
 float oak_token_as_f32(const oak_token_t* token)
 {
-  oak_assert(token->kind == OAK_TOKEN_FLOAT);
+  OAK_ASSERT(token->kind == OAK_TOKEN_FLOAT);
   return *(const float*)token->text;
 }
 
@@ -213,6 +213,6 @@ const char* oak_token_name(const oak_token_kind_t token_kind)
     case OAK_TOKEN_AT:
       return "@";
     default:
-      return null;
+      return OAK_NULL;
   }
 }

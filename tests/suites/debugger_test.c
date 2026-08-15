@@ -104,7 +104,7 @@ static dbg_session_t run_session(oak_allocator_t* a,
    * session when a script runs out of commands before the program does. */
   fwrite(commands, 1, strlen(commands), in_pipe.write_end);
   fclose(in_pipe.write_end);
-  in_pipe.write_end = null;
+  in_pipe.write_end = OAK_NULL;
 
   dbg.in = in_pipe.read_end;
   dbg.out = out_pipe.write_end;
@@ -279,7 +279,7 @@ UTEST_F(debugger, a_chunk_with_debug_info_runs_normally_without_a_hook)
   oak_compile_result_t cr = compile_debug(OAK_A, "let x = 1; let y = 2;");
   oak_vm_t vm;
 
-  ASSERT_TRUE(cr.chunk != null);
+  ASSERT_TRUE(cr.chunk != OAK_NULL);
 
   oak_vm_init(&vm, OAK_A);
   OAK_EXPECT_ENUM(OAK_VM_OK, oak_vm_run(&vm, cr.chunk));

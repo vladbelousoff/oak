@@ -49,40 +49,40 @@ UTEST_F(compiler_mut, mut_binding_from_a_copy_or_an_rvalue_is_fine)
       "let p = new Point { x : 3, y : 4 };\n"
       "let mut x = p.x;\n"
       "x = 99;\n",
-      null },
+      OAK_NULL },
     { "let arr = [1, 2, 3];\n"
       "let mut x = arr[0];\n"
       "x = 42;\n",
-      null },
+      OAK_NULL },
     { "let mut x = 42;\n"
       "x = x + 1;\n",
-      null },
+      OAK_NULL },
     { "fn make_num() -> number { return 10; }\n"
       "let mut x = make_num();\n"
       "x = x * 2;\n",
-      null },
+      OAK_NULL },
     /* A mutable source may be bound mutably. */
     { "record Point { x : number; y : number; }\n"
       "let mut p = new Point { x : 1, y : 2 };\n"
       "let mut copy = p;\n",
-      null },
+      OAK_NULL },
     { "record Inner { z : number; }\n"
       "record Outer { inner : Inner; }\n"
       "let mut inner = new Inner { z : 7 };\n"
       "let mut outer = new Outer { inner : inner };\n"
       "let mut copy = outer.inner;\n",
-      null },
+      OAK_NULL },
     /* Narrowing to immutable is always allowed. */
     { "record Point { x : number; y : number; }\n"
       "let p = new Point { x : 3, y : 4 };\n"
       "let x = p.x;\n",
-      null },
+      OAK_NULL },
     { "record Point { x : number; }\n"
       "let mut a = new Point { x : 1 };\n"
       "let r = a;\n"
       "a.x = 99;\n"
       "print(r.x);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -107,7 +107,7 @@ UTEST_F(compiler_mut, fields_of_a_mutable_record_can_be_assigned)
       "let mut p = new Point { x : 1, y : 2 };\n"
       "p.x = 99;\n"
       "print(p.x);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -167,20 +167,20 @@ UTEST_F(compiler_mut, mut_parameters_accept_mutable_and_copied_arguments)
       "fn move_point(mut p : Point) -> number { return p.x; }\n"
       "let mut p = new Point { x : 1, y : 2 };\n"
       "move_point(p);\n",
-      null },
+      OAK_NULL },
     /* A number is copied into the parameter, so the caller's binding does not
      * need to be mutable. */
     { "fn double(mut x : number) -> number { x = x * 2; return x; }\n"
       "let n = 5;\n"
       "print(double(n));\n",
-      null },
+      OAK_NULL },
     /* `mut` governs writability, not ownership, so the same binding may be
      * passed to several parameters at once. */
     { "record Point { x : number; y : number; }\n"
       "fn add_y(mut a : Point, b : Point) { a.y = a.y + b.y; }\n"
       "let mut p = new Point { x : 1, y : 2 };\n"
       "add_y(p, p);\n",
-      null },
+      OAK_NULL },
     { "record Point { x : number; y : number; }\n"
       "fn swap(mut a : Point, mut b : Point) {\n"
       "  let tmp = a.x;\n"
@@ -190,7 +190,7 @@ UTEST_F(compiler_mut, mut_parameters_accept_mutable_and_copied_arguments)
       "let mut p = new Point { x : 1, y : 2 };\n"
       "let mut q = new Point { x : 3, y : 4 };\n"
       "swap(p, q);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -226,14 +226,14 @@ UTEST_F(compiler_mut, self_methods_match_their_receivers_mutability)
       "}\n"
       "let mut p = new Point { x : 1, y : 2 };\n"
       "print(p.shift(3, 4));\n",
-      null },
+      OAK_NULL },
     /* A read-only method is callable on an immutable receiver. */
     { "record Point { x : number; y : number;\n"
       "  fn sum() -> number { return self.x + self.y; }\n"
       "}\n"
       "let p = new Point { x : 3, y : 4 };\n"
       "print(p.sum());\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);

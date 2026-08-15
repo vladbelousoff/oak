@@ -20,7 +20,7 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
   }
 
   /* Collect path segments.  1 segment = local type; 2 segments = mod.Type. */
-  const oak_ast_node_t* seg[2] = { null, null };
+  const oak_ast_node_t* seg[2] = { OAK_NULL, OAK_NULL };
   const int seg_count = oak_compiler_import_path_segments(path_node, seg, 2);
   if (seg_count < 1 || seg_count > 2)
   {
@@ -72,13 +72,13 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
   const oak_ast_node_t** exprs =
       oak_alloc(c->allocator, field_count * sizeof(*exprs), OAK_HERE);
   for (usize i = 0; i < field_count; ++i)
-    exprs[i] = null;
+    exprs[i] = OAK_NULL;
 
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &fields_node->children)
+  OAK_LIST_FOR_EACH(pos, &fields_node->children)
   {
     const oak_ast_node_t* entry =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (entry->kind != OAK_NODE_RECORD_LITERAL_FIELD || !entry->lhs)
     {
       oak_compiler_error_at(
@@ -190,7 +190,7 @@ void oak_compiler_compile_record_literal(oak_compiler_t* c,
         goto cleanup_exprs;
     }
 
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          OAK_OP_NEW_RECORD,
                          OAK_LOC_SYNTHETIC,
                          OAK_ARG_U8((u8)field_count),

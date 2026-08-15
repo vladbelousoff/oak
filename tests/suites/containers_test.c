@@ -29,7 +29,7 @@ UTEST_F(containers, a_vector_reports_its_type_and_interfaces)
 {
   oak_container_t* v = oak_vector_new(OAK_A, sizeof(int));
 
-  ASSERT_TRUE(v != null);
+  ASSERT_TRUE(v != OAK_NULL);
   EXPECT_EQ(0u, oak_size(v));
   EXPECT_EQ(0u, oak_capacity(v));
   EXPECT_EQ(sizeof(int), oak_vector_elem_size(v));
@@ -39,11 +39,11 @@ UTEST_F(containers, a_vector_reports_its_type_and_interfaces)
   EXPECT_FALSE(oak_is(v, oak_hash_map_type_info()));
   EXPECT_STREQ("vector", oak_type_name(v));
 
-  EXPECT_TRUE(oak_query_interface(v, OAK_IID_SEQUENCE) != null);
-  EXPECT_TRUE(oak_query_interface(v, OAK_IID_RANDOM_ACCESS) != null);
-  EXPECT_TRUE(oak_query_interface(v, OAK_IID_ITERABLE) != null);
-  EXPECT_TRUE(oak_query_interface(v, OAK_IID_MAP) == null);
-  EXPECT_TRUE(oak_query_interface(v, OAK_IID_SET) == null);
+  EXPECT_TRUE(oak_query_interface(v, OAK_IID_SEQUENCE) != OAK_NULL);
+  EXPECT_TRUE(oak_query_interface(v, OAK_IID_RANDOM_ACCESS) != OAK_NULL);
+  EXPECT_TRUE(oak_query_interface(v, OAK_IID_ITERABLE) != OAK_NULL);
+  EXPECT_TRUE(oak_query_interface(v, OAK_IID_MAP) == OAK_NULL);
+  EXPECT_TRUE(oak_query_interface(v, OAK_IID_SET) == OAK_NULL);
 
   oak_destroy(v);
 }
@@ -55,7 +55,7 @@ UTEST_F(containers, a_vector_grows_and_keeps_its_elements_contiguous)
   int i;
   usize u;
 
-  ASSERT_TRUE(v != null);
+  ASSERT_TRUE(v != OAK_NULL);
 
   /* Past the initial 8 and several doublings. */
   for (i = 0; i < 40; ++i)
@@ -64,12 +64,12 @@ UTEST_F(containers, a_vector_grows_and_keeps_its_elements_contiguous)
   EXPECT_TRUE(oak_capacity(v) >= 40u);
 
   data = OAK_CDATA(int, v);
-  ASSERT_TRUE(data != null);
+  ASSERT_TRUE(data != OAK_NULL);
   for (i = 0; i < 40; ++i)
     EXPECT_EQ(i, data[i]);
   EXPECT_EQ(7, *(const int*)oak_cget(v, 7));
   /* Out-of-range access reports null rather than reading past the end. */
-  EXPECT_TRUE(oak_cget(v, 40) == null);
+  EXPECT_TRUE(oak_cget(v, 40) == OAK_NULL);
 
   ASSERT_TRUE(oak_reserve(v, 100));
   EXPECT_TRUE(oak_capacity(v) >= 100u);
@@ -90,7 +90,7 @@ UTEST_F(containers, vector_insert_and_erase_shift_the_tail)
   int i;
   int popped = -1;
 
-  ASSERT_TRUE(v != null);
+  ASSERT_TRUE(v != OAK_NULL);
   for (i = 0; i < 3; ++i)
     ASSERT_TRUE(oak_push_back(v, &i));
 
@@ -126,7 +126,7 @@ UTEST_F(containers, vector_iteration_visits_every_element_in_order)
   int seen = 0;
   int expected = 0;
 
-  ASSERT_TRUE(v != null);
+  ASSERT_TRUE(v != OAK_NULL);
   for (i = 0; i < 10; ++i)
     ASSERT_TRUE(oak_push_back(v, &i));
 
@@ -140,17 +140,17 @@ UTEST_F(containers, vector_iteration_visits_every_element_in_order)
 
   /* A vector has no keys, and an iterator with no owner yields nothing. */
   memset(&detached, 0, sizeof(detached));
-  EXPECT_TRUE(oak_iter_key(&detached, null) == null);
+  EXPECT_TRUE(oak_iter_key(&detached, OAK_NULL) == OAK_NULL);
 
   oak_clear(v);
   EXPECT_EQ(0u, oak_size(v));
   /* clear releases the elements but keeps the buffer. */
   EXPECT_TRUE(oak_capacity(v) >= 10u);
-  EXPECT_FALSE(oak_pop_back(v, null));
+  EXPECT_FALSE(oak_pop_back(v, OAK_NULL));
 
   /* An empty container yields an immediately exhausted cursor. */
   empty = oak_begin(v);
-  EXPECT_TRUE(oak_iter_get(&empty) == null);
+  EXPECT_TRUE(oak_iter_get(&empty) == OAK_NULL);
   EXPECT_FALSE(oak_next(&empty));
 
   oak_destroy(v);
@@ -163,9 +163,9 @@ UTEST_F(containers, keyed_operations_are_refused_by_a_vector)
   oak_container_t* v = oak_vector_new(OAK_A, sizeof(int));
   const int value = 1;
 
-  ASSERT_TRUE(v != null);
+  ASSERT_TRUE(v != OAK_NULL);
   EXPECT_FALSE(oak_put(v, "k", 1, &value));
-  EXPECT_TRUE(oak_find(v, "k", 1) == null);
+  EXPECT_TRUE(oak_find(v, "k", 1) == OAK_NULL);
   EXPECT_FALSE(oak_add(v, "k", 1));
   EXPECT_FALSE(oak_contains(v, "k", 1));
   EXPECT_FALSE(oak_erase_key(v, "k", 1));
@@ -176,8 +176,8 @@ UTEST_F(containers, keyed_operations_are_refused_by_a_vector)
 
 UTEST_F(containers, vector_construction_validates_its_arguments)
 {
-  EXPECT_TRUE(oak_vector_new(OAK_A, 0) == null);
-  EXPECT_TRUE(oak_vector_new(null, sizeof(int)) == null);
+  EXPECT_TRUE(oak_vector_new(OAK_A, 0) == OAK_NULL);
+  EXPECT_TRUE(oak_vector_new(OAK_NULL, sizeof(int)) == OAK_NULL);
 }
 
 /* Keys are borrowed byte ranges, so every key here is a string literal that
@@ -193,12 +193,12 @@ UTEST_F(containers, a_hash_map_stores_finds_and_overwrites)
   const int replaced = 4242;
   int i;
 
-  ASSERT_TRUE(m != null);
+  ASSERT_TRUE(m != OAK_NULL);
   EXPECT_EQ(0u, oak_size(m));
   EXPECT_EQ(sizeof(int), oak_hash_map_value_size(m));
   EXPECT_TRUE(oak_is(m, oak_hash_map_type_info()));
-  EXPECT_TRUE(oak_query_interface(m, OAK_IID_MAP) != null);
-  EXPECT_TRUE(oak_query_interface(m, OAK_IID_RANDOM_ACCESS) == null);
+  EXPECT_TRUE(oak_query_interface(m, OAK_IID_MAP) != OAK_NULL);
+  EXPECT_TRUE(oak_query_interface(m, OAK_IID_RANDOM_ACCESS) == OAK_NULL);
 
   for (i = 0; i < key_count; ++i)
     ASSERT_TRUE(oak_put_str(m, map_keys[i], &i));
@@ -207,11 +207,11 @@ UTEST_F(containers, a_hash_map_stores_finds_and_overwrites)
   for (i = 0; i < key_count; ++i)
   {
     const int* found = oak_cfind_str(m, map_keys[i]);
-    ASSERT_TRUE(found != null);
+    ASSERT_TRUE(found != OAK_NULL);
     EXPECT_EQ(i, *found);
     EXPECT_TRUE(oak_contains_str(m, map_keys[i]));
   }
-  EXPECT_TRUE(oak_cfind_str(m, "absent") == null);
+  EXPECT_TRUE(oak_cfind_str(m, "absent") == OAK_NULL);
   EXPECT_FALSE(oak_contains_str(m, "absent"));
 
   /* Putting an existing key replaces the value; it does not add an entry. */
@@ -235,14 +235,14 @@ UTEST_F(containers, hash_map_tombstones_are_probed_past_reused_and_reclaimed)
   int i;
   int round;
 
-  ASSERT_TRUE(m != null);
+  ASSERT_TRUE(m != OAK_NULL);
   for (i = 0; i < key_count; ++i)
     ASSERT_TRUE(oak_put_str(m, map_keys[i], &i));
 
   ASSERT_TRUE(oak_erase_key_str(m, "beta"));
   EXPECT_FALSE(oak_erase_key_str(m, "beta")); /* already gone */
   EXPECT_EQ((usize)key_count - 1u, oak_size(m));
-  EXPECT_TRUE(oak_cfind_str(m, "beta") == null);
+  EXPECT_TRUE(oak_cfind_str(m, "beta") == OAK_NULL);
 
   /* Everything else must still be reachable across the tombstone. */
   for (i = 0; i < key_count; ++i)
@@ -278,7 +278,7 @@ UTEST_F(containers, hash_map_iteration_reaches_every_entry_once)
   int visited = 0;
   int i;
 
-  ASSERT_TRUE(m != null);
+  ASSERT_TRUE(m != OAK_NULL);
   for (i = 0; i < key_count; ++i)
     ASSERT_TRUE(oak_put_str(m, map_keys[i], &i));
 
@@ -286,7 +286,7 @@ UTEST_F(containers, hash_map_iteration_reaches_every_entry_once)
   {
     usize key_len = 0;
     const char* key = oak_iter_key(&it, &key_len);
-    ASSERT_TRUE(key != null);
+    ASSERT_TRUE(key != OAK_NULL);
     EXPECT_EQ(strlen(key), key_len);
     EXPECT_TRUE(oak_contains(m, key, key_len));
     ++visited;
@@ -295,7 +295,7 @@ UTEST_F(containers, hash_map_iteration_reaches_every_entry_once)
 
   oak_clear(m);
   EXPECT_EQ(0u, oak_size(m));
-  EXPECT_TRUE(oak_cfind_str(m, "alpha") == null);
+  EXPECT_TRUE(oak_cfind_str(m, "alpha") == OAK_NULL);
 
   oak_destroy(m);
 }
@@ -306,15 +306,15 @@ UTEST_F(containers, positional_operations_are_refused_by_a_hash_map)
   oak_container_t* m = oak_hash_map_new(OAK_A, sizeof(int));
   const int value = 1;
 
-  ASSERT_TRUE(m != null);
+  ASSERT_TRUE(m != OAK_NULL);
   ASSERT_TRUE(oak_put_str(m, "only", &value));
 
   EXPECT_FALSE(oak_push_back(m, &value));
-  EXPECT_TRUE(oak_get(m, 0) == null);
-  EXPECT_TRUE(oak_data(m) == null);
+  EXPECT_TRUE(oak_get(m, 0) == OAK_NULL);
+  EXPECT_TRUE(oak_data(m) == OAK_NULL);
   EXPECT_FALSE(oak_resize(m, 4));
   EXPECT_FALSE(oak_reserve(m, 4));
-  EXPECT_FALSE(oak_pop_back(m, null));
+  EXPECT_FALSE(oak_pop_back(m, OAK_NULL));
   EXPECT_EQ(0u, oak_capacity(m));
   /* None of the refusals disturbed the contents. */
   EXPECT_EQ(1u, oak_size(m));
@@ -324,8 +324,8 @@ UTEST_F(containers, positional_operations_are_refused_by_a_hash_map)
 
 UTEST_F(containers, hash_map_construction_validates_its_arguments)
 {
-  EXPECT_TRUE(oak_hash_map_new(OAK_A, 0) == null);
-  EXPECT_TRUE(oak_hash_map_new(null, sizeof(int)) == null);
+  EXPECT_TRUE(oak_hash_map_new(OAK_A, 0) == OAK_NULL);
+  EXPECT_TRUE(oak_hash_map_new(OAK_NULL, sizeof(int)) == OAK_NULL);
 }
 
 UTEST_F(containers, a_hash_set_holds_each_member_once)
@@ -338,10 +338,10 @@ UTEST_F(containers, a_hash_set_holds_each_member_once)
   int visited = 0;
   int i;
 
-  ASSERT_TRUE(s != null);
+  ASSERT_TRUE(s != OAK_NULL);
   EXPECT_TRUE(oak_is(s, oak_hash_set_type_info()));
-  EXPECT_TRUE(oak_query_interface(s, OAK_IID_SET) != null);
-  EXPECT_TRUE(oak_query_interface(s, OAK_IID_MAP) == null);
+  EXPECT_TRUE(oak_query_interface(s, OAK_IID_SET) != OAK_NULL);
+  EXPECT_TRUE(oak_query_interface(s, OAK_IID_MAP) == OAK_NULL);
 
   for (i = 0; i < name_count; ++i)
     ASSERT_TRUE(oak_add_str(s, names[i]));
@@ -371,18 +371,18 @@ UTEST_F(containers, a_hash_set_holds_each_member_once)
       break;
     EXPECT_EQ(strlen(member), len);
     EXPECT_TRUE(oak_contains(s, member, len));
-    EXPECT_TRUE(oak_iter_get(&it) == null);
+    EXPECT_TRUE(oak_iter_get(&it) == OAK_NULL);
     ++visited;
     oak_next(&it);
   }
   EXPECT_EQ(oak_size(s), (usize)visited);
 
   /* Value-oriented operations are refused. */
-  EXPECT_TRUE(oak_find_str(s, "one") == null);
+  EXPECT_TRUE(oak_find_str(s, "one") == OAK_NULL);
   EXPECT_FALSE(oak_put_str(s, "one", "x"));
 
   oak_destroy(s);
-  EXPECT_TRUE(oak_hash_set_new(null) == null);
+  EXPECT_TRUE(oak_hash_set_new(OAK_NULL) == OAK_NULL);
 }
 
 /*
@@ -396,8 +396,8 @@ UTEST_F(containers, the_object_header_carries_type_and_allocator)
   oak_container_t* m = oak_hash_map_new(OAK_A, sizeof(int));
   void* opaque = v;
 
-  ASSERT_TRUE(v != null);
-  ASSERT_TRUE(m != null);
+  ASSERT_TRUE(v != OAK_NULL);
+  ASSERT_TRUE(m != OAK_NULL);
 
   EXPECT_TRUE(oak_type_of(opaque) == oak_vector_type_info());
   EXPECT_TRUE(oak_is(opaque, oak_base_type_info()));
@@ -423,8 +423,8 @@ UTEST_F(containers, growth_and_rehash_do_not_move_the_handle)
   char keys[64][8];
   int i;
 
-  ASSERT_TRUE(v != null);
-  ASSERT_TRUE(m != null);
+  ASSERT_TRUE(v != OAK_NULL);
+  ASSERT_TRUE(m != OAK_NULL);
 
   for (i = 0; i < 64; ++i)
     ASSERT_TRUE(oak_push_back(v, &i));
@@ -452,23 +452,23 @@ UTEST(containers, every_operation_tolerates_a_null_container)
 {
   oak_iterator_t it;
 
-  EXPECT_EQ(0u, oak_size(null));
-  EXPECT_EQ(0u, oak_capacity(null));
-  EXPECT_TRUE(oak_get(null, 0) == null);
-  EXPECT_TRUE(oak_data(null) == null);
-  EXPECT_TRUE(oak_find(null, "k", 1) == null);
-  EXPECT_FALSE(oak_contains(null, "k", 1));
-  EXPECT_FALSE(oak_push_back(null, "x"));
-  EXPECT_TRUE(oak_type_of(null) == null);
-  EXPECT_FALSE(oak_is(null, oak_vector_type_info()));
-  EXPECT_TRUE(oak_query_interface(null, OAK_IID_SEQUENCE) == null);
-  EXPECT_STREQ("(null)", oak_type_name(null));
+  EXPECT_EQ(0u, oak_size(OAK_NULL));
+  EXPECT_EQ(0u, oak_capacity(OAK_NULL));
+  EXPECT_TRUE(oak_get(OAK_NULL, 0) == OAK_NULL);
+  EXPECT_TRUE(oak_data(OAK_NULL) == OAK_NULL);
+  EXPECT_TRUE(oak_find(OAK_NULL, "k", 1) == OAK_NULL);
+  EXPECT_FALSE(oak_contains(OAK_NULL, "k", 1));
+  EXPECT_FALSE(oak_push_back(OAK_NULL, "x"));
+  EXPECT_TRUE(oak_type_of(OAK_NULL) == OAK_NULL);
+  EXPECT_FALSE(oak_is(OAK_NULL, oak_vector_type_info()));
+  EXPECT_TRUE(oak_query_interface(OAK_NULL, OAK_IID_SEQUENCE) == OAK_NULL);
+  EXPECT_STREQ("(null)", oak_type_name(OAK_NULL));
 
-  oak_clear(null);
-  oak_destroy(null);
+  oak_clear(OAK_NULL);
+  oak_destroy(OAK_NULL);
 
-  it = oak_begin(null);
-  EXPECT_TRUE(oak_iter_get(&it) == null);
+  it = oak_begin(OAK_NULL);
+  EXPECT_TRUE(oak_iter_get(&it) == OAK_NULL);
   EXPECT_FALSE(oak_next(&it));
 }
 
@@ -485,7 +485,7 @@ static void* fail_alloc(oak_allocator_t* self, usize size, oak_source_loc_t at)
 {
   fail_state_t* state = self->state;
   (void)at;
-  return state->fail_alloc ? null : malloc(size);
+  return state->fail_alloc ? OAK_NULL : malloc(size);
 }
 
 static void* fail_realloc(oak_allocator_t* self,
@@ -495,7 +495,7 @@ static void* fail_realloc(oak_allocator_t* self,
 {
   fail_state_t* state = self->state;
   (void)at;
-  return state->fail_realloc ? null : realloc(ptr, size);
+  return state->fail_realloc ? OAK_NULL : realloc(ptr, size);
 }
 
 static void fail_free(oak_allocator_t* self, void* ptr, oak_source_loc_t at)
@@ -519,9 +519,9 @@ static oak_allocator_t fail_allocator(fail_state_t* state)
   allocator.free = fail_free;
   allocator.shutdown = fail_shutdown;
   allocator.state = state;
-  allocator.malloc_fn = null;
-  allocator.realloc_fn = null;
-  allocator.free_fn = null;
+  allocator.malloc_fn = OAK_NULL;
+  allocator.realloc_fn = OAK_NULL;
+  allocator.free_fn = OAK_NULL;
   return allocator;
 }
 
@@ -547,14 +547,14 @@ UTEST(containers, allocation_failure_leaves_containers_intact)
   failing = fail_allocator(&state);
 
   /* A failed header allocation yields no container at all. */
-  EXPECT_TRUE(oak_vector_new(&failing, sizeof(int)) == null);
-  EXPECT_TRUE(oak_hash_map_new(&failing, sizeof(int)) == null);
-  EXPECT_TRUE(oak_hash_set_new(&failing) == null);
+  EXPECT_TRUE(oak_vector_new(&failing, sizeof(int)) == OAK_NULL);
+  EXPECT_TRUE(oak_hash_map_new(&failing, sizeof(int)) == OAK_NULL);
+  EXPECT_TRUE(oak_hash_set_new(&failing) == OAK_NULL);
 
   /* A failed grow must leave size and contents untouched. */
   state.fail_alloc = 0;
   v = oak_vector_new(&failing, sizeof(int));
-  ASSERT_TRUE(v != null);
+  ASSERT_TRUE(v != OAK_NULL);
   for (i = 0; i < 8; ++i)
     ASSERT_TRUE(oak_push_back(v, &i));
   EXPECT_EQ(8u, oak_size(v));
@@ -572,7 +572,7 @@ UTEST(containers, allocation_failure_leaves_containers_intact)
 
   /* Same for the table's rehash: every entry stays findable. */
   m = oak_hash_map_new(&failing, sizeof(int));
-  ASSERT_TRUE(m != null);
+  ASSERT_TRUE(m != OAK_NULL);
   for (i = 0; i < 5; ++i)
     ASSERT_TRUE(oak_put_str(m, keys[i], &i));
   EXPECT_EQ(5u, oak_size(m));
@@ -588,7 +588,7 @@ UTEST(containers, allocation_failure_leaves_containers_intact)
 
   /* elem_size * count must be rejected rather than wrapping around. */
   wide = oak_vector_new(&failing, SIZE_MAX / 2);
-  ASSERT_TRUE(wide != null);
+  ASSERT_TRUE(wide != OAK_NULL);
   EXPECT_FALSE(oak_reserve(wide, 4));
   EXPECT_EQ(0u, oak_size(wide));
   oak_destroy(wide);

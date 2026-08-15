@@ -66,7 +66,7 @@ void oak_vm_runtime_error(const oak_vm_t* vm, const char* fmt, ...)
   if (!chunk || !chunk->debug || !chunk->debug->locations)
   {
     record(vm, 0, 0, buf);
-    oak_log(OAK_LOG_ERROR, "error: %s", buf);
+    OAK_LOG(OAK_LOG_ERROR, "error: %s", buf);
     return;
   }
 
@@ -78,7 +78,7 @@ void oak_vm_runtime_error(const oak_vm_t* vm, const char* fmt, ...)
   if (ip <= code || ip > code + oak_chunk_size(chunk))
   {
     record(vm, 0, 0, buf);
-    oak_log(OAK_LOG_ERROR, "error: %s", buf);
+    OAK_LOG(OAK_LOG_ERROR, "error: %s", buf);
     return;
   }
 
@@ -89,7 +89,7 @@ void oak_vm_runtime_error(const oak_vm_t* vm, const char* fmt, ...)
     col = 1;
 
   record(vm, loc.line, col, buf);
-  oak_log(OAK_LOG_ERROR, "%d:%d: error: %s", loc.line, col, buf);
+  OAK_LOG(OAK_LOG_ERROR, "%d:%d: error: %s", loc.line, col, buf);
 }
 
 void oak_vm_report_stack_overflow(const oak_vm_t* vm)

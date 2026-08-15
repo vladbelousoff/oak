@@ -30,7 +30,7 @@ extern "C" {
  * invalidates outstanding element pointers and iterators unless an
  * implementation documents otherwise.
  *
- * Note the unrelated `oak_container_of` macro in oak_list.h: that is the
+ * Note the unrelated `OAK_CONTAINER_OF` macro in oak_list.h: that is the
  * intrusive-list member-offset helper, not part of this interface.
  */
 

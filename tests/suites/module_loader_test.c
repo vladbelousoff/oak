@@ -89,7 +89,7 @@ static oak_module_t* find_module(const oak_module_registry_t* reg,
     if (name && strcmp(name, dotted) == 0)
       return mods[i];
   }
-  return null;
+  return OAK_NULL;
 }
 
 /* The export lookups and the type-registry lookup are internal to the library
@@ -103,7 +103,7 @@ static const oak_module_export_record_t* find_export_record(
   for (usize i = 0; i < oak_size(mod->exports.records); ++i)
     if (records[i].name && strcmp(records[i].name, name) == 0)
       return &records[i];
-  return null;
+  return OAK_NULL;
 }
 
 static const oak_module_export_enum_t* find_export_enum(
@@ -114,7 +114,7 @@ static const oak_module_export_enum_t* find_export_enum(
   for (usize i = 0; i < oak_size(mod->exports.enums); ++i)
     if (enums[i].name && strcmp(enums[i].name, name) == 0)
       return &enums[i];
-  return null;
+  return OAK_NULL;
 }
 
 static oak_type_id_t find_type_id(const oak_module_t* mod, const char* name)
@@ -135,7 +135,7 @@ static const oak_module_export_record_method_t* find_method(
   for (usize i = 0; i < oak_size(rec->methods); ++i)
     if (strcmp(methods[i].name, name) == 0)
       return &methods[i];
-  return null;
+  return OAK_NULL;
 }
 
 /* The success path: every reachable module is loaded, compiled, and reachable
@@ -147,10 +147,10 @@ UTEST_F(module_loader, loads_an_entry_and_its_imports)
 
   EXPECT_EQ(0, f.rc);
   EXPECT_EQ(0, f.result.error_count);
-  ASSERT_TRUE(f.result.entry != null);
+  ASSERT_TRUE(f.result.entry != OAK_NULL);
 
   /* The entry compiled and is marked as the entry. */
-  EXPECT_TRUE(oak_module_chunk(f.result.entry) != null);
+  EXPECT_TRUE(oak_module_chunk(f.result.entry) != OAK_NULL);
   EXPECT_TRUE(oak_module_is_entry(f.result.entry));
 
   /* Its imports were pulled in too: the example imports analytics.stats and
@@ -163,11 +163,11 @@ UTEST_F(module_loader, loads_an_entry_and_its_imports)
   for (usize i = 0; i < oak_size(f.registry.modules); ++i)
   {
     oak_module_t* m = mods[i];
-    ASSERT_TRUE(m != null);
+    ASSERT_TRUE(m != OAK_NULL);
     /* oak_module_t is opaque, so compare the handles with EXPECT_TRUE:
      * EXPECT_EQ would have utest try to print an incomplete type. */
     EXPECT_TRUE(m == oak_module_registry_get(&f.registry, oak_module_id(m)));
-    EXPECT_TRUE(oak_module_path(m) != null);
+    EXPECT_TRUE(oak_module_path(m) != OAK_NULL);
     EXPECT_TRUE(m == oak_module_registry_find_by_path(&f.registry,
                                                       oak_module_path(m)));
   }
@@ -199,7 +199,7 @@ UTEST_F(module_loader, an_import_loads_the_named_module_once)
   load_begin_with_stdlib(&f, OAK_A, ENTRY_NATIVE);
   ASSERT_EQ(0, f.rc);
   ASSERT_EQ(0, f.result.error_count);
-  ASSERT_TRUE(f.result.entry != null);
+  ASSERT_TRUE(f.result.entry != OAK_NULL);
 
   int io_modules = 0;
   oak_module_t* const* mods = OAK_DATA(oak_module_t*, f.registry.modules);
@@ -211,8 +211,8 @@ UTEST_F(module_loader, an_import_loads_the_named_module_once)
   EXPECT_EQ(1, io_modules);
 
   const oak_module_t* io = find_module(&f.registry, "io");
-  ASSERT_TRUE(io != null);
-  EXPECT_TRUE(oak_module_chunk(io) != null);
+  ASSERT_TRUE(io != OAK_NULL);
+  EXPECT_TRUE(oak_module_chunk(io) != OAK_NULL);
   EXPECT_FALSE(oak_module_is_entry(io));
 
   /* The entry names io as a direct dependency. */
@@ -240,13 +240,13 @@ UTEST_F(module_loader, a_native_module_stub_binds_every_method_to_its_impl)
   ASSERT_EQ(0, f.result.error_count);
 
   const oak_module_t* io = find_module(&f.registry, "io");
-  ASSERT_TRUE(io != null);
+  ASSERT_TRUE(io != OAK_NULL);
   const oak_chunk_t* chunk = oak_module_chunk(io);
-  ASSERT_TRUE(chunk != null);
+  ASSERT_TRUE(chunk != OAK_NULL);
 
   const oak_module_export_record_t* file =
       find_export_record(io, "File");
-  ASSERT_TRUE(file != null);
+  ASSERT_TRUE(file != OAK_NULL);
   ASSERT_GT(oak_size(file->methods), (usize)0);
 
   const oak_module_export_record_method_t* methods =
@@ -262,8 +262,8 @@ UTEST_F(module_loader, a_native_module_stub_binds_every_method_to_its_impl)
     const oak_obj_native_fn_t* native = oak_as_native_fn(v);
     /* The callback is reached through the receiver's descriptor, and its
      * arity is what the VM checks the call against. */
-    EXPECT_TRUE(native->fn != null);
-    EXPECT_TRUE(native->self_type != null);
+    EXPECT_TRUE(native->fn != OAK_NULL);
+    EXPECT_TRUE(native->self_type != OAK_NULL);
     EXPECT_EQ((usize)me->arity, native->arity);
   }
 
@@ -271,8 +271,8 @@ UTEST_F(module_loader, a_native_module_stub_binds_every_method_to_its_impl)
   const oak_module_export_record_method_t* open = find_method(file, "open");
   const oak_module_export_record_method_t* read_all =
       find_method(file, "read_all");
-  ASSERT_TRUE(open != null);
-  ASSERT_TRUE(read_all != null);
+  ASSERT_TRUE(open != OAK_NULL);
+  ASSERT_TRUE(read_all != OAK_NULL);
   EXPECT_EQ(1, open->is_static);
   EXPECT_EQ(2, open->arity);
   EXPECT_EQ(0, read_all->is_static);
@@ -291,7 +291,7 @@ UTEST_F(module_loader, a_native_module_stub_lowers_signatures_to_its_own_types)
   ASSERT_EQ(0, f.rc);
 
   oak_module_t* io = find_module(&f.registry, "io");
-  ASSERT_TRUE(io != null);
+  ASSERT_TRUE(io != OAK_NULL);
 
   const oak_type_id_t file_id = find_type_id(io, "File");
   EXPECT_NE(OAK_TYPE_VOID, file_id);
@@ -299,16 +299,16 @@ UTEST_F(module_loader, a_native_module_stub_lowers_signatures_to_its_own_types)
 
   const oak_module_export_record_t* file =
       find_export_record(io, "File");
-  ASSERT_TRUE(file != null);
+  ASSERT_TRUE(file != OAK_NULL);
   const oak_module_export_record_method_t* open = find_method(file, "open");
-  ASSERT_TRUE(open != null);
+  ASSERT_TRUE(open != OAK_NULL);
   EXPECT_EQ(file_id, open->return_type.id);
 
   /* open(path : string, mode : FileMode): the enum parameter resolves to the
    * same module's enum type, not to a bare integer. */
   const oak_type_id_t mode_id = find_type_id(io, "FileMode");
   EXPECT_NE(OAK_TYPE_VOID, mode_id);
-  ASSERT_TRUE(open->param_types != null);
+  ASSERT_TRUE(open->param_types != OAK_NULL);
   EXPECT_EQ((oak_type_id_t)OAK_TYPE_STRING, open->param_types[0].id);
   EXPECT_EQ(mode_id, open->param_types[1].id);
 
@@ -324,10 +324,10 @@ UTEST_F(module_loader, a_native_module_exports_its_enum_variants)
   ASSERT_EQ(0, f.rc);
 
   const oak_module_t* io = find_module(&f.registry, "io");
-  ASSERT_TRUE(io != null);
+  ASSERT_TRUE(io != OAK_NULL);
   const oak_module_export_enum_t* mode =
       find_export_enum(io, "FileMode");
-  ASSERT_TRUE(mode != null);
+  ASSERT_TRUE(mode != OAK_NULL);
   ASSERT_EQ((usize)3, oak_size(mode->variants));
 
   const oak_module_export_enum_variant_t* variants =
@@ -366,7 +366,7 @@ UTEST_F(module_loader, a_missing_entry_file_reports_and_frees_cleanly)
   load_begin(&f, OAK_A, OAK_TEST_EXAMPLES_DIR "/does_not_exist_xyz.oak");
 
   EXPECT_EQ(-1, f.rc);
-  EXPECT_TRUE(f.result.entry == null);
+  EXPECT_TRUE(f.result.entry == OAK_NULL);
   ASSERT_GT(f.result.error_count, 0);
   EXPECT_LE(f.result.error_count, OAK_MAX_DIAGNOSTICS);
   /* The message names something; an empty diagnostic would be useless. */
@@ -382,17 +382,17 @@ UTEST_F(module_loader, an_empty_registry_frees_cleanly)
   oak_module_registry_t reg;
   oak_module_registry_init(&reg, OAK_A);
   EXPECT_EQ((usize)0, oak_size(reg.modules));
-  EXPECT_TRUE(oak_module_registry_get(&reg, 0) == null);
-  EXPECT_TRUE(oak_module_registry_find_by_path(&reg, "nope") == null);
+  EXPECT_TRUE(oak_module_registry_get(&reg, 0) == OAK_NULL);
+  EXPECT_TRUE(oak_module_registry_find_by_path(&reg, "nope") == OAK_NULL);
   oak_module_registry_free(&reg);
 }
 
 /* Accessors are total: a null module answers rather than dereferencing. */
 UTEST_F(module_loader, accessors_tolerate_a_null_module)
 {
-  EXPECT_TRUE(oak_module_chunk(null) == null);
-  EXPECT_TRUE(oak_module_dotted_name(null) == null);
-  EXPECT_TRUE(oak_module_path(null) == null);
-  EXPECT_EQ(OAK_MODULE_ID_NONE, oak_module_id(null));
-  EXPECT_EQ(0, oak_module_is_entry(null));
+  EXPECT_TRUE(oak_module_chunk(OAK_NULL) == OAK_NULL);
+  EXPECT_TRUE(oak_module_dotted_name(OAK_NULL) == OAK_NULL);
+  EXPECT_TRUE(oak_module_path(OAK_NULL) == OAK_NULL);
+  EXPECT_EQ(OAK_MODULE_ID_NONE, oak_module_id(OAK_NULL));
+  EXPECT_EQ(0, oak_module_is_entry(OAK_NULL));
 }

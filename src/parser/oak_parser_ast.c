@@ -38,10 +38,10 @@ oak_ast_node_t* oak_ast_node_child_at(const oak_ast_node_t* node,
                                              const usize index)
 {
   if (!node)
-    return null;
+    return OAK_NULL;
 
   if (oak_node_is_unary_op(node->kind))
-    return (index == 0 && node->child) ? node->child : null;
+    return (index == 0 && node->child) ? node->child : OAK_NULL;
 
   if (oak_node_is_binary_op(node->kind))
   {
@@ -57,20 +57,20 @@ oak_ast_node_t* oak_ast_node_child_at(const oak_ast_node_t* node,
       if (i == index)
         return node->rhs;
     }
-    return null;
+    return OAK_NULL;
   }
 
   if (oak_node_is_token_terminal(node->kind))
-    return null;
+    return OAK_NULL;
 
   usize i;
   oak_list_entry_t* pos;
-  oak_list_for_each_indexed(i, pos, &node->children)
+  OAK_LIST_FOR_EACH_INDEXED(i, pos, &node->children)
   {
     if (i == index)
-      return oak_container_of(pos, oak_ast_node_t, link);
+      return OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   }
-  return null;
+  return OAK_NULL;
 }
 
 const char* oak_ast_node_kind_name(const oak_node_kind_t kind)

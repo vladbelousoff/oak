@@ -397,9 +397,9 @@ oak_value_obj_resolve(const oak_value_t value)
       &oak_obj_tables[oak_value_obj_table(value)];
   const u32 index = oak_value_obj_index(value);
   if (index >= table->capacity)
-    return null;
+    return OAK_NULL;
   const oak_obj_slot_t* slot = &table->slots[index];
-  return slot->nonce == oak_value_obj_nonce(value) ? slot->obj : null;
+  return slot->nonce == oak_value_obj_nonce(value) ? slot->obj : OAK_NULL;
 }
 
 static inline int oak_is_obj(const oak_value_t value)
@@ -407,14 +407,14 @@ static inline int oak_is_obj(const oak_value_t value)
   if (oak_value_tag(value) == OAK_TAG_OBJ)
     return 1;
   if (oak_value_tag(value) == OAK_TAG_WEAK)
-    return oak_value_obj_resolve(value) != null;
+    return oak_value_obj_resolve(value) != OAK_NULL;
   return 0;
 }
 
 static inline int oak_is_expired_weak(const oak_value_t value)
 {
   return oak_value_tag(value) == OAK_TAG_WEAK &&
-         oak_value_obj_resolve(value) == null;
+         oak_value_obj_resolve(value) == OAK_NULL;
 }
 
 static inline int oak_is_none_like(const oak_value_t value)

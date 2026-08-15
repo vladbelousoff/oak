@@ -31,7 +31,7 @@ UTEST_F(vm_map, churn_keeps_probe_sequences_terminating)
   }
 
   /* The lookup below is the one that hangs if tombstones are mishandled. */
-  EXPECT_EQ(0, oak_map_get(map, oak_value_i32(-1), null));
+  EXPECT_EQ(0, oak_map_get(map, oak_value_i32(-1), OAK_NULL));
   EXPECT_EQ(0u, map->length);
 
   oak_obj_decref(&map->obj);
@@ -64,7 +64,7 @@ UTEST_F(vm_map, nan_is_rejected_as_a_key)
   const oak_value_t nan_key = oak_value_f32((float)NAN);
 
   EXPECT_EQ(0, oak_map_set(map, nan_key, oak_value_i32(1)));
-  EXPECT_EQ(0, oak_map_get(map, nan_key, null));
+  EXPECT_EQ(0, oak_map_get(map, nan_key, OAK_NULL));
   EXPECT_EQ(0, oak_map_has(map, nan_key));
   EXPECT_EQ(0, oak_map_delete(map, nan_key));
   EXPECT_EQ(0u, map->length);

@@ -72,11 +72,11 @@ typedef long isize;
  * to a typed pointer there, so the void* form would make every assignment in
  * these headers a hard error for a C++ embedder.
  */
-#ifndef null
+#ifndef OAK_NULL
 #if defined(__cplusplus)
-#define null nullptr
+#define OAK_NULL nullptr
 #else
-#define null ((void*)0)
+#define OAK_NULL ((void*)0)
 #endif
 #endif
 
@@ -91,8 +91,9 @@ OAK_STATIC_ASSERT(width_64_bit, sizeof(i64) == 8 && sizeof(u64) == 8);
 #undef OAK_STATIC_ASSERT
 
 #if defined(_MSC_VER) && !defined(__STDC_VERSION__)
-#undef _Thread_local
-#define _Thread_local __declspec(thread)
+#define OAK_THREAD_LOCAL __declspec(thread)
+#else
+#define OAK_THREAD_LOCAL _Thread_local
 #endif
 
 #ifdef __cplusplus

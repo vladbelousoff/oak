@@ -27,7 +27,7 @@ static int report_cause(oak_compiler_t* c, const oak_ast_node_t* expr);
 static const oak_token_t* expr_token(const oak_ast_node_t* expr)
 {
   if (!expr)
-    return null;
+    return OAK_NULL;
   if (oak_node_is_token_terminal(expr->kind))
     return expr->token;
   const usize n = oak_ast_node_child_count(expr);
@@ -37,7 +37,7 @@ static const oak_token_t* expr_token(const oak_ast_node_t* expr)
     if (t)
       return t;
   }
-  return null;
+  return OAK_NULL;
 }
 
 static int report_ident(oak_compiler_t* c, const oak_ast_node_t* expr)
@@ -46,7 +46,7 @@ static int report_ident(oak_compiler_t* c, const oak_ast_node_t* expr)
 
   /* A local or a function is a value that has a type: whatever made the
    * enclosing expression void, it was not this name. */
-  if (oak_compiler_find_local(c, name, null) >= 0 || oak_find_fn(c, name))
+  if (oak_compiler_find_local(c, name, OAK_NULL) >= 0 || oak_find_fn(c, name))
     return 0;
 
   if (c->scope.fn_depth > 0 && oak_is_module_scope(c, name))
@@ -107,7 +107,7 @@ static int report_member_access(oak_compiler_t* c, const oak_ast_node_t* expr)
 
   /* alias.EnumName.Variant */
   {
-    const oak_token_t* ename_tok = null;
+    const oak_token_t* ename_tok = OAK_NULL;
     const oak_module_t* dep =
         oak_compiler_match_module_member(c, recv, &ename_tok);
     if (dep)
@@ -126,7 +126,7 @@ static int report_member_access(oak_compiler_t* c, const oak_ast_node_t* expr)
       /* An alias-only import registers nothing locally, so the variant has to
        * be checked against the module's export list. */
       const oak_module_export_enum_t* exp = oak_compiler_module_export_enum(
-          c, oak_token_text(recv->lhs->token), ename, null);
+          c, oak_token_text(recv->lhs->token), ename, OAK_NULL);
       if (exp && !export_enum_has_variant(exp, member))
       {
         oak_compiler_error_at(c,
@@ -165,7 +165,7 @@ static int report_member_access(oak_compiler_t* c, const oak_ast_node_t* expr)
 
   /* Plain field access: this is exactly the check codegen runs, and it emits
    * the same diagnostic. */
-  return oak_require_record_field(c, recv, fname, 0, null) < 0;
+  return oak_require_record_field(c, recv, fname, 0, OAK_NULL) < 0;
 }
 
 /* Instance-method lookup on a receiver whose type is known, mirroring the
@@ -226,8 +226,8 @@ static int report_instance_method(oak_compiler_t* c,
   const int is_map = recv_ty->kind == OAK_TYPE_KIND_MAP;
   if (is_map || recv_ty->kind == OAK_TYPE_KIND_ARRAY)
   {
-    if (is_map ? oak_find_map_method(c, mname) != null
-               : oak_find_array_method(c, mname) != null)
+    if (is_map ? oak_find_map_method(c, mname) != OAK_NULL
+               : oak_find_array_method(c, mname) != OAK_NULL)
       return 0;
     oak_compiler_error_at(c,
                           method->token,
@@ -254,7 +254,7 @@ static int report_method_call(oak_compiler_t* c, const oak_ast_node_t* callee)
       recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
   {
     const char* tname = oak_token_text(recv->rhs->token);
-    const oak_module_t* dep = null;
+    const oak_module_t* dep = OAK_NULL;
     if (oak_compiler_module_export_record(
             c, oak_token_text(recv->lhs->token), tname, &dep))
     {
@@ -278,7 +278,7 @@ static int report_method_call(oak_compiler_t* c, const oak_ast_node_t* callee)
     const char* rname = oak_token_text(recv->token);
 
     /* alias.fn() -- cross-module free function. */
-    const oak_module_t* dep = null;
+    const oak_module_t* dep = OAK_NULL;
     const oak_module_export_fn_t* exp =
         oak_compiler_module_export_fn(c, rname, mname, &dep);
     if (dep)
@@ -353,7 +353,7 @@ static int report_fn_call(oak_compiler_t* c, const oak_ast_node_t* expr)
                           name);
     return 1;
   }
-  if (oak_compiler_find_local(c, name, null) >= 0)
+  if (oak_compiler_find_local(c, name, OAK_NULL) >= 0)
   {
     /* An indirect call through a fn value: the fn type carries no return
      * type, so the result can be discarded or passed on, never bound. */
@@ -374,11 +374,11 @@ static int report_record_literal(oak_compiler_t* c, const oak_ast_node_t* expr)
   if (!path || path->kind != OAK_NODE_IMPORT_PATH)
     return 0;
   /* The record name is the last path segment: `Type` or `mod.Type`. */
-  const oak_ast_node_t* type_seg = null;
+  const oak_ast_node_t* type_seg = OAK_NULL;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &path->children)
+  OAK_LIST_FOR_EACH(pos, &path->children)
   {
-    type_seg = oak_container_of(pos, oak_ast_node_t, link);
+    type_seg = OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
   }
   if (!type_seg)
     return 0;
@@ -420,7 +420,7 @@ static int report_cause(oak_compiler_t* c, const oak_ast_node_t* expr)
     case OAK_NODE_IDENT:
       return report_ident(c, expr);
     case OAK_NODE_SELF:
-      if (oak_compiler_find_local(c, "self", null) < 0)
+      if (oak_compiler_find_local(c, "self", OAK_NULL) < 0)
       {
         oak_compiler_error_at(
             c, expr->token, "'self' is only valid inside a method body");

@@ -26,24 +26,24 @@ int oak_program_compile(oak_program_t* prog,
     return 0;
 
   oak_compile_ex(root, opts, &prog->compiled);
-  return prog->compiled.chunk != null;
+  return prog->compiled.chunk != OAK_NULL;
 }
 
 oak_chunk_t* oak_program_chunk(const oak_program_t* prog)
 {
-  return prog ? prog->compiled.chunk : null;
+  return prog ? prog->compiled.chunk : OAK_NULL;
 }
 
 const oak_diagnostic_t* oak_program_errors(const oak_program_t* prog)
 {
   if (!prog)
-    return null;
+    return OAK_NULL;
   /* Compilation only runs on a clean parse, so at most one stage has errors. */
   if (oak_parser_error_count(prog->parser) > 0)
     return oak_parser_errors(prog->parser);
   if (prog->compiled.error_count > 0)
     return prog->compiled.errors;
-  return null;
+  return OAK_NULL;
 }
 
 int oak_program_error_count(const oak_program_t* prog)
@@ -62,11 +62,11 @@ void oak_program_free(oak_program_t* prog)
    * arena borrows from. */
   oak_compile_result_free(&prog->compiled);
   oak_parser_free(prog->parser);
-  prog->parser = null;
+  prog->parser = OAK_NULL;
   if (prog->lexer)
   {
     oak_lexer_free(prog->lexer);
-    prog->lexer = null;
+    prog->lexer = OAK_NULL;
   }
-  prog->allocator = null;
+  prog->allocator = OAK_NULL;
 }

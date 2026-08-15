@@ -62,7 +62,7 @@ oak_string_from_value_repr_in_table(oak_allocator_t* allocator,
   char buf[4096];
   const int n = oak_value_snprint_repr(buf, sizeof(buf), value);
   if (n < 0)
-    return null;
+    return OAK_NULL;
   usize len = (usize)n;
   if (len >= sizeof(buf))
     len = sizeof(buf) - 1u;

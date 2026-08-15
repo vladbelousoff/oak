@@ -33,7 +33,7 @@ void oak_compiler_add_local(oak_compiler_t* c,
   if (c->scope.local_count >= OAK_MAX_LOCALS)
   {
     oak_compiler_error_at(
-        c, null, "too many local variables (max %d)", OAK_MAX_LOCALS);
+        c, OAK_NULL, "too many local variables (max %d)", OAK_MAX_LOCALS);
     return;
   }
   oak_local_t* local = &c->scope.locals[c->scope.local_count++];
@@ -82,7 +82,7 @@ int oak_ident_local(const oak_compiler_t* c,
 {
   if (!expr)
     return -1;
-  const char* name = null;
+  const char* name = OAK_NULL;
   if (expr->kind == OAK_NODE_IDENT)
   {
     name = oak_token_text(expr->token);
@@ -185,10 +185,10 @@ oak_reject_immutable_refs_inside_literal(oak_compiler_t* c,
   if (expr->kind == OAK_NODE_EXPR_RECORD_LITERAL && expr->rhs)
   {
     oak_list_entry_t* pos;
-    oak_list_for_each(pos, &expr->rhs->children)
+    OAK_LIST_FOR_EACH(pos, &expr->rhs->children)
     {
       const oak_ast_node_t* field =
-          oak_container_of(pos, oak_ast_node_t, link);
+          OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
       if (field->kind != OAK_NODE_RECORD_LITERAL_FIELD || !field->rhs)
         continue;
       oak_type_t fty;
@@ -208,10 +208,10 @@ oak_reject_immutable_refs_inside_literal(oak_compiler_t* c,
   if (expr->kind == OAK_NODE_EXPR_ARRAY_LITERAL)
   {
     oak_list_entry_t* pos;
-    oak_list_for_each(pos, &expr->children)
+    OAK_LIST_FOR_EACH(pos, &expr->children)
     {
       const oak_ast_node_t* wrap =
-          oak_container_of(pos, oak_ast_node_t, link);
+          OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
       const oak_ast_node_t* elem =
           wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
       oak_type_t ety;
@@ -239,10 +239,10 @@ oak_reject_immutable_refs_inside_literal(oak_compiler_t* c,
     if (expr->rhs)
     {
       oak_list_entry_t* pos;
-      oak_list_for_each(pos, &expr->rhs->children)
+      OAK_LIST_FOR_EACH(pos, &expr->rhs->children)
       {
         const oak_ast_node_t* entry =
-            oak_container_of(pos, oak_ast_node_t, link);
+            OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
         if (entry->kind != OAK_NODE_MAP_LITERAL_ENTRY || !entry->rhs)
           continue;
         oak_type_t vty;
@@ -272,7 +272,7 @@ int oak_reject_immutable_ref_for_mutable_storage(
   if (oak_compiler_expr_is_mutable_place(c, expr))
     return 0;
   oak_compiler_error_at(c,
-                        err_tok ? err_tok : (expr ? expr->token : null),
+                        err_tok ? err_tok : (expr ? expr->token : OAK_NULL),
                         "cannot store immutable reference in mutable %s; "
                         "declare the source as 'mut' first",
                         target);

@@ -6,7 +6,7 @@ static void emit_method_fn(oak_compiler_t* c,
                            oak_code_loc_t loc)
 {
   if (sm->source_module_id != OAK_MODULE_ID_NONE)
-    oak_compiler_emit_op(c, OAK_OP_GET_MODULE_FN, loc,
+    OAK_COMPILER_EMIT_OP(c, OAK_OP_GET_MODULE_FN, loc,
                          OAK_ARG_U16(sm->source_module_id),
                          OAK_ARG_U16(sm->source_const_idx));
   else
@@ -17,10 +17,10 @@ static const oak_ast_node_t*
 method_name_node(const oak_ast_node_t* method)
 {
   if (!method)
-    return null;
+    return OAK_NULL;
   if (method->kind == OAK_NODE_IDENT)
     return method;
-  return null;
+  return OAK_NULL;
 }
 
 static int reject_method_arity(oak_compiler_t* c,
@@ -69,7 +69,7 @@ static void compile_builtin_call_args(oak_compiler_t* c,
   const oak_registered_interface_t* elem_tr =
       recv_ty && recv_ty->kind == OAK_TYPE_KIND_ARRAY
           ? oak_interface_find_by_id(&c->interfaces, recv_ty->id)
-          : null;
+          : OAK_NULL;
   if (!elem_tr)
   {
     oak_compiler_compile_call_args_after_callee(c, node);
@@ -84,7 +84,7 @@ static void compile_builtin_call_args(oak_compiler_t* c,
        p = p->next)
   {
     const oak_ast_node_t* arg =
-        oak_container_of(p, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(p, oak_ast_node_t, link);
     oak_compile_call_arg(c, arg);
     const oak_ast_node_t* expr =
         arg->kind == OAK_NODE_FN_CALL_ARG ? arg->child : arg;
@@ -136,7 +136,7 @@ static int try_compile_builtin_method_call(
   compile_builtin_call_args(c, node, known_recv_ty, call_loc);
   if (c->has_error)
     return 1;
-  oak_compiler_emit_op(
+  OAK_COMPILER_EMIT_OP(
       c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)binding->total_arity));
   c->scope.stack_depth -= binding->total_arity;
   return 1;
@@ -160,7 +160,7 @@ static void compile_typed_call_args(oak_compiler_t* c,
        p = p->next, ++ai)
   {
     const oak_ast_node_t* arg =
-        oak_container_of(p, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(p, oak_ast_node_t, link);
     int compiled = 0;
     if (decl)
     {
@@ -225,7 +225,7 @@ static void compile_static_method_call(oak_compiler_t* c,
       c, node, sm->decl, sm->param_types, sm->arity, 0, call_loc);
   if (c->has_error)
     return;
-  oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
+  OAK_COMPILER_EMIT_OP(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
   c->scope.stack_depth -= sm->arity;
 }
 
@@ -276,7 +276,7 @@ void oak_compile_method_call(oak_compiler_t* c,
   {
     const oak_ast_node_t* alias_node = receiver->lhs;
     const oak_ast_node_t* type_node = receiver->rhs;
-    const oak_module_t* dep = null;
+    const oak_module_t* dep = OAK_NULL;
     if (oak_compiler_module_export_record(c,
                                           oak_token_text(alias_node->token),
                                           oak_token_text(type_node->token),
@@ -308,7 +308,7 @@ void oak_compile_method_call(oak_compiler_t* c,
     const char* rname = oak_token_text(receiver->token);
 
     /* alias.fn(args) — cross-module call. */
-    const oak_module_t* dep = null;
+    const oak_module_t* dep = OAK_NULL;
     const oak_module_export_fn_t* exp =
         oak_compiler_module_export_fn(c, rname, mname, &dep);
     if (dep && !exp)
@@ -336,16 +336,16 @@ void oak_compile_method_call(oak_compiler_t* c,
       check_exported_fn_args(c, node, exp);
       if (c->has_error)
         return;
-      oak_compiler_emit_op(c,
+      OAK_COMPILER_EMIT_OP(c,
                            OAK_OP_GET_MODULE_FN,
                            call_loc,
                            OAK_ARG_U16(dep->module_id),
                            OAK_ARG_U16(exp->const_idx));
-      compile_typed_call_args(c, node, null,
+      compile_typed_call_args(c, node, OAK_NULL,
                               exp->param_types, exp->arity, 0, call_loc);
       if (c->has_error)
         return;
-      oak_compiler_emit_op(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)user_argc));
+      OAK_COMPILER_EMIT_OP(c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)user_argc));
       c->scope.stack_depth -= (int)user_argc;
       return;
     }
@@ -413,7 +413,7 @@ void oak_compile_method_call(oak_compiler_t* c,
                             tm->param_types, tm->arity, 1, call_loc);
     if (c->has_error)
       return;
-    oak_compiler_emit_op(c,
+    OAK_COMPILER_EMIT_OP(c,
                          OAK_OP_CALL_VIRTUAL,
                          call_loc,
                          OAK_ARG_U8((u8)slot),
@@ -456,7 +456,7 @@ void oak_compile_method_call(oak_compiler_t* c,
                                 sm->param_types, sm->arity, 1, call_loc);
         if (c->has_error)
           return;
-        oak_compiler_emit_op(
+        OAK_COMPILER_EMIT_OP(
             c, OAK_OP_CALL, call_loc, OAK_ARG_U8((u8)sm->arity));
         c->scope.stack_depth -= sm->arity;
         return;
@@ -471,7 +471,7 @@ void oak_compile_method_call(oak_compiler_t* c,
       }
       try_compile_builtin_method_call(
           c, node, receiver, method,
-          bm, sd->name, mname, user_argc, call_loc, null);
+          bm, sd->name, mname, user_argc, call_loc, OAK_NULL);
       return;
     }
   }
@@ -495,7 +495,7 @@ void oak_compile_method_call(oak_compiler_t* c,
                                       mname,
                                       user_argc,
                                       call_loc,
-                                      null);
+                                      OAK_NULL);
       return;
     }
   }
@@ -531,7 +531,7 @@ void oak_compile_method_call(oak_compiler_t* c,
                                   receiver,
                                   method,
                                   m,
-                                  null,
+                                  OAK_NULL,
                                   mname,
                                   user_argc,
                                   call_loc,

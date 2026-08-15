@@ -460,7 +460,7 @@ oak_fn_call_result_t oak_str_parse_number(oak_native_call_t* call,
   }
 
   errno = 0;
-  char* endp = null;
+  char* endp = OAK_NULL;
   if (is_float)
   {
     const float v = strtof(s, &endp);

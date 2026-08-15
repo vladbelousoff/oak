@@ -9,7 +9,7 @@ find_pratt_rule(const oak_pratt_rule_t* rules,
     if (token_kind == r->trigger_token)
       return r;
   }
-  return null;
+  return OAK_NULL;
 }
 
 static oak_ast_node_t*
@@ -21,12 +21,12 @@ parse_pratt_unary(oak_parser_t* p,
   if (!operand)
   {
     oak_parser_detail_expected_node(p, rule->node_kind, kind);
-    return null;
+    return OAK_NULL;
   }
   oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
-    return null;
+    return OAK_NULL;
   node->kind = rule->node_kind;
   node->child = operand;
   return node;
@@ -42,12 +42,12 @@ parse_pratt_binary(oak_parser_t* p,
   if (!rhs)
   {
     oak_parser_detail_expected_node(p, rule->node_kind, kind);
-    return null;
+    return OAK_NULL;
   }
   oak_ast_node_t* node =
       oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
   if (!node)
-    return null;
+    return OAK_NULL;
   node->kind = rule->node_kind;
   node->lhs = lhs;
   node->rhs = rhs;
@@ -59,12 +59,12 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
                                               const int min_bp)
 {
   const oak_grammar_entry_t* entry = &oak_grammar[kind];
-  oak_ast_node_t* lhs = null;
+  oak_ast_node_t* lhs = OAK_NULL;
 
   if (p->curr != p->head && entry->pratt.prefix)
   {
     const oak_token_t* token =
-        oak_container_of(p->curr, oak_token_t, link);
+        OAK_CONTAINER_OF(p->curr, oak_token_t, link);
     const oak_pratt_rule_t* r =
         find_pratt_rule(entry->pratt.prefix, oak_token_kind(token));
     if (r)
@@ -91,7 +91,7 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
           if (!oak_parser_try_skip_token(p, r->close_token))
           {
             oak_parser_detail_expected_token(p, kind, r->close_token);
-            lhs = null;
+            lhs = OAK_NULL;
             p->curr = saved;
             break;
           }
@@ -99,7 +99,7 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         default:
           lhs = parse_pratt_unary(p, kind, r);
           if (!lhs)
-            return null;
+            return OAK_NULL;
           break;
       }
     }
@@ -111,7 +111,7 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
     if (!lhs)
     {
       oak_parser_detail_expected_node(p, kind, entry->pratt.primary_rule);
-      return null;
+      return OAK_NULL;
     }
   }
 
@@ -120,7 +120,7 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
     if (p->curr == p->head)
       break;
     const oak_token_t* token =
-        oak_container_of(p->curr, oak_token_t, link);
+        OAK_CONTAINER_OF(p->curr, oak_token_t, link);
 
     const oak_pratt_rule_t* rule =
         find_pratt_rule(entry->pratt.infix, oak_token_kind(token));
@@ -136,7 +136,7 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         oak_ast_node_t* call =
             oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         if (!call)
-          return null;
+          return OAK_NULL;
         call->kind = rule->node_kind;
         oak_list_init(&call->children);
         oak_list_add_tail(&call->children, &lhs->link);
@@ -144,14 +144,14 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         while (p->curr != p->head)
         {
           const oak_token_t* peek =
-              oak_container_of(p->curr, oak_token_t, link);
+              OAK_CONTAINER_OF(p->curr, oak_token_t, link);
           if (oak_token_kind(peek) == rule->close_token)
             break;
           oak_ast_node_t* arg = oak_parser_parse_rule(p, rule->arg_rule);
           if (!arg)
           {
             oak_parser_detail_expected_node(p, rule->node_kind, rule->arg_rule);
-            return null;
+            return OAK_NULL;
           }
           oak_list_add_tail(&call->children, &arg->link);
         }
@@ -159,7 +159,7 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         if (!oak_parser_try_skip_token(p, rule->close_token))
         {
           oak_parser_detail_expected_token(p, rule->node_kind, rule->close_token);
-          return null;
+          return OAK_NULL;
         }
 
         lhs = call;
@@ -171,17 +171,17 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         if (!index_expr)
         {
           oak_parser_detail_expected_node(p, rule->node_kind, kind);
-          return null;
+          return OAK_NULL;
         }
         if (!oak_parser_try_skip_token(p, rule->close_token))
         {
           oak_parser_detail_expected_token(p, rule->node_kind, rule->close_token);
-          return null;
+          return OAK_NULL;
         }
         oak_ast_node_t* node =
             oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         if (!node)
-          return null;
+          return OAK_NULL;
         node->kind = rule->node_kind;
         node->lhs = lhs;
         node->rhs = index_expr;
@@ -195,12 +195,12 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         if (!type_node)
         {
           oak_parser_detail_expected_node(p, rule->node_kind, OAK_NODE_TYPE_NAME);
-          return null;
+          return OAK_NULL;
         }
         oak_ast_node_t* node =
             oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
         if (!node)
-          return null;
+          return OAK_NULL;
         node->kind = rule->node_kind;
         node->lhs = lhs;
         node->rhs = type_node;
@@ -210,7 +210,7 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
       default:
         lhs = parse_pratt_binary(p, kind, rule, lhs);
         if (!lhs)
-          return null;
+          return OAK_NULL;
         break;
     }
   }

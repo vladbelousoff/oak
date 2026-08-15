@@ -183,7 +183,7 @@ int main(void)
 
   oak_bind_type_t* counter =
       oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Counter");
-  CHECK(counter != null);
+  CHECK(counter != OAK_NULL);
   CHECK(oak_bind_field(counter,
                        &(oak_bind_field_t){
                            .name = "value",
@@ -205,7 +205,7 @@ int main(void)
   CHECK(oak_bind_type_implements(counter, "ICounter") == 0);
 
   oak_bind_enum_t* colour = oak_bind_enum(&opts, "Colour");
-  CHECK(colour != null);
+  CHECK(colour != OAK_NULL);
   static const oak_bind_enum_variant_t colours[] = {
     { "Red", 0 },
     { "Green", 1 },
@@ -222,7 +222,7 @@ int main(void)
     oak_compile_options_t probe;
     oak_compile_options_init(&probe, &allocator);
     oak_bind_enum_t* dup = oak_bind_enum(&probe, "Colour");
-    CHECK(dup != null);
+    CHECK(dup != OAK_NULL);
     CHECK(oak_bind_enum_variants(dup, colours, (int)OAK_COUNT_OF(colours)) == 0);
     CHECK(oak_bind_enum_variant(dup, "Red", 7) == -1);
     CHECK(oak_bind_enum_variants(dup, colours, (int)OAK_COUNT_OF(colours)) ==
@@ -260,14 +260,14 @@ int main(void)
                           oak_program_error_count(&prog));
   CHECK(ok);
   CHECK(oak_program_error_count(&prog) == 0);
-  CHECK(oak_program_chunk(&prog) != null);
+  CHECK(oak_program_chunk(&prog) != OAK_NULL);
 
   /* A program that does not compile still reports cleanly and frees cleanly. */
   oak_program_t bad;
   CHECK(oak_program_compile(&bad, "let x = ;\n", &opts) == 0);
   CHECK(oak_program_error_count(&bad) > 0);
-  CHECK(oak_program_errors(&bad) != null);
-  CHECK(oak_program_chunk(&bad) == null);
+  CHECK(oak_program_errors(&bad) != OAK_NULL);
+  CHECK(oak_program_chunk(&bad) == OAK_NULL);
   oak_program_free(&bad);
   oak_program_free(&bad); /* nulls what it frees: safe twice */
 
@@ -283,9 +283,9 @@ int main(void)
       CHECK(oak_vm_run(&vm, oak_program_chunk(&failing)) ==
             OAK_VM_RUNTIME_ERROR);
       const oak_diagnostic_t* err = oak_vm_last_error(&vm);
-      CHECK(err != null);
-      CHECK(err != null && strstr(err->message, "cannot divide 9 by zero"));
-      CHECK(err != null && strstr(err->message, "native_divide"));
+      CHECK(err != OAK_NULL);
+      CHECK(err != OAK_NULL && strstr(err->message, "cannot divide 9 by zero"));
+      CHECK(err != OAK_NULL && strstr(err->message, "native_divide"));
       oak_vm_free(&vm);
     }
     else
@@ -301,23 +301,23 @@ int main(void)
   {
     oak_vm_t vm;
     oak_vm_init(&vm, &allocator);
-    CHECK(oak_vm_last_error(&vm) == null);
+    CHECK(oak_vm_last_error(&vm) == OAK_NULL);
     CHECK(oak_vm_run(&vm, oak_program_chunk(&prog)) == OAK_VM_OK);
-    CHECK(oak_vm_last_error(&vm) == null);
+    CHECK(oak_vm_last_error(&vm) == OAK_NULL);
 
     /* VM-owned value constructors, and the value operations native code uses. */
     oak_obj_string_t* s = oak_vm_string_new(&vm, "hello");
-    CHECK(s != null);
+    CHECK(s != OAK_NULL);
     oak_obj_array_t* arr = oak_vm_array_new(&vm);
-    CHECK(arr != null);
+    CHECK(arr != OAK_NULL);
     CHECK(oak_array_push(arr, OAK_VALUE_I32(1)) == 1);
     oak_obj_map_t* map = oak_vm_map_new(&vm);
-    CHECK(map != null);
+    CHECK(map != OAK_NULL);
     CHECK(oak_map_set(map, OAK_VALUE_OBJ(&s->obj), OAK_VALUE_I32(2)) == 1);
 
     static const char* const field_names[] = { "x" };
     oak_obj_record_t* rec = oak_vm_record_new(&vm, 1, "Point", field_names);
-    CHECK(rec != null);
+    CHECK(rec != OAK_NULL);
 
     const oak_value_t native_val =
         oak_vm_native_record_new(&vm, counter, &g_counter);
@@ -336,11 +336,11 @@ int main(void)
 
     /* A runtime error is reportable as data, not just printed to stderr.
      * Calling a non-callable is the simplest way to provoke one. */
-    CHECK(oak_vm_call(&vm, OAK_VALUE_I32(7), null, 0, null) ==
+    CHECK(oak_vm_call(&vm, OAK_VALUE_I32(7), OAK_NULL, 0, OAK_NULL) ==
           OAK_VM_RUNTIME_ERROR);
     const oak_diagnostic_t* err = oak_vm_last_error(&vm);
-    CHECK(err != null);
-    CHECK(err != null && err->message[0] != '\0');
+    CHECK(err != OAK_NULL);
+    CHECK(err != OAK_NULL && err->message[0] != '\0');
 
     oak_vm_free(&vm);
   }
@@ -353,9 +353,9 @@ int main(void)
     oak_vm_prepare(&fresh, oak_program_chunk(&prog));
     /* Reaches the argument-transfer boundary and reports properly rather than
      * failing with "no active chunk". */
-    CHECK(oak_vm_call(&fresh, OAK_VALUE_I32(1), null, 0, null) ==
+    CHECK(oak_vm_call(&fresh, OAK_VALUE_I32(1), OAK_NULL, 0, OAK_NULL) ==
           OAK_VM_RUNTIME_ERROR);
-    CHECK(oak_vm_last_error(&fresh) != null);
+    CHECK(oak_vm_last_error(&fresh) != OAK_NULL);
     oak_vm_free(&fresh);
   }
 
@@ -364,11 +364,11 @@ int main(void)
   oak_module_registry_t registry;
   oak_module_registry_init(&registry, &allocator);
   oak_module_t* mod = oak_module_registry_new(&registry, "a/b.oak", "a.b");
-  CHECK(mod != null);
+  CHECK(mod != OAK_NULL);
   CHECK(oak_module_registry_get(&registry, oak_module_id(mod)) == mod);
   CHECK(oak_module_registry_find_by_path(&registry, "a/b.oak") == mod);
   CHECK(strcmp(oak_module_dotted_name(mod), "a.b") == 0);
-  CHECK(oak_module_chunk(mod) == null); /* never compiled */
+  CHECK(oak_module_chunk(mod) == OAK_NULL); /* never compiled */
   CHECK(oak_module_is_entry(mod) == 0);
   oak_module_registry_free(&registry);
 

@@ -2,15 +2,15 @@
 
 void oak_vm_init(oak_vm_t* vm, oak_allocator_t* allocator)
 {
-  vm->chunk = null;
-  vm->ip = null;
+  vm->chunk = OAK_NULL;
+  vm->ip = OAK_NULL;
   vm->sp = vm->stack;
   vm->stack_base = 0;
   vm->frame_count = 0;
-  vm->modules = null;
+  vm->modules = OAK_NULL;
   vm->allocator = allocator;
-  vm->user_data = null;
-  vm->debug_hook = null;
+  vm->user_data = OAK_NULL;
+  vm->debug_hook = OAK_NULL;
   vm->object_table = oak_obj_table_acquire();
   vm->error_seq = 0;
   oak_vm_clear_last_error(vm);
@@ -19,13 +19,13 @@ void oak_vm_init(oak_vm_t* vm, oak_allocator_t* allocator)
 void oak_vm_prepare(oak_vm_t* vm, oak_chunk_t* chunk)
 {
   vm->chunk = chunk;
-  vm->ip = chunk ? OAK_DATA(u8, chunk->code) : null;
+  vm->ip = chunk ? OAK_DATA(u8, chunk->code) : OAK_NULL;
 }
 
 const oak_diagnostic_t* oak_vm_last_error(const oak_vm_t* vm)
 {
   if (!vm || vm->last_error.message[0] == '\0')
-    return null;
+    return OAK_NULL;
   return &vm->last_error;
 }
 
@@ -54,7 +54,7 @@ static oak_value_t obj_value_or_none(oak_obj_t* obj)
 oak_value_t oak_vm_string_value(oak_vm_t* vm, const char* chars)
 {
   oak_obj_string_t* s = oak_vm_string_new(vm, chars);
-  return obj_value_or_none(s ? &s->obj : null);
+  return obj_value_or_none(s ? &s->obj : OAK_NULL);
 }
 
 oak_value_t oak_vm_string_value_len(oak_vm_t* vm,
@@ -62,19 +62,19 @@ oak_value_t oak_vm_string_value_len(oak_vm_t* vm,
                                     const usize length)
 {
   oak_obj_string_t* s = oak_vm_string_new_len(vm, chars, length);
-  return obj_value_or_none(s ? &s->obj : null);
+  return obj_value_or_none(s ? &s->obj : OAK_NULL);
 }
 
 oak_value_t oak_vm_array_value(oak_vm_t* vm)
 {
   oak_obj_array_t* a = oak_vm_array_new(vm);
-  return obj_value_or_none(a ? &a->obj : null);
+  return obj_value_or_none(a ? &a->obj : OAK_NULL);
 }
 
 oak_value_t oak_vm_map_value(oak_vm_t* vm)
 {
   oak_obj_map_t* m = oak_vm_map_new(vm);
-  return obj_value_or_none(m ? &m->obj : null);
+  return obj_value_or_none(m ? &m->obj : OAK_NULL);
 }
 
 oak_obj_string_t*
@@ -109,7 +109,7 @@ oak_value_t oak_vm_native_record_new(oak_vm_t* vm,
                                             const oak_bind_type_t* type,
                                             void* instance)
 {
-  oak_assert(type != null);
+  OAK_ASSERT(type != OAK_NULL);
   oak_obj_native_record_t* record = oak_obj_native_record_new_in_table(
       vm->allocator, vm->object_table, type, instance);
   return OAK_VALUE_OBJ(&record->obj);
@@ -148,8 +148,8 @@ void oak_vm_free(oak_vm_t* vm)
     oak_value_decref(*vm->sp);
   }
 
-  vm->chunk = null;
-  vm->ip = null;
+  vm->chunk = OAK_NULL;
+  vm->ip = OAK_NULL;
 
   /* Objects created by this VM may outlive it (results handed to the
    * embedder, values stored into other tables' objects); the table is
@@ -400,7 +400,7 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
 {
   if (!vm->chunk || !vm->ip)
   {
-    oak_log(OAK_LOG_ERROR, "vm: no active chunk");
+    OAK_LOG(OAK_LOG_ERROR, "vm: no active chunk");
     return OAK_VM_RUNTIME_ERROR;
   }
 
@@ -433,7 +433,7 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
       case OAK_OP_CONSTANT:
       {
         const u16 idx = cached_read_u16(&ip);
-        oak_assert((usize)idx < constant_count);
+        OAK_ASSERT((usize)idx < constant_count);
         if (cached_push_value(vm, chunk, ip, &sp, constants[idx]) !=
             OAK_VM_OK)
           return OAK_VM_RUNTIME_ERROR;
@@ -470,7 +470,7 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
       case OAK_OP_POP_N:
       {
         const u8 n = cached_read_u8(&ip);
-        oak_assert((usize)(sp - vm->stack) >= (usize)n);
+        OAK_ASSERT((usize)(sp - vm->stack) >= (usize)n);
         for (u8 i = 0; i < n; ++i)
           oak_value_decref(*--sp);
         break;
@@ -523,7 +523,7 @@ static oak_vm_result_t oak_vm_resume_loop(oak_vm_t* vm)
       }
       case OAK_OP_WEAKEN:
       {
-        oak_assert(sp > vm->stack);
+        OAK_ASSERT(sp > vm->stack);
         const oak_value_t value = sp[-1];
         if (!oak_is_obj(value))
         {

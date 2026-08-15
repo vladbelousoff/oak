@@ -80,7 +80,7 @@ static void vector_clear(oak_container_t* c)
 static void* vector_get(oak_container_t* c, usize index)
 {
   oak_vector_t* v = as_vector(c);
-  return index < v->size ? elem_at(v, index) : null;
+  return index < v->size ? elem_at(v, index) : OAK_NULL;
 }
 
 static int vector_insert(oak_container_t* c,
@@ -160,7 +160,7 @@ static void* vector_data(oak_container_t* c)
 
 static oak_iterator_t vector_begin(oak_container_t* c)
 {
-  oak_iterator_t it = { .owner = null };
+  oak_iterator_t it = { .owner = OAK_NULL };
   if (as_vector(c)->size > 0)
   {
     it.owner = c;
@@ -174,14 +174,14 @@ static int vector_next(oak_iterator_t* it)
   oak_vector_t* v = as_vector((oak_container_t*)it->owner);
   if (++it->state.index < v->size)
     return 1;
-  it->owner = null;
+  it->owner = OAK_NULL;
   return 0;
 }
 
 static void* vector_iter_get(oak_iterator_t* it)
 {
   oak_vector_t* v = as_vector((oak_container_t*)it->owner);
-  return it->state.index < v->size ? elem_at(v, it->state.index) : null;
+  return it->state.index < v->size ? elem_at(v, it->state.index) : OAK_NULL;
 }
 
 static void vector_destroy(void* obj)
@@ -207,7 +207,7 @@ static void* vector_query_interface(void* obj, oak_interface_id_t iid)
     case OAK_IID_ITERABLE:
       return obj;
     default:
-      return null;
+      return OAK_NULL;
   }
 }
 
@@ -239,14 +239,14 @@ oak_container_t* oak_vector_new(oak_allocator_t* allocator,
                                           usize elem_size)
 {
   if (!allocator || elem_size == 0)
-    return null;
+    return OAK_NULL;
 
   oak_vector_t* v =
       oak_base_alloc(allocator, sizeof *v, &vector_vtable.object);
   if (!v)
-    return null;
+    return OAK_NULL;
 
-  v->data = null;
+  v->data = OAK_NULL;
   v->size = 0;
   v->capacity = 0;
   v->elem_size = elem_size;

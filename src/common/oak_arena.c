@@ -25,8 +25,8 @@ static oak_arena_block_t* arena_new_block(oak_allocator_t* a,
   oak_arena_block_t* block =
       oak_alloc(a, sizeof(oak_arena_block_t) + capacity, OAK_HERE);
   if (!block)
-    return null;
-  block->next = null;
+    return OAK_NULL;
+  block->next = OAK_NULL;
   block->capacity = capacity;
   block->used = 0;
   return block;
@@ -37,7 +37,7 @@ void oak_arena_init(oak_arena_t* arena,
                     oak_allocator_t* allocator)
 {
   arena->block_size = block_size ? block_size : OAK_ARENA_DEFAULT_BLOCK_SIZE;
-  arena->current = null;
+  arena->current = OAK_NULL;
   arena->allocator = allocator;
 }
 
@@ -53,7 +53,7 @@ void* oak_arena_alloc(oak_arena_t* arena, usize size)
       cap = aligned;
     oak_arena_block_t* block = arena_new_block(arena->allocator, cap);
     if (!block)
-      return null;
+      return OAK_NULL;
     block->next = arena->current;
     arena->current = block;
     cur = block;
@@ -74,5 +74,5 @@ void oak_arena_free(oak_arena_t* arena)
     oak_free(arena->allocator, block, OAK_HERE);
     block = next;
   }
-  arena->current = null;
+  arena->current = OAK_NULL;
 }

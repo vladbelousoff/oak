@@ -47,7 +47,7 @@ static int record_index_by_id(const oak_record_registry_t* r,
 
 static int type_is_interface_id(const oak_compiler_t* c, oak_type_id_t id)
 {
-  return oak_interface_find_by_id(&c->interfaces, id) != null;
+  return oak_interface_find_by_id(&c->interfaces, id) != OAK_NULL;
 }
 
 /* True if a strong slot of this type holds an interface object, directly or as a
@@ -97,12 +97,12 @@ field_decl_token(const oak_ast_node_t* program,
                  const char* field_name)
 {
   if (!program)
-    return null;
+    return OAK_NULL;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
+  OAK_LIST_FOR_EACH(pos, &program->children)
   {
     const oak_ast_node_t* item = oak_unwrap_decl(
-        oak_container_of(pos, oak_ast_node_t, link));
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link));
     if (!item || item->kind != OAK_NODE_RECORD_DECL || !item->lhs || !item->rhs)
       continue;
 
@@ -114,17 +114,17 @@ field_decl_token(const oak_ast_node_t* program,
       const oak_list_entry_t* first = name_ident->children.next;
       if (first == &name_ident->children)
         continue;
-      name_ident = oak_container_of(first, oak_ast_node_t, link);
+      name_ident = OAK_CONTAINER_OF(first, oak_ast_node_t, link);
     }
     if (name_ident->kind != OAK_NODE_IDENT ||
         strcmp(oak_token_text(name_ident->token), record_name) != 0)
       continue;
 
     oak_list_entry_t* fpos;
-    oak_list_for_each(fpos, &item->rhs->children)
+    OAK_LIST_FOR_EACH(fpos, &item->rhs->children)
     {
       const oak_ast_node_t* fdecl =
-          oak_container_of(fpos, oak_ast_node_t, link);
+          OAK_CONTAINER_OF(fpos, oak_ast_node_t, link);
       /* Skips methods, which share the member list with fields. */
       if (fdecl->kind != OAK_NODE_RECORD_FIELD_DECL || !fdecl->lhs)
         continue;
@@ -132,9 +132,9 @@ field_decl_token(const oak_ast_node_t* program,
           strcmp(oak_token_text(fdecl->lhs->token), field_name) == 0)
         return fdecl->lhs->token;
     }
-    return null;
+    return OAK_NULL;
   }
-  return null;
+  return OAK_NULL;
 }
 
 void oak_compiler_check_cycles(oak_compiler_t* c,
@@ -146,7 +146,7 @@ void oak_compiler_check_cycles(oak_compiler_t* c,
    * describing a smaller registry. */
   if (c->cycle_reach)
     oak_free(c->allocator, c->cycle_reach, OAK_HERE);
-  c->cycle_reach = null;
+  c->cycle_reach = OAK_NULL;
   c->cycle_reach_count = n;
   if (n == 0)
     return;
@@ -239,7 +239,7 @@ void oak_compiler_free_cycles(oak_compiler_t* c)
 {
   if (c->cycle_reach)
     oak_free(c->allocator, c->cycle_reach, OAK_HERE);
-  c->cycle_reach = null;
+  c->cycle_reach = OAK_NULL;
   c->cycle_reach_count = 0;
 }
 

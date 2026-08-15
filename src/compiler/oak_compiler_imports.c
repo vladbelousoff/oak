@@ -44,7 +44,7 @@ static oak_type_t* translate_param_types(oak_compiler_t* c,
                                                 int count)
 {
   if (!src || count <= 0)
-    return null;
+    return OAK_NULL;
   oak_type_t* dst =
       oak_alloc(c->allocator, sizeof(oak_type_t) * (usize)count, OAK_HERE);
   for (int i = 0; i < count; ++i)
@@ -55,7 +55,7 @@ static oak_type_t* translate_param_types(oak_compiler_t* c,
 static u8* copy_mut_flags(oak_compiler_t* c, const u8* src, int count)
 {
   if (!src || count <= 0)
-    return null;
+    return OAK_NULL;
   u8* dst = oak_alloc(c->allocator, sizeof(u8) * (usize)count, OAK_HERE);
   memcpy(dst, src, sizeof(u8) * (usize)count);
   return dst;
@@ -70,7 +70,7 @@ static void import_interface_from_dep(oak_compiler_t* c,
   if (existing)
   {
     if (existing->source_module_id != dep->module_id)
-      oak_compiler_error_at(c, null,
+      oak_compiler_error_at(c, OAK_NULL,
                             "import collision: '%s' is already defined",
                             exp->name);
     return;
@@ -79,7 +79,7 @@ static void import_interface_from_dep(oak_compiler_t* c,
   oak_type_registry_intern_with_id(&c->types, exp->name, tid);
 
   if (!oak_compiler_declare_symbol(
-          c, null, exp->name, OAK_SYMBOL_INTERFACE,
+          c, OAK_NULL, exp->name, OAK_SYMBOL_INTERFACE,
           (int)oak_size(c->interfaces.interfaces), dep->module_id, 1))
     return;
 
@@ -92,11 +92,11 @@ static void import_interface_from_dep(oak_compiler_t* c,
     oak_registered_interface_t provisional = { 0 };
     provisional.methods =
         oak_vector_new(c->allocator, sizeof(oak_interface_method_t));
-    oak_assert(provisional.methods);
+    OAK_ASSERT(provisional.methods);
     provisional.name = exp->name;
     provisional.interface_id = tid;
     provisional.source_module_id = dep->module_id;
-    oak_assert(oak_push_back(c->interfaces.interfaces, &provisional));
+    OAK_ASSERT(oak_push_back(c->interfaces.interfaces, &provisional));
   }
   const usize interface_idx = oak_size(c->interfaces.interfaces) - 1;
 
@@ -116,15 +116,15 @@ static void import_interface_from_dep(oak_compiler_t* c,
     oak_interface_method_t tm = {
       .name = src->name,
       .arity = src->arity,
-      .sig_decl = null,
-      .decl = null,
+      .sig_decl = OAK_NULL,
+      .decl = OAK_NULL,
       .self_is_mut = src->self_is_mut,
       .param_types = translate_param_types(c, dep, src->param_types, src->arity),
       .return_type = import_type_ref(c, dep, src->return_type),
     };
     oak_registered_interface_t* entry =
         oak_get(c->interfaces.interfaces, interface_idx);
-    oak_assert(oak_push_back(entry->methods, &tm));
+    OAK_ASSERT(oak_push_back(entry->methods, &tm));
   }
 }
 
@@ -138,7 +138,7 @@ static void import_enum_from_dep(oak_compiler_t* c,
         oak_enum_find(&c->enums, exp->name);
     if (!re || (re->source_module_id != OAK_MODULE_ID_NONE &&
                 re->source_module_id != dep->module_id))
-      oak_compiler_error_at(c, null,
+      oak_compiler_error_at(c, OAK_NULL,
                             "import collision: '%s' is already defined",
                             exp->name);
     return;
@@ -147,7 +147,7 @@ static void import_enum_from_dep(oak_compiler_t* c,
       oak_type_registry_lookup(&dep->types, exp->name);
   if (enum_type_id < 0)
   {
-    oak_compiler_error_at(c, null, "failed to register imported enum '%s'",
+    oak_compiler_error_at(c, OAK_NULL, "failed to register imported enum '%s'",
                           exp->name);
     return;
   }
@@ -157,14 +157,14 @@ static void import_enum_from_dep(oak_compiler_t* c,
       .name = exp->name,
       .type_id = enum_type_id,
       .source_module_id = dep->module_id,
-      .attrs = null,
+      .attrs = OAK_NULL,
       .attr_count = 0,
     };
     if (!oak_compiler_declare_symbol(
-            c, null, exp->name, OAK_SYMBOL_ENUM,
+            c, OAK_NULL, exp->name, OAK_SYMBOL_ENUM,
             (int)oak_size(c->enums.enums), dep->module_id, 1))
       return;
-    oak_assert(oak_push_back(c->enums.enums, &re));
+    OAK_ASSERT(oak_push_back(c->enums.enums, &re));
   }
   const oak_module_export_enum_variant_t* exp_variants =
       OAK_CDATA(oak_module_export_enum_variant_t, exp->variants);
@@ -196,7 +196,7 @@ static void import_record_from_dep(oak_compiler_t* c,
         oak_records_find(&c->records, exp->name);
     if (existing->source_module_id != OAK_MODULE_ID_NONE &&
         existing->source_module_id != dep->module_id)
-      oak_compiler_error_at(c, null,
+      oak_compiler_error_at(c, OAK_NULL,
                             "import collision: '%s' is already defined",
                             exp->name);
     return;
@@ -215,7 +215,7 @@ static void import_record_from_dep(oak_compiler_t* c,
   proto.interface_names =
       oak_vector_new(c->allocator, sizeof(const char*));
   proto.interfaces = oak_vector_new(c->allocator, sizeof(oak_type_t));
-  oak_assert(proto.fields && proto.methods && proto.interface_names &&
+  OAK_ASSERT(proto.fields && proto.methods && proto.interface_names &&
              proto.interfaces);
 
   /* The record names its interfaces, so they have to come across with it —
@@ -230,7 +230,7 @@ static void import_record_from_dep(oak_compiler_t* c,
     ensure_dep_named_type_imported(c, dep, exp_interface_names[ii]);
     if (c->has_error)
       return;
-    oak_assert(oak_push_back(proto.interface_names, &exp_interface_names[ii]));
+    OAK_ASSERT(oak_push_back(proto.interface_names, &exp_interface_names[ii]));
   }
 
   /* Insert a provisional (empty) entry so self-referential and mutually
@@ -239,7 +239,7 @@ static void import_record_from_dep(oak_compiler_t* c,
      We store the index (not a pointer) because ensure_dep_type_imported
      may trigger further imports that reallocate the entries array. */
   if (!oak_compiler_declare_symbol(
-          c, null, exp->name, OAK_SYMBOL_RECORD,
+          c, OAK_NULL, exp->name, OAK_SYMBOL_RECORD,
           (int)oak_size(c->records.entries), dep->module_id, 1))
     return;
   oak_record_registry_insert(&c->records, &proto);
@@ -267,7 +267,7 @@ static void import_record_from_dep(oak_compiler_t* c,
       .type = import_type_ref(c, dep, exp_fields[fi].type),
     };
     oak_registered_record_t* e = REC_ENTRY();
-    oak_assert(oak_push_back(e->fields, &field));
+    OAK_ASSERT(oak_push_back(e->fields, &field));
   }
   const oak_module_export_record_method_t* exp_methods =
       OAK_CDATA(oak_module_export_record_method_t, exp->methods);
@@ -284,12 +284,12 @@ static void import_record_from_dep(oak_compiler_t* c,
     mfn.receiver_type_id = tid;
     mfn.return_type = import_type_ref(c, dep, me->return_type);
     mfn.is_static = me->is_static;
-    mfn.decl = null;
+    mfn.decl = OAK_NULL;
     mfn.param_types = translate_param_types(c, dep, me->param_types, me->arity);
     mfn.param_mut_flags = copy_mut_flags(c, me->param_mut_flags, me->arity);
     mfn.source_module_id = dep->module_id;
     mfn.source_const_idx = me->const_idx;
-    mfn.attrs = null;
+    mfn.attrs = OAK_NULL;
     mfn.attr_count = 0;
     if (me->stub_attr_count > 0)
     {
@@ -298,7 +298,7 @@ static void import_record_from_dep(oak_compiler_t* c,
       mfn.attr_count = me->stub_attr_count;
     }
     oak_registered_record_t* e = REC_ENTRY();
-    oak_assert(oak_push_back(e->methods, &mfn));
+    OAK_ASSERT(oak_push_back(e->methods, &mfn));
   }
 #undef REC_ENTRY
 }
@@ -353,7 +353,7 @@ static void ensure_dep_named_type_imported(oak_compiler_t* c,
 {
   if (!name || name[0] == '<')
     return;
-  if (import_named_type_from_dep(c, dep, name, null))
+  if (import_named_type_from_dep(c, dep, name, OAK_NULL))
     return;
 
   /* The type is not exported by the immediate dependency — it may have been
@@ -369,7 +369,7 @@ static void ensure_dep_named_type_imported(oak_compiler_t* c,
         oak_module_registry_get(c->module_registry, dep_imports[di]);
     if (!transitive)
       continue;
-    if (import_named_type_from_dep(c, transitive, name, null))
+    if (import_named_type_from_dep(c, transitive, name, OAK_NULL))
       return;
   }
 }
@@ -424,7 +424,7 @@ static void import_fn_from_dep(oak_compiler_t* c,
   if (oak_fn_registry_find(&c->fns, local_name))
   {
     oak_compiler_error_at(
-        c, null, "import collision: '%s' is already defined", local_name);
+        c, OAK_NULL, "import collision: '%s' is already defined", local_name);
     return;
   }
   if (ensure_sig_types_imported(c, dep, &exp->return_type,
@@ -436,14 +436,14 @@ static void import_fn_from_dep(oak_compiler_t* c,
     .arity = exp->arity,
     .receiver_type_id = OAK_TYPE_VOID,
     .return_type = import_type_ref(c, dep, exp->return_type),
-    .decl = null,
+    .decl = OAK_NULL,
     .param_types = translate_param_types(c, dep, exp->param_types, exp->arity),
     .param_mut_flags = copy_mut_flags(c, exp->param_mut_flags, exp->arity),
     .source_module_id = dep->module_id,
     .source_const_idx = exp->const_idx,
   };
   if (!oak_compiler_declare_symbol(
-          c, null, local_name, OAK_SYMBOL_FUNCTION,
+          c, OAK_NULL, local_name, OAK_SYMBOL_FUNCTION,
           (int)oak_size(c->fns.entries), dep->module_id, 1))
     return;
   oak_fn_registry_insert(&c->fns, &entry);
@@ -455,12 +455,12 @@ static const oak_module_t*
 resolve_dep_for_import(oak_compiler_t* c, int import_idx)
 {
   if (!c->module_registry || !c->current_module)
-    return null;
+    return OAK_NULL;
   const u16* imports =
       OAK_CDATA(u16, c->current_module->import_modules);
   if (import_idx < 0 ||
       (usize)import_idx >= oak_size(c->current_module->import_modules))
-    return null;
+    return OAK_NULL;
   return oak_module_registry_get(c->module_registry, imports[import_idx]);
 }
 
@@ -507,17 +507,17 @@ static void import_selective_from_dep(oak_compiler_t* c,
   if (!names_node)
     return;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &names_node->children)
+  OAK_LIST_FOR_EACH(pos, &names_node->children)
   {
     const oak_ast_node_t* name_node =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (name_node->kind != OAK_NODE_IMPORT_NAME)
       continue;
 
     const oak_ast_node_t* orig = name_node->lhs;
     const oak_ast_node_t* alias_node = name_node->rhs;
     const oak_ast_node_t* alias =
-        alias_node ? alias_node->child : null;
+        alias_node ? alias_node->child : OAK_NULL;
     if (!orig)
       continue;
     const char* orig_name = oak_token_text(orig->token);
@@ -534,7 +534,7 @@ static void import_selective_from_dep(oak_compiler_t* c,
       continue;
     }
     if (import_named_type_from_dep(
-            c, dep, orig_name, alias ? alias->token : null))
+            c, dep, orig_name, alias ? alias->token : OAK_NULL))
     {
       if (c->has_error)
         return;
@@ -562,10 +562,10 @@ void oak_resolve_new_style_imports(oak_compiler_t* c,
        oak_iter_get(&it);
        oak_next(&it))
   {
-    const char* alias = oak_iter_key(&it, null);
+    const char* alias = oak_iter_key(&it, OAK_NULL);
     const usize module_id = *(const usize*)oak_iter_get(&it);
     if (!oak_compiler_declare_symbol(c,
-                                     null,
+                                     OAK_NULL,
                                      alias,
                                      OAK_SYMBOL_MODULE_ALIAS,
                                      (int)module_id,
@@ -576,10 +576,10 @@ void oak_resolve_new_style_imports(oak_compiler_t* c,
 
   int import_idx = 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &program->children)
+  OAK_LIST_FOR_EACH(pos, &program->children)
   {
     const oak_ast_node_t* item =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (item->kind != OAK_NODE_IMPORT_SELECTIVE &&
         item->kind != OAK_NODE_IMPORT_WILDCARD &&
         item->kind != OAK_NODE_IMPORT_DECL)
@@ -612,8 +612,8 @@ static void lower_params_from_decl(oak_compiler_t* c,
 {
   if (arity <= 0)
   {
-    *out_types = null;
-    *out_muts = null;
+    *out_types = OAK_NULL;
+    *out_muts = OAK_NULL;
     return;
   }
   const int has_self = !is_static;
@@ -664,8 +664,8 @@ static void export_free_fn(oak_compiler_t* c,
                            oak_module_t* mod,
                            const oak_registered_fn_t* e)
 {
-  oak_type_t* ptypes = null;
-  u8* pmuts = null;
+  oak_type_t* ptypes = OAK_NULL;
+  u8* pmuts = OAK_NULL;
   lower_params_from_decl(c, e->decl, e->arity, 1, &ptypes, &pmuts);
   oak_module_export_fn_t exp = {
     .name = e->name,
@@ -702,7 +702,7 @@ static void export_record_methods(oak_compiler_t* c,
 {
   exp->methods = oak_vector_new(
       c->allocator, sizeof(oak_module_export_record_method_t));
-  oak_assert(exp->methods);
+  OAK_ASSERT(exp->methods);
   const oak_registered_fn_t* methods =
       OAK_CDATA(oak_registered_fn_t, r->methods);
   for (usize mi = 0; mi < oak_size(r->methods); ++mi)
@@ -725,7 +725,7 @@ static void export_record_methods(oak_compiler_t* c,
     if (m->arity > 0 && m->decl)
       lower_params_from_decl(c, m->decl, m->arity, m->is_static,
                              &mexp.param_types, &mexp.param_mut_flags);
-    oak_assert(oak_push_back(exp->methods, &mexp));
+    OAK_ASSERT(oak_push_back(exp->methods, &mexp));
   }
 }
 
@@ -748,7 +748,7 @@ static void export_user_records(oak_compiler_t* c,
         c->allocator, sizeof(oak_module_export_record_field_t));
     exp.interface_names =
         oak_vector_new(c->allocator, sizeof(const char*));
-    oak_assert(exp.fields);
+    OAK_ASSERT(exp.fields);
     const oak_record_field_t* fields =
         OAK_CDATA(oak_record_field_t, r->fields);
     for (usize fi = 0; fi < oak_size(r->fields); ++fi)
@@ -757,12 +757,12 @@ static void export_user_records(oak_compiler_t* c,
         .name = fields[fi].name,
         .type = fields[fi].type,
       };
-      oak_assert(oak_push_back(exp.fields, &field));
+      OAK_ASSERT(oak_push_back(exp.fields, &field));
     }
     const char* const* interface_names =
         (const char* const*)oak_cdata(r->interface_names);
     for (usize ii = 0; ii < oak_size(r->interface_names); ++ii)
-      oak_assert(oak_push_back(exp.interface_names, &interface_names[ii]));
+      OAK_ASSERT(oak_push_back(exp.interface_names, &interface_names[ii]));
     export_record_methods(c, &exp, r);
     exp.layout_id = 0;
     oak_symbol_registry_insert_record(
@@ -788,7 +788,7 @@ static void export_user_enums(oak_compiler_t* c,
     ee.name = src->name;
     ee.variants = oak_vector_new(
         c->allocator, sizeof(oak_module_export_enum_variant_t));
-    oak_assert(ee.variants);
+    OAK_ASSERT(ee.variants);
     const oak_enum_variant_t* variants =
         OAK_CDATA(oak_enum_variant_t, c->enums.variants);
     for (usize vi = 0; vi < oak_size(c->enums.variants); ++vi)
@@ -800,7 +800,7 @@ static void export_user_enums(oak_compiler_t* c,
         .name = v->name,
         .value = v->value,
       };
-      oak_assert(oak_push_back(ee.variants, &variant));
+      OAK_ASSERT(oak_push_back(ee.variants, &variant));
     }
     oak_symbol_registry_insert_enum(
         &mod->exports, ee.name, mod->module_id, &ee);
@@ -823,14 +823,14 @@ static void export_user_interfaces(oak_compiler_t* c,
     exp.name = tr->name;
     exp.methods = oak_vector_new(
         c->allocator, sizeof(oak_module_export_interface_method_t));
-    oak_assert(exp.methods);
+    OAK_ASSERT(exp.methods);
     const oak_interface_method_t* methods =
         OAK_CDATA(oak_interface_method_t, tr->methods);
     for (usize mi = 0; mi < oak_size(tr->methods); ++mi)
     {
       const oak_interface_method_t* src = &methods[mi];
-      oak_type_t* ptypes = null;
-      u8* pmuts = null;
+      oak_type_t* ptypes = OAK_NULL;
+      u8* pmuts = OAK_NULL;
       if (src->sig_decl)
         lower_params_from_decl(c, src->sig_decl, src->arity, 0, &ptypes, &pmuts);
       if (pmuts)
@@ -843,7 +843,7 @@ static void export_user_interfaces(oak_compiler_t* c,
         .return_type = src->sig_decl ? lower_return_type(c, src->sig_decl)
                                      : src->return_type,
       };
-      oak_assert(oak_push_back(exp.methods, &tm));
+      OAK_ASSERT(oak_push_back(exp.methods, &tm));
     }
     oak_symbol_registry_insert_interface(
         &mod->exports, exp.name, mod->module_id, &exp);

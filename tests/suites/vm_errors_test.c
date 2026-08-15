@@ -3,7 +3,7 @@
  *
  * Every case asserts the error message, not just that the run failed. The
  * support layer captures stderr around the run to get it, because the VM
- * formats runtime errors straight into oak_log and keeps no copy (see
+ * formats runtime errors straight into OAK_LOG and keeps no copy (see
  * src/vm/oak_vm_error.c). Without that, "the program failed" would be
  * satisfied by any failure at all -- including the wrong one.
  */
@@ -75,7 +75,7 @@ UTEST_F(vm_errors, int_min_modulo_minus_one_is_zero)
     { "let a = 0 - 2147483647 - 1;\n"
       "let b = 0 - 1;\n"
       "print(a % b);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -119,10 +119,10 @@ UTEST_F(vm_errors, and_or_skip_their_right_hand_side)
   static const oak_case_t skipped[] = {
     { "let arr = [1, 2, 3];\n"
       "if false && arr[100] == 0 { print(1); } else { print(0); }\n",
-      null },
+      OAK_NULL },
     { "let arr = [1, 2, 3];\n"
       "if true || arr[100] == 0 { print(1); } else { print(0); }\n",
-      null },
+      OAK_NULL },
   };
 
   static const oak_case_t evaluated[] = {

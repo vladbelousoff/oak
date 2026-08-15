@@ -39,7 +39,7 @@ const oak_ast_node_t*
 oak_fn_name_node(const oak_ast_node_t* decl)
 {
   const oak_ast_node_t* head = oak_fn_decl_head(decl);
-  oak_assert(head->rhs != null);
+  OAK_ASSERT(head->rhs != OAK_NULL);
   return head->rhs;
 }
 
@@ -49,10 +49,10 @@ oak_fn_receiver_mode(const oak_ast_node_t* decl)
   /* EXPR_FN has no head at all — it is `fn` followed straight by the params,
    * so it can never carry a mode. */
   if (decl->kind == OAK_NODE_EXPR_LAMBDA)
-    return null;
+    return OAK_NULL;
   const oak_ast_node_t* head = oak_fn_decl_head(decl);
   if (!head || !head->lhs)
-    return null;
+    return OAK_NULL;
   /* FN_HEAD is BINARY: lhs = FN_PREFIX, which is UNARY with
    * child = FN_RECEIVER_MODE? (null for a plain `fn`). The mode is a
    * transparent choice, so the child is MUT_KEYWORD or STATIC_KEYWORD. */
@@ -62,28 +62,28 @@ oak_fn_receiver_mode(const oak_ast_node_t* decl)
 int oak_fn_is_static(const oak_ast_node_t* decl)
 {
   const oak_ast_node_t* mode = oak_fn_receiver_mode(decl);
-  return mode != null && mode->kind == OAK_NODE_STATIC_KEYWORD;
+  return mode != OAK_NULL && mode->kind == OAK_NODE_STATIC_KEYWORD;
 }
 
 int oak_fn_self_is_mut(const oak_ast_node_t* decl)
 {
   const oak_ast_node_t* mode = oak_fn_receiver_mode(decl);
-  return mode != null && mode->kind == OAK_NODE_MUT_KEYWORD;
+  return mode != OAK_NULL && mode->kind == OAK_NODE_MUT_KEYWORD;
 }
 
 const oak_ast_node_t*
 oak_fn_block(const oak_ast_node_t* decl)
 {
-  return (decl->rhs && decl->rhs->kind == OAK_NODE_BLOCK) ? decl->rhs : null;
+  return (decl->rhs && decl->rhs->kind == OAK_NODE_BLOCK) ? decl->rhs : OAK_NULL;
 }
 
 int oak_param_is_mut(const oak_ast_node_t* param)
 {
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &param->children)
+  OAK_LIST_FOR_EACH(pos, &param->children)
   {
     const oak_ast_node_t* ch =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (ch->kind == OAK_NODE_MUT_KEYWORD)
       return 1;
   }
@@ -94,14 +94,14 @@ const oak_ast_node_t*
 oak_fn_param_ident(const oak_ast_node_t* param)
 {
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &param->children)
+  OAK_LIST_FOR_EACH(pos, &param->children)
   {
     const oak_ast_node_t* ch =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (ch->kind == OAK_NODE_IDENT)
       return ch;
   }
-  return null;
+  return OAK_NULL;
 }
 
 const oak_ast_node_t*
@@ -109,10 +109,10 @@ oak_fn_param_type_node(const oak_ast_node_t* param)
 {
   int ident_seen = 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &param->children)
+  OAK_LIST_FOR_EACH(pos, &param->children)
   {
     const oak_ast_node_t* ch =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (ch->kind == OAK_NODE_MUT_KEYWORD)
       continue;
     if (ch->kind == OAK_NODE_IDENT)
@@ -128,7 +128,7 @@ oak_fn_param_type_node(const oak_ast_node_t* param)
         ch->kind == OAK_NODE_TYPE_WEAK || ch->kind == OAK_NODE_TYPE_FN)
       return ch;
   }
-  return null;
+  return OAK_NULL;
 }
 
 const oak_ast_node_t*
@@ -137,16 +137,16 @@ oak_fn_param_at(const oak_ast_node_t* decl,
 {
   const oak_ast_node_t* plist = oak_fn_param_list(decl);
   if (!plist)
-    return null;
+    return OAK_NULL;
   const oak_ast_node_t* params = oak_fn_param_list_regular_params(plist);
   if (!params)
-    return null;
+    return OAK_NULL;
   int i = 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &params->children)
+  OAK_LIST_FOR_EACH(pos, &params->children)
   {
     const oak_ast_node_t* ch =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (ch->kind == OAK_NODE_FN_PARAM)
     {
       if (i == index)
@@ -154,7 +154,7 @@ oak_fn_param_at(const oak_ast_node_t* decl,
       ++i;
     }
   }
-  return null;
+  return OAK_NULL;
 }
 
 const oak_ast_node_t*
@@ -164,7 +164,7 @@ oak_fn_return_type_node(const oak_ast_node_t* decl)
    * FN_RETURN_TYPE is UNARY: child = TYPE_NAME. */
   const oak_ast_node_t* tail = oak_fn_decl_params_tail(decl);
   if (!tail->rhs)
-    return null;
+    return OAK_NULL;
   return tail->rhs->child;
 }
 
@@ -178,10 +178,10 @@ int oak_count_fn_params(const oak_ast_node_t* decl)
     return 0;
   int n = 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &params->children)
+  OAK_LIST_FOR_EACH(pos, &params->children)
   {
     const oak_ast_node_t* ch =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (ch->kind == OAK_NODE_FN_PARAM)
       ++n;
   }

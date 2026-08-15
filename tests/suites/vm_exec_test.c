@@ -158,8 +158,8 @@ UTEST_F(vm_exec, array_typing_is_enforced_at_compile_time)
 UTEST_F(vm_exec, untyped_empty_collection_literals_are_rejected)
 {
   static const oak_case_t cases[] = {
-    { "let mut arr = [];\n", null },
-    { "let mut m = [:];\n", null },
+    { "let mut arr = [];\n", OAK_NULL },
+    { "let mut m = [:];\n", OAK_NULL },
   };
 
   OAK_EXPECT_REJECTED_CASES(cases);
@@ -257,7 +257,7 @@ UTEST_F(vm_exec, shorthand_record_fields_need_a_binding_in_scope)
   static const oak_case_t cases[] = {
     { "record Foo { x : number; }\n"
       "let f = new Foo { x };\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_REJECTED_CASES(cases);
@@ -347,7 +347,7 @@ UTEST_F(vm_exec, anonymous_functions_cannot_close_over_locals)
       "  return f();\n"
       "}\n"
       "print(outer());\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_REJECTED_CASES(cases);

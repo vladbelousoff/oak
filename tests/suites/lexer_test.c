@@ -29,13 +29,13 @@ UTEST_F(lexer, numbers_identifiers_and_operators)
   static const oak_expect_token_t expected[] = {
     { OAK_TOKEN_IDENT, 1, 1, 1, "answer", 0, 0.0f },
     OAK_TOKEN_AT(OAK_TOKEN_ASSIGN, 8),
-    { OAK_TOKEN_INT, 1, 10, 10, null, 1, 0.0f },
+    { OAK_TOKEN_INT, 1, 10, 10, OAK_NULL, 1, 0.0f },
     OAK_TOKEN_AT(OAK_TOKEN_PLUS, 12),
-    { OAK_TOKEN_FLOAT, 1, 14, 14, null, 0, 2.5f },
+    { OAK_TOKEN_FLOAT, 1, 14, 14, OAK_NULL, 0, 2.5f },
     OAK_TOKEN_AT(OAK_TOKEN_STAR, 18),
-    { OAK_TOKEN_FLOAT, 1, 20, 20, null, 0, 300.0f },
+    { OAK_TOKEN_FLOAT, 1, 20, 20, OAK_NULL, 0, 300.0f },
     OAK_TOKEN_AT(OAK_TOKEN_BANG_EQUAL, 24),
-    { OAK_TOKEN_INT, 1, 27, 27, null, 0, 0.0f },
+    { OAK_TOKEN_INT, 1, 27, 27, OAK_NULL, 0, 0.0f },
     OAK_TOKEN_AT(OAK_TOKEN_SEMICOLON, 28),
   };
 
@@ -140,9 +140,9 @@ UTEST_F(lexer, block_comments_span_lines)
   static const oak_expect_token_t expected[] = {
     OAK_TOKEN_AT(OAK_TOKEN_LET, 1),
     { OAK_TOKEN_IDENT, 2, 12, 27, "value", 0, 0.0f },
-    { OAK_TOKEN_ASSIGN, 2, 18, 33, null, 0, 0.0f },
-    { OAK_TOKEN_INT, 2, 20, 35, null, 1, 0.0f },
-    { OAK_TOKEN_SEMICOLON, 2, 21, 36, null, 0, 0.0f },
+    { OAK_TOKEN_ASSIGN, 2, 18, 33, OAK_NULL, 0, 0.0f },
+    { OAK_TOKEN_INT, 2, 20, 35, OAK_NULL, 1, 0.0f },
+    { OAK_TOKEN_SEMICOLON, 2, 21, 36, OAK_NULL, 0, 0.0f },
   };
 
   OAK_EXPECT_TOKENS(lexer, expected);
@@ -159,9 +159,9 @@ UTEST_F(lexer, double_slash_is_integer_division_not_a_comment)
   oak_lexer_result_t* lexer = oak_lexer_tokenize("7 // 2", OAK_A);
 
   static const oak_expect_token_t expected[] = {
-    { OAK_TOKEN_INT, 1, 1, 1, null, 7, 0.0f },
+    { OAK_TOKEN_INT, 1, 1, 1, OAK_NULL, 7, 0.0f },
     OAK_TOKEN_AT(OAK_TOKEN_DOUBLE_SLASH, 3),
-    { OAK_TOKEN_INT, 1, 6, 6, null, 2, 0.0f },
+    { OAK_TOKEN_INT, 1, 6, 6, OAK_NULL, 2, 0.0f },
   };
 
   OAK_EXPECT_TOKENS(lexer, expected);
@@ -194,12 +194,12 @@ UTEST_F(lexer, newlines_advance_line_and_offset)
     OAK_TOKEN_AT(OAK_TOKEN_LET, 1),
     { OAK_TOKEN_IDENT, 1, 5, 5, "x", 0, 0.0f },
     OAK_TOKEN_AT(OAK_TOKEN_ASSIGN, 7),
-    { OAK_TOKEN_INT, 1, 9, 9, null, 1, 0.0f },
+    { OAK_TOKEN_INT, 1, 9, 9, OAK_NULL, 1, 0.0f },
     OAK_TOKEN_AT(OAK_TOKEN_SEMICOLON, 10),
     { OAK_TOKEN_IDENT, 3, 3, 15, "x", 0, 0.0f },
-    { OAK_TOKEN_PLUS_ASSIGN, 3, 5, 17, null, 0, 0.0f },
-    { OAK_TOKEN_INT, 3, 8, 20, null, 2, 0.0f },
-    { OAK_TOKEN_SEMICOLON, 3, 9, 21, null, 0, 0.0f },
+    { OAK_TOKEN_PLUS_ASSIGN, 3, 5, 17, OAK_NULL, 0, 0.0f },
+    { OAK_TOKEN_INT, 3, 8, 20, OAK_NULL, 2, 0.0f },
+    { OAK_TOKEN_SEMICOLON, 3, 9, 21, OAK_NULL, 0, 0.0f },
   };
 
   OAK_EXPECT_TOKENS(lexer, expected);
@@ -216,9 +216,9 @@ UTEST_F(lexer, crlf_counts_one_line_per_pair)
   oak_list_entry_t* entry;
   int last_line = 0;
 
-  oak_list_for_each_indexed(index, entry, oak_lexer_tokens(lexer))
+  OAK_LIST_FOR_EACH_INDEXED(index, entry, oak_lexer_tokens(lexer))
   {
-    const oak_token_t* tok = oak_container_of(entry, oak_token_t, link);
+    const oak_token_t* tok = OAK_CONTAINER_OF(entry, oak_token_t, link);
     last_line = oak_token_line(tok);
   }
 

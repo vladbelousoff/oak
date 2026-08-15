@@ -79,7 +79,7 @@ static void validate_array_push_args(oak_compiler_t* c,
           "array element");
       return; /* already a matching interface object */
     }
-    const oak_registered_record_t* sd = null;
+    const oak_registered_record_t* sd = OAK_NULL;
     if (got.kind == OAK_TYPE_KIND_SCALAR)
       sd = oak_records_find_by_id(&c->records, got.id);
     if (sd && oak_record_satisfies_interface(c, sd, elem_tr))
@@ -135,45 +135,45 @@ static void validate_map_key_arg(oak_compiler_t* c,
 
 static const oak_builtin_method_def_t array_method_table[] = {
   { "push", builtin_push, 2, OAK_TYPE_NUMBER, 1, validate_array_push_args },
-  { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, null },
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, null },
+  { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, OAK_NULL },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static const oak_builtin_method_def_t map_method_table[] = {
-  { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, null },
+  { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, OAK_NULL },
   { "has", builtin_has, 2, OAK_TYPE_BOOL, 0, validate_map_key_arg },
   { "delete", builtin_delete, 2, OAK_TYPE_BOOL, 1, validate_map_key_arg },
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, null },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static const oak_builtin_method_def_t string_method_table[] = {
-  { "format", builtin_string_format, 2, OAK_TYPE_STRING, 0, null },
-  { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, null },
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, null },
-  { "upper", oak_str_upper, 1, OAK_TYPE_STRING, 0, null },
-  { "lower", oak_str_lower, 1, OAK_TYPE_STRING, 0, null },
-  { "trim", oak_str_trim, 1, OAK_TYPE_STRING, 0, null },
-  { "contains", oak_str_contains, 2, OAK_TYPE_BOOL, 0, null },
-  { "starts_with", oak_str_starts_with, 2, OAK_TYPE_BOOL, 0, null },
-  { "ends_with", oak_str_ends_with, 2, OAK_TYPE_BOOL, 0, null },
-  { "index_of", oak_str_index_of, 2, OAK_TYPE_NUMBER, 0, null },
-  { "replace", oak_str_replace, 3, OAK_TYPE_STRING, 0, null },
-  { "repeat", oak_str_repeat, 2, OAK_TYPE_STRING, 0, null },
-  { "substring", oak_str_substring, 3, OAK_TYPE_STRING, 0, null },
-  { "to_snake_case", oak_str_to_snake_case, 1, OAK_TYPE_STRING, 0, null },
-  { "to_camel_case", oak_str_to_camel_case, 1, OAK_TYPE_STRING, 0, null },
+  { "format", builtin_string_format, 2, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, OAK_NULL },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "upper", oak_str_upper, 1, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "lower", oak_str_lower, 1, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "trim", oak_str_trim, 1, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "contains", oak_str_contains, 2, OAK_TYPE_BOOL, 0, OAK_NULL },
+  { "starts_with", oak_str_starts_with, 2, OAK_TYPE_BOOL, 0, OAK_NULL },
+  { "ends_with", oak_str_ends_with, 2, OAK_TYPE_BOOL, 0, OAK_NULL },
+  { "index_of", oak_str_index_of, 2, OAK_TYPE_NUMBER, 0, OAK_NULL },
+  { "replace", oak_str_replace, 3, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "repeat", oak_str_repeat, 2, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "substring", oak_str_substring, 3, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "to_snake_case", oak_str_to_snake_case, 1, OAK_TYPE_STRING, 0, OAK_NULL },
+  { "to_camel_case", oak_str_to_camel_case, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static const oak_builtin_method_def_t bool_method_table[] = {
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, null },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static const oak_builtin_method_def_t number_method_table[] = {
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, null },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static const oak_builtin_method_def_t record_builtin_method_table[] = {
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, null },
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static void
@@ -189,7 +189,7 @@ register_method_table_from_defs(oak_compiler_t* c,
   {
     if (*out_count >= max)
     {
-      oak_compiler_error_at(c, null, "too many %s methods (max %d)", kind, max);
+      oak_compiler_error_at(c, OAK_NULL, "too many %s methods (max %d)", kind, max);
       return;
     }
     const oak_builtin_method_def_t* def = &table[i];
@@ -218,7 +218,7 @@ method_binding_find(const oak_method_binding_t* table,
     if (strcmp(m->name, name) == 0)
       return m;
   }
-  return null;
+  return OAK_NULL;
 }
 
 void oak_register_array_methods(oak_compiler_t* c)

@@ -11,11 +11,11 @@
 static char* oak_strdup_alloc(oak_allocator_t* a, const char* s)
 {
   if (!s)
-    return null;
+    return OAK_NULL;
   const usize n = strlen(s);
   char* copy = oak_alloc(a, n + 1u, OAK_HERE);
   if (!copy)
-    return null;
+    return OAK_NULL;
   memcpy(copy, s, n);
   copy[n] = 0;
   return copy;
@@ -27,7 +27,7 @@ void oak_module_registry_init(oak_module_registry_t* reg,
   reg->allocator = allocator;
   reg->modules = oak_vector_new(allocator, sizeof(oak_module_t*));
   reg->by_canonical_path = oak_hash_map_new(allocator, sizeof(usize));
-  oak_assert(reg->modules && reg->by_canonical_path);
+  OAK_ASSERT(reg->modules && reg->by_canonical_path);
 }
 
 static void oak_module_free(oak_module_t* mod)
@@ -38,14 +38,14 @@ static void oak_module_free(oak_module_t* mod)
   if (mod->chunk)
   {
     oak_chunk_free(mod->chunk);
-    mod->chunk = null;
+    mod->chunk = OAK_NULL;
   }
   oak_parser_free(mod->parser);
-  mod->parser = null;
+  mod->parser = OAK_NULL;
   if (mod->lexer)
   {
     oak_lexer_free(mod->lexer);
-    mod->lexer = null;
+    mod->lexer = OAK_NULL;
   }
   oak_file_unmap(&mod->source);
   oak_destroy(mod->imports);
@@ -72,7 +72,7 @@ oak_module_t*
 oak_module_registry_get(const oak_module_registry_t* reg, u16 module_id)
 {
   oak_module_t* const* slot = oak_cget(reg->modules, module_id);
-  return slot ? *slot : null;
+  return slot ? *slot : OAK_NULL;
 }
 
 oak_module_t*
@@ -81,9 +81,9 @@ oak_module_registry_find_by_path(const oak_module_registry_t* reg,
 {
   const usize* idx = oak_cfind_str(reg->by_canonical_path, canonical_path);
   if (!idx)
-    return null;
+    return OAK_NULL;
   oak_module_t* const* slot = oak_cget(reg->modules, *idx);
-  return slot ? *slot : null;
+  return slot ? *slot : OAK_NULL;
 }
 
 oak_module_t*
@@ -94,7 +94,7 @@ oak_module_registry_new(oak_module_registry_t* reg,
   oak_allocator_t* a = reg->allocator;
   oak_module_t* mod = oak_alloc(a, sizeof(oak_module_t), OAK_HERE);
   if (!mod)
-    return null;
+    return OAK_NULL;
   memset(mod, 0, sizeof(*mod));
   mod->allocator = a;
   mod->canonical_path = oak_strdup_alloc(a, canonical_path);
@@ -103,12 +103,12 @@ oak_module_registry_new(oak_module_registry_t* reg,
   mod->state = OAK_MOD_PARSED;
   mod->imports = oak_hash_map_new(a, sizeof(usize));
   mod->import_modules = oak_vector_new(a, sizeof(u16));
-  oak_assert(mod->imports && mod->import_modules);
+  OAK_ASSERT(mod->imports && mod->import_modules);
   oak_symbol_registry_init(&mod->exports, a);
 
-  oak_assert(oak_push_back(reg->modules, &mod));
+  OAK_ASSERT(oak_push_back(reg->modules, &mod));
   const usize module_index = mod->module_id;
-  oak_assert(
+  OAK_ASSERT(
       oak_put_str(reg->by_canonical_path, mod->canonical_path, &module_index));
   return mod;
 }
@@ -147,17 +147,17 @@ const oak_module_export_interface_t* oak_module_find_export_interface(
 
 oak_chunk_t* oak_module_chunk(const oak_module_t* mod)
 {
-  return mod ? mod->chunk : null;
+  return mod ? mod->chunk : OAK_NULL;
 }
 
 const char* oak_module_dotted_name(const oak_module_t* mod)
 {
-  return mod ? mod->dotted_name : null;
+  return mod ? mod->dotted_name : OAK_NULL;
 }
 
 const char* oak_module_path(const oak_module_t* mod)
 {
-  return mod ? mod->canonical_path : null;
+  return mod ? mod->canonical_path : OAK_NULL;
 }
 
 u16 oak_module_id(const oak_module_t* mod)

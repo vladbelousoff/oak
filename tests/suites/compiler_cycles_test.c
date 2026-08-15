@@ -80,7 +80,7 @@ UTEST_F(compiler_cycles, fields_off_the_cycle_stay_freely_mutable)
       "let mut p = new Person { home: new Address { city: 'x' } };\n"
       "p.home = new Address { city: 'y' };\n"
       "print(p.home.city);\n",
-      null },
+      OAK_NULL },
     /* A weak link cannot own its target, so it breaks the cycle and the field
      * is mutable again -- this is the escape hatch the rule is built around. */
     { "record Node {\n"
@@ -91,7 +91,7 @@ UTEST_F(compiler_cycles, fields_off_the_cycle_stay_freely_mutable)
       "let mut b = new Node { value: 2, next: none };\n"
       "b.next = a;\n"
       "print(b.value);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -144,13 +144,13 @@ UTEST_F(compiler_cycles, containers_that_cannot_close_a_cycle_stay_mutable)
       "let leaf = new Tree { value: 1, children: new Tree[] };\n"
       "let root = new Tree { value: 2, children: [leaf] };\n"
       "print(root.value);\n",
-      null },
+      OAK_NULL },
     { "record Point { x : number; }\n"
       "let mut pts = new Point[];\n"
       "pts.push(new Point { x: 1 });\n"
       "pts.push(new Point { x: 2 });\n"
       "print(pts.size());\n",
-      null },
+      OAK_NULL },
     /* Tree lies on a cycle through `children`, but no record strongly owns a
      * [string:Tree], so a Tree can never reach this map and storing into it
      * cannot close anything. */
@@ -159,7 +159,7 @@ UTEST_F(compiler_cycles, containers_that_cannot_close_a_cycle_stay_mutable)
       "let mut index = new [string:Tree];\n"
       "index['leaf'] = leaf;\n"
       "print(index.size());\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
@@ -188,7 +188,7 @@ UTEST_F(compiler_cycles, weak_and_root_held_interface_values_are_allowed)
       "let mut c = new Circle { radius: 2 };\n"
       "let h = hold(c);\n"
       "print(1);\n",
-      null },
+      OAK_NULL },
     /* An interface container owned only by a root can never be reached from
      * an element, so it stays mutable. */
     { INTERFACE_SHAPE RECORD_CIRCLE
@@ -203,7 +203,7 @@ UTEST_F(compiler_cycles, weak_and_root_held_interface_values_are_allowed)
       "let mut total = 0;\n"
       "for s in shapes { total += s.area(); }\n"
       "print(total);\n",
-      null },
+      OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);

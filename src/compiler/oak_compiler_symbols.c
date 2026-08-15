@@ -23,7 +23,7 @@ int oak_compiler_declare_symbol(oak_compiler_t* c,
     .is_exported = 0,
     .is_imported = is_imported,
   };
-  oak_assert(oak_symbol_registry_insert(&c->symbols, &symbol));
+  OAK_ASSERT(oak_symbol_registry_insert(&c->symbols, &symbol));
   return 1;
 }
 

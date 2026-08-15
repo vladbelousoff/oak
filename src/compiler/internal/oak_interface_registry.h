@@ -67,7 +67,7 @@ oak_interface_find(const oak_interface_registry_t* r,
   for (usize i = 0; i < oak_size(r->interfaces); ++i)
     if (strcmp(interfaces[i].name, name) == 0)
       return &interfaces[i];
-  return null;
+  return OAK_NULL;
 }
 
 static inline const oak_registered_interface_t*
@@ -78,7 +78,7 @@ oak_interface_find_by_id(const oak_interface_registry_t* r, oak_type_id_t id)
   for (usize i = 0; i < oak_size(r->interfaces); ++i)
     if (interfaces[i].interface_id == id)
       return &interfaces[i];
-  return null;
+  return OAK_NULL;
 }
 
 /* Returns the method slot index within the interface, or -1 if not found. */
@@ -107,5 +107,5 @@ oak_interface_impl_find(oak_interface_registry_t* r,
         impls[i].interface_id == interface_id)
       return &impls[i];
   }
-  return null;
+  return OAK_NULL;
 }

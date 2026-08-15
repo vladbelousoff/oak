@@ -12,11 +12,11 @@ void oak_compile_ex(const oak_ast_node_t* root,
 
   oak_compiler_configure(&compiler, opts);
   if (!opts || opts->emit_debug_info)
-    oak_chunk_enable_debug(chunk, opts ? opts->source_name : null);
+    oak_chunk_enable_debug(chunk, opts ? opts->source_name : OAK_NULL);
 
   if (!root || root->kind != OAK_NODE_PROGRAM)
   {
-    oak_compiler_error_at(&compiler, null, "expected a program root");
+    oak_compiler_error_at(&compiler, OAK_NULL, "expected a program root");
     oak_chunk_free(chunk);
     oak_compiler_teardown(&compiler);
     return;
@@ -45,6 +45,6 @@ void oak_compile_result_free(oak_compile_result_t* result)
   if (result && result->chunk)
   {
     oak_chunk_free(result->chunk);
-    result->chunk = null;
+    result->chunk = OAK_NULL;
   }
 }

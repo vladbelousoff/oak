@@ -74,9 +74,9 @@ static oak_allocator_t record_allocator(record_state_t* state)
   a.free = record_free;
   a.shutdown = record_shutdown;
   a.state = state;
-  a.malloc_fn = null;
-  a.realloc_fn = null;
-  a.free_fn = null;
+  a.malloc_fn = OAK_NULL;
+  a.realloc_fn = OAK_NULL;
+  a.free_fn = OAK_NULL;
   return a;
 }
 
@@ -95,12 +95,12 @@ UTEST(allocator, explicit_location_reaches_the_allocator)
   a = record_allocator(&state);
 
   p = oak_alloc(&a, 16, oak_source_loc_make(SCRIPT, 42));
-  ASSERT_TRUE(p != null);
+  ASSERT_TRUE(p != OAK_NULL);
   EXPECT_STREQ(SCRIPT, state.last_alloc.file);
   EXPECT_EQ(42, state.last_alloc.line);
 
   p = oak_realloc(&a, p, 32, oak_source_loc_make(SCRIPT, 43));
-  ASSERT_TRUE(p != null);
+  ASSERT_TRUE(p != OAK_NULL);
   EXPECT_STREQ(SCRIPT, state.last_realloc.file);
   EXPECT_EQ(43, state.last_realloc.line);
 
@@ -130,7 +130,7 @@ UTEST(allocator, a_helper_reports_its_caller_not_itself)
   a = record_allocator(&state);
 
   p = helper(&a, oak_source_loc_make(__FILE__, caller_line));
-  ASSERT_TRUE(p != null);
+  ASSERT_TRUE(p != OAK_NULL);
 
   EXPECT_EQ(caller_line, state.last_alloc.line);
   oak_free(&a, p, OAK_HERE);
@@ -150,7 +150,7 @@ UTEST(allocator, oak_here_attributes_to_the_call_site)
   call_line = __LINE__ + 1;
   p = oak_alloc(&a, 24, OAK_HERE);
 
-  ASSERT_TRUE(p != null);
+  ASSERT_TRUE(p != OAK_NULL);
   EXPECT_EQ(call_line, state.last_alloc.line);
   EXPECT_STREQ(__FILE__, state.last_alloc.file);
 
@@ -177,7 +177,7 @@ UTEST(allocator, a_forwarded_location_is_what_the_leak_report_prints)
   oak_tracking_allocator_init(&a);
 
   /* Leaked on purpose; shutdown below reclaims it while reporting. */
-  ASSERT_TRUE(oak_alloc(&a, 48, oak_source_loc_make(SCRIPT, 42)) != null);
+  ASSERT_TRUE(oak_alloc(&a, 48, oak_source_loc_make(SCRIPT, 42)) != OAK_NULL);
 
   oak_capture_begin(&cap, stderr);
   leaked = a.shutdown(&a);
@@ -198,8 +198,8 @@ UTEST(allocator, a_realloc_restamps_the_location)
   oak_tracking_allocator_init(&a);
 
   p = oak_alloc(&a, 16, oak_source_loc_make(SCRIPT, 10));
-  ASSERT_TRUE(p != null);
-  ASSERT_TRUE(oak_realloc(&a, p, 64, oak_source_loc_make(SCRIPT, 20)) != null);
+  ASSERT_TRUE(p != OAK_NULL);
+  ASSERT_TRUE(oak_realloc(&a, p, 64, oak_source_loc_make(SCRIPT, 20)) != OAK_NULL);
 
   oak_capture_begin(&cap, stderr);
   leaked = a.shutdown(&a);
@@ -230,7 +230,7 @@ UTEST(allocator, a_bad_free_reports_the_freeing_location)
   oak_tracking_allocator_init(&a);
 
   p = oak_alloc(&a, 1024, OAK_HERE);
-  ASSERT_TRUE(p != null);
+  ASSERT_TRUE(p != OAK_NULL);
 
   oak_capture_begin(&cap, stderr);
   oak_free(&a, p + 512, oak_source_loc_make(SCRIPT, 99));
@@ -253,7 +253,7 @@ UTEST(allocator, an_unknown_location_reports_a_placeholder)
   int leaked;
 
   oak_tracking_allocator_init(&a);
-  ASSERT_TRUE(oak_alloc(&a, 8, oak_source_loc_make(null, 0)) != null);
+  ASSERT_TRUE(oak_alloc(&a, 8, oak_source_loc_make(OAK_NULL, 0)) != OAK_NULL);
 
   oak_capture_begin(&cap, stderr);
   leaked = a.shutdown(&a);

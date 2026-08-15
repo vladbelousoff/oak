@@ -14,12 +14,12 @@ const oak_ast_node_t* oak_unwrap_decl(const oak_ast_node_t* item)
   /* ATTR_DECL is a sequence node whose children are:
    *   ATTR ATTR* <declaration>
    * Walk the children and return the first non-ATTR child. */
-  const oak_ast_node_t* decl = null;
+  const oak_ast_node_t* decl = OAK_NULL;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &item->children)
+  OAK_LIST_FOR_EACH(pos, &item->children)
   {
     const oak_ast_node_t* child =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
       return oak_unwrap_decl(child);
   }
@@ -35,10 +35,10 @@ int oak_decl_is_exported(const oak_ast_node_t* item)
   if (item->kind != OAK_NODE_ATTR_DECL)
     return 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &item->children)
+  OAK_LIST_FOR_EACH(pos, &item->children)
   {
     const oak_ast_node_t* child =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
       return oak_decl_is_exported(child);
   }
@@ -51,33 +51,33 @@ const char** oak_extract_attrs(oak_allocator_t* allocator,
 {
   *out_count = 0;
   if (item && item->kind == OAK_NODE_EXPORT_DECL)
-    return null;
+    return OAK_NULL;
   if (!item || item->kind != OAK_NODE_ATTR_DECL)
-    return null;
+    return OAK_NULL;
 
   int count = 0;
   oak_list_entry_t* pos;
-  oak_list_for_each(pos, &item->children)
+  OAK_LIST_FOR_EACH(pos, &item->children)
   {
     const oak_ast_node_t* child =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (child->kind == OAK_NODE_ATTR)
       ++count;
   }
 
   if (count == 0)
-    return null;
+    return OAK_NULL;
 
   const char** arr =
       oak_alloc(allocator, (usize)count * sizeof(const char*), OAK_HERE);
   if (!arr)
-    return null;
+    return OAK_NULL;
 
   int i = 0;
-  oak_list_for_each(pos, &item->children)
+  OAK_LIST_FOR_EACH(pos, &item->children)
   {
     const oak_ast_node_t* child =
-        oak_container_of(pos, oak_ast_node_t, link);
+        OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (child->kind != OAK_NODE_ATTR)
       break;
     arr[i++] = oak_token_text(child->child->token);
@@ -92,11 +92,11 @@ const char** oak_alloc_attrs(oak_allocator_t* allocator,
                               int count)
 {
   if (count <= 0)
-    return null;
+    return OAK_NULL;
   const char** arr =
       oak_alloc(allocator, (usize)count * sizeof(const char*), OAK_HERE);
   if (!arr)
-    return null;
+    return OAK_NULL;
   for (int i = 0; i < count; ++i)
     arr[i] = names[i];
   return arr;
@@ -137,7 +137,7 @@ void oak_compiler_dispatch_attr_cbs(oak_compiler_t* c,
    * message, and is not reachable here; a violation found on this pass reports
    * without a source location rather than not at all. */
   if (oak_size(c->records.entries) != records_before)
-    oak_compiler_check_cycles(c, null);
+    oak_compiler_check_cycles(c, OAK_NULL);
 }
 
 void oak_apply_runtime_attr_hook(oak_compiler_t* c,
