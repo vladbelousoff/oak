@@ -30,10 +30,16 @@ OAK_TEST_SUITE(module_loader);
 #define OAK_TEST_EXAMPLES_DIR "examples"
 #endif
 
+#ifndef OAK_TEST_FIXTURES_DIR
+#define OAK_TEST_FIXTURES_DIR "tests/suites/fixtures"
+#endif
+
 #define ENTRY_OK OAK_TEST_EXAMPLES_DIR "/06_modules/06_modules.oak"
 /* Imports `io`, whose native bindings are declared by an Oak stub in stdlib/.
  * Only loaded here, never run: running it would read a file. */
 #define ENTRY_NATIVE OAK_TEST_EXAMPLES_DIR "/08_file_io/08_file_io.oak"
+/* Imports a module that has no Oak stub, so the loader must synthesize it. */
+#define ENTRY_SYNTHETIC OAK_TEST_FIXTURES_DIR "/synthetic_native.oak"
 
 /* Load `path`, run every assertion the caller wants through `fn`, then tear
  * down in the documented order. The fixture's tracking allocator fails the test
@@ -338,6 +344,121 @@ UTEST_F(module_loader, a_native_module_exports_its_enum_variants)
     EXPECT_STREQ(expected[i], variants[i].name);
     EXPECT_EQ((int)i, variants[i].value);
   }
+
+  load_end(&f);
+}
+
+static void toy_destroy(void* instance, void* user_data)
+{
+  oak_free((oak_allocator_t*)user_data, instance, OAK_HERE);
+}
+
+static oak_fn_call_result_t toy_make(oak_native_call_t* call,
+                                     const oak_value_t* args,
+                                     const usize argc,
+                                     oak_value_t* out)
+{
+  int n;
+  if (!oak_arg_i32(call, args, argc, 0, &n))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  int* p = oak_alloc(call->allocator, sizeof *p, OAK_HERE);
+  if (!p)
+    return oak_native_error(call, "out of memory");
+  *p = n;
+  *out = oak_native_self_new(call, p);
+  return OAK_FN_CALL_OK;
+}
+
+static oak_fn_call_result_t toy_inc(oak_native_call_t* call,
+                                    const oak_value_t* args,
+                                    const usize argc,
+                                    oak_value_t* out)
+{
+  int* p;
+  if (!oak_arg_self(call, args, argc, (void**)&p))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_I32(*p + 1);
+  return OAK_FN_CALL_OK;
+}
+
+/* Same as load_begin, but the entry imports a native module that has no stub
+ * file. The playground takes this path for `io` -- it has no stdlib on disk
+ * and sets allow_synthetic_native_modules. */
+static void load_begin_synthetic(load_fixture_t* f,
+                                 oak_allocator_t* a,
+                                 const char* path)
+{
+  memset(&f->result, 0, sizeof f->result);
+  oak_compile_options_init(&f->opts, a);
+  f->opts.allow_synthetic_native_modules = 1;
+
+  oak_bind_type_t* box =
+      oak_bind_type_in_module(&f->opts, "toy", OAK_BIND_TYPE_RECORD, "Box");
+  if (box)
+  {
+    box->destructor = toy_destroy;
+    box->user_data = a;
+    const oak_bind_type_ref_t make_params[] = {
+      OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+    };
+    const oak_bind_fn_t methods[] = {
+      { .kind = OAK_BIND_FN_STATIC_METHOD,
+        .receiver_type = box,
+        .name = "make",
+        .impl = toy_make,
+        .return_type = OAK_BIND_NATIVE(box),
+        .param_types = make_params,
+        .param_count = 1 },
+      { .kind = OAK_BIND_FN_INSTANCE_METHOD,
+        .receiver_type = box,
+        .name = "inc",
+        .impl = toy_inc,
+        .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+        .param_count = 0 },
+    };
+    oak_bind_fns(&f->opts, methods, (int)OAK_COUNT_OF(methods));
+  }
+
+  oak_module_registry_init(&f->registry, a);
+  f->rc = oak_module_loader_load_program(
+      path, &f->opts, &f->registry, &f->result);
+}
+
+/* The playground never has stdlib/io.oak on its virtual disk, so `import * from
+ * io` is synthesized from the C bindings. That module has to export File.open
+ * (and the other methods) or the 08_file_io example fails with "record 'File'
+ * has no static method 'open'". */
+UTEST_F(module_loader, a_synthetic_native_module_exports_bound_methods)
+{
+  load_fixture_t f;
+  load_begin_synthetic(&f, OAK_A, ENTRY_SYNTHETIC);
+  ASSERT_EQ(0, f.rc);
+  ASSERT_EQ(0, f.result.error_count);
+  ASSERT_TRUE(f.result.entry != OAK_NULL);
+  ASSERT_TRUE(oak_module_chunk(f.result.entry) != OAK_NULL);
+
+  const oak_module_t* toy = find_module(&f.registry, "toy");
+  ASSERT_TRUE(toy != OAK_NULL);
+  const oak_chunk_t* chunk = oak_module_chunk(toy);
+  ASSERT_TRUE(chunk != OAK_NULL);
+
+  const oak_module_export_record_t* box = find_export_record(toy, "Box");
+  ASSERT_TRUE(box != OAK_NULL);
+  ASSERT_EQ((usize)2, oak_size(box->methods));
+
+  const oak_module_export_record_method_t* make = find_method(box, "make");
+  const oak_module_export_record_method_t* inc = find_method(box, "inc");
+  ASSERT_TRUE(make != OAK_NULL);
+  ASSERT_TRUE(inc != OAK_NULL);
+  EXPECT_EQ(1, make->is_static);
+  EXPECT_EQ(1, make->arity);
+  EXPECT_EQ(0, inc->is_static);
+  EXPECT_EQ(1, inc->arity);
+
+  ASSERT_LT((usize)make->const_idx, oak_size(chunk->constants));
+  ASSERT_LT((usize)inc->const_idx, oak_size(chunk->constants));
+  EXPECT_TRUE(oak_is_native_fn(oak_chunk_constant(chunk, (usize)make->const_idx)));
+  EXPECT_TRUE(oak_is_native_fn(oak_chunk_constant(chunk, (usize)inc->const_idx)));
 
   load_end(&f);
 }

@@ -1,0 +1,4 @@
+import * from toy;
+
+let box = Box.make(41);
+let n = box.inc();

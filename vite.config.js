@@ -31,6 +31,7 @@ export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       '@examples': path.resolve(projectRoot, 'examples'),
+      '@stdlib': path.resolve(projectRoot, 'stdlib'),
     },
   },
   plugins: [wasmDevPlugin()],

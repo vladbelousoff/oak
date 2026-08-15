@@ -432,7 +432,8 @@ else
     # source tree. Same pattern as OAK_STDLIB_SOURCE_DIR above; nothing is
     # written, so the "tests do no filesystem I/O" rule still holds for output.
     c_args: common_c_args +
-      ['-DOAK_TEST_EXAMPLES_DIR="' + meson.current_source_dir() / 'examples' + '"'],
+      ['-DOAK_TEST_EXAMPLES_DIR="' + meson.current_source_dir() / 'examples' + '"',
+       '-DOAK_TEST_FIXTURES_DIR="' + meson.current_source_dir() / 'tests/suites/fixtures' + '"'],
     dependencies: acorn_dep,
   )
 

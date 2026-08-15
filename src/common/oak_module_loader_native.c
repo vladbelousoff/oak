@@ -603,6 +603,46 @@ oak_module_t* create_native_module(
       };
       OAK_ASSERT(oak_push_back(exp.fields, &field));
     }
+    /* Bindings, not the missing stub, are the source of methods here. An
+     * importer looks them up on the export record (File.open, File.read_all),
+     * so leaving this vector empty made every static call fail with
+     * "record 'File' has no static method ...". */
+    const oak_bind_fn_t* native_fns =
+        OAK_CDATA(oak_bind_fn_t, opts->native_fns);
+    for (usize fi = 0; fi < oak_size(opts->native_fns); ++fi)
+    {
+      const oak_bind_fn_t* fn = &native_fns[fi];
+      if (fn->receiver_type != type || !fn->name || !fn->impl)
+        continue;
+      const int is_static = (fn->kind == OAK_BIND_FN_STATIC_METHOD);
+      const int vm_arity = is_static ? (int)fn->param_count
+                                     : (int)fn->param_count + 1;
+      oak_obj_native_fn_t* native = oak_native_fn_new(
+          a, fn->impl, (usize)vm_arity, fn->name, fn->user_data);
+      native->self_type = fn->receiver_type;
+      oak_module_export_record_method_t method = { 0 };
+      method.name = fn->name;
+      method.const_idx =
+          (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
+      method.arity = vm_arity;
+      method.is_static = is_static;
+      method.return_type = native_ref_type(&fn->return_type);
+      if (fn->param_types && vm_arity > 0)
+      {
+        method.param_types =
+            oak_alloc(a, (usize)vm_arity * sizeof(oak_type_t), OAK_HERE);
+        int slot = 0;
+        if (!is_static)
+        {
+          oak_type_clear(&method.param_types[slot]);
+          method.param_types[slot].id = type->resolved_type_id;
+          ++slot;
+        }
+        for (usize pi = 0; pi < fn->param_count; ++pi, ++slot)
+          oak_lower_bind_ref(&fn->param_types[pi], &method.param_types[slot]);
+      }
+      OAK_ASSERT(oak_push_back(exp.methods, &method));
+    }
     oak_symbol_registry_insert_record(
         &mod->exports, exp.name, mod->module_id, &exp);
   }

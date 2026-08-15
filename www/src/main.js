@@ -135,6 +135,7 @@ window.OakModule({
     throw new Error('WASM filesystem API is unavailable; refresh the page to load the latest runtime.');
   }
   mountExamples(wasmFS);
+  mountStdlib(wasmFS);
   ensureDir(wasmFS, '/playground');
   oakRunFile = module.cwrap('oak_run_file_wrapper', 'number', ['string']);
   runBtn.disabled = false;
@@ -175,6 +176,12 @@ const view = new EditorView({
 
 // ── Examples ──────────────────────────────────────────────────────────────────
 const rawExampleFiles = import.meta.glob('@examples/**/*', {
+  eager: true,
+  query: '?raw',
+  import: 'default',
+});
+
+const rawStdlibFiles = import.meta.glob('@stdlib/**/*.oak', {
   eager: true,
   query: '?raw',
   import: 'default',
@@ -224,6 +231,21 @@ function mountExamples(fs) {
   for (const [path, src] of EXAMPLE_FILES) {
     ensureDir(fs, path.replace(/\/[^/]+$/, ''));
     fs.writeFile(path, src);
+  }
+}
+
+function stdlibRelativePath(path) {
+  return path
+    .replace(/^@stdlib\//, '')
+    .replace(/^.*\/stdlib\//, '');
+}
+
+function mountStdlib(fs) {
+  ensureDir(fs, '/stdlib');
+  for (const [path, src] of Object.entries(rawStdlibFiles)) {
+    const dest = '/stdlib/' + stdlibRelativePath(path);
+    ensureDir(fs, dest.replace(/\/[^/]+$/, ''));
+    fs.writeFile(dest, src);
   }
 }
 

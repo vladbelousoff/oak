@@ -230,8 +230,8 @@ int oak_module_loader_load_program(const char* entry_path,
     if (!path_exists(file_path) && is_native)
     {
       /* Synthesizing the module from the native bindings alone drops
-       * everything only the Oak stub declares (parameter types, record
-       * methods, bodyless signatures), so it is opt-in: hosts without a
+       * everything only the Oak stub declares (parameter mutability,
+       * stub-only signatures), so it is opt-in: hosts without a
        * filesystem to load stubs from enable it explicitly. Otherwise a
        * missing stub is reported as the configuration error it is. */
       if (!opts->allow_synthetic_native_modules)

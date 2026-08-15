@@ -18,9 +18,8 @@ int oak_run_file_wrapper(const char* path)
   oak_compile_options_init(&compile_opts, &allocator);
   compile_opts.source_name = path;
   compile_opts.emit_debug_info = 1;
-  /* The playground's virtual filesystem holds only the example sources, so
-   * stdlib modules like `io` have no stub to load and must be synthesized
-   * from the registered native bindings. */
+  /* The playground mounts stdlib stubs at /stdlib. Keep synthesis as a
+   * fallback so a missing stub still builds from the registered bindings. */
   compile_opts.allow_synthetic_native_modules = 1;
   oak_stdlib_register(&compile_opts);
 
