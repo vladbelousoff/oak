@@ -89,4 +89,4 @@ meson test -C build compiler_interfaces      # single suite
 
 ## Native Bindings
 
-Register native types, functions, enums, and attributes on `oak_compile_options_t` before calling `oak_compile_ex()`. See `README.md` and `src/stdlib/` for examples.
+Register native types, functions, enums, and attributes on `oak_compile_options_t` before calling `oak_compile_ex()`. See `docs/embedding-c.md` and `src/stdlib/` for examples.

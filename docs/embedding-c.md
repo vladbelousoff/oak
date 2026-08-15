@@ -1,35 +1,35 @@
-# Embedding Oak: C API
+# Embedding Oak in C
 
-Link against `acorn` and include the public headers from
-[`include/`](../include/). The binding API is descriptor-based: you describe
-native types, functions, enums, and attributes on `oak_compile_options_t`,
-then compile with `oak_compile_ex()`. Bound names participate in Oak's
-compile-time type checks exactly like Oak-declared ones — a script that calls
-a native function with the wrong argument type fails to compile.
+Acorn is Oak's C library. You compile Oak source, run it on a VM, and
+you can add your own functions, types, and enums. Those bindings go
+through the same type checker as Oak code — a script that calls your
+function with the wrong type will not compile.
 
-The examples below are condensed. For a complete program that is compiled and
-run by CI, see
-[`tests/public_api/oak_embed_smoke.c`](../tests/public_api/oak_embed_smoke.c):
-it registers a native function, a record type with a field and a method, an
-enum and an attribute, compiles and runs a script, and tears everything down in
-the documented order. It builds against `include/` alone with no `-DOAK_*`
-flags, so it cannot drift from what an embedder actually gets.
+Include the public headers from [`include/`](../include/) and link
+against `acorn`.
 
-Further usage lives in
+The complete example that CI compiles and runs is
+[`tests/public_api/oak_embed_smoke.c`](../tests/public_api/oak_embed_smoke.c).
+It registers a function, a record type, an enum, and an attribute,
+then tears everything down in the documented order. It builds against
+`include/` alone, with no `-DOAK_*` flags, so it matches what an
+embedder actually gets.
+
+More usage lives in
 [`tests/suites/bind_fn_test.c`](../tests/suites/bind_fn_test.c),
-[`tests/suites/bind_type_test.c`](../tests/suites/bind_type_test.c), and
-[`src/stdlib/`](../src/stdlib/) (the real registrations behind `io.File`).
+[`tests/suites/bind_type_test.c`](../tests/suites/bind_type_test.c),
+and [`src/stdlib/`](../src/stdlib/) (the real `io.File` bindings).
 
-Note that `sqrt`, `pow` and the string methods are *not* native bindings: the
-compiler installs them directly as globals and methods, so there is no `math`
-module to import and no way for an embedder to add to or remove from those
-tables. `oak_stdlib_register()` registers `io.File` only.
+`sqrt`, `pow`, and the string methods are **not** native bindings. The
+compiler installs them itself. `oak_stdlib_register()` only registers
+`io.File`. There is no `math` module to import, and no way to add to
+or remove those built-ins.
 
 ## Compile and run
 
 The pipeline is `source → lexer → parser → compiler → chunk → VM`.
-`oak_program_t` drives all of it and owns the three intermediate results, so
-they are released together and in the right order:
+`oak_program_t` runs all of it and owns the intermediate results, so
+they are freed together and in the right order:
 
 ```c
 #include "oak_allocator.h"
@@ -68,22 +68,24 @@ oak_program_free(&prog);
 oak_compile_options_free(&opts);
 ```
 
-The allocator for every stage comes from `opts->allocator`, so there is one
-place to set it. `oak_program_free` is safe to call on a failed or
-already-freed program, so the teardown does not need to branch.
+Every stage uses `opts->allocator`, so there is one place to set it.
+`oak_program_free` is safe on a failed or already-freed program.
 
-The stages can still be driven by hand — `oak_lexer_tokenize`, `oak_parse` and
-`oak_compile_ex` are all public — if you need the token stream or AST for
-tooling. Doing so means holding three results alive and freeing the parser
-result before the lexer, since the AST arena borrows the lexer's tokens.
+Free the compile options last. Native values keep pointers into those
+descriptors.
 
-### Diagnostics
+You can still drive the stages by hand — `oak_lexer_tokenize`,
+`oak_parse`, and `oak_compile_ex` are public — if you need the token
+stream or AST for tooling. If you do, free the parser result before
+the lexer: the AST arena borrows the lexer's tokens.
 
-Compile-time and run-time errors are both reported as `oak_diagnostic_t`
-(`line`, `column`, `message`), and `oak_diagnostics_print` writes an array of
-them to stderr. Where to find them:
+### Errors
 
-| Stage | Accessor |
+Compile-time and run-time errors are both `oak_diagnostic_t`
+(`line`, `column`, `message`). `oak_diagnostics_print` writes an
+array of them to stderr.
+
+| Stage | Where to read them |
 |---|---|
 | lex / parse / compile via `oak_program_t` | `oak_program_errors()` / `oak_program_error_count()` |
 | parsing directly | `oak_parser_errors()` / `oak_parser_error_count()` |
@@ -91,20 +93,22 @@ them to stderr. Where to find them:
 | module loading | `oak_module_loader_result_t::errors` / `::error_count` |
 | run time | `oak_vm_last_error()` |
 
-`oak_vm_last_error` returns the most recent runtime error, or `NULL` if the
-last `oak_vm_run` / `oak_vm_call` did not fail. Runtime errors are written to
-stderr as well; this is how to get them as data instead.
+`oak_vm_last_error` returns the most recent runtime error, or `NULL`
+if the last `oak_vm_run` / `oak_vm_call` succeeded. Runtime errors
+are also written to stderr; this is how to get them as data.
 
-To route Oak through another allocator, initialize it with any
-`malloc`/`realloc`/`free`-compatible functions instead:
+### Allocators
+
+To use your own allocator, pass any `malloc` / `realloc` / `free`
+compatible functions:
 
 ```c
 oak_allocator_t allocator_storage;
 oak_allocator_init(&allocator_storage, my_malloc, my_realloc, my_free);
 ```
 
-To allocate through it, call `oak_alloc` / `oak_realloc` / `oak_free`. Each
-takes an `oak_source_loc_t` saying where the memory was asked for, which is
+Allocate through `oak_alloc` / `oak_realloc` / `oak_free`. Each takes
+an `oak_source_loc_t` saying where the memory was asked for, which is
 what the tracking allocator reports on a leak:
 
 ```c
@@ -112,11 +116,10 @@ void* p = oak_alloc(&allocator_storage, 64, OAK_HERE);
 oak_free(&allocator_storage, p, OAK_HERE);
 ```
 
-`OAK_HERE` is the current C file and line. It is an argument rather than
-something a macro hides because the answer is often not the call site: a helper
-that allocates for a caller should take an `oak_source_loc_t` of its own and
-pass it straight through, so a leak names whoever asked for the memory instead
-of the one line every caller funnels into.
+`OAK_HERE` is the current C file and line. Pass it when *this* call
+site is who asked for the memory. A helper that allocates for a
+caller should take an `oak_source_loc_t` and forward it, so a leak
+names the caller rather than the helper:
 
 ```c
 static Node* node_new(oak_allocator_t* a, oak_source_loc_t at)
@@ -125,13 +128,12 @@ static Node* node_new(oak_allocator_t* a, oak_source_loc_t at)
 }
 ```
 
-The location's `file` is borrowed, never copied, and the tracking allocator
-only reads it back at shutdown — so it has to outlive the allocation. A
-`__FILE__` literal always does; anything else must be at least as long-lived as
-the memory it describes.
+The location's `file` is borrowed, never copied. A `__FILE__` literal
+is fine. Anything else must live at least as long as the allocation.
 
-Writing an `oak_allocator_t` by hand rather than through `oak_allocator_init`
-means implementing the three callbacks, which receive that location:
+If you write an `oak_allocator_t` by hand instead of using
+`oak_allocator_init`, implement the three callbacks. They receive
+that location:
 
 ```c
 static void* my_alloc(oak_allocator_t* self, usize size, oak_source_loc_t at);
@@ -140,34 +142,24 @@ static void* my_realloc(oak_allocator_t* self, void* ptr, usize new_size,
 static void  my_free(oak_allocator_t* self, void* ptr, oak_source_loc_t at);
 ```
 
-`oak_vm_call()` calls an Oak function value from C. It needs a chunk attached
-to the VM: either run one first with `oak_vm_run()`, or attach one without
-executing it using `oak_vm_prepare()`. `oak_vm_t::user_data` carries an
-embedder pointer so native callbacks can recover their host object without
-process globals.
+### Calling Oak from C
 
-VM ownership is explicit rather than thread-local. Use the `oak_vm_*_new()`
-family when a heap value should belong to a particular VM; for example:
+`oak_vm_call()` calls an Oak function value from C. The VM needs a
+chunk attached first: either run one with `oak_vm_run()`, or attach
+one without executing it with `oak_vm_prepare()`.
 
-```c
-oak_obj_string_t* message = oak_vm_string_new(&vm, "hello");
-oak_obj_array_t* items = oak_vm_array_new(&vm);
-```
-
-The plain `oak_string_new()`, `oak_array_new()`, and related constructors make
-process-shared values instead. A thread may operate on different VMs, and a VM
-may move between threads between calls, but a VM and its values must never be
-used concurrently. The registry supports 63 live VM tables plus shared table
-0.
+`oak_vm_t::user_data` is an embedder pointer so native callbacks can
+recover their host object without process globals.
 
 ## Native functions
 
-Every native callable — global function, instance method, static method —
-has the same C signature:
+Every native callable — global function, instance method, static
+method — has the same C signature:
 
 ```c
-/* The compile-time signature. OAK_BIND_*_INIT are brace initializers, so the
- * table can have static storage; the OAK_BIND_* function forms cannot. */
+/* The compile-time signature. OAK_BIND_*_INIT are brace initializers,
+ * so the table can have static storage. The OAK_BIND_* function forms
+ * cannot. */
 static const oak_bind_type_ref_t add_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
@@ -188,12 +180,12 @@ static oak_fn_call_result_t add(oak_native_call_t* call,
 }
 ```
 
-`call` provides the VM, the allocator, the `user_data` pointer from the binding
-descriptor, the binding's name, and — for a method — its receiver type.
+`call` gives you the VM, the allocator, the `user_data` pointer from
+the binding, the binding's name, and — for a method — its receiver type.
 
 ### Reading arguments
 
-The `oak_arg_*` family reads one argument, checking it on the way:
+`oak_arg_*` reads one argument and checks it:
 
 | Accessor | Yields |
 |---|---|
@@ -205,19 +197,19 @@ The `oak_arg_*` family reads one argument, checking it on the way:
 | `oak_arg_native` | the C instance behind a native record of a given type |
 | `oak_arg_self` | `oak_arg_native` against `args[0]` and the receiver type |
 
-Each returns non-zero on success. On a missing or wrongly-typed argument it
-raises a runtime error naming the binding, the parameter position, and the
-expected versus actual type, then returns 0 — so the guard is one line and the
-diagnostic is written centrally rather than per callback.
+Each returns non-zero on success. On a missing or wrongly-typed
+argument it raises a runtime error naming the binding, the parameter
+position, and the expected versus actual type, then returns 0.
 
-Do not re-check `argc`: the VM matches it against the binding's declared arity
-before dispatching, on every path including `oak_vm_call()` from C.
+Do not re-check `argc`. The VM already matched it against the
+binding's declared arity, including on `oak_vm_call()` from C.
 
-`oak_arg_native` and `oak_arg_self` are the only *checked* way to unwrap a
-native record. `oak_native_instance()` asserts merely that the value is some
-native record and then reinterprets whatever C struct is behind it, so a
-receiver of the wrong bound type is silently misread — reachable from C through
-`oak_vm_call()`, where no compile-time check applies.
+`oak_arg_native` and `oak_arg_self` are the only *checked* way to
+unwrap a native record. `oak_native_instance()` only asserts that the
+value is *some* native record, then reinterprets whatever C struct is
+behind it. A receiver of the wrong type is silently misread. That
+path is reachable from C through `oak_vm_call()`, where no
+compile-time check applies.
 
 ### Reporting failure
 
@@ -229,13 +221,12 @@ if (!fp)
   return oak_native_error(call, "cannot open '%s'", path);
 ```
 
-The message is prefixed with the binding's name and reaches the embedder
-through `oak_vm_last_error()`. Returning `OAK_FN_CALL_RUNTIME_ERROR` without
-calling it still aborts the script, but reports only
-`native function '<name>' failed`, which cannot distinguish a missing file from
-a bad argument.
+The message is prefixed with the binding's name and reaches you
+through `oak_vm_last_error()`. Returning `OAK_FN_CALL_RUNTIME_ERROR`
+without calling it still aborts the script, but the message is only
+`native function '<name>' failed`.
 
-### Registering it
+### Registering a function
 
 ```c
 oak_bind_fn_global(&opts,
@@ -247,27 +238,26 @@ oak_bind_fn_global(&opts,
                    });
 ```
 
-`OAK_BIND_PARAMS` fills `arity`, `param_types` and `param_count` from the one
-array so they cannot disagree; set them individually only for a binding with no
-declared parameter types. The array is borrowed and must outlive
-`oak_compile_ex`, so it cannot be a local.
+`OAK_BIND_PARAMS` fills `arity`, `param_types`, and `param_count`
+from one array so they cannot disagree. Set them individually only
+for a binding with no declared parameter types. The array is
+borrowed and must outlive `oak_compile_ex`, so it cannot be a local.
 
-The `module_name` field scopes the function into an importable module instead
-of the global namespace — see
-[Module-scoped bindings](#module-scoped-bindings) for the full pattern.
-`param_types` is optional but recommended: with it, the compiler type-checks
-call sites.
+Set `module_name` to put the function in an importable module instead
+of the global namespace — see [Module-scoped bindings](#module-scoped-bindings).
+`param_types` is optional but recommended: with it, the compiler
+type-checks call sites.
 
-Every `oak_bind_*` call returns 0 or -1, and a rejection is *also* recorded and
-reported by `oak_compile_ex` as a diagnostic — a mis-registered binding fails
-the compile and names itself, rather than silently going missing and surfacing
-later as an "unknown name" error at the call site.
+Every `oak_bind_*` call returns 0 or -1. A rejection is also recorded
+and reported by `oak_compile_ex` as a diagnostic, so a mis-registered
+binding fails the compile and names itself, rather than silently
+going missing.
 
 ### Registering several at once
 
-`oak_bind_fields`, `oak_bind_fns`, `oak_bind_fns_global` and
-`oak_bind_enum_variants` take an array, so a binding can be a table rather than
-a run of near-identical calls. Each returns 0 only if every entry registered:
+`oak_bind_fields`, `oak_bind_fns`, `oak_bind_fns_global`, and
+`oak_bind_enum_variants` take an array. Each returns 0 only if every
+entry registered:
 
 ```c
 static const oak_bind_enum_variant_t modes[] = {
@@ -276,10 +266,11 @@ static const oak_bind_enum_variant_t modes[] = {
 oak_bind_enum_variants(mode, modes, (int)oak_count_of(modes));
 ```
 
-A table that references a descriptor returned by `oak_bind_type()` cannot be
-`static`, since that pointer is only known at run time — make it a local array.
-See [`src/stdlib/oak_stdlib_file.c`](../src/stdlib/oak_stdlib_file.c) for both
-shapes.
+A table that references a descriptor returned by `oak_bind_type()`
+cannot be `static`, since that pointer is only known at run time —
+make it a local array. See
+[`src/stdlib/oak_stdlib_file.c`](../src/stdlib/oak_stdlib_file.c)
+for both shapes.
 
 ### Type references
 
@@ -294,28 +285,27 @@ shapes.
 | `OAK_BIND_NATIVE_ARRAY(desc)` | array of a native type |
 | `OAK_BIND_NATIVE_MAP(kdesc, vdesc)` | map with native key and/or value types |
 
-`OAK_BIND_SCALAR_INIT`, `OAK_BIND_ARRAY_INIT` and `OAK_BIND_MAP_INIT` are brace
-initializers for the same three builtin forms, for tables with static storage
-duration — the macros above expand to a function call, which C does not accept
-as a static initializer.
+`OAK_BIND_SCALAR_INIT`, `OAK_BIND_ARRAY_INIT`, and `OAK_BIND_MAP_INIT`
+are brace initializers for the same three builtin forms. Use them for
+tables with static storage — the macros above expand to a function
+call, which C does not accept as a static initializer.
 
-`OAK_BIND_ENUM(desc)` and `OAK_BIND_ENUM_ARRAY(desc)` name a native enum
-registered with `oak_bind_enum()`. Prefer them over `OAK_TYPE_NUMBER` for an
-enum-typed parameter: the compiler then accepts `f(EnumName.Variant)` and
-rejects a bare integer. At run time an enum value *is* its integer, so a
-number check inside the callback is the right one — `oak_arg_i32` rather than
-anything enum-aware.
+`OAK_BIND_ENUM(desc)` and `OAK_BIND_ENUM_ARRAY(desc)` name a native
+enum registered with `oak_bind_enum()`. Prefer them over
+`OAK_TYPE_NUMBER` for an enum-typed parameter: the compiler then
+accepts `f(EnumName.Variant)` and rejects a bare integer. At run time
+an enum value *is* its integer, so check it with `oak_arg_i32`.
 
-`OAK_BIND_WEAK(ref)` wraps any of the forms above to make the reference
-non-owning. Oak has no cycle collector, so a native field that points back at
-something that can reach it must be declared weak, exactly as it would be in
-Oak source; a weak field takes part in the same compile-time acyclicity
-analysis as a declared one.
+`OAK_BIND_WEAK(ref)` wraps any of the forms above to make the
+reference non-owning. Oak has no cycle collector, so a native field
+that points back at something that can reach it must be declared
+weak, exactly as it would be in Oak source.
 
 ## Native record types
 
-`oak_bind_type()` registers a heap-allocated, reference-counted record type;
-fields are exposed through getter/setter callbacks over the raw C instance:
+`oak_bind_type()` registers a heap-allocated, reference-counted
+record type. Fields are exposed through getter/setter callbacks over
+the raw C instance:
 
 ```c
 typedef struct Vec2
@@ -342,8 +332,8 @@ static void vec2_set_x(oak_value_t self,
 
 static void vec2_free(void* instance)
 {
-  /* free whatever the instance owns; instance itself is the pointer you
-   * passed to oak_vm_native_record_new */
+  /* free whatever the instance owns; instance itself is the pointer
+   * you passed to oak_vm_native_record_new */
   free(instance);
 }
 
@@ -356,9 +346,9 @@ vec2->destructor = vec2_free;
 
        record Vec2 implements IVector { x : number; y : number; }
 
-   Neither side wins — a disagreement is rejected, exactly as a disagreement
-   about the field list is. In a program that never declares IVector at all,
-   the claim is simply inert. */
+   A disagreement is rejected, the same as a disagreement about the
+   field list. If the program never declares IVector, the claim does
+   nothing. */
 oak_bind_type_implements(vec2, "IVector");
 
 oak_bind_field(vec2,
@@ -370,16 +360,19 @@ oak_bind_field(vec2,
                });
 ```
 
-Ownership at the field boundary runs in opposite directions, so both are worth
-stating: a **getter returns an owned reference** — object values (strings,
-arrays, records) must carry a refcount already incremented; scalars need none.
-A **setter receives a borrowed value**, which the VM releases as soon as the
-setter returns, so a setter that stores an object value must
-`oak_value_incref` it first.
+Ownership at the field boundary runs in opposite directions:
 
-Instances are created inside a native callback — typically a static method
-acting as a constructor, where `oak_native_self_new()` wraps the instance as
-the receiver type without the binding having to carry its own descriptor:
+- A **getter returns an owned reference**. Object values (strings,
+  arrays, records) must already have their refcount incremented.
+  Scalars need none.
+- A **setter receives a borrowed value**. The VM releases it as soon
+  as the setter returns, so a setter that stores an object value must
+  `oak_value_incref` it first.
+
+Create instances inside a native callback — typically a static method
+acting as a constructor. `oak_native_self_new()` wraps the instance
+as the receiver type, so the binding does not have to carry its own
+descriptor:
 
 ```c
 static oak_fn_call_result_t make_vec2(oak_native_call_t* call,
@@ -403,20 +396,20 @@ static oak_fn_call_result_t make_vec2(oak_native_call_t* call,
 }
 ```
 
-A *global* function has no receiver, so it still needs the descriptor through
-`user_data`: `oak_vm_native_record_new(call->vm, call->user_data, v)`.
+A *global* function has no receiver, so it still needs the descriptor
+through `user_data`:
+`oak_vm_native_record_new(call->vm, call->user_data, v)`.
 
-The wrapper participates in normal reference counting: when the last reference
-drops, the registered `destructor` runs, receiving the instance pointer and the
-type's `user_data` (teardown has no VM or call in scope, so that is where an
-allocator has to come from). If no destructor is registered the instance is
-never freed — lifetime stays with the embedder, which is useful for values that
-point into host-owned memory.
+When the last reference drops, the registered `destructor` runs. It
+receives the instance pointer and the type's `user_data` — teardown
+has no VM or call in scope, so that is where an allocator has to
+come from. If no destructor is registered the instance is never
+freed, which is useful for values that point into host-owned memory.
 
-Returning a value the callback did not just allocate needs care: `*out` is
-*moved* to the VM, which then releases every argument. Assigning an object
-argument straight through — `*out = args[0]` — is therefore a use-after-free.
-Incref it first, or return a fresh object.
+Returning a value the callback did not just allocate needs care:
+`*out` is *moved* to the VM, which then releases every argument.
+Assigning an object argument straight through — `*out = args[0]` —
+is a use-after-free. Incref it first, or return a fresh object.
 
 ## Methods
 
@@ -434,14 +427,15 @@ oak_bind_fn(&opts,
             });
 ```
 
-For instance methods, `arity` counts only the user-visible parameters; at run
-time the callback receives `self` as `args[0]` (so `argc == arity + 1`), and
-`oak_arg_self()` recovers the C pointer, having first checked that the receiver
-really is this type. Static methods (`OAK_BIND_FN_STATIC_METHOD`) have no
-receiver and are called as `TypeName.name(...)` from Oak.
+For instance methods, `arity` counts only the user-visible
+parameters. At run time the callback receives `self` as `args[0]`
+(so `argc == arity + 1`), and `oak_arg_self()` recovers the C
+pointer after checking the type. Static methods
+(`OAK_BIND_FN_STATIC_METHOD`) have no receiver and are called as
+`TypeName.name(...)` from Oak.
 
-Because `self` occupies `args[0]`, an explicit parameter *i* is at index
-*i + 1*:
+Because `self` occupies `args[0]`, an explicit parameter *i* is at
+index *i + 1*:
 
 ```c
 static oak_fn_call_result_t vec2_scale(oak_native_call_t* call,
@@ -460,10 +454,12 @@ static oak_fn_call_result_t vec2_scale(oak_native_call_t* call,
 
 ## Inline value types
 
-`OAK_BIND_TYPE_VALUE` registers a type whose instances live directly inside
-the 8-byte `oak_value_t` — no heap wrapper, no refcount, no destructor.
-The payload must fit in 61 bits (pointers do; arbitrary u64 ids may not).
-Value types expose data through methods only (they cannot declare fields).
+`OAK_BIND_TYPE_VALUE` registers a type whose instances live directly
+inside the 8-byte `oak_value_t` — no heap wrapper, no refcount, no
+destructor. The payload must fit in 61 bits (pointers do; arbitrary
+u64 ids may not). Value types expose data through methods only; they
+cannot declare fields.
+
 Wrap and unwrap the opaque payload with `oak_native_value_new()` /
 `oak_native_value()`. See
 [`tests/suites/bind_type_test.c`](../tests/suites/bind_type_test.c).
@@ -477,86 +473,131 @@ oak_bind_enum_variant(color, "Green", 1);
 oak_bind_enum_variant(color, "Blue", 2);
 ```
 
-Oak code then uses `Color.Green` with the same enum-aware type checking as a
+Oak code then uses `Color.Green` with the same type checking as a
 declared `enum`.
 
 ## Module-scoped bindings
 
-By default bindings land in the global namespace. To expose a native API as
-an importable module — the way the stdlib provides `io.File` — two pieces
-work together:
+By default bindings land in the global namespace. To expose a native
+API as an importable module — the way the stdlib provides `io.File`
+— two pieces work together.
 
-1. An Oak **declaration module**: a `.oak` file declaring the module's types,
-   enums, and function signatures without bodies
-   ([`stdlib/io.oak`](../stdlib/io.oak)):
+**1. An Oak declaration module.** A `.oak` file that declares the
+module's types, enums, and function signatures without bodies
+([`stdlib/io.oak`](../stdlib/io.oak)):
 
-   ```oak
-   export enum FileMode { Read, Write, Append }
+```oak
+export enum FileMode { Read, Write, Append }
 
-   export record File {
-     export fn static open(path : string, mode : FileMode) -> File;
-     export fn read() -> string;
-     export fn mut write(value : string);
-   }
-   ```
+export record File {
+  export fn static open(path : string, mode : FileMode) -> File;
+  export fn read() -> string;
+  export fn mut write(value : string);
+}
+```
 
-   A native record's fields are bound from C, so its body usually declares only
-   methods. Each one must agree with its binding on kind as well as name and
-   arity: `fn static` has to match `OAK_BIND_FN_STATIC_METHOD` and a bare `fn`
-   `OAK_BIND_FN_INSTANCE_METHOD`, or the module fails to load.
+A native record's fields are bound from C, so its body usually
+declares only methods. Each one must agree with its binding on
+kind as well as name and arity: `fn static` has to match
+`OAK_BIND_FN_STATIC_METHOD`, and a bare `fn` has to match
+`OAK_BIND_FN_INSTANCE_METHOD`, or the module fails to load.
 
-   Bodyless signatures compile only when `allow_bodyless_fns` is set on the
-   compile options for that module.
+Bodyless signatures compile only when `allow_bodyless_fns` is set
+on the compile options for that module.
 
-2. Native bindings registered under the matching module name with
-   `oak_bind_type_in_module()`, `oak_bind_enum_in_module()`, and the
-   `module_name` field on function descriptors
-   ([`src/stdlib/oak_stdlib_file.c`](../src/stdlib/oak_stdlib_file.c)):
+**2. Native bindings** registered under the matching module name
+with `oak_bind_type_in_module()`, `oak_bind_enum_in_module()`, and
+the `module_name` field on function descriptors
+([`src/stdlib/oak_stdlib_file.c`](../src/stdlib/oak_stdlib_file.c)):
 
-   ```c
-   oak_bind_type_t* file =
-       oak_bind_type_in_module(&opts, "io", OAK_BIND_TYPE_RECORD, "File");
-   ```
+```c
+oak_bind_type_t* file =
+    oak_bind_type_in_module(&opts, "io", OAK_BIND_TYPE_RECORD, "File");
+```
 
 Programs compiled through the module loader
 (`oak_module_loader_load_program()`, declared in
-[`include/oak_module_loader.h`](../include/oak_module_loader.h)) then import
-the module like any other:
+[`include/oak_module_loader.h`](../include/oak_module_loader.h))
+then import the module like any other:
 
 ```oak
 import { File, FileMode } from io;
 ```
 
-The loader resolves the declaration module from the stdlib search path, and a
-missing file is an error. A host with no filesystem to load it from (the
+The loader resolves the declaration module from the stdlib search
+path. A missing file is an error. A host with no filesystem (the
 WebAssembly playground, an embedder shipping only bindings) can set
 `allow_synthetic_native_modules` on the compile options — or pass
-`--allow-synthetic-modules` to the CLI — to build the module from the
-registered bindings alone. The synthesized module carries only what the
-bindings describe, so anything the stub adds on top — parameter types and
-mutability, `mut self` receivers, declarations with no matching binding — is
+`--allow-synthetic-modules` to the CLI — to build the module from
+the registered bindings alone.
+
+The synthesized module carries only what the bindings describe, so
+anything the stub adds on top — parameter types and mutability,
+`mut self` receivers, declarations with no matching binding — is
 absent, and calls into it are checked more loosely.
 
 ## Attributes
 
 `oak_bind_attr()` registers a named attribute with two optional hooks:
-`on_decl` fires at compile time for each declaration bearing the attribute
-(with parameter/field metadata, and a live `oak_compile_options_t*` so it can
-register additional bindings); `on_call` fires before every call to a
-function bearing it and can abort the call by returning
-`OAK_FN_CALL_RUNTIME_ERROR`.
+
+- `on_decl` fires at compile time for each declaration that bears the
+  attribute. It gets parameter/field metadata and a live
+  `oak_compile_options_t*`, so it can register more bindings.
+- `on_call` fires before every call to a function that bears it, and
+  can abort the call by returning `OAK_FN_CALL_RUNTIME_ERROR`.
+
+## Values, VMs, and threads
+
+Every Oak value is one 64-bit word. Heap objects belong either to a
+specific VM or to the process-shared table.
+
+Use the `oak_vm_*_new()` family when a heap value should belong to a
+particular VM:
+
+```c
+oak_obj_string_t* message = oak_vm_string_new(&vm, "hello");
+oak_obj_array_t* items = oak_vm_array_new(&vm);
+```
+
+The plain `oak_string_new()`, `oak_array_new()`, and related
+constructors make process-shared values instead (compiled constants
+and native definitions live here).
+
+Rules that follow from that:
+
+- One thread may operate on different VMs, and a VM may move between
+  threads *between* calls.
+- Neither a VM nor its values may be accessed concurrently.
+- At most 63 VM tables can be live alongside the shared table.
+- Heap values created by a VM stay in that VM. The runtime rejects
+  putting a strong or weak reference from one VM into another VM's
+  stack, array, map, record, native field, or call arguments —
+  including in release builds.
+- Scalar values and process-owned (table-0) objects may be used by
+  every VM.
+- To talk between workers, exchange host data or scalar Oak values
+  and recreate arrays, maps, records, and strings in the destination
+  VM. Do not pass an object `oak_value_t` across VMs.
+
+When an object dies, its slot's generation number (nonce) is
+incremented before the slot can be reused. A weak reference therefore
+becomes `none` instead of silently pointing at whatever was allocated
+next in that slot.
 
 ## The cycle invariant
 
-Oak has no runtime cycle collector: the compiler rejects programs that could
-form strong reference cycles, so reference counting alone reclaims every
-object. Native code must uphold the same invariant — never create a strong
-ownership loop from C (an Oak value stored in a native instance that
-ultimately owns that instance). Hold weak values or restructure ownership so
-the graph stays acyclic.
+Oak has no runtime cycle collector. The compiler rejects programs
+that could form strong reference cycles, so reference counting alone
+reclaims every object.
 
-A *declared* native field takes part in that analysis, so wrap its type in
-`OAK_BIND_WEAK` when it points back at something that can reach the owner:
+Native code must uphold the same rule: never create a strong
+ownership loop from C (an Oak value stored in a native instance that
+ultimately owns that instance). Hold weak values, or restructure
+ownership so the graph stays acyclic.
+
+A *declared* native field takes part in that analysis, so wrap its
+type in `OAK_BIND_WEAK` when it points back at something that can
+reach the owner:
 
 ```c
 oak_bind_field(node,
@@ -567,7 +608,7 @@ oak_bind_field(node,
                });
 ```
 
-The compiler cannot see inside a native instance, though. Oak values that the
-C struct holds without declaring them as fields — and anything a native method
-stores there — are outside the analysis entirely, and are the embedder's to
-keep acyclic.
+The compiler cannot see inside a native instance. Oak values that
+the C struct holds without declaring them as fields — and anything a
+native method stores there — are outside the analysis, and are yours
+to keep acyclic.

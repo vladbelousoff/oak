@@ -1,21 +1,15 @@
-# Building and Installing
+# Building and installing
 
-## Requirements
-
-Required:
+## What you need
 
 - Meson and Ninja
-- a C17 compiler
+- a C17 compiler (GCC, Clang, or MSVC)
 - Python 3
-- Git, for the wrapped `yyjson` dependency
+- Git, so Meson can fetch the wrapped `yyjson` dependency
 
-Optional:
+For the web playground you also need Emscripten, Node.js, and npm.
 
-- Emscripten, Node.js, and npm for the web playground
-
-GCC, Clang, and MSVC are supported.
-
-## Build and Test
+## Build and run
 
 ```sh
 meson setup build
@@ -25,28 +19,33 @@ meson compile -C build
 
 On Windows, run `.\build\oak.exe` instead of `./build/oak`.
 
+## Tests
+
 ```sh
 meson test -C build
 meson test -C build --print-errorlogs
 ```
 
-## Debug and Release Builds
+To run one suite, pass its name: `meson test -C build parser`.
 
-For a debug build:
+## Debug vs release
 
-```sh
-meson setup build-debug --buildtype=debug
-meson compile -C build-debug
-meson test -C build-debug
-```
+`meson setup build` defaults to a debug build: no optimization, and
+memory tracking compiled in. That is fine for development and about
+4–8× slower than an optimized build.
 
-Meson's default buildtype is `debug`: -O0 with memory tracking compiled in,
-which runs 4-8x slower than an optimized build. For anything
-performance-sensitive, build optimized:
+For anything speed-sensitive:
 
 ```sh
 meson setup build-release --buildtype=release
 meson compile -C build-release
+```
+
+A named debug directory is the same idea:
+
+```sh
+meson setup build-debug --buildtype=debug
+meson compile -C build-debug
 ```
 
 ## Install
@@ -58,34 +57,32 @@ meson install -C build
 oak examples/01_values/01_values.oak
 ```
 
-By default, Oak installs under `~/.local`, so the executable lands in
-`~/.local/bin`, the standard per-user binary directory used by most Linux
-shells.
+The default prefix is `~/.local`, so the binary lands in `~/.local/bin`.
+Pass `--prefix=<path>` to `meson setup` to put it somewhere else.
 
-Pass `--prefix=<path>` to `meson setup` when packaging or when you need a
-different install root. Installed builds find the stdlib relative to the `oak`
-executable. Set `OAK_STDLIB_DIR` only to override that lookup.
+An installed `oak` finds the stdlib next to the executable. Set
+`OAK_STDLIB_DIR` only if you need to override that.
 
-### Embedding against an installed Oak
+### Using Oak from another C program
 
-Installing also ships the public headers to `<prefix>/include/oak` and a
-pkg-config file, so an embedder needs no Oak-specific flags:
+Install also ships the public headers under `<prefix>/include/oak` and a
+pkg-config file:
 
 ```sh
 cc myapp.c $(pkg-config --cflags --libs oak)
 ```
 
-If Oak is under a non-system prefix, point pkg-config at it first:
+If Oak is not in a system prefix, tell pkg-config where to look:
 
 ```sh
 export PKG_CONFIG_PATH=<prefix>/lib/pkgconfig
 ```
 
-`--cflags` resolves to `-I<prefix>/include/oak`, which is the same spelling the
-in-tree build uses, so `#include "oak_program.h"` works either way. See
-[embedding-c.md](embedding-c.md) for the API itself.
+`--cflags` gives you `-I<prefix>/include/oak`, so
+`#include "oak_program.h"` works the same in-tree and installed.
+The API itself is in [embedding-c.md](embedding-c.md).
 
-## Web Playground
+## Web playground
 
 ```sh
 meson setup build_wasm --cross-file meson/cross/emscripten.ini
@@ -94,11 +91,11 @@ npm install
 npm run dev
 ```
 
-The build directory name matters: the Vite dev server serves the Emscripten
-output straight out of `build_wasm/`.
+The directory name matters: the Vite dev server serves the Emscripten
+output from `build_wasm/`.
 
-For the static site, stage the runtime into Vite's public directory first —
-the dev-server passthrough does not apply to production builds — then build:
+For a static site, copy the runtime into Vite's public directory first,
+then build:
 
 ```sh
 mkdir -p www/public/build_wasm

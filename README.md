@@ -1,10 +1,11 @@
 # Oak
 
-Oak is a statically typed scripting language implemented in C17. It compiles
-`.oak` source to bytecode and runs it on a stack-based virtual machine. Memory
-is fully deterministic: values are reference-counted and the **compiler
-rejects programs that could form strong reference cycles**, so there is no
-garbage collector and no runtime cycle detection.
+Oak is a small, statically typed scripting language. You write `.oak` files
+and run them with the `oak` command — or from C, using the `acorn` library.
+
+There is no garbage collector. Values are reference-counted, and the
+compiler refuses programs that could form a cycle. If a program compiles,
+memory is reclaimed when the last reference goes away.
 
 ```oak
 fn sum(values : number[]) -> number {
@@ -18,10 +19,10 @@ fn sum(values : number[]) -> number {
 print(sum([3, 5, 8]));
 ```
 
-The repo includes the `oak` CLI, the `acorn` C embedding library, a VS
-Code extension, examples, tests, and a WebAssembly playground.
+This repo is the language, the CLI, the C library, examples, tests, a
+VS Code extension, and a WebAssembly playground.
 
-## Quick Start
+## Quick start
 
 ```sh
 meson setup build
@@ -29,97 +30,57 @@ meson compile -C build
 ./build/oak examples/01_values/01_values.oak
 ```
 
-On Windows, run `.\build\oak.exe` instead of `./build/oak`. See
-[Building and Installing](docs/building.md) for requirements, tests, install,
-and the web playground, and [CLI and Debugging](docs/cli.md) for the `oak`
-command-line options.
+On Windows, run `.\build\oak.exe` instead of `./build/oak`.
 
-## The Language
+See [Building](docs/building.md) for requirements, tests, install, and the
+playground, and [the CLI](docs/cli.md) for command-line options.
 
-The snippets below cover the core of Oak; every one is a complete program.
+## The language
+
 The numbered examples in [`examples/`](examples/README.md) are the full
-language tour and run as smoke tests in CI.
+tour. This is a short look at how Oak feels.
 
-### Values and Bindings
+### Bindings and values
 
-Bindings are immutable by default; `let mut` opts into mutation. Strings are
-**single-quoted** — double quotes are a lexer error. `/` always produces a
-float, `//` is integer division. Comments are `/* ... */` blocks.
+`let` is immutable. Use `let mut` when you need to change a binding.
+Strings are **single-quoted** — double quotes are not allowed.
+`/` is always float division; `//` is integer division.
+Comments are `/* ... */` only. There is no `//` comment: `//` is the
+division operator.
 
 ```oak
 let answer = 40 + 2;
-let ready = answer == 42;
-
 let mut stock = 10;
 stock += 5;
-stock *= 2;
 
-let ratio = 9 / 2;   /* 4.5  — `/` is float division */
-let half = 9 // 2;   /* 4    — `//` is integer division */
+let ratio = 9 / 2;   /* 4.5 */
+let half = 9 // 2;   /* 4 */
 
-let words = ['Oak', 'scripts'];
-print('{} {}'.format(words));
-print('{0}+{1}={2}'.format([2, 3, 5]));
+print('{} {}'.format(['Oak', 'scripts']));
 ```
 
-### Control Flow
+### Control flow
 
-`if`/`else`, `while`, counted `for ... from ... to` (exclusive upper bound),
-collection iteration, `break`, and `continue`:
-
-```oak
-for i from 1 to 20 {
-  if i % 2 == 0 {
-    continue;
-  }
-  if i > 9 {
-    break;
-  }
-  print(i);
-}
-
-let mut n = 13;
-let mut steps = 0;
-while n != 1 {
-  if n % 2 == 0 {
-    n = n // 2;
-  } else {
-    n = n * 3 + 1;
-  }
-  steps += 1;
-}
-print(steps);
-```
+`if` / `else`, `while`, counted `for i from 1 to 10` (the upper bound is
+exclusive), and `for item in collection`. `break` and `continue` work as
+you'd expect.
 
 ### Collections
-
-Typed arrays and maps, with index/key iteration:
 
 ```oak
 let mut scores = new number[];
 scores.push(10);
-scores.push(20);
-scores[1] = 25;
-
-for i, score in scores {
-  print('{}: {}'.format([i, score]));
-}
+scores[0] = 12;
 
 let mut inventory = new [string:number];
 inventory['apples'] = 4;
-inventory['pears'] = 6;
 print(inventory.has('apples'));
-print(inventory.size());
-
-for name, count in inventory {
-  print(name);
-}
 ```
 
 ### Functions
 
-Functions are typed, first-class values. Anonymous functions and function
-types share the `(...) -> T` shape; `fn` is only for named declarations:
+Named functions use `fn`. Anonymous functions and function types share
+the `(...) -> T` shape:
 
 ```oak
 fn fib(n : number) -> number {
@@ -130,66 +91,24 @@ fn fib(n : number) -> number {
 }
 
 let double = (x : number) -> number { return x * 2; };
-
-fn apply(f : (number) -> number, x : number) -> number {
-  return f(x);
-}
-
-print(apply(double, fib(10)));
+print(double(fib(10)));
 ```
 
-### Records and Enums
+### Records, enums, and interfaces
 
-Records are created with `new Type { ... }`, and methods are declared inside
-the record body. The receiver is implicit: `fn name(...)` reads it through
-`self`, `fn mut name(...)` may also write through it, and `fn static name(...)`
-takes no receiver at all and is called on the type. Enum variants get
-enum-aware type checking:
+Create a record with `new Type { ... }`. Methods live in the record body:
+
+- `fn name(...)` can read `self`
+- `fn mut name(...)` can also write `self`
+- `fn static name(...)` has no receiver and is called on the type
+
+Interface names start with `I`. A record has to say `implements IFoo` —
+having the methods is not enough on its own. If a method is missing or
+mismatched, the error is on the record, not later at the call site.
 
 ```oak
 enum Status { Planned, Active, Done }
 
-record Point {
-  x : number;
-  y : number;
-
-  fn mut move_by(dx : number, dy : number) {
-    self.x = self.x + dx;
-    self.y = self.y + dy;
-  }
-
-  fn static origin() -> Point {
-    return new Point { x : 0, y : 0 };
-  }
-}
-
-record Job {
-  title : string;
-  status : Status;
-  location : Point;
-
-  fn label() -> string {
-    return self.title;
-  }
-}
-
-let mut p = new Point { x : 3, y : 4 };
-p.move_by(10, -2);
-print(p.x);
-print(Point.origin().x);
-
-let job = new Job { title : 'release', status : Status.Planned, location : p };
-print(job.label());
-print(job.status == Status.Planned);
-```
-
-### Interfaces
-
-Interfaces declare method signatures and dispatch virtually over the record
-methods that implement them. Interface names must start with `I`, and a record
-says which ones it implements — having every method is not enough on its own:
-
-```oak
 interface IShape {
   fn area() -> number;
 }
@@ -202,60 +121,33 @@ record Circle implements IShape {
   }
 }
 
-record Rect implements IShape {
-  w : number;
-  h : number;
-
-  fn area() -> number {
-    return self.w * self.h;
-  }
-}
-
-let mut c = new Circle { radius : 5 };
-let mut r = new Rect { w : 3, h : 4 };
-
-let mut shapes = new IShape[];
-shapes.push(c);
-shapes.push(r);
-
-let mut total = 0;
-for s in shapes {
-  total += s.area();
-}
-
-print(total);
+let c = new Circle { radius : 5 };
+print(c.area());
 ```
-
-The clause is checked where it is written, so a missing or mismatched method is
-reported at the record rather than at the first place the record is used as an
-interface. An interface travels with the records that implement it: importing
-`Circle` brings `IShape` along, whether or not the importing module names it.
 
 ### Modules
 
-Modules are resolved relative to the entry script. A module only exposes
-declarations marked with `export`; import selected names, everything exported,
-or a namespace alias:
+Modules are resolved relative to the entry script. Only names marked
+`export` are visible. Import selected names, everything, or a namespace:
 
 ```oak
 import { sum, average } from analytics.stats;
 import * from domain.project;
 import domain.project as project;
-
-print(sum([3, 5, 8, 13]));
-print(project.summary(project.make_task('ship', 8, project.Priority.High)));
 ```
 
-See [`examples/06_modules/`](examples/06_modules/) for a complete multi-file
-program.
+See [`examples/06_modules/`](examples/06_modules/) for a complete
+multi-file program.
 
-### Memory: Reference Counting Without Cycles
+### Memory
 
-Oak has no garbage collector and no runtime cycle detector. Reference
-counting alone reclaims every object because the compiler **rejects programs
-that could form strong reference cycles**: fields that could close a cycle
-must be write-once or declared `weak`. A weak reference does not keep its
-target alive and can be compared against `none`:
+Oak has no garbage collector and no runtime cycle detector. The compiler
+rejects programs that *could* form a strong reference cycle, so
+reference counting is enough.
+
+If two records can point at each other, mark one of those fields
+`weak`. A weak reference does not keep its target alive and can be
+compared against `none`:
 
 ```oak
 record Node {
@@ -265,93 +157,40 @@ record Node {
 
 record Edge {
   label : string;
-  target : Node weak;  /* weak: does not keep the target alive */
+  target : Node weak;
 }
-
-let mut a = new Node { name : 'a', links : new Edge[] };
-let mut b = new Node { name : 'b', links : new Edge[] };
-
-a.links.push(new Edge { label : 'a->b', target : b });
-b.links.push(new Edge { label : 'b->a', target : a });
-
-print(a.links[0].target.name);
 ```
 
-The same invariant applies to native bindings — host code must never create a
-strong ownership loop from C.
+The same rule applies to C bindings: do not create a strong ownership
+loop from native code.
 
-### Strings and the Stdlib
+### Stdlib
 
-Everyday text and number work needs no imports:
+Printing, numbers, strings, and collections need no import:
 
 ```oak
-let greeting = 'Hello, Oak';
-print(greeting.upper());
-print(greeting.contains('Oak'));
-print(greeting.replace('Hello', 'Hey'));
-print('HelloWorld'.to_snake_case());
-
-let width = parse_number('  16 ');
+print('Hello, Oak'.upper());
 print(to_int(pow(2.0, 10.0)));
-print('{} squared is {}'.format([width, width * width]));
+print('{} squared is {}'.format([4, 16]));
 ```
 
-The stdlib ships printing and conversion builtins (`to_int`, `parse_number`,
-`ord`, `chr`), math (`sqrt`, `pow`, `floor`, `ceil`, `round`, `log`, `exp`,
-`sign`, `min`/`max`, trig, ...), string methods (`upper`, `lower`, `trim`,
-`contains`, `starts_with`, `ends_with`, `index_of`, `replace`, `repeat`,
-`substring`, `to_snake_case`, `to_camel_case`, `format`), collection methods,
-and file I/O via `io.File` (see
-[`examples/08_file_io/`](examples/08_file_io/)).
+File I/O lives in `io`:
 
-## Documentation
+```oak
+import * from io;
+let file = File.open('message.txt', FileMode.Read);
+print(file.read_all());
+```
 
-| Topic | Where |
-|---|---|
-| Language tour — runnable, numbered examples | [`examples/`](examples/README.md) |
-| Building, installing, web playground | [`docs/building.md`](docs/building.md) |
-| CLI options and debugging | [`docs/cli.md`](docs/cli.md) |
-| Embedding: C API | [`docs/embedding-c.md`](docs/embedding-c.md) |
-| VS Code extension | [`editors/vscode/`](editors/vscode/README.md) |
+The numbered examples cover the rest.
 
 ## Embedding
 
-Link against `acorn` and register native types, functions, enums, and
-attributes before compiling; bindings participate in Oak's compile-time type
-checks. The API is descriptor-based: describe the bindings on
-`oak_compile_options_t`, then compile with `oak_compile_ex()`.
+The C library is called **acorn**. You describe native functions and
+types on `oak_compile_options_t`, then compile and run. Bindings go
+through the same type checker as Oak code.
 
 ```c
-/* Written once and used twice: the compiler checks Oak call sites against it,
- * and OAK_BIND_PARAMS below fills arity and param_count from it. */
-static const oak_bind_type_ref_t add_params[] = {
-  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
-  OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
-};
-
-static oak_fn_call_result_t native_add(oak_native_call_t* call,
-                                       const oak_value_t* args,
-                                       const usize argc,
-                                       oak_value_t* out)
-{
-  /* Each accessor checks and unwraps in one step; on a bad argument it raises
-   * an error naming this function, the position and the types involved. The
-   * VM has already matched argc against the declared arity. */
-  int a;
-  int b;
-  if (!oak_arg_i32(call, args, argc, 0, &a) ||
-      !oak_arg_i32(call, args, argc, 1, &b))
-    return OAK_FN_CALL_RUNTIME_ERROR;
-  *out = OAK_VALUE_I32(a + b);
-  return OAK_FN_CALL_OK;
-}
-
-oak_allocator_t allocator;
-oak_system_allocator_init(&allocator);
-
-oak_compile_options_t opts;
-oak_compile_options_init(&opts, &allocator);
-
 oak_bind_fn_global(&opts,
                    &(oak_bind_global_fn_t){
                        .name = "add",
@@ -361,101 +200,32 @@ oak_bind_fn_global(&opts,
                    });
 
 oak_program_t prog;
-if (oak_program_compile(&prog, "let n = add(20, 22);\n", &opts))
+if (oak_program_compile(&prog, "print(add(20, 22));\n", &opts))
 {
   oak_vm_t vm;
   oak_vm_init(&vm, &allocator);
-  if (oak_vm_run(&vm, oak_program_chunk(&prog)) != OAK_VM_OK)
-  {
-    const oak_diagnostic_t* e = oak_vm_last_error(&vm);
-    if (e)
-      fprintf(stderr, "%d:%d: %s\n", e->line, e->column, e->message);
-  }
+  oak_vm_run(&vm, oak_program_chunk(&prog));
   oak_vm_free(&vm);
 }
-else
-{
-  oak_diagnostics_print(oak_program_errors(&prog),
-                        oak_program_error_count(&prog));
-}
-
-/* oak_program_free releases the chunk, AST and tokens in the right order. The
- * options go last: every native value holds a pointer to a descriptor they
- * own. */
 oak_program_free(&prog);
-oak_compile_options_free(&opts);
-allocator.shutdown(&allocator);
 ```
 
-A native that fails reports why with `oak_native_error(call, fmt, ...)`, which
-returns `OAK_FN_CALL_RUNTIME_ERROR` so a failure stays one line:
+The [C embedding guide](docs/embedding-c.md) has the full API.
+[`tests/public_api/oak_embed_smoke.c`](tests/public_api/oak_embed_smoke.c)
+is a complete program that CI compiles against the installed headers.
 
-```c
-if (!fp)
-  return oak_native_error(call, "cannot open '%s'", path);
-```
-
-The message reaches the embedder through `oak_vm_last_error()` like any other
-runtime error. Returning `OAK_FN_CALL_RUNTIME_ERROR` without it still reports,
-but only as `native function '<name>' failed`.
-
-See the [C embedding guide](docs/embedding-c.md) for the full API, including
-native types, methods, enums, and attributes, and
-[`tests/public_api/oak_embed_smoke.c`](tests/public_api/oak_embed_smoke.c) for
-a complete program that CI compiles and runs against the installed headers.
-
-Installing gives you `oak.pc`, so a consumer needs no Oak-specific build flags:
+After install:
 
 ```sh
 cc myapp.c $(pkg-config --cflags --libs oak)
 ```
 
-### Object IDs, VM ownership, and threads
+## Documentation
 
-Every Oak value occupies one 64-bit word. Object and weak-object values use
-the low 3 bits as their tag and form their ID from three fields:
-
-| Bits | Field | Purpose |
-|---|---|---|
-| `3..31` | 29-bit slot | Index in an object table |
-| `32..37` | 6-bit table | Owning VM's table (`0` means process-shared; 64 tables total) |
-| `38..39` | reserved | Currently zero |
-| `40..63` | 24-bit nonce | Slot generation when the ID was created |
-
-Ownership is explicit and does not use thread-local state. VM bytecode routes
-its allocations through its `oak_vm_t`, and native code can select an owner
-with `oak_vm_string_new()`, `oak_vm_array_new()`, `oak_vm_map_new()`,
-`oak_vm_record_new()`, and `oak_vm_native_record_new()`. The plain
-`oak_*_new()` functions create process-shared table-0 values. One thread may
-operate on different VMs, and a VM may move between threads between calls;
-neither a VM nor its values may be accessed concurrently. At most 63 VM
-tables can be live alongside the shared table.
-
-When an object dies, its slot's nonce is incremented before the slot can be
-reused. A weak ID therefore resolves to `none` when its saved nonce no longer
-matches, rather than accidentally resolving to the next object allocated in
-the same slot. The nonce floor is also advanced when an entire VM table is
-recycled.
-
-Heap values created by a VM are VM-confined. The runtime rejects
-putting either a strong or weak reference from one VM into another VM's stack,
-array, map, record, native field, or call arguments; release builds enforce the
-same checks as debug builds. Scalar values and process-owned table-0 objects
-(such as compiled constants and native definitions) may be used by every VM.
-To communicate between workers, exchange host data or scalar Oak values and
-recreate arrays, maps, records, and strings in the destination VM instead of
-passing an `oak_value_t` object from the source VM.
-
-## Layout
-
-| Path | Contents |
+| I want to... | Read |
 |---|---|
-| `oak.c`, `oak_cli.c` | native CLI |
-| `include/` | public C API |
-| `src/` | compiler, runtime, VM, and stdlib C code |
-| `stdlib/` | Oak stdlib modules |
-| `docs/` | build, CLI, and embedding guides |
-| `tests/` | C test suites (utest.h) |
-| `examples/` | runnable language tour |
-| `editors/vscode/` | VS Code extension |
-| `wasm/`, `www/` | WebAssembly playground |
+| Learn the language by running it | [`examples/`](examples/README.md) |
+| Build, test, and install | [`docs/building.md`](docs/building.md) |
+| Use the CLI or debugger | [`docs/cli.md`](docs/cli.md) |
+| Embed Oak in a C program | [`docs/embedding-c.md`](docs/embedding-c.md) |
+| Edit Oak in VS Code | [`editors/vscode/`](editors/vscode/README.md) |

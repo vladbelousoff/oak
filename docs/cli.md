@@ -1,42 +1,55 @@
-# CLI and Debugging
+# CLI and debugging
 
-## Usage
+## Run a script
+
+```sh
+oak path/to/program.oak
+oak examples/01_values/01_values.oak
+```
+
+Flags go before the script path. Everything after the script path is
+passed through to the script unchanged.
 
 ```text
 oak [options] <script> [script args...]
 ```
 
-Options come before the script path. Everything after the script path is passed
-to the script unchanged.
-
-| Option | Effect |
+| Option | What it does |
 |---|---|
-| `--debug` | Start the localhost VS Code/DAP debugger server |
-| `--debug-port <port>` | Debug server port; use `0` to choose a free port |
-| `--disassemble` | Print compiled bytecode instead of running |
+| `--debug` | Start a localhost debugger that VS Code can attach to |
+| `--debug-port <port>` | Port for that debugger. `0` picks a free port |
+| `--disassemble` | Print compiled bytecode instead of running the script |
 | `--no-debug-symbols` | Compile without source debug metadata |
-| `--allow-synthetic-modules` | Build a native module from its bindings when its Oak stub file is missing, instead of failing |
-| `--track-memory` | Fail if tracked runtime allocations leak |
+| `--allow-synthetic-modules` | If a native module has no `.oak` stub file, build the module from its C bindings instead of failing |
+| `--track-memory` | Fail the process if tracked runtime allocations leak |
+| `--unbuffered` | Flush every `print` immediately (useful when piping a long-running script) |
 | `--help` | Print usage |
 
 ```sh
-oak examples/01_values/01_values.oak
 oak --disassemble examples/06_modules/06_modules.oak
 oak --debug --debug-port 4711 examples/04_functions/04_functions.oak
+oak --unbuffered long_running.oak
 ```
 
 ## VS Code
 
-The extension is in [`editors/vscode`](../editors/vscode/README.md). It
-provides `.oak` syntax highlighting and source debugging. The debugger assumes
-`oak` is on the `PATH` inherited by VS Code.
+The extension in [`editors/vscode`](../editors/vscode/README.md) adds
+syntax highlighting and source debugging for `.oak` files.
+
+To try it from this repo:
 
 ```sh
 code editors/vscode
 ```
 
-Select **Run Extension** and press `F5`. To attach to a running script:
+Select **Run Extension** and press `F5`. The debugger looks for `oak`
+on the `PATH` that VS Code inherited, so `oak --help` should work in
+that environment.
+
+To attach to a script that is already running:
 
 ```sh
 oak --debug --debug-port 4711 path/to/program.oak
 ```
+
+Then attach from VS Code on port `4711`.
