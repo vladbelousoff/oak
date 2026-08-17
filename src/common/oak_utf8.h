@@ -191,6 +191,82 @@ static int oak_utf8_next_bounded(const char* s, usize avail, u32* out)
 }
 
 /*
+ * oak_utf8_step
+ *
+ * Bytes to advance from s to reach the next codepoint boundary, given avail
+ * bytes remaining. Always returns at least 1 for a non-empty buffer: a byte
+ * that begins no valid sequence -- and an embedded NUL, which Oak strings may
+ * carry because they are length-counted -- is stepped over on its own. That
+ * keeps every scan below total, so a string of unknown provenance (built by a
+ * native binding, say) can never wedge a loop.
+ */
+static usize oak_utf8_step(const char* s, const usize avail)
+{
+  if (avail == 0)
+    return 0;
+  const int n = oak_utf8_next_bounded(s, avail, OAK_NULL);
+  return n > 0 ? (usize)n : 1u;
+}
+
+/*
+ * oak_utf8_count
+ *
+ * Number of codepoints in the first len bytes of s. This is what a script sees
+ * as the length of a string, as opposed to its byte size.
+ */
+static usize oak_utf8_count(const char* s, const usize len)
+{
+  usize i = 0;
+  usize count = 0;
+  while (i < len)
+  {
+    i += oak_utf8_step(s + i, len - i);
+    count++;
+  }
+  return count;
+}
+
+/*
+ * oak_utf8_offset
+ *
+ * Byte offset of codepoint number index, or len when the string holds fewer
+ * codepoints than that. The result is always a codepoint boundary, so slicing
+ * at it can never cut a character in half.
+ */
+static usize oak_utf8_offset(const char* s, const usize len, const usize index)
+{
+  usize i = 0;
+  usize count = 0;
+  while (i < len && count < index)
+  {
+    i += oak_utf8_step(s + i, len - i);
+    count++;
+  }
+  return i;
+}
+
+/*
+ * oak_utf8_index
+ *
+ * The inverse of oak_utf8_offset: how many codepoints precede byte offset
+ * offset. Used to report a byte position found by a byte-wise search (which
+ * UTF-8 makes safe) back to a script in codepoint terms.
+ */
+static usize oak_utf8_index(const char* s, const usize len, usize offset)
+{
+  usize i = 0;
+  usize count = 0;
+  if (offset > len)
+    offset = len;
+  while (i < offset)
+  {
+    i += oak_utf8_step(s + i, len - i);
+    count++;
+  }
+  return count;
+}
+
+/*
  * oak_utf8_is_alpha
  *
  * Returns non-zero if the codepoint is a Unicode letter.

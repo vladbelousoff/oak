@@ -390,6 +390,7 @@ else
   # basename minus the _test suffix, which is what the --filter below selects.
   test_suites = [
     'lexer',
+    'utf8',
     'compiler_semantics',
     'compiler_types',
     'compiler_mut',

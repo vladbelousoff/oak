@@ -271,6 +271,20 @@ int main(void)
   oak_program_free(&bad);
   oak_program_free(&bad); /* nulls what it frees: safe twice */
 
+  /* Source that is not valid UTF-8 fails the same way. The lexer reports it
+   * through the log rather than the diagnostic buffer, so the risk here is a
+   * compile that returns failure with nothing to show for it -- an embedder
+   * would have no way to tell the user what went wrong. The 0x80 byte sits
+   * between two valid statements, so nothing but the encoding check rejects
+   * it. */
+  oak_program_t bad_utf8;
+  CHECK(oak_program_compile(&bad_utf8, "let x = 1;\n\x80\n", &opts) == 0);
+  CHECK(oak_program_error_count(&bad_utf8) > 0);
+  CHECK(oak_program_errors(&bad_utf8) != OAK_NULL);
+  CHECK(oak_program_errors(&bad_utf8)[0].message[0] != '\0');
+  CHECK(oak_program_chunk(&bad_utf8) == OAK_NULL);
+  oak_program_free(&bad_utf8);
+
   /* A native's own failure message reaches the embedder as data, verbatim --
    * not the generic "native function 'native_divide' failed". This is the
    * whole point of oak_native_error, so assert the exact text. */

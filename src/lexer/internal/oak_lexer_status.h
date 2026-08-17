@@ -20,4 +20,8 @@ enum oak_lex_status
   OAK_LEX_UNTERMINATED_COMMENT = 7,
   OAK_LEX_NUMBER_RANGE = 8,
   OAK_LEX_INVALID_ESCAPE = 9,
+  /* A \u escape that parsed, but named a value UTF-8 cannot encode. Distinct
+   * from OAK_LEX_INVALID_ESCAPE so the diagnostic can say which mistake it
+   * was: the syntax or the number. */
+  OAK_LEX_INVALID_CODEPOINT = 10,
 };

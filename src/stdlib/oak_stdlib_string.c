@@ -2,13 +2,60 @@
 
 #include "oak_allocator.h"
 #include "oak_bind.h"
+#include "oak_utf8.h"
 #include "oak_value_impl.h"
 #include "oak_vm.h"
 
-#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+
+/*
+ * Strings are UTF-8. Two rules keep these methods from mangling them.
+ *
+ * Positions a script sees -- size(), index_of(), substring() -- are codepoint
+ * indices, so slicing can never cut a character in half. Byte-wise search
+ * still works underneath: UTF-8 is self-synchronizing, so a byte-level match
+ * of one valid string inside another always lands on a boundary, and only the
+ * reported index needs converting.
+ *
+ * The ASCII-only classifiers below replace <ctype.h> on raw bytes. Handing a
+ * continuation byte to isupper/tolower is locale-dependent -- outside the "C"
+ * locale it can map a byte of a multibyte character to something else and
+ * corrupt the sequence -- so bytes >= 0x80 are passed through untouched
+ * instead. That leaves case conversion ASCII-only, which is honest: correct
+ * case mapping for the rest of Unicode needs tables Oak does not carry.
+ */
+static int ascii_is_space(const char c)
+{
+  return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' ||
+         c == '\r';
+}
+
+static int ascii_is_upper(const char c)
+{
+  return c >= 'A' && c <= 'Z';
+}
+
+static int ascii_is_lower(const char c)
+{
+  return c >= 'a' && c <= 'z';
+}
+
+static int ascii_is_digit(const char c)
+{
+  return c >= '0' && c <= '9';
+}
+
+static char ascii_to_upper(const char c)
+{
+  return ascii_is_lower(c) ? (char)(c - 'a' + 'A') : c;
+}
+
+static char ascii_to_lower(const char c)
+{
+  return ascii_is_upper(c) ? (char)(c - 'A' + 'a') : c;
+}
 
 /* Naive substring search. Returns the byte index of the first occurrence of
  * `needle` within `hay`, or -1 if absent. An empty needle matches at 0. */
@@ -32,7 +79,7 @@ static long find_sub(const char* hay,
 /* Word separators recognised by the case-style conversions. */
 static int is_word_sep(char c)
 {
-  return c == '-' || c == '_' || isspace((unsigned char)c);
+  return c == '-' || c == '_' || ascii_is_space(c);
 }
 
 /* True when the non-separator char at index `i` (i > 0) begins a new word.
@@ -41,13 +88,13 @@ static int is_word_sep(char c)
  * tail of an acronym run -> a capitalized word ("HTTPServer" -> http/server). */
 static int starts_word(const char* s, usize len, usize i)
 {
-  const unsigned char c = (unsigned char)s[i];
-  if (!isupper(c))
+  const char c = s[i];
+  if (!ascii_is_upper(c))
     return 0;
-  const unsigned char prev = (unsigned char)s[i - 1];
-  if (islower(prev) || isdigit(prev))
+  const char prev = s[i - 1];
+  if (ascii_is_lower(prev) || ascii_is_digit(prev))
     return 1;
-  if (isupper(prev) && i + 1 < len && islower((unsigned char)s[i + 1]))
+  if (ascii_is_upper(prev) && i + 1 < len && ascii_is_lower(s[i + 1]))
     return 1;
   return 0;
 }
@@ -67,11 +114,13 @@ static oak_fn_call_result_t map_case(oak_native_call_t* call,
     *out = oak_vm_string_value_len(call->vm, "", 0);
     return OAK_FN_CALL_OK;
   }
+  /* Byte-wise is safe here only because the mapping is ASCII-only: every byte
+   * of a multibyte character is >= 0x80 and copied through unchanged. */
   char* buf = oak_alloc(call->allocator, len, OAK_HERE);
   for (usize i = 0; i < len; ++i)
   {
-    const unsigned char c = (unsigned char)self->chars[i];
-    buf[i] = (char)(upper ? toupper(c) : tolower(c));
+    const char c = self->chars[i];
+    buf[i] = upper ? ascii_to_upper(c) : ascii_to_lower(c);
   }
   *out = oak_vm_string_value_len(call->vm, buf, len);
   oak_free(call->allocator, buf, OAK_HERE);
@@ -105,9 +154,9 @@ oak_fn_call_result_t oak_str_trim(oak_native_call_t* call,
   const char* s = self->chars;
   usize start = 0;
   usize end = self->length;
-  while (start < end && isspace((unsigned char)s[start]))
+  while (start < end && ascii_is_space(s[start]))
     ++start;
-  while (end > start && isspace((unsigned char)s[end - 1]))
+  while (end > start && ascii_is_space(s[end - 1]))
     --end;
   *out = oak_vm_string_value_len(call->vm, s + start, end - start);
   return OAK_FN_CALL_OK;
@@ -173,7 +222,11 @@ oak_fn_call_result_t oak_str_index_of(oak_native_call_t* call,
       !oak_arg_string(call, args, argc, 1, &sub))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const long at = find_sub(self->chars, self->length, sub->chars, sub->length);
-  *out = OAK_VALUE_I32((int)at);
+  /* Report where substring() would cut, i.e. in codepoints. */
+  const int index =
+      at < 0 ? -1
+             : (int)oak_utf8_index(self->chars, self->length, (usize)at);
+  *out = OAK_VALUE_I32(index);
   return OAK_FN_CALL_OK;
 }
 
@@ -281,18 +334,26 @@ oak_fn_call_result_t oak_str_substring(oak_native_call_t* call,
       !oak_arg_number(call, args, argc, 1, &from) ||
       !oak_arg_number(call, args, argc, 2, &to))
     return OAK_FN_CALL_RUNTIME_ERROR;
-  const long len = (long)self->length;
+  /* from/to are codepoint indices. Clamp them there, then translate to byte
+   * offsets, so a slice always falls on character boundaries. */
+  const long count = (long)oak_utf8_count(self->chars, self->length);
   long start = (long)from;
   long end = (long)to;
   if (start < 0)
     start = 0;
-  if (start > len)
-    start = len;
+  if (start > count)
+    start = count;
   if (end < start)
     end = start;
-  if (end > len)
-    end = len;
-  *out = oak_vm_string_value_len(call->vm, self->chars + start, (usize)(end - start));
+  if (end > count)
+    end = count;
+
+  const usize start_byte =
+      oak_utf8_offset(self->chars, self->length, (usize)start);
+  const usize end_byte =
+      oak_utf8_offset(self->chars, self->length, (usize)end);
+  *out = oak_vm_string_value_len(
+      call->vm, self->chars + start_byte, end_byte - start_byte);
   return OAK_FN_CALL_OK;
 }
 
@@ -334,7 +395,7 @@ oak_fn_call_result_t oak_str_to_snake_case(oak_native_call_t* call,
     if (underscore)
       buf[w++] = '_';
     pending = 0;
-    buf[w++] = (char)tolower((unsigned char)c);
+    buf[w++] = ascii_to_lower(c);
   }
 
   *out = oak_vm_string_value_len(call->vm, buf, w);
@@ -377,17 +438,17 @@ oak_fn_call_result_t oak_str_to_camel_case(oak_native_call_t* call,
     }
     if (!started)
     {
-      buf[w++] = (char)tolower((unsigned char)c);
+      buf[w++] = ascii_to_lower(c);
       started = 1;
       cap_next = 0;
     }
     else if (cap_next || starts_word(s, len, i))
     {
-      buf[w++] = (char)toupper((unsigned char)c);
+      buf[w++] = ascii_to_upper(c);
       cap_next = 0;
     }
     else
-      buf[w++] = (char)tolower((unsigned char)c);
+      buf[w++] = ascii_to_lower(c);
   }
 
   *out = oak_vm_string_value_len(call->vm, buf, w);
@@ -405,7 +466,15 @@ oak_fn_call_result_t oak_str_ord(oak_native_call_t* call,
     return OAK_FN_CALL_RUNTIME_ERROR;
   if (self->length == 0)
     return oak_native_error(call, "the string is empty");
-  *out = OAK_VALUE_I32((int)(unsigned char)self->chars[0]);
+
+  /* The first codepoint, not the first byte, so ord/chr round-trip every
+   * character rather than only the ASCII ones. */
+  u32 cp = 0;
+  /* A 0 return means a NUL byte, which is U+0000 and sets cp anyway; only a
+   * negative return is a malformed sequence. */
+  if (oak_utf8_next_bounded(self->chars, self->length, &cp) < 0)
+    return oak_native_error(call, "the string does not start with valid UTF-8");
+  *out = OAK_VALUE_I32((int)cp);
   return OAK_FN_CALL_OK;
 }
 
@@ -418,10 +487,18 @@ oak_fn_call_result_t oak_str_chr(oak_native_call_t* call,
   if (!oak_arg_number(call, args, argc, 0, &value))
     return OAK_FN_CALL_RUNTIME_ERROR;
   const int code = (int)value;
-  if (code < 0 || code > 255)
-    return oak_native_error(call, "%d is not a byte value (0-255)", code);
-  const char c = (char)(unsigned char)code;
-  *out = oak_vm_string_value_len(call->vm, &c, 1);
+  if (code < 0 || code > 0x10FFFF)
+    return oak_native_error(
+        call, "%d is not a codepoint (0-1114111)", code);
+  /* Surrogate halves exist only to encode UTF-16 pairs; UTF-8 has no encoding
+   * for them, so accepting one here would build an invalid string. */
+  if (code >= 0xD800 && code <= 0xDFFF)
+    return oak_native_error(
+        call, "%d is a surrogate half and cannot stand alone", code);
+
+  char buf[4];
+  const int n = oak_utf8_encode((u32)code, buf);
+  *out = oak_vm_string_value_len(call->vm, buf, (usize)n);
   return OAK_FN_CALL_OK;
 }
 
@@ -429,7 +506,7 @@ oak_fn_call_result_t oak_str_chr(oak_native_call_t* call,
  * reject tokens with trailing garbage (e.g. "12x"). */
 static int only_trailing_space(const char* endp)
 {
-  while (*endp && isspace((unsigned char)*endp))
+  while (*endp && ascii_is_space(*endp))
     ++endp;
   return *endp == '\0';
 }
@@ -447,10 +524,10 @@ oak_fn_call_result_t oak_str_parse_number(oak_native_call_t* call,
     return OAK_FN_CALL_RUNTIME_ERROR;
 
   const char* p = s;
-  while (*p && isspace((unsigned char)*p))
+  while (*p && ascii_is_space(*p))
     ++p;
   int is_float = 0;
-  for (const char* q = p; *q && !isspace((unsigned char)*q); ++q)
+  for (const char* q = p; *q && !ascii_is_space(*q); ++q)
   {
     if (*q == '.' || *q == 'e' || *q == 'E')
     {

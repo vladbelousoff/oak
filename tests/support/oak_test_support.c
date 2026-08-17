@@ -204,6 +204,25 @@ oak_run_result_t oak_test_source_opts(oak_allocator_t* a,
   r.run = OAK_VM_OK;
 
   lexer = oak_lexer_tokenize(src, a);
+
+  /* Stop on a lexer error, the way oak_program_compile and the module loader
+   * do. The token stream that comes back has the offending text simply
+   * missing, so parsing on would judge a program the author never wrote --
+   * and this harness has to agree with the real pipeline about what Oak
+   * accepts, or a suite could pass on a source the compiler rejects. The
+   * lexer reports through the log rather than a diagnostic buffer, so there
+   * is nothing more specific to put in `diag` than the fact of it. */
+  if (oak_lexer_error_count(lexer) > 0)
+  {
+    snprintf(r.diag,
+             sizeof(r.diag),
+             "%d lexical error%s, see the log for details",
+             oak_lexer_error_count(lexer),
+             oak_lexer_error_count(lexer) == 1 ? "" : "s");
+    oak_lexer_free(lexer);
+    return r;
+  }
+
   parsed = oak_parse(lexer, OAK_NODE_PROGRAM, a);
   root = oak_parser_root(parsed);
   r.parsed = root != OAK_NULL;

@@ -471,8 +471,11 @@ UTEST_F(vm_exec, parsing_builtins_reject_bad_input)
     { "print(parse_number('12x'));\n", "'12x' is not a number" },
     { "print(parse_number('1.2.3'));\n", "'1.2.3' is not a number" },
     { "print(ord(''));\n", "the string is empty" },
-    { "print(chr(-1));\n", "-1 is not a byte value" },
-    { "print(chr(256));\n", "256 is not a byte value" },
+    { "print(chr(-1));\n", "-1 is not a codepoint" },
+    /* chr takes a codepoint, so the ceiling is U+10FFFF rather than a byte. */
+    { "print(chr(1114112));\n", "1114112 is not a codepoint" },
+    /* A lone surrogate has no UTF-8 encoding, so it cannot be a string. */
+    { "print(chr(55296));\n", "55296 is a surrogate half" },
   };
 
   OAK_EXPECT_RUNTIME_ERROR_CASES(cases);

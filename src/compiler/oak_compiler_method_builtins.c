@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "oak_utf8.h"
 #include "oak_vm.h"
 
 oak_fn_call_result_t builtin_size(oak_native_call_t* call,
@@ -21,7 +22,11 @@ oak_fn_call_result_t builtin_size(oak_native_call_t* call,
   }
   if (oak_is_string(args[0]))
   {
-    *out_result = OAK_VALUE_I32((int)oak_as_string(args[0])->length);
+    /* Characters, not bytes: a string's size must agree with the indices
+     * substring() and index_of() speak in, or slicing 'héllo' by size() would
+     * run off the end. */
+    const oak_obj_string_t* s = oak_as_string(args[0]);
+    *out_result = OAK_VALUE_I32((int)oak_utf8_count(s->chars, s->length));
     return OAK_FN_CALL_OK;
   }
   return OAK_FN_CALL_RUNTIME_ERROR;

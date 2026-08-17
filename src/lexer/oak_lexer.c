@@ -209,6 +209,59 @@ static oak_lex_status_t scan_op(const oak_lexer_ctx_t* ctx,
   return OAK_LEX_NO_MATCH;
 }
 
+/* Value of a hex digit, or -1 if c is not one. */
+static int hex_digit(const char c)
+{
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
+  return -1;
+}
+
+/*
+ * Decodes the body of a \u escape, with p on the 'u' and end bounding the
+ * source. The syntax is \u{H...H}: 1-6 hex digits naming a codepoint, braced
+ * rather than fixed-width so a character outside the BMP needs no surrogate
+ * pair. On success writes the codepoint to out_cp and returns the number of
+ * bytes the body occupies ("u{03C0}" -> 7). Returns 0 if the escape is
+ * malformed, or -1 if it parsed but names something UTF-8 cannot encode --
+ * two different mistakes, so the caller can name the right one.
+ */
+static int scan_unicode_escape(const char* p, const char* end, u32* out_cp)
+{
+  const char* q = p + 1;
+  if (q >= end || *q != '{')
+    return 0;
+  ++q;
+
+  u32 value = 0;
+  int digits = 0;
+  while (q < end && *q != '}')
+  {
+    const int d = hex_digit(*q);
+    /* Cap the digit count so the accumulator cannot wrap on a long run. */
+    if (d < 0 || digits == 6)
+      return 0;
+    value = value * 16u + (u32)d;
+    ++digits;
+    ++q;
+  }
+
+  /* q < end here means q is on the closing brace. */
+  if (digits == 0 || q >= end)
+    return 0;
+
+  /* Surrogate halves and anything past U+10FFFF have no UTF-8 encoding. */
+  if (value > 0x10FFFFu || (value >= 0xD800u && value <= 0xDFFFu))
+    return -1;
+
+  *out_cp = value;
+  return (int)(q + 1 - p);
+}
+
 static oak_lex_status_t scan_string(const oak_lexer_ctx_t* ctx,
                                          const char* input)
 {
@@ -253,6 +306,10 @@ static oak_lex_status_t scan_string(const oak_lexer_ctx_t* ctx,
      * wrong line. */
     const int raw_newline = cp == '\n';
 
+    /* Source columns spanned by what we are about to consume. One per
+     * codepoint, except a \u escape, whose body is as wide as it is written. */
+    int cols = 1;
+
     if (cp == '\\')
     {
       p += n;
@@ -261,6 +318,7 @@ static oak_lex_status_t scan_string(const oak_lexer_ctx_t* ctx,
       if (p >= end)
         break;
 
+      n = 1;
       switch (*p)
       {
         case 'n':
@@ -277,11 +335,23 @@ static oak_lex_status_t scan_string(const oak_lexer_ctx_t* ctx,
         case '"':
           cp = (u8)*p;
           break;
+        case 'u':
+        {
+          const int body = scan_unicode_escape(p, end, &cp);
+          if (body <= 0)
+          {
+            oak_growable_buf_free(&gb);
+            return body == 0 ? OAK_LEX_INVALID_ESCAPE
+                             : OAK_LEX_INVALID_CODEPOINT;
+          }
+          n = body;
+          cols = body;
+          break;
+        }
         default:
           oak_growable_buf_free(&gb);
           return OAK_LEX_INVALID_ESCAPE;
       }
-      n = 1;
     }
 
     {
@@ -300,7 +370,7 @@ static oak_lex_status_t scan_string(const oak_lexer_ctx_t* ctx,
     if (raw_newline)
       oak_lexer_new_line(cur);
     p += n;
-    oak_lexer_advance_cursor(cur, 1, n);
+    oak_lexer_advance_cursor(cur, cols, n);
 
     if (p < end && *p == '\'')
     {
@@ -477,6 +547,40 @@ static oak_lex_status_t scan_ident(const oak_lexer_ctx_t* ctx,
 }
 
 
+/* What a failing scan status means, in the terms someone reading their own
+ * source would use. Every status a scanner can return is spelled out: a bare
+ * status number tells the reader of a diagnostic nothing. */
+static const char* lex_status_message(const oak_lex_status_t status)
+{
+  switch (status)
+  {
+    case OAK_LEX_INVALID_UTF8:
+      return "the source is not valid UTF-8";
+    case OAK_LEX_ALLOC_FAILED:
+      return "out of memory while reading a literal";
+    case OAK_LEX_UNTERMINATED_STRING:
+      return "unterminated string literal, expected a closing '";
+    case OAK_LEX_NUMBER_SYNTAX:
+      return "malformed number literal";
+    case OAK_LEX_NUMBER_TOO_LONG:
+      return "number literal is too long";
+    case OAK_LEX_UNTERMINATED_COMMENT:
+      return "unterminated block comment, expected a closing */";
+    case OAK_LEX_NUMBER_RANGE:
+      return "number literal is out of range";
+    case OAK_LEX_INVALID_ESCAPE:
+      return "unknown escape sequence, expected one of "
+             "\\n \\t \\r \\\\ \\' \\\" or \\u{HEX}";
+    case OAK_LEX_INVALID_CODEPOINT:
+      return "\\u escape is not a Unicode codepoint, expected "
+             "0 to 10FFFF excluding the surrogates D800 to DFFF";
+    case OAK_LEX_OK:
+    case OAK_LEX_NO_MATCH:
+      break;
+  }
+  return "invalid token";
+}
+
 typedef oak_lex_status_t (*scan_fn_t)(const oak_lexer_ctx_t* ctx,
                                       const char* input);
 
@@ -536,7 +640,13 @@ oak_lexer_result_t* oak_lexer_tokenize_len(
       const usize rem = len - (usize)cur.buf_pos;
       const int n = oak_utf8_next_bounded(&input[cur.buf_pos], rem, &cp);
       if (n < 0)
-        OAK_LOG(OAK_LOG_ERROR, "invalid utf8 character: 0x%.8X", cp);
+        /* cp is not set on a decode failure, so report the byte itself --
+         * naming a codepoint here would be naming one we never decoded. */
+        OAK_LOG(OAK_LOG_ERROR,
+                "invalid UTF-8 byte 0x%02X at line %d, column %d",
+                (unsigned)(unsigned char)input[cur.buf_pos],
+                cur.line,
+                cur.column);
       else
         OAK_LOG(OAK_LOG_ERROR,
                 "unexpected character U+%04X at line %d, column %d",
@@ -549,7 +659,11 @@ oak_lexer_result_t* oak_lexer_tokenize_len(
     }
     else
     {
-      OAK_LOG(OAK_LOG_ERROR, "lexer: status %d", (int)step);
+      OAK_LOG(OAK_LOG_ERROR,
+              "%s at line %d, column %d",
+              lex_status_message(step),
+              cur.line,
+              cur.column);
       result->error_count++;
       break;
     }

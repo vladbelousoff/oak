@@ -187,6 +187,24 @@ oak_module_t* parse_or_get_module(
   }
   mod->lexer =
       oak_lexer_tokenize_len(mod->source.data, mod->source.size, mod->allocator);
+
+  /* Bytes the lexer could not turn into tokens -- invalid UTF-8, a bad escape,
+   * an unterminated literal -- have to fail the build here. The token stream
+   * that comes back has the offending text simply missing, so parsing on would
+   * either succeed on a program the author did not write or fail somewhere
+   * unrelated. The lexer has already logged what was wrong; this is what makes
+   * it count. */
+  const int lex_errors = oak_lexer_error_count(mod->lexer);
+  if (lex_errors > 0)
+  {
+    loader_error(out,
+                 "%s: %d lexical error%s, see the log for details",
+                 dotted_name,
+                 lex_errors,
+                 lex_errors == 1 ? "" : "s");
+    return OAK_NULL;
+  }
+
   mod->parser = oak_parse(mod->lexer, OAK_NODE_PROGRAM, mod->allocator);
 
   for (int i = 0; i < oak_parser_error_count(mod->parser) &&

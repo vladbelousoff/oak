@@ -182,6 +182,22 @@ record Edge {
 The same rule applies to C bindings: do not create a strong ownership
 loop from native code.
 
+### Text
+
+Source files and strings are UTF-8. Strings are single-quoted, and
+identifiers may be non-ASCII. `\u{...}` writes a codepoint by number:
+
+```oak
+let greeting = 'Привет, мир';
+print(greeting.size());        /* 11 — characters, not bytes */
+print(greeting.substring(0, 6));
+print(chr(128512));             /* \u{1F600} */
+```
+
+`size`, `index_of`, and `substring` count characters, so a slice never
+cuts one in half. `upper` and `lower` map ASCII only and leave everything
+else untouched. Source that is not valid UTF-8 is a compile error.
+
 ### Stdlib
 
 Printing, numbers, strings, and collections need no import:
