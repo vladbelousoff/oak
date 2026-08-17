@@ -1,0 +1,8 @@
+{
+  "name": "me/locallib",
+  "version": "0.1.0",
+  "src": "src",
+  "deps": {
+    "json": { "git": "https://example.test/json.git", "tag": "v1.2.0", "version": "^1.2.0" }
+  }
+}

@@ -1,5 +1,7 @@
 #include "internal/oak_module_loader.h"
 
+#include "oak_module_mount.h"
+
 
 typedef struct loader_frame loader_frame_t;
 struct loader_frame
@@ -191,10 +193,43 @@ int oak_module_loader_load_program(const char* entry_path,
     }
 
     char* dotted = dotted_name_from_path(a, imp->path);
-    const int is_native = opts_has_native_module(opts, dotted);
+    char* mod_dir = path_dirname_dup(a, top->mod->canonical_path);
+
+    /* A mount claims the leading segment of the dotted name, so look it up
+     * before anything else. Mounts cannot be registered over a built-in native
+     * module (oak_module_mount_add rejects that), so checking them first
+     * cannot let a package impersonate the stdlib. */
+    const char* mount_package = OAK_NULL;
+    const char* mount_root = oak_module_mount_find(
+        opts->module_mounts, mod_dir, dotted, strcspn(dotted, "."),
+        &mount_package);
+
+    const int is_native = !mount_root && opts_has_native_module(opts, dotted);
 
     char* file_path = OAK_NULL;
-    if (is_native)
+    if (mount_root)
+    {
+      /* Authoritative, like an installed stdlib: once a namespace belongs to a
+       * package, a missing module in it is that package's error. Falling
+       * through to a module-relative file would let an unrelated local
+       * directory of the same name answer for the package. */
+      file_path = path_resolve_dotted(a, mount_root, dotted);
+      if (!path_exists(file_path))
+      {
+        if (mount_package)
+          loader_error(out, "cannot find module '%s' in package '%s': %s",
+                       dotted, mount_package, file_path);
+        else
+          loader_error(out, "cannot find mounted module '%s': %s", dotted,
+                       file_path);
+        oak_free(a, file_path, OAK_HERE);
+        oak_free(a, mod_dir, OAK_HERE);
+        oak_free(a, dotted, OAK_HERE);
+        rc = -1;
+        break;
+      }
+    }
+    else if (is_native)
     {
       /* Native stdlib modules (e.g. io) resolve against the stdlib BEFORE any
        * module-relative file, so a project-local <dir>/io.oak cannot shadow the
@@ -215,6 +250,7 @@ int oak_module_loader_load_program(const char* entry_path,
                          : "the installed stdlib",
                      file_path);
         oak_free(a, file_path, OAK_HERE);
+        oak_free(a, mod_dir, OAK_HERE);
         oak_free(a, dotted, OAK_HERE);
         rc = -1;
         break;
@@ -222,10 +258,9 @@ int oak_module_loader_load_program(const char* entry_path,
     }
     else
     {
-      char* mod_dir = path_dirname_dup(a, top->mod->canonical_path);
       file_path = path_resolve_dotted(a, mod_dir, dotted);
-      oak_free(a, mod_dir, OAK_HERE);
     }
+    oak_free(a, mod_dir, OAK_HERE);
 
     if (!path_exists(file_path) && is_native)
     {

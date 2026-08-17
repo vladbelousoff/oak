@@ -21,6 +21,35 @@ source → lexer → parser → compiler → bytecode → VM
 
 Public headers live in `include/`. Internal compiler headers are in `src/compiler/internal/`.
 
+### Packages
+
+- **`src/package/`**: manifest (`oak.json`) and lockfile (`oak.lock`) parsing
+  and writing, semver, the content-addressed cache layout, minimal version
+  selection, sha256, process spawning, and the git driver. Built as the
+  `oak_pkg` static library so `acorn`, `oak-pkg` and the test binary can all
+  link it. **Nothing in it is `OAK_API`**, which is why linking it into both
+  `acorn` and `oak_tests` is not a duplicate-symbol conflict.
+- **`src/common/oak_package.c`** implements the public `oak_package.h`. It lives
+  in `acorn` rather than `src/package/` precisely because it *is* exported.
+- **`src/common/oak_module_mount.c`**: a mount is `(scope_root, ns, root_dir)`
+  and claims the first dotted segment of an import. Longest matching scope
+  wins, which is what makes a dependency's dependencies invisible to you. A
+  mount is refused over a registered native module, so a package cannot shadow
+  the stdlib.
+- **`tools/oak-pkg/`**: the CLI. `oak_pkg_http.c` is the only file in the
+  project that touches the network, and libcurl/libarchive reach no other
+  target — the runtime never fetches, it reads a lockfile. HTTPS is optional
+  (`-Dhttps=`); without it git and path dependencies still work completely.
+- **Plugins**: `include/oak_plugin.h` is the ABI, `src/common/oak_plugin_host.c`
+  loads them. A plugin's `bind` is an ordinary binding function, so everything
+  downstream of it is unchanged. Load order matters: `oak_package_set_apply`
+  mounts every package *before* loading any plugin, because binding makes a
+  namespace a native module and a mount over one is refused.
+
+`oak_export.h`'s `OAK_BUILDING_ACORN`/`OAK_STATIC` and `oak_plugin.h`'s
+`OAK_PLUGIN_EXPORT` are the only public-header build-define exceptions; the
+latter keys on `_WIN32` and the compiler alone, never on an `OAK_*` flag.
+
 `include/` is the installed contract and holds two invariants, both guarded:
 
 - **Self-contained.** No public header may include one from `src/`. A header
@@ -90,3 +119,7 @@ meson test -C build compiler_interfaces      # single suite
 ## Native Bindings
 
 Register native types, functions, enums, and attributes on `oak_compile_options_t` before calling `oak_compile_ex()`. See `docs/embedding-c.md` and `src/stdlib/` for examples.
+
+A plugin is the same code in a shared library (`docs/publishing.md`). Bumping
+`OAK_PLUGIN_ABI` is required whenever `oak_plugin_t` or the expectations around
+`bind` change — a plugin built against a different number is refused, not called.

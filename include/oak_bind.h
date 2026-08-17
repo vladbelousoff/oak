@@ -464,6 +464,11 @@ struct oak_compile_options
   oak_module_registry_t* module_registry;
   oak_module_t* current_module;
 
+  /* Directories that claim the first segment of an import (owned; populated by
+   * oak_module_loader_mount).  Empty by default, in which case every non-native
+   * import resolves relative to the importing module, as it always has. */
+  oak_container_t* module_mounts;
+
   /* Internal module-loader option: native stdlib declaration modules contain
    * function signatures without Oak bodies because their implementations are
    * provided by native bindings. */

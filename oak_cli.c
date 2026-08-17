@@ -46,6 +46,11 @@ int oak_cli_parse(int argc,
         args->help = 1;
         continue;
       }
+      if (strcmp(a, "--version") == 0)
+      {
+        args->version = 1;
+        continue;
+      }
       if (strcmp(a, "--debug") == 0)
       {
         args->debug = 1;
@@ -84,6 +89,11 @@ int oak_cli_parse(int argc,
         args->no_debug_symbols = 1;
         continue;
       }
+      if (strcmp(a, "--no-plugins") == 0)
+      {
+        args->no_plugins = 1;
+        continue;
+      }
       if (strcmp(a, "--track-memory") == 0)
       {
         args->track_memory = 1;
@@ -111,7 +121,9 @@ int oak_cli_parse(int argc,
     args->script_argc = argc - i;
   }
 
-  if (args->help)
+  /* Both are "ask the binary a question" modes: they answer and exit, so a
+   * missing script path is not an error for either. */
+  if (args->help || args->version)
     return 0;
 
   if (!args->script_path)
@@ -127,7 +139,7 @@ void oak_cli_usage(FILE* out)
 {
   fprintf(out,
           "usage: oak [--debug] [--debug-port <port>] [--disassemble] "
-          "[--no-debug-symbols] [--allow-synthetic-modules] "
-          "[--track-memory] [--unbuffered] [--help] "
+          "[--no-debug-symbols] [--allow-synthetic-modules] [--no-plugins] "
+          "[--track-memory] [--unbuffered] [--version] [--help] "
           "<script> [script args...]\n");
 }

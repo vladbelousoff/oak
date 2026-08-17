@@ -145,8 +145,8 @@ print(c.area());
 
 ### Modules
 
-Modules are resolved relative to the entry script. Only names marked
-`export` are visible. Import selected names, everything, or a namespace:
+A module name resolves relative to the file that imports it. Only names
+marked `export` are visible. Import selected names, everything, or a namespace:
 
 ```oak
 import { sum, average } from analytics.stats;
@@ -156,6 +156,57 @@ import domain.project as project;
 
 See [`examples/06_modules/`](examples/06_modules/) for a complete
 multi-file program.
+
+### Packages
+
+A package is a directory with an `oak.json` in it. Declare a dependency
+and its modules become importable by name from anywhere in your program,
+with no files copied into your tree:
+
+```json
+{
+  "name": "me/demo",
+  "version": "1.0.0",
+  "module": "app",
+  "src": "src",
+  "deps": {
+    "greet": { "path": "vendor/greet" },
+    "json":  "github:acme/oak-json@1.2.0"
+  }
+}
+```
+
+```oak
+import { hello } from greet;
+import { parse } from json.lexer;
+```
+
+The alias on the left is the first segment of the import, so renaming a
+dependency is a manifest edit rather than a change to every import. The
+rest of the dotted name resolves inside that package exactly the way the
+stdlib already resolves `io.path` — `json.lexer` is `<package>/src/json/lexer.oak`.
+
+`oak-pkg` resolves and fetches; `oak` reads the lockfile and runs.
+Running a program never touches the network and never decides a version:
+
+```sh
+oak-pkg init --name me/demo
+oak-pkg add github:acme/oak-json@1.2.0
+oak src/app.oak
+```
+
+A dependency's own dependencies are not visible to you, so two packages
+can depend on different things under the same name without colliding. A
+script with no manifest above it is unaffected — imports resolve exactly
+as they did before packages existed.
+
+Packages ship source, or a prebuilt shared library per platform plus the
+same bodyless `.oak` declarations the standard library uses.
+
+[Packages](docs/packages.md) covers manifests, the lockfile, the shared
+cache, and version selection; [Publishing](docs/publishing.md) covers
+shipping one. [`examples/14_packages/`](examples/14_packages/) is a
+complete working project.
 
 ### Memory
 
@@ -258,5 +309,7 @@ is a complete program that CI compiles against the installed headers.
 | Learn the language by running it | [`examples/`](examples/README.md) |
 | Build, test, and install | [`docs/building.md`](docs/building.md) |
 | Use the CLI or debugger | [`docs/cli.md`](docs/cli.md) |
+| Depend on someone else's package | [`docs/packages.md`](docs/packages.md) |
+| Publish a package of my own | [`docs/publishing.md`](docs/publishing.md) |
 | Embed Oak in a C program | [`docs/embedding-c.md`](docs/embedding-c.md) |
 | Edit Oak in VS Code | [`editors/vscode/`](editors/vscode/README.md) |

@@ -1,0 +1,8 @@
+{
+  "name": "acme/json",
+  "version": "1.2.0",
+  "src": "src",
+  "deps": {
+    "utf8": { "git": "https://example.test/utf8.git", "tag": "v0.4.0" }
+  }
+}

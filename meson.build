@@ -11,7 +11,22 @@ project(
 )
 
 cc = meson.get_compiler('c')
+fs = import('fs')
 python = import('python').find_installation('python3')
+
+# include/oak_version.h carries the version as literal macros so that it stays a
+# self-contained public header with no generated part and no build define. That
+# makes it a second copy of the version, so check the two agree at configure
+# time rather than discovering the drift in a shipped artifact.
+if not fs.read('include/oak_version.h').contains(
+  '#define OAK_VERSION_STRING "' + meson.project_version() + '"',
+)
+  error(
+    'include/oak_version.h does not define OAK_VERSION_STRING as "'
+    + meson.project_version()
+    + '"; update it to match project version',
+  )
+endif
 
 is_msvc = cc.get_id() == 'msvc'
 is_emscripten = cc.get_id() == 'emscripten'
@@ -71,6 +86,10 @@ else
 endif
 math_dep = cc.find_library('m', required: false)
 socket_dep = host_machine.system() == 'windows' ? cc.find_library('ws2_32') : declare_dependency()
+# Loading a native package's shared library. Windows has LoadLibrary in the
+# always-linked kernel32, and dlopen is in libc on the BSDs and newer glibc, so
+# this is only actually a library on some Linux systems.
+dl_dep = host_machine.system() == 'windows' ? declare_dependency() : cc.find_library('dl', required: false)
 
 # Source-tree stdlib path, baked in as a development fallback.
 stdlib_dir_define = '-DOAK_STDLIB_SOURCE_DIR="' + meson.current_source_dir() / 'stdlib' + '"'
@@ -114,6 +133,7 @@ src_inc = include_directories(
   'src/lexer',
   'src/parser',
   'src/compiler',
+  'src/package',
   'src/stdlib',
   'src/vm',
   'src/debugger',
@@ -143,7 +163,9 @@ oak_public_headers = files(
   'include/oak_module_loader.h',
   'include/oak_native.h',
   'include/oak_object.h',
+  'include/oak_package.h',
   'include/oak_parser.h',
+  'include/oak_plugin.h',
   'include/oak_program.h',
   'include/oak_refcount.h',
   'include/oak_stdlib.h',
@@ -154,6 +176,7 @@ oak_public_headers = files(
   'include/oak_types.h',
   'include/oak_value.h',
   'include/oak_vector.h',
+  'include/oak_version.h',
   'include/oak_vm.h',
 )
 
@@ -172,9 +195,13 @@ oak_core_sources = files(
   'src/common/oak_module_loader_compile.c',
   'src/common/oak_module_loader_native.c',
   'src/common/oak_module_loader_path.c',
+  'src/common/oak_module_mount.c',
   'src/common/oak_net.c',
   'src/common/oak_object.c',
+  'src/common/oak_package.c',
+  'src/common/oak_plugin_host.c',
   'src/common/oak_vector.c',
+  'src/common/oak_version.c',
   'src/compiler/oak_compiler.c',
   'src/compiler/oak_compiler_builtins.c',
   'src/compiler/oak_compiler_call_arg.c',
@@ -244,13 +271,40 @@ oak_core_sources = files(
   'src/debugger/oak_dap.c',
 )
 
+# The package layer is a static library rather than more acorn sources so that
+# oak-pkg and the test binary can link it directly. Nothing in it is OAK_API, so
+# acorn's import library does not re-export it and linking both is not a
+# conflict.
+oak_pkg_sources = files(
+  'src/package/oak_pkg_cache.c',
+  'src/package/oak_pkg_fs.c',
+  'src/package/oak_pkg_git.c',
+  'src/package/oak_pkg_lock.c',
+  'src/package/oak_pkg_manifest.c',
+  'src/package/oak_pkg_proc.c',
+  'src/package/oak_pkg_resolve.c',
+  'src/package/oak_pkg_semver.c',
+  'src/package/oak_pkg_sha256.c',
+  'src/package/oak_pkg_util.c',
+  'src/package/oak_pkg_write.c',
+)
+
+oak_pkg = static_library(
+  'oak_pkg',
+  oak_pkg_sources,
+  include_directories: [public_inc, src_inc],
+  c_args: common_c_args + (is_emscripten ? ['-DOAK_STATIC'] : ['-DOAK_BUILDING_ACORN']),
+  dependencies: [yyjson_dep],
+)
+
 if is_emscripten
   acorn = static_library(
     'acorn',
     oak_core_sources,
     include_directories: [public_inc, src_inc],
     c_args: common_c_args + ['-DOAK_STATIC'],
-    dependencies: [yyjson_dep, math_dep, socket_dep],
+    dependencies: [yyjson_dep, math_dep, socket_dep, dl_dep],
+    link_whole: oak_pkg,
   )
 else
   acorn = shared_library(
@@ -258,10 +312,11 @@ else
     oak_core_sources,
     include_directories: [public_inc, src_inc],
     c_args: common_c_args + ['-DOAK_BUILDING_ACORN'],
-    dependencies: [yyjson_dep, math_dep, socket_dep],
+    dependencies: [yyjson_dep, math_dep, socket_dep, dl_dep],
     gnu_symbol_visibility: 'hidden',
     version: meson.project_version(),
     install: install_oak,
+    link_whole: oak_pkg,
   )
 endif
 
@@ -273,7 +328,7 @@ endif
 acorn_dep = declare_dependency(
   link_with: acorn,
   include_directories: public_inc,
-  dependencies: [yyjson_dep, math_dep, socket_dep],
+  dependencies: [yyjson_dep, math_dep, socket_dep, dl_dep],
 )
 
 if install_oak
@@ -334,6 +389,76 @@ else
     install: install_oak,
     install_rpath: oak_install_rpath,
   )
+
+  # oak-pkg. Built by default, but never for a cross build: it exists to be run
+  # on the developer's machine, and cross-compiling it would also drag libcurl
+  # into a target that has no use for it.
+  if get_option('pkg') and not meson.is_cross_build()
+    # HTTPS is the one optional capability in the whole system. Without these
+    # two, oak-pkg still handles git and path dependencies completely -- so a
+    # missing libcurl costs a feature, not the tool.
+    curl_dep = dependency(
+      'libcurl',
+      required: get_option('https'),
+      fallback: ['curl', 'curl_dep'],
+    )
+    # tests=disabled matters beyond build time: meson runs a subproject's tests
+    # as part of `meson test`, and libarchive's take well over a minute and
+    # assume a POSIX-ish environment, so leaving them on makes this project's
+    # own suite look slow and flaky for reasons that are not this project's.
+    # progs is off because oak-pkg links the library and never shells out.
+    libarchive_dep = dependency(
+      'libarchive',
+      required: get_option('https'),
+      fallback: ['libarchive', 'libarchive_dep'],
+      default_options: subproject_default_options + [
+        'tests=disabled',
+        'progs=[]',
+      ],
+    )
+    have_https = curl_dep.found() and libarchive_dep.found()
+
+    oak_pkg_tool_deps = [acorn_dep, mimalloc_dep]
+    oak_pkg_tool_args = common_c_args
+    if have_https
+      oak_pkg_tool_deps += [curl_dep, libarchive_dep]
+      oak_pkg_tool_args += ['-DOAK_PKG_HTTPS=1']
+      # archive.h declares its API __declspec(dllimport) unless told otherwise,
+      # and libarchive's wrap sets LIBARCHIVE_STATIC only for its own sources --
+      # not in the dependency it hands consumers. curl exports its equivalent
+      # publicly, so only this one has to be repeated here.
+      if host_machine.system() == 'windows' and libarchive_dep.type_name() == 'internal' and get_option(
+        'default_library',
+      ) == 'static'
+        oak_pkg_tool_args += ['-DLIBARCHIVE_STATIC']
+      endif
+    else
+      message(
+        'oak-pkg: building without HTTPS archive support (libcurl or libarchive not found)',
+      )
+    endif
+
+    oak_pkg_exe = executable(
+      'oak-pkg',
+      files(
+        'tools/oak-pkg/oak_pkg_cmd.c',
+        'tools/oak-pkg/oak_pkg_fetch.c',
+        'tools/oak-pkg/oak_pkg_http.c',
+        'tools/oak-pkg/oak_pkg_main.c',
+      ),
+      include_directories: [src_inc, include_directories('tools/oak-pkg')],
+      c_args: oak_pkg_tool_args,
+      dependencies: oak_pkg_tool_deps,
+      link_with: oak_pkg,
+      install: install_oak,
+      install_rpath: oak_install_rpath,
+    )
+
+    # Cheapest possible proof that the binary links and runs. The commands that
+    # touch the network are exercised by hand; this catches the failure that
+    # actually recurs, which is a build-level one.
+    test('oak_pkg_smoke', oak_pkg_exe, args: ['--version'])
+  endif
 
   if install_oak
     install_subdir(
@@ -408,6 +533,10 @@ else
     'bind_fn',
     'bind_type',
     'module_loader',
+    'package',
+    'plugin',
+    'resolve',
+    'sha256',
   ]
 
   test_suite_sources = []
@@ -415,13 +544,29 @@ else
     test_suite_sources += files('tests/suites/' + suite + '_test.c')
   endforeach
 
+  # Real shared libraries for the plugin suite: there is no way to test dlopen
+  # without something to open. They register nothing and so need no link
+  # against acorn -- what is under test is the handshake, not what binding does.
+  test_plugin = shared_module(
+    'oak_test_plugin',
+    files('tests/plugins/oak_test_plugin.c'),
+    include_directories: public_inc,
+    c_args: warning_args,
+  )
+  test_plugin_bad_abi = shared_module(
+    'oak_test_plugin_bad_abi',
+    files('tests/plugins/oak_test_plugin_bad_abi.c'),
+    include_directories: public_inc,
+    c_args: warning_args,
+  )
+
   # utest.h registers every test through a constructor, so all suites live in
   # one binary with a single main(). oak_cli.c is linked in for the cli suite;
   # it declares no main() of its own (that is in oak.c).
   oak_tests = executable(
     'oak_tests',
     files('tests/main_test.c', 'tests/support/oak_test_support.c') +
-    test_suite_sources + files('oak_cli.c'),
+    test_suite_sources + files('oak_cli.c', 'src/common/oak_plugin_host.c'),
     include_directories: [
       src_inc,
       test_inc,
@@ -434,14 +579,22 @@ else
     # written, so the "tests do no filesystem I/O" rule still holds for output.
     c_args: common_c_args +
       ['-DOAK_TEST_EXAMPLES_DIR="' + meson.current_source_dir() / 'examples' + '"',
-       '-DOAK_TEST_FIXTURES_DIR="' + meson.current_source_dir() / 'tests/suites/fixtures' + '"'],
-    dependencies: acorn_dep,
+       '-DOAK_TEST_FIXTURES_DIR="' + meson.current_source_dir() / 'tests/suites/fixtures' + '"',
+       '-DOAK_TEST_PLUGIN_PATH="' + test_plugin.full_path().replace('\\', '\\\\') + '"',
+       '-DOAK_TEST_PLUGIN_BAD_ABI_PATH="' + test_plugin_bad_abi.full_path().replace('\\', '\\\\') + '"'],
+    dependencies: [acorn_dep, dl_dep],
+    link_with: oak_pkg,
   )
 
   # Register each suite separately so meson reports them individually and a
   # crash in one suite cannot take the rest of the run down with it.
   foreach suite : test_suites
-    test(suite, oak_tests, args: ['--filter=' + suite + '.*'])
+    test(
+      suite,
+      oak_tests,
+      args: ['--filter=' + suite + '.*'],
+      depends: [test_plugin, test_plugin_bad_abi],
+    )
   endforeach
 
   example_sources = {
@@ -457,6 +610,7 @@ else
     '11_weak_refs': 'examples/11_weak_refs/11_weak_refs.oak',
     '12_strings': 'examples/12_strings/12_strings.oak',
     '13_anonymous_functions': 'examples/13_anonymous_functions/13_anonymous_functions.oak',
+    '14_packages': 'examples/14_packages/src/app.oak',
   }
 
   foreach example_name, script : example_sources

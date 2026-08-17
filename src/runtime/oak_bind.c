@@ -2,6 +2,7 @@
 
 #include "oak_allocator.h"
 #include "oak_log.h"
+#include "oak_module_mount.h"
 #include "oak_str.h"
 #include "oak_type.h"
 #include "oak_value_impl.h"
@@ -70,9 +71,12 @@ void oak_compile_options_init(oak_compile_options_t* opts,
   opts->native_attrs = oak_vector_new(allocator,
                                          sizeof(oak_bind_attr_t));
   opts->bind_errors = oak_vector_new(allocator, sizeof(char*));
+  opts->module_mounts =
+      oak_vector_new(allocator, sizeof(oak_module_mount_t));
   OAK_ASSERT(opts->native_types && opts->native_fns &&
              opts->native_global_fns && opts->native_enums &&
-             opts->native_attrs && opts->bind_errors);
+             opts->native_attrs && opts->bind_errors &&
+             opts->module_mounts);
   opts->emit_debug_info = 1;
   opts->module_registry = OAK_NULL;
   opts->current_module = OAK_NULL;
@@ -124,6 +128,9 @@ void oak_compile_options_free(oak_compile_options_t* opts)
     oak_free(opts->allocator, bind_errors[i], OAK_HERE);
   oak_destroy(opts->bind_errors);
   opts->bind_errors = OAK_NULL;
+
+  oak_module_mounts_free(opts->allocator, opts->module_mounts);
+  opts->module_mounts = OAK_NULL;
 }
 
 

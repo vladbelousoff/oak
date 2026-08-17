@@ -11,3 +11,17 @@ option(
   value: false,
   description: 'Use atomic reference counting. Off by default: VM-local objects are confined to their VM thread and shared table-0 objects are not concurrently mutated across VMs, so no synchronization is needed by design. Enable only for embedders that deliberately break that invariant.',
 )
+
+option(
+  'pkg',
+  type: 'boolean',
+  value: true,
+  description: 'Build the oak-pkg package manager. Off for cross builds and minimal runtime-only builds; the oak CLI reads oak.lock either way.',
+)
+
+option(
+  'https',
+  type: 'feature',
+  value: 'auto',
+  description: 'Archive dependencies over HTTPS in oak-pkg, via libcurl and libarchive. Without it, git and path dependencies still work completely and an archive dependency reports that this build cannot fetch it.',
+)

@@ -1,0 +1,6 @@
+{
+  "name": "example/greet",
+  "version": "0.3.0",
+  "src": "src",
+  "license": "MIT"
+}

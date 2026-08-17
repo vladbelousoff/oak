@@ -1,0 +1,6 @@
+/* Entry module. `greet` is not a directory next to this file; it is the alias
+   this project's oak.json gives to the package in vendor/. */
+import { hello, greeting } from greet;
+
+print(hello('oak'));
+print(greeting('oak'));

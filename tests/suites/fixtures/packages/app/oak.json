@@ -1,0 +1,10 @@
+{
+  "name": "me/app",
+  "version": "1.0.0",
+  "module": "app",
+  "src": "src",
+  "deps": {
+    "json": { "git": "https://example.test/json.git", "tag": "v1.0.0", "version": "^1.0.0" },
+    "local": { "path": "../locallib" }
+  }
+}

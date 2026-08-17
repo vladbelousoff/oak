@@ -60,6 +60,21 @@ oak examples/01_values/01_values.oak
 The default prefix is `~/.local`, so the binary lands in `~/.local/bin`.
 Pass `--prefix=<path>` to `meson setup` to put it somewhere else.
 
+`oak-pkg`, the package manager, installs alongside it.
+
+### Build options
+
+| Option | Default | Effect |
+|---|---|---|
+| `-Dinstall=` | `true` | Install the CLI and runtime library |
+| `-Dpkg=` | `true` | Build `oak-pkg`. Off for cross builds; `oak` still reads `oak.lock` either way |
+| `-Dhttps=` | `auto` | Archive dependencies over HTTPS, via libcurl and libarchive. Without them, `oak-pkg` handles git and path dependencies completely |
+| `-Datomic_refcount=` | `false` | Atomic reference counting; only for embedders that share objects across threads |
+
+Neither libcurl nor libarchive reaches `acorn`, the `oak` CLI, or the
+WebAssembly build — only `oak-pkg` links them, because the runtime never
+fetches anything. They come from wrapdb if the system has no copy.
+
 An installed `oak` finds the stdlib next to the executable. Set
 `OAK_STDLIB_DIR` only if you need to override that.
 

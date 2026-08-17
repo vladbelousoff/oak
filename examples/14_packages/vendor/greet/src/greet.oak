@@ -1,0 +1,11 @@
+/* The package's root module: `import greet` finds this file because the
+   dependency mounts vendor/greet/src and resolves the dotted name under it. */
+import { titled } from greet.polite;
+
+export fn hello(name : string) -> string {
+  return 'hello, ' + name;
+}
+
+export fn greeting(name : string) -> string {
+  return titled(name);
+}

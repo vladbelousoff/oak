@@ -12,7 +12,9 @@ On Windows, run `.\build\oak.exe` instead.
 
 CI runs these as smoke tests. An example with a `.expected_error` file
 is supposed to fail; everything else must exit successfully. Each
-runnable example lives in a folder with the same name as its entry file.
+runnable example lives in a folder with the same name as its entry file --
+except `14_packages`, which is a project rather than a script and so has the
+layout a real one does, with its entry at `src/app.oak`.
 
 ## Tour
 
@@ -29,3 +31,4 @@ runnable example lives in a folder with the same name as its entry file.
 11. `11_weak_refs` — weak references in records and parameters
 12. `12_strings` — string methods and conversion built-ins
 13. `13_anonymous_functions` — function values, lambdas, higher-order functions
+14. `14_packages` — an `oak.json` project importing a package by name

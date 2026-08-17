@@ -8,7 +8,9 @@
 #include "oak_log.h"
 #include "oak_module.h"
 #include "oak_module_loader.h"
+#include "oak_package.h"
 #include "oak_stdlib.h"
+#include "oak_version.h"
 #include "oak_vm.h"
 
 #include <mimalloc.h>
@@ -28,6 +30,14 @@ int main(const int argc, const char* argv[])
   if (cli.help)
   {
     oak_cli_usage(stdout);
+    return 0;
+  }
+
+  if (cli.version)
+  {
+    /* The library's own strings, not this file's macros: a CLI running against
+     * a mismatched acorn should report what it actually loaded. */
+    printf("oak %s (%s)\n", oak_version(), oak_platform());
     return 0;
   }
 
@@ -55,11 +65,27 @@ int main(const int argc, const char* argv[])
   oak_module_registry_init(&registry, &allocator);
   oak_module_loader_result_t lr = { 0 };
 
-  int exit_code = 1;
-  const int load_rc = oak_module_loader_load_program(
-      cli.script_path, &compile_opts, &registry, &lr);
-  oak_diagnostics_print(lr.errors, lr.error_count);
+  /* Mount the project's dependencies before loading, so an import can resolve
+   * into a package. A script with no oak.json above it gets an empty set and
+   * resolves exactly as it always has. */
+  oak_diagnostic_t pkg_err = { 0 };
+  oak_package_set_t* packages =
+      oak_package_set_open(cli.script_path, &allocator, &pkg_err);
+  if (packages && cli.no_plugins)
+    oak_package_set_allow_plugins(packages, 0);
+  int load_rc = -1;
+  if (!packages || oak_package_set_apply(packages, &compile_opts, &pkg_err) != 0)
+  {
+    oak_diagnostics_print(&pkg_err, 1);
+  }
+  else
+  {
+    load_rc = oak_module_loader_load_program(
+        cli.script_path, &compile_opts, &registry, &lr);
+    oak_diagnostics_print(lr.errors, lr.error_count);
+  }
 
+  int exit_code = 1;
   if (load_rc == 0 && lr.entry && oak_module_chunk(lr.entry))
   {
     exit_code = 0;
@@ -107,6 +133,8 @@ int main(const int argc, const char* argv[])
 
   oak_module_registry_free(&registry);
   oak_compile_options_free(&compile_opts);
+  /* Last: a native package's bindings live in a library this set holds open. */
+  oak_package_set_close(packages);
   if (allocator.shutdown(&allocator) > 0 && exit_code == 0)
     exit_code = 2;
   return exit_code;

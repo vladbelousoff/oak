@@ -1,0 +1,6 @@
+/* A submodule, reached as `greet.polite`. Note that greet.oak imports it by
+   the package's own namespace rather than by a relative path -- inside a
+   package, the package's name works from any depth. */
+export fn titled(name : string) -> string {
+  return 'good day, ' + name;
+}

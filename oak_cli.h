@@ -12,8 +12,10 @@ struct oak_cli_args
   int debug_port_set;
   int help;
   int no_debug_symbols;
+  int no_plugins;
   int track_memory;
   int unbuffered;
+  int version;
   const char* script_path;
   const char* const* script_argv;
   int script_argc;

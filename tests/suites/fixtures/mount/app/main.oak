@@ -1,0 +1,8 @@
+/* Entry for the mount tests. Neither import can resolve relative to this
+   file -- there is no greet.oak next to it -- so loading only succeeds when
+   `greet` has been mounted onto the fixture's pkg/ directory. */
+import { hello } from greet;
+import { shout } from greet.loud;
+
+print(hello());
+print(shout());

@@ -1,0 +1,10 @@
+{
+  "name": "oak/packages-example",
+  "version": "1.0.0",
+  "module": "app",
+  "src": "src",
+  "oak": ">=1.0.0",
+  "deps": {
+    "greet": { "path": "vendor/greet" }
+  }
+}

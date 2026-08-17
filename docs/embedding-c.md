@@ -539,6 +539,86 @@ anything the stub adds on top — parameter types and mutability,
 `fn mut` receivers, declarations with no matching binding — is
 absent, and calls into it are checked more loosely.
 
+## Plugins
+
+A plugin is the previous section's code in a shared library that ships
+separately from the host. The declaration module and the bindings are
+unchanged; the only new thing is how they meet.
+
+[`include/oak_plugin.h`](../include/oak_plugin.h) defines one struct
+and one exported symbol:
+
+```c
+#include "oak_bind.h"
+#include "oak_plugin.h"
+#include "oak_version.h"
+
+static int bind(oak_compile_options_t* opts)
+{
+  oak_bind_type_t* file =
+      oak_bind_type_in_module(opts, "io", OAK_BIND_TYPE_RECORD, "File");
+  /* ...exactly the calls you would make in-process... */
+  return 0;
+}
+
+static const oak_plugin_t plugin = {
+  OAK_PLUGIN_ABI, "acme/zlib", "1.2.0", OAK_VERSION_STRING, bind,
+};
+
+OAK_PLUGIN_EXPORT const oak_plugin_t* oak_plugin_main(void)
+{
+  return &plugin;
+}
+```
+
+`bind` returns 0 on success. It is called once, before any module is
+loaded, and everything downstream — `allow_bodyless_fns`, the
+declaration-versus-binding checks, module exports — behaves exactly as
+it does for bindings compiled into the host.
+
+`abi` and `oak_version` are checked before `bind` is called. A plugin
+built for a different `OAK_PLUGIN_ABI`, or against a different major
+version of Oak, is refused with a message naming both sides rather than
+called and hoped for.
+
+### Lifetime
+
+Everything `bind` registers is owned by the compile options, but the
+strings and function pointers it registers live in the shared library.
+The library therefore has to be unloaded **last**:
+
+```c
+oak_vm_free(&vm);
+oak_module_registry_free(&registry);
+oak_compile_options_free(&opts);
+oak_package_set_close(packages);   /* unloads plugins */
+```
+
+Unloading earlier leaves teardown reading unmapped memory.
+
+### Loading them
+
+Embedders do not open plugins directly. A package set does it, as part
+of applying a project's dependencies
+([`include/oak_package.h`](../include/oak_package.h)):
+
+```c
+oak_package_set_t* packages =
+    oak_package_set_open(script_path, &allocator, &err);
+oak_package_set_allow_plugins(packages, 0);   /* optional: refuse them */
+oak_package_set_apply(packages, &opts, &err);
+```
+
+`oak_package_set_allow_plugins(set, 0)` — what `oak --no-plugins` calls
+— makes a dependency graph that needs a native library an error instead
+of loading one. Use it when running code you have not read: a native
+package is arbitrary machine code, and a source-only graph is a
+meaningfully smaller thing to trust.
+
+See [Publishing](publishing.md) for the packaging side: platform
+directories, what `oak-pkg check` verifies, and how to build the
+library.
+
 ## Attributes
 
 `oak_bind_attr()` registers a named attribute with two optional hooks:

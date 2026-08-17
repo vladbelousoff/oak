@@ -1,0 +1,5 @@
+/* Reached as `greet.loud`, so the segment after the mounted namespace resolves
+   as a directory under the mount root -- the same rule the stdlib follows. */
+export fn shout() -> string {
+  return 'HELLO';
+}

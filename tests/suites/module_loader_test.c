@@ -517,3 +517,168 @@ UTEST_F(module_loader, accessors_tolerate_a_null_module)
   EXPECT_EQ(OAK_MODULE_ID_NONE, oak_module_id(OAK_NULL));
   EXPECT_EQ(0, oak_module_is_entry(OAK_NULL));
 }
+
+
+/*
+ * Mounts. A mount points the first segment of an import at a directory, which
+ * is how a package manager makes a downloaded library importable without
+ * copying it next to the program.
+ */
+
+#define MOUNT_DIR OAK_TEST_FIXTURES_DIR "/mount"
+#define MOUNT_ENTRY MOUNT_DIR "/app/main.oak"
+#define MOUNT_OTHER_ENTRY MOUNT_DIR "/other/main.oak"
+/* Has greet.oak and greet/loud.oak. */
+#define MOUNT_PKG MOUNT_DIR "/pkg"
+/* Has greet.oak only, exporting a name MOUNT_PKG does not. */
+#define MOUNT_PKG_FALLBACK MOUNT_DIR "/pkg2"
+
+/* Like load_begin, but mounts `ns` onto `root` first. */
+static void load_begin_mounted(load_fixture_t* f,
+                               oak_allocator_t* a,
+                               const char* path,
+                               const char* ns,
+                               const char* root,
+                               const char* label)
+{
+  memset(&f->result, 0, sizeof f->result);
+  oak_compile_options_init(&f->opts, a);
+  oak_module_registry_init(&f->registry, a);
+  f->rc = oak_module_loader_mount(&f->opts, OAK_NULL, ns, root, label);
+  if (f->rc == 0)
+    f->rc = oak_module_loader_load_program(
+        path, &f->opts, &f->registry, &f->result);
+}
+
+/* The whole point: `import { hello } from greet` finds a file the importing
+ * module has no path to, and `greet.loud` continues under the mount root the
+ * same way a dotted stdlib name would. */
+UTEST_F(module_loader, a_mount_resolves_an_import_to_another_directory)
+{
+  load_fixture_t f;
+  load_begin_mounted(&f, OAK_A, MOUNT_ENTRY, "greet", MOUNT_PKG, "acme/greet");
+
+  ASSERT_EQ(0, f.rc);
+  ASSERT_TRUE(f.result.entry != OAK_NULL);
+  EXPECT_EQ(0, f.result.error_count);
+  EXPECT_TRUE(find_module(&f.registry, "greet") != OAK_NULL);
+  EXPECT_TRUE(find_module(&f.registry, "greet.loud") != OAK_NULL);
+
+  load_end(&f);
+}
+
+/* And without the mount the same entry fails, so the fixture really is proving
+ * the mount and not some incidental module-relative path. */
+UTEST_F(module_loader, without_a_mount_the_same_import_does_not_resolve)
+{
+  load_fixture_t f;
+  load_begin(&f, OAK_A, MOUNT_ENTRY);
+
+  EXPECT_EQ(-1, f.rc);
+  ASSERT_GT(f.result.error_count, 0);
+
+  load_end(&f);
+}
+
+/* A mount is authoritative: a name it claims but cannot supply is that
+ * package's error, reported with the package named, never a quiet fall-through
+ * to whatever happens to sit next to the importing file. */
+UTEST_F(module_loader, a_missing_module_in_a_mount_names_the_package)
+{
+  load_fixture_t f;
+  /* Mounted at the fixture root, where greet.oak does not exist. */
+  load_begin_mounted(&f, OAK_A, MOUNT_ENTRY, "greet", MOUNT_DIR, "acme/greet");
+
+  EXPECT_EQ(-1, f.rc);
+  ASSERT_GT(f.result.error_count, 0);
+  EXPECT_TRUE(strstr(f.result.errors[0].message, "acme/greet") != OAK_NULL);
+
+  load_end(&f);
+}
+
+/* Mounting over a built-in native module would let a package impersonate the
+ * stdlib, so it is refused at mount time with a reason recorded on the
+ * options -- the same way a rejected binding is. */
+UTEST_F(module_loader, a_mount_cannot_shadow_a_native_module)
+{
+  oak_compile_options_t opts;
+  oak_compile_options_init(&opts, OAK_A);
+  oak_stdlib_register(&opts);
+
+  EXPECT_EQ(-1,
+            oak_module_loader_mount(&opts, OAK_NULL, "io", MOUNT_PKG, OAK_NULL));
+  ASSERT_GT(oak_size(opts.bind_errors), (usize)0);
+  EXPECT_TRUE(strstr(OAK_DATA(char*, opts.bind_errors)[0], "io") != OAK_NULL);
+  EXPECT_EQ((usize)0, oak_size(opts.module_mounts));
+
+  oak_compile_options_free(&opts);
+}
+
+/* Malformed mounts are rejected rather than stored, so a typo cannot silently
+ * produce a mount that never matches anything. */
+UTEST_F(module_loader, a_mount_rejects_a_dotted_or_empty_namespace)
+{
+  oak_compile_options_t opts;
+  oak_compile_options_init(&opts, OAK_A);
+
+  EXPECT_EQ(-1, oak_module_loader_mount(&opts, OAK_NULL, "a.b", MOUNT_PKG,
+                                        OAK_NULL));
+  EXPECT_EQ(-1,
+            oak_module_loader_mount(&opts, OAK_NULL, "", MOUNT_PKG, OAK_NULL));
+  EXPECT_EQ(-1, oak_module_loader_mount(&opts, OAK_NULL, "greet", OAK_NULL,
+                                        OAK_NULL));
+  EXPECT_EQ((usize)0, oak_size(opts.module_mounts));
+  EXPECT_EQ((usize)3, oak_size(opts.bind_errors));
+
+  oak_compile_options_free(&opts);
+}
+
+/* Scoping is what keeps one package's dependencies out of another's: the same
+ * namespace means different directories depending on who imports it, and the
+ * most specific scope wins. Both fixtures export `hello`, so only the
+ * scope-specific members -- greet.loud here, only_in_fallback below -- reveal
+ * which mount actually answered. */
+UTEST_F(module_loader, a_scoped_mount_beats_a_program_wide_one_inside_its_scope)
+{
+  load_fixture_t f;
+  memset(&f.result, 0, sizeof f.result);
+  oak_compile_options_init(&f.opts, OAK_A);
+  oak_module_registry_init(&f.registry, OAK_A);
+
+  ASSERT_EQ(0, oak_module_loader_mount(&f.opts, OAK_NULL, "greet",
+                                       MOUNT_PKG_FALLBACK, "root/project"));
+  ASSERT_EQ(0, oak_module_loader_mount(&f.opts, MOUNT_DIR "/app", "greet",
+                                       MOUNT_PKG, "acme/greet"));
+
+  /* greet.loud exists only under the scoped mount. */
+  f.rc = oak_module_loader_load_program(MOUNT_ENTRY, &f.opts, &f.registry,
+                                        &f.result);
+  EXPECT_EQ(0, f.rc);
+  EXPECT_EQ(0, f.result.error_count);
+  EXPECT_TRUE(find_module(&f.registry, "greet.loud") != OAK_NULL);
+
+  load_end(&f);
+}
+
+/* The mirror image: a module outside that scope still gets the program-wide
+ * mount, so the scoped one really is confined rather than merely last. */
+UTEST_F(module_loader, a_module_outside_the_scope_gets_the_program_wide_mount)
+{
+  load_fixture_t f;
+  memset(&f.result, 0, sizeof f.result);
+  oak_compile_options_init(&f.opts, OAK_A);
+  oak_module_registry_init(&f.registry, OAK_A);
+
+  ASSERT_EQ(0, oak_module_loader_mount(&f.opts, OAK_NULL, "greet",
+                                       MOUNT_PKG_FALLBACK, "root/project"));
+  ASSERT_EQ(0, oak_module_loader_mount(&f.opts, MOUNT_DIR "/app", "greet",
+                                       MOUNT_PKG, "acme/greet"));
+
+  /* only_in_fallback exists only under the program-wide mount. */
+  f.rc = oak_module_loader_load_program(MOUNT_OTHER_ENTRY, &f.opts, &f.registry,
+                                        &f.result);
+  EXPECT_EQ(0, f.rc);
+  EXPECT_EQ(0, f.result.error_count);
+
+  load_end(&f);
+}

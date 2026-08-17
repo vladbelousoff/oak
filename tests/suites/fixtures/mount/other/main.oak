@@ -1,0 +1,5 @@
+/* Outside the scope of the app-specific mount, so `greet` here must resolve to
+   the program-wide fallback -- only_in_fallback exists nowhere else. */
+import { only_in_fallback } from greet;
+
+print(only_in_fallback());

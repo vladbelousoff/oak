@@ -1,0 +1,10 @@
+/* The fallback `greet`, used by the scope tests. It deliberately has no
+   greet/loud.oak beside it and exports a name the specific package does not,
+   so which mount answered is visible from whether a program compiles. */
+export fn hello() -> string {
+  return 'hello from the fallback';
+}
+
+export fn only_in_fallback() -> string {
+  return 'fallback';
+}
