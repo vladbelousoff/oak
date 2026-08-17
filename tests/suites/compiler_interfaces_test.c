@@ -66,15 +66,15 @@ UTEST_F(compiler_interfaces, interface_arrays_hold_mixed_implementations)
       "  fn area() -> number { return self.w * self.h; }\n"
       "  fn describe() -> string { return 'rect'; }\n"
       "}\n"
-      "let mut shapes = new IShape[];\n"
+      "let shapes = new IShape[];\n"
       "shapes.push(new Circle { radius: 3 });\n"
       "shapes.push(new Rect { w: 2, h: 5 });\n"
-      "let mut total = 0;\n"
+      "let total = 0;\n"
       "for s in shapes { total += s.area(); }\n"
       "print(total);\n",
       OAK_NULL },
     { INTERFACE_SHAPE RECORD_CIRCLE
-      "let mut shapes = new IShape[];\n"
+      "let shapes = new IShape[];\n"
       "shapes.push(new Circle { radius: 4 });\n"
       "print(shapes[0].area());\n",
       OAK_NULL },
@@ -148,7 +148,7 @@ UTEST_F(compiler_interfaces, a_structural_match_is_not_an_implementation)
       "  fn area() -> number { return self.radius; }\n"
       "  fn describe() -> string { return 'circle'; }\n"
       "}\n"
-      "let mut shapes = new IShape[];\n"
+      "let shapes = new IShape[];\n"
       "shapes.push(new Circle { radius: 1 });\n",
       "add 'implements IShape'" },
   };
@@ -183,7 +183,7 @@ UTEST_F(compiler_interfaces, a_mutable_receiver_is_part_of_the_contract)
       "  fn mut bump() -> number { self.n += 1; return self.n; }\n"
       "}\n"
       "fn run(mut c : ICounter) { print(c.bump()); }\n"
-      "let mut c = new Counter { n: 1 };\n"
+      "let c = new Counter { n: 1 };\n"
       "run(c);\n",
       OAK_NULL },
   };

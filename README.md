@@ -9,7 +9,7 @@ memory is reclaimed when the last reference goes away.
 
 ```oak
 fn sum(values : number[]) -> number {
-  let mut total = 0;
+  let total = 0;
   for value in values {
     total += value;
   }
@@ -42,7 +42,10 @@ tour. This is a short look at how Oak feels.
 
 ### Bindings and values
 
-`let` is immutable. Use `let mut` when you need to change a binding.
+`let` declares a binding and takes no qualifier. Whether you can write
+*through* it is inherited from the initializer: a fresh value is yours to
+change, and a reference reached from something read-only stays read-only. Only
+functions say `mut` — see [Functions](#functions).
 Strings are **single-quoted** — double quotes are not allowed.
 `/` is always float division; `//` is integer division.
 Comments are `/* ... */` only. There is no `//` comment: `//` is the
@@ -50,7 +53,7 @@ division operator.
 
 ```oak
 let answer = 40 + 2;
-let mut stock = 10;
+let stock = 10;
 stock += 5;
 
 let ratio = 9 / 2;   /* 4.5 */
@@ -68,11 +71,11 @@ you'd expect.
 ### Collections
 
 ```oak
-let mut scores = new number[];
+let scores = new number[];
 scores.push(10);
 scores[0] = 12;
 
-let mut inventory = new [string:number];
+let inventory = new [string:number];
 inventory['apples'] = 4;
 print(inventory.has('apples'));
 ```
@@ -92,6 +95,21 @@ fn fib(n : number) -> number {
 
 let double = (x : number) -> number { return x * 2; };
 print(double(fib(10)));
+```
+
+A parameter is read-only unless it says `mut`. This is the one place the
+language asks you to declare write access, so a signature states in full what
+a function may change:
+
+```oak
+fn insertion_sort(mut values : number[]) { ... }
+
+let mixed = [9, 1, 5];
+insertion_sort(mixed);   /* ok: `mixed` is a fresh array */
+
+fn report(values : number[]) {
+  insertion_sort(values);   /* error: `values` is read-only here */
+}
 ```
 
 ### Records, enums, and interfaces

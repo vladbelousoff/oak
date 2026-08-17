@@ -55,8 +55,8 @@ UTEST_F(compiler_cycles, self_referential_strong_fields_are_write_once)
       "fn set_b(mut x: A, y: B) { x.b = y; }\n",
       "write-once" },
     { RECORD_TREE
-      "let mut leaf = new Tree { value: 1, children: new Tree[] };\n"
-      "let mut root = new Tree { value: 2, children: [leaf] };\n"
+      "let leaf = new Tree { value: 1, children: new Tree[] };\n"
+      "let root = new Tree { value: 2, children: [leaf] };\n"
       "root.children = new Tree[];\n",
       "write-once" },
     /* The rule follows the field, so methods get no exemption. */
@@ -77,7 +77,7 @@ UTEST_F(compiler_cycles, fields_off_the_cycle_stay_freely_mutable)
     /* Person -> Address is acyclic, so the field is an ordinary one. */
     { "record Address { city : string; }\n"
       "record Person { home : Address; }\n"
-      "let mut p = new Person { home: new Address { city: 'x' } };\n"
+      "let p = new Person { home: new Address { city: 'x' } };\n"
       "p.home = new Address { city: 'y' };\n"
       "print(p.home.city);\n",
       OAK_NULL },
@@ -87,8 +87,8 @@ UTEST_F(compiler_cycles, fields_off_the_cycle_stay_freely_mutable)
       "  value : number;\n"
       "  next : Node weak;\n"
       "}\n"
-      "let mut a = new Node { value: 1, next: none };\n"
-      "let mut b = new Node { value: 2, next: none };\n"
+      "let a = new Node { value: 1, next: none };\n"
+      "let b = new Node { value: 2, next: none };\n"
       "b.next = a;\n"
       "print(b.value);\n",
       OAK_NULL },
@@ -101,25 +101,25 @@ UTEST_F(compiler_cycles, stores_into_self_owning_containers_are_rejected)
 {
   static const oak_case_t cases[] = {
     { RECORD_TREE
-      "let mut root = new Tree { value: 1, children: new Tree[] };\n"
+      "let root = new Tree { value: 1, children: new Tree[] };\n"
       "root.children.push(root);\n",
       "strong reference cycle" },
     /* The array is only held by a local here, but a Tree built from it could
      * own it, so the push is rejected wherever the array happens to live. */
     { RECORD_TREE
-      "let mut arr = new Tree[];\n"
+      "let arr = new Tree[];\n"
       "let root = new Tree { value: 1, children: arr };\n"
       "arr.push(root);\n",
       "strong reference cycle" },
     { RECORD_TREE
-      "let mut a = new Tree { value: 1, children: new Tree[] };\n"
-      "let mut root = new Tree { value: 2, children: [a] };\n"
+      "let a = new Tree { value: 1, children: new Tree[] };\n"
+      "let root = new Tree { value: 2, children: [a] };\n"
       "root.children[0] = root;\n",
       "strong reference cycle" },
     { "record Group {\n"
       "  members : [string:Group];\n"
       "}\n"
-      "let mut g = new Group { members: new [string:Group] };\n"
+      "let g = new Group { members: new [string:Group] };\n"
       "g.members['self'] = g;\n",
       "strong reference cycle" },
     /* The program the old runtime cycle-collector suite used to exercise; it
@@ -127,7 +127,7 @@ UTEST_F(compiler_cycles, stores_into_self_owning_containers_are_rejected)
     { "record Node {\n"
       "  links : Node[];\n"
       "}\n"
-      "let mut node = new Node { links : new Node[] };\n"
+      "let node = new Node { links : new Node[] };\n"
       "node.links.push(node);\n",
       "strong reference cycle" },
   };
@@ -146,7 +146,7 @@ UTEST_F(compiler_cycles, containers_that_cannot_close_a_cycle_stay_mutable)
       "print(root.value);\n",
       OAK_NULL },
     { "record Point { x : number; }\n"
-      "let mut pts = new Point[];\n"
+      "let pts = new Point[];\n"
       "pts.push(new Point { x: 1 });\n"
       "pts.push(new Point { x: 2 });\n"
       "print(pts.size());\n",
@@ -155,8 +155,8 @@ UTEST_F(compiler_cycles, containers_that_cannot_close_a_cycle_stay_mutable)
      * [string:Tree], so a Tree can never reach this map and storing into it
      * cannot close anything. */
     { RECORD_TREE
-      "let mut leaf = new Tree { value: 7, children: new Tree[] };\n"
-      "let mut index = new [string:Tree];\n"
+      "let leaf = new Tree { value: 7, children: new Tree[] };\n"
+      "let index = new [string:Tree];\n"
       "index['leaf'] = leaf;\n"
       "print(index.size());\n",
       OAK_NULL },
@@ -185,7 +185,7 @@ UTEST_F(compiler_cycles, weak_and_root_held_interface_values_are_allowed)
     { INTERFACE_SHAPE RECORD_CIRCLE
       "record Holder { s : IShape weak; }\n"
       "fn hold(s: IShape) -> Holder { return new Holder { s: s }; }\n"
-      "let mut c = new Circle { radius: 2 };\n"
+      "let c = new Circle { radius: 2 };\n"
       "let h = hold(c);\n"
       "print(1);\n",
       OAK_NULL },
@@ -197,10 +197,10 @@ UTEST_F(compiler_cycles, weak_and_root_held_interface_values_are_allowed)
       "  h : number;\n"
       "  fn area() -> number { return self.w * self.h; }\n"
       "}\n"
-      "let mut shapes = new IShape[];\n"
+      "let shapes = new IShape[];\n"
       "shapes.push(new Circle { radius: 3 });\n"
       "shapes.push(new Rect { w: 2, h: 5 });\n"
-      "let mut total = 0;\n"
+      "let total = 0;\n"
       "for s in shapes { total += s.area(); }\n"
       "print(total);\n",
       OAK_NULL },

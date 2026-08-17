@@ -6,19 +6,13 @@ int oak_is_module_scope(const oak_compiler_t* c,
   return oak_contains_str(c->module_scope_names, name);
 }
 
-int oak_compiler_find_local(const oak_compiler_t* c,
-                            const char* name,
-                            int* out_is_mutable)
+int oak_compiler_find_local(const oak_compiler_t* c, const char* name)
 {
   for (int i = c->scope.local_count - 1; i >= 0; --i)
   {
     const oak_local_t* local = &c->scope.locals[i];
     if (oak_name_eq(local->name, name))
-    {
-      if (out_is_mutable)
-        *out_is_mutable = local->is_mutable;
       return local->slot;
-    }
   }
 
   return -1;
@@ -129,8 +123,7 @@ int oak_compile_assign_target(oak_compiler_t* c,
     return -1;
   }
   const char* name = oak_token_text(lhs->token);
-  int is_mutable = 0;
-  const int slot = oak_compiler_find_local(c, name, &is_mutable);
+  const int slot = oak_compiler_find_local(c, name);
   if (slot < 0)
   {
     if (c->scope.fn_depth > 0 &&
@@ -146,16 +139,17 @@ int oak_compile_assign_target(oak_compiler_t* c,
     oak_compiler_error_at(c, lhs->token, "undefined variable '%s'", name);
     return -1;
   }
-  if (!is_mutable)
-  {
-    oak_compiler_error_at(
-        c, lhs->token, "cannot assign to immutable variable '%s'", name);
-    return -1;
-  }
+  /* Rebinding a local is unconditional: the slot is private to this frame, so
+   * pointing it somewhere else is invisible to every other holder. What the
+   * caller still has to check is that the new value does not widen the access
+   * the slot already grants. */
   return slot;
 }
 
-int oak_compiler_expr_is_mutable_place(const oak_compiler_t* c,
+static int oak_literal_contents_are_mutable(oak_compiler_t* c,
+                                            const oak_ast_node_t* expr);
+
+int oak_compiler_expr_is_mutable_place(oak_compiler_t* c,
                                        const oak_ast_node_t* expr)
 {
   if (!expr)
@@ -171,6 +165,82 @@ int oak_compiler_expr_is_mutable_place(const oak_compiler_t* c,
   if (expr->kind == OAK_NODE_MEMBER_ACCESS ||
       expr->kind == OAK_NODE_INDEX_ACCESS)
     return oak_compiler_expr_is_mutable_place(c, expr->lhs);
+  if (expr->kind == OAK_NODE_EXPR_RECORD_LITERAL ||
+      expr->kind == OAK_NODE_EXPR_ARRAY_LITERAL ||
+      expr->kind == OAK_NODE_EXPR_MAP_LITERAL)
+    return oak_literal_contents_are_mutable(c, expr);
+  return 1;
+}
+
+/* A literal is a temporary, so nothing else can be holding it -- but writing
+ * through it reaches whatever was put inside. A literal built over a read-only
+ * reference therefore grants read-only access, which is what stops
+ * `let a = [read_only]; a[0].f = 1;`. Scalars are copied in and cannot be
+ * reached back through, so only refcounted contents count. */
+static int oak_literal_element_is_mutable(oak_compiler_t* c,
+                                          const oak_ast_node_t* elem)
+{
+  oak_type_t ty;
+  oak_type_clear(&ty);
+  oak_infer_type(c, elem, &ty);
+  if (!oak_compiler_type_is_refcounted(c, &ty))
+    return 1;
+  return oak_compiler_expr_is_mutable_place(c, elem);
+}
+
+static int oak_literal_contents_are_mutable(oak_compiler_t* c,
+                                            const oak_ast_node_t* expr)
+{
+  oak_list_entry_t* pos;
+
+  if (expr->kind == OAK_NODE_EXPR_RECORD_LITERAL)
+  {
+    if (!expr->rhs)
+      return 1;
+    OAK_LIST_FOR_EACH(pos, &expr->rhs->children)
+    {
+      const oak_ast_node_t* field =
+          OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
+      if (field->kind != OAK_NODE_RECORD_LITERAL_FIELD || !field->rhs)
+        continue;
+      if (!oak_literal_element_is_mutable(c, field->rhs))
+        return 0;
+    }
+    return 1;
+  }
+
+  if (expr->kind == OAK_NODE_EXPR_ARRAY_LITERAL)
+  {
+    OAK_LIST_FOR_EACH(pos, &expr->children)
+    {
+      const oak_ast_node_t* wrap =
+          OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
+      const oak_ast_node_t* elem =
+          wrap->kind == OAK_NODE_ARRAY_LITERAL_ELEMENT ? wrap->child : wrap;
+      if (!oak_literal_element_is_mutable(c, elem))
+        return 0;
+    }
+    return 1;
+  }
+
+  /* Map literals keep the first entry in lhs and the rest in rhs. Only the
+   * values are reachable as places; a key is looked up by equality, never
+   * handed back out. */
+  if (expr->lhs && expr->lhs->kind == OAK_NODE_MAP_LITERAL_ENTRY &&
+      expr->lhs->rhs && !oak_literal_element_is_mutable(c, expr->lhs->rhs))
+    return 0;
+  if (expr->rhs)
+  {
+    OAK_LIST_FOR_EACH(pos, &expr->rhs->children)
+    {
+      const oak_ast_node_t* entry =
+          OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
+      if (entry->kind != OAK_NODE_MAP_LITERAL_ENTRY || !entry->rhs)
+        continue;
+      if (!oak_literal_element_is_mutable(c, entry->rhs))
+        return 0;
+    }
+  }
   return 1;
 }
 
@@ -274,7 +344,7 @@ int oak_reject_immutable_ref_for_mutable_storage(
   oak_compiler_error_at(c,
                         err_tok ? err_tok : (expr ? expr->token : OAK_NULL),
                         "cannot store immutable reference in mutable %s; "
-                        "declare the source as 'mut' first",
+                        "take it from a mutable source",
                         target);
   return 1;
 }

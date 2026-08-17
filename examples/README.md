@@ -16,7 +16,7 @@ runnable example lives in a folder with the same name as its entry file.
 
 ## Tour
 
-1. `01_values` — numbers, strings, booleans, `let` / `let mut`, formatting
+1. `01_values` — numbers, strings, booleans, `let`, formatting
 2. `02_control_flow` — `if`, loops, `break`, `continue`
 3. `03_collections` — arrays, maps, indexing, iteration
 4. `04_functions` — named functions, recursion

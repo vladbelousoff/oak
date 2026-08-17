@@ -41,7 +41,7 @@ fn status_name(status : Status) -> string {
 }
 
 let origin = new Point { x : 0, y : 0 };
-let mut p = new Point { x : 3, y : 4 };
+let p = new Point { x : 3, y : 4 };
 print(p.sum());
 print(p.dist_sq(origin));
 

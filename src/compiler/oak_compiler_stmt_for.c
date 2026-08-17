@@ -147,11 +147,17 @@ static void for_in_init_hidden_state(oak_compiler_t* c,
   oak_compiler_add_local(c, "$n", *out_limit_slot, 0, num_ty);
 }
 
+/* `coll_is_mutable` is the access the collection expression grants. The value
+ * binding is a reference into the collection, so it inherits that access --
+ * iterating something writable lets the body write through the element, and
+ * iterating a read-only collection does not. The key binding stays read-only:
+ * a map key is matched by equality, never a place in the collection. */
 static void for_in_bind_loop_idents(oak_compiler_t* c,
                                     const oak_code_loc_t loc,
                                     const oak_type_t* coll_ty,
                                     const int coll_slot,
                                     const int idx_slot,
+                                    const int coll_is_mutable,
                                     const oak_ast_node_t* k_ident,
                                     const oak_ast_node_t* v_ident)
 {
@@ -195,7 +201,7 @@ static void for_in_bind_loop_idents(oak_compiler_t* c,
     oak_compiler_add_local(c,
                            oak_token_text(v_ident->token),
                            c->scope.stack_depth - 1,
-                           0,
+                           coll_is_mutable,
                            val_ty);
   }
 }
@@ -240,6 +246,10 @@ void oak_compile_for_in(oak_compiler_t* c,
                           oak_type_full_name(c, coll_ty));
     return;
   }
+
+  /* Read while the enclosing scope is still current: `$coll` and the loop
+   * idents are about to shadow it. */
+  const int coll_is_mutable = oak_compiler_expr_is_mutable_place(c, coll_expr);
 
   /* Look up the receiver's size() binding so we can snapshot length once. */
   const oak_method_binding_t* len_m =
@@ -308,8 +318,14 @@ void oak_compile_for_in(oak_compiler_t* c,
   /* Per-iteration scope: exposes k, v to the body. */
   oak_compiler_begin_scope(c);
 
-  for_in_bind_loop_idents(
-      c, loc, &coll_ty, coll_slot, idx_slot, k_ident, v_ident);
+  for_in_bind_loop_idents(c,
+                          loc,
+                          &coll_ty,
+                          coll_slot,
+                          idx_slot,
+                          coll_is_mutable,
+                          k_ident,
+                          v_ident);
 
   oak_compiler_compile_block(c, body);
 

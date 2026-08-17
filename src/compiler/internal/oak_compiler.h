@@ -74,9 +74,7 @@ void oak_resolve_new_style_imports(oak_compiler_t* c,
 void oak_populate_module_exports(oak_compiler_t* c);
 
 
-int oak_compiler_find_local(const oak_compiler_t* c,
-                            const char* name,
-                            int* out_is_mutable);
+int oak_compiler_find_local(const oak_compiler_t* c, const char* name);
 
 /* True if `name` is bound at module scope (top-level `let` in this program). */
 int oak_is_module_scope(const oak_compiler_t* c,
@@ -96,7 +94,11 @@ int oak_compile_assign_target(oak_compiler_t* c,
                                        const oak_ast_node_t* lhs,
                                        const char* non_ident_msg);
 
-int oak_compiler_expr_is_mutable_place(const oak_compiler_t* c,
+/* How much access an expression grants: 1 for read-write, 0 for read-only.
+ * A place chain answers with its root local; a temporary is read-write because
+ * nothing else holds it -- except a collection or record literal, which is only
+ * as writable as the refcounted values it was built from. */
+int oak_compiler_expr_is_mutable_place(oak_compiler_t* c,
                                        const oak_ast_node_t* expr);
 
 int oak_reject_immutable_ref_for_mutable_storage(

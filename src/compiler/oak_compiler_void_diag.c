@@ -46,7 +46,7 @@ static int report_ident(oak_compiler_t* c, const oak_ast_node_t* expr)
 
   /* A local or a function is a value that has a type: whatever made the
    * enclosing expression void, it was not this name. */
-  if (oak_compiler_find_local(c, name, OAK_NULL) >= 0 || oak_find_fn(c, name))
+  if (oak_compiler_find_local(c, name) >= 0 || oak_find_fn(c, name))
     return 0;
 
   if (c->scope.fn_depth > 0 && oak_is_module_scope(c, name))
@@ -353,7 +353,7 @@ static int report_fn_call(oak_compiler_t* c, const oak_ast_node_t* expr)
                           name);
     return 1;
   }
-  if (oak_compiler_find_local(c, name, OAK_NULL) >= 0)
+  if (oak_compiler_find_local(c, name) >= 0)
   {
     /* An indirect call through a fn value: the fn type carries no return
      * type, so the result can be discarded or passed on, never bound. */
@@ -420,7 +420,7 @@ static int report_cause(oak_compiler_t* c, const oak_ast_node_t* expr)
     case OAK_NODE_IDENT:
       return report_ident(c, expr);
     case OAK_NODE_SELF:
-      if (oak_compiler_find_local(c, "self", OAK_NULL) < 0)
+      if (oak_compiler_find_local(c, "self") < 0)
       {
         oak_compiler_error_at(
             c, expr->token, "'self' is only valid inside a method body");

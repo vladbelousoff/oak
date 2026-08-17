@@ -221,7 +221,7 @@ void oak_compiler_compile_stmt_assignment(oak_compiler_t* c,
   oak_type_t rhs_ty;
   oak_infer_type(c, rhs, &rhs_ty);
   const int target_idx = oak_local_at_slot(c, slot);
-  if (target_idx >= 0 &&
+  if (target_idx >= 0 && c->scope.locals[target_idx].is_mutable &&
       oak_compiler_type_is_refcounted(c, &c->scope.locals[target_idx].type) &&
       oak_reject_immutable_ref_for_mutable_storage(
           c, rhs, rhs_ty, rhs->token, "binding"))
@@ -355,10 +355,10 @@ void oak_compiler_compile_compound_assign(oak_compiler_t* c,
 void oak_compiler_compile_let_assignment(oak_compiler_t* c,
                                          const oak_ast_node_t* node)
 {
-  /* STMT_LET_ASSIGNMENT is BINARY: lhs = MUT_KEYWORD? (non-null iff
-   * mutable), rhs = STMT_ASSIGNMENT. */
-  const int is_mutable = node->lhs != OAK_NULL;
-  const oak_ast_node_t* assign = node->rhs;
+  /* STMT_LET_ASSIGNMENT is UNARY: child = STMT_ASSIGNMENT. A binding declares
+   * no access of its own -- it inherits whatever the initializer already
+   * grants, so it can never widen and there is nothing here to reject. */
+  const oak_ast_node_t* assign = node->child;
 
   if (!assign || assign->kind != OAK_NODE_STMT_ASSIGNMENT)
   {
@@ -376,9 +376,7 @@ void oak_compiler_compile_let_assignment(oak_compiler_t* c,
   oak_type_t rhs_ty;
   oak_infer_type(c, rhs, &rhs_ty);
 
-  if (is_mutable && oak_reject_immutable_ref_for_mutable_storage(
-                        c, rhs, rhs_ty, rhs->token, "binding"))
-    return;
+  const int is_mutable = oak_compiler_expr_is_mutable_place(c, rhs);
 
   oak_compiler_compile_node(c, rhs);
   const char* name = oak_token_text(ident->token);

@@ -15,7 +15,7 @@ fn report(metric : IMetric) {
 report(new Series { samples : values });
 
 let high = project.Priority.High;
-let mut task = project.make_task('ship examples', 8, high);
+let task = project.make_task('ship examples', 8, high);
 print(task.title);
 print(task.points);
 print(task.done);

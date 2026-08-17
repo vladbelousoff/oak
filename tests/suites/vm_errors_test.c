@@ -21,7 +21,7 @@ UTEST_F(vm_errors, out_of_range_indexing_is_caught)
     { "let arr = [1, 2, 3];\n"
       "print(arr[-1]);\n",
       "array index -1 out of bounds" },
-    { "let mut m = new [string:number];\n"
+    { "let m = new [string:number];\n"
       "m['a'] = 1;\n"
       "print(m['nope']);\n",
       "key not found in map" },

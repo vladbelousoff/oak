@@ -191,7 +191,7 @@ UTEST_F(compiler_types, unknown_fields_and_non_record_receivers_are_rejected)
     { "let s = 'hello';\n"
       "print(s.x);\n",
       "requires a record receiver" },
-    { "let mut n = 42;\n"
+    { "let n = 42;\n"
       "n.x = 1;\n",
       "requires a record receiver" },
   };
@@ -203,19 +203,19 @@ UTEST_F(compiler_types, field_assignment_types_are_checked)
 {
   static const oak_case_t cases[] = {
     { "record Point { x : number; }\n"
-      "let mut p = new Point { x : 1 };\n"
+      "let p = new Point { x : 1 };\n"
       "p.x = 'bad';\n",
       "cannot assign value of type 'string' to field 'x'" },
     { "record Named { label : string; }\n"
-      "let mut n = new Named { label : 'ok' };\n"
+      "let n = new Named { label : 'ok' };\n"
       "n.label = 42;\n",
       "cannot assign value of type 'number' to field 'label'" },
     { "record A { v : number; }\n"
       "record B { v : number; }\n"
       "record Container { item : A; }\n"
-      "let mut b = new B { v : 1 };\n"
-      "let mut a = new A { v : 2 };\n"
-      "let mut c = new Container { item : a };\n"
+      "let b = new B { v : 1 };\n"
+      "let a = new A { v : 2 };\n"
+      "let c = new Container { item : a };\n"
       "c.item = b;\n",
       "cannot assign value of type 'B' to field 'item' of type 'A'" },
   };
@@ -227,21 +227,21 @@ UTEST_F(compiler_types, field_assignment_on_a_mutable_record_works)
 {
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number; }\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
+      "let p = new Point { x : 1, y : 2 };\n"
       "p.x = 10;\n"
       "print(p.x);\n",
       OAK_NULL },
     { "record Named { label : string; }\n"
-      "let mut n = new Named { label : 'old' };\n"
+      "let n = new Named { label : 'old' };\n"
       "n.label = 'new';\n"
       "print(n.label);\n",
       OAK_NULL },
-    /* A chain built entirely from inline literals is rooted in the mutable
-     * binding, so no immutable reference is being written through. */
+    /* A chain built entirely from inline literals is fresh all the way down,
+     * so no read-only reference is being written through. */
     { "record A { n : number; }\n"
       "record B { a : A; }\n"
       "record C { b : B; }\n"
-      "let mut c = new C { b : new B { a : new A { n : 123 } } };\n"
+      "let c = new C { b : new B { a : new A { n : 123 } } };\n"
       "c.b.a.n = 100;\n",
       OAK_NULL },
   };
@@ -250,24 +250,26 @@ UTEST_F(compiler_types, field_assignment_on_a_mutable_record_works)
 }
 
 /*
- * Storing an immutable record inside a mutable one must not launder it into a
- * mutable reference: `let mut o` makes `o` reassignable, not everything it
- * points at writable.
+ * Wrapping an immutable record in a fresh one must not launder it into a
+ * mutable reference. The wrapper is a temporary, so it would otherwise count as
+ * writable; it is only as writable as what was put inside it.
  */
 UTEST_F(compiler_types, a_mutable_owner_does_not_make_its_contents_mutable)
 {
   static const oak_case_t cases[] = {
     { "record Inner { v : number; }\n"
       "record Outer { inner : Inner; }\n"
-      "let i = new Inner { v : 0 };\n"
-      "let mut o = new Outer { inner : i };\n"
-      "o.inner.v = 99;\n",
+      "fn read(i : Inner) {\n"
+      "  let o = new Outer { inner : i };\n"
+      "  o.inner.v = 99;\n"
+      "}\n",
       "immutable" },
     { "record Foo { abc : number; }\n"
       "record Bar { foo : Foo; }\n"
-      "let foo = new Foo { abc : 123 };\n"
-      "let mut bar = new Bar { foo : foo };\n"
-      "bar.foo.abc = 100;\n",
+      "fn read(foo : Foo) {\n"
+      "  let bar = new Bar { foo : foo };\n"
+      "  bar.foo.abc = 100;\n"
+      "}\n",
       "immutable" },
   };
 

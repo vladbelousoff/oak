@@ -113,12 +113,25 @@ UTEST_F(compiler_semantics, member_diagnostics_name_the_other_kind)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-UTEST_F(compiler_semantics, assignment_to_immutable_binding_is_rejected)
+/* Rebinding a local is not a mutation of anything shared -- the slot belongs to
+ * this frame -- so `let` needs no qualifier to allow it. What a binding may be
+ * rebound *to* is the access question, and compiler_mut covers it. */
+UTEST_F(compiler_semantics, a_binding_may_be_reassigned)
 {
   static const oak_case_t cases[] = {
     { "let x = 1;\n"
-      "x = 2;\n",
-      "cannot assign to immutable variable 'x'" },
+      "x = 2;\n"
+      "print(x);\n",
+      OAK_NULL },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, assignment_to_an_undeclared_name_is_rejected)
+{
+  static const oak_case_t cases[] = {
+    { "x = 2;\n", "undefined variable 'x'" },
   };
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
@@ -190,7 +203,7 @@ UTEST_F(compiler_semantics, module_scope_names_are_invisible_inside_bodies)
     { "let g = 1;\n"
       "fn f() -> number { return g; }\n",
       "not visible here (module scope only)" },
-    { "let mut g = 1;\n"
+    { "let g = 1;\n"
       "fn f() { g = 2; }\n",
       "not visible here (module scope only)" },
     { "record R { x : number;\n"

@@ -3,7 +3,7 @@ fn is_prime(n : number) -> bool {
     return false;
   }
 
-  let mut divisor = 2;
+  let divisor = 2;
   while divisor < n {
     if n % divisor == 0 {
       return false;
@@ -15,7 +15,7 @@ fn is_prime(n : number) -> bool {
 }
 
 fn collect_primes(limit : number) -> number[] {
-  let mut primes = new number[];
+  let primes = new number[];
   for n from 2 to limit {
     if is_prime(n) {
       primes.push(n);
@@ -25,10 +25,10 @@ fn collect_primes(limit : number) -> number[] {
 }
 
 fn insertion_sort(mut values : number[]) {
-  let mut i = 1;
+  let i = 1;
   while i < values.size() {
     let key = values[i];
-    let mut j = i;
+    let j = i;
     while j > 0 && values[j - 1] > key {
       values[j] = values[j - 1];
       j -= 1;
@@ -44,7 +44,7 @@ for prime in primes {
 }
 print(primes.size());
 
-let mut mixed = [9, 1, 5, 3, 8, 2];
+let mixed = [9, 1, 5, 3, 8, 2];
 insertion_sort(mixed);
 for value in mixed {
   print(value);

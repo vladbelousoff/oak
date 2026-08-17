@@ -569,13 +569,12 @@ oak_grammar_entry_t oak_grammar[] = {
       OAK_TOKEN_SEMICOLON | OAK_RULE_TOKEN,
     },
   },
-  // STMT_LET_ASSIGNMENT -> 'let' MUT_KEYWORD? STMT_ASSIGNMENT
-  //   (binary: lhs = MUT_KEYWORD?, rhs = STMT_ASSIGNMENT)
+  // STMT_LET_ASSIGNMENT -> 'let' STMT_ASSIGNMENT (unary: child = STMT_ASSIGNMENT)
+  // A binding takes no `mut`: its access is inherited from the initializer.
   [OAK_NODE_STMT_LET_ASSIGNMENT] = {
-    .op = OAK_GRAMMAR_BINARY,
+    .op = OAK_GRAMMAR_UNARY,
     .rules = {
       OAK_TOKEN_LET | OAK_RULE_TOKEN,
-      OAK_NODE_MUT_KEYWORD | OAK_RULE_OPTIONAL,
       OAK_NODE_STMT_ASSIGNMENT,
     },
   },

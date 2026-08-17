@@ -163,7 +163,7 @@ UTEST_F(parser, calls_carry_one_node_per_argument)
 UTEST_F(parser, control_flow_statements_parse)
 {
   static const char* const src =
-      "let mut x = 0;\n"
+      "let x = 0;\n"
       "x += 1;\n"
       "if x > 0 { print(x); } else { print(0); }\n"
       "while x < 10 { x += 1; }\n"

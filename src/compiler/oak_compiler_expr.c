@@ -137,7 +137,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
     case OAK_NODE_IDENT:
     {
       const char* name = oak_token_text(node->token);
-      const int slot = oak_compiler_find_local(c, name, OAK_NULL);
+      const int slot = oak_compiler_find_local(c, name);
       if (slot >= 0)
       {
         OAK_COMPILER_EMIT_OP(c,
@@ -175,7 +175,7 @@ void oak_compiler_compile_node(oak_compiler_t* c,
     }
     case OAK_NODE_SELF:
     {
-      const int slot = oak_compiler_find_local(c, "self", OAK_NULL);
+      const int slot = oak_compiler_find_local(c, "self");
       if (slot < 0)
       {
         oak_compiler_error_at(

@@ -132,7 +132,7 @@ void oak_compiler_compile_fn_call(oak_compiler_t* c,
       return;
     }
 
-    const int slot = oak_compiler_find_local(c, callee_name, OAK_NULL);
+    const int slot = oak_compiler_find_local(c, callee_name);
     if (slot >= 0)
     {
       oak_compile_indirect_call(c, node, callee);

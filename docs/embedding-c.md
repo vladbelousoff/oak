@@ -536,7 +536,7 @@ the registered bindings alone.
 
 The synthesized module carries only what the bindings describe, so
 anything the stub adds on top — parameter types and mutability,
-`mut self` receivers, declarations with no matching binding — is
+`fn mut` receivers, declarations with no matching binding — is
 absent, and calls into it are checked more loosely.
 
 ## Attributes

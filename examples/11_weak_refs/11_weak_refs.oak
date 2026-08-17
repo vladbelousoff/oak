@@ -22,19 +22,19 @@ fn print_links(node : Node weak) {
   }
 }
 
-let mut lexer = new Node {
+let lexer = new Node {
   name : 'lexer',
   links : new Edge[]
 };
-let mut parser = new Node {
+let parser = new Node {
   name : 'parser',
   links : new Edge[]
 };
-let mut compiler = new Node {
+let compiler = new Node {
   name : 'compiler',
   links : new Edge[]
 };
-let mut vm = new Node {
+let vm = new Node {
   name : 'vm',
   links : new Edge[]
 };
@@ -56,7 +56,7 @@ vm.links.push(new Edge {
   target : compiler
 });
 
-let mut pipeline = new Graph {
+let pipeline = new Graph {
   name : 'oak pipeline',
   nodes : [lexer, parser, compiler, vm],
   entry : lexer

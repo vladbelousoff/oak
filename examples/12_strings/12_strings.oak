@@ -25,7 +25,7 @@ print('hello_world'.to_camel_case());
 
 /* Character codes: shift every letter of a word (a tiny Caesar cipher). */
 fn shift(text : string, by : number) -> string {
-  let mut out = '';
+  let out = '';
   for i from 0 to text.size() {
     let code = ord(text.substring(i, i + 1));
     out = out + chr(code + by);

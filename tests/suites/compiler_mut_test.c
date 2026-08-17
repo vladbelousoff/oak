@@ -1,87 +1,97 @@
 /*
- * Compiler: the const/mut binding model.
+ * Compiler: the read-only/read-write access model.
  *
- * The rule that ties this suite together: `mut` describes what may be written
- * through a reference, and immutability is not launderable. An immutable
- * reference cannot become a mutable one by being copied into a `let mut`,
- * passed to a `mut` parameter, stored in a mutable record's field, or pushed
- * into a mutable collection. Value types (numbers, bools) are exempt because
- * they are copied, not referenced.
+ * The rule that ties this suite together: a binding declares no access of its
+ * own -- it inherits whatever its initializer already grants -- and access is
+ * never launderable. Read-only access originates at a parameter or receiver
+ * declared without `mut`, and everything reached from one stays read-only: it
+ * cannot become writable by being copied into a binding, passed to a `mut`
+ * parameter, stored in a writable record's field, or pushed into a writable
+ * collection. Value types (numbers, bools) are exempt because they are copied,
+ * not referenced.
+ *
+ * A fresh value (`new T { ... }`, a literal, a call result) is writable, since
+ * nothing else can be holding it yet.
  */
 
 #include "oak_test_support.h"
 
 OAK_TEST_SUITE(compiler_mut);
 
-/* Copying out of an immutable refcounted source would alias it mutably. */
-UTEST_F(compiler_mut, mut_binding_from_an_immutable_reference_is_rejected)
+/* Copying out of a read-only source must not widen it. The copy compiles --
+ * there is nothing wrong with naming the value -- and the write through it is
+ * what fails. */
+UTEST_F(compiler_mut, a_binding_inherits_its_sources_access)
 {
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number; }\n"
-      "let p = new Point { x : 1, y : 2 };\n"
-      "let mut copy = p;\n",
-      "cannot store immutable reference in mutable binding" },
+      "fn read(p : Point) {\n"
+      "  let copy = p;\n"
+      "  copy.x = 99;\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
     { "record Inner { z : number; }\n"
       "record Outer { inner : Inner; }\n"
-      "let inner = new Inner { z : 7 };\n"
-      "let outer = new Outer { inner : inner };\n"
-      "let mut copy = outer.inner;\n",
-      "cannot store immutable reference in mutable binding" },
+      "fn read(outer : Outer) {\n"
+      "  let copy = outer.inner;\n"
+      "  copy.z = 99;\n"
+      "}\n",
+      "cannot assign to field 'z' of immutable record" },
     { "record A { x : number; }\n"
       "record B { a : A; }\n"
       "record C { b : B; }\n"
-      "let a = new A { x : 1 };\n"
-      "let b = new B { a : a };\n"
-      "let c = new C { b : b };\n"
-      "let mut copy = c.b;\n",
-      "cannot store immutable reference in mutable binding" },
+      "fn read(c : C) {\n"
+      "  let copy = c.b;\n"
+      "  copy.a.x = 99;\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
   };
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
-/* Scalars are copied rather than referenced, so their source's mutability is
- * irrelevant -- as are rvalues, which nothing else can be holding. */
-UTEST_F(compiler_mut, mut_binding_from_a_copy_or_an_rvalue_is_fine)
+/* Scalars are copied rather than referenced, so their source's access is
+ * irrelevant -- as are fresh values, which nothing else can be holding. */
+UTEST_F(compiler_mut, a_binding_from_a_copy_or_a_fresh_value_is_writable)
 {
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number; }\n"
-      "let p = new Point { x : 3, y : 4 };\n"
-      "let mut x = p.x;\n"
-      "x = 99;\n",
+      "fn read(p : Point) -> number {\n"
+      "  let x = p.x;\n"
+      "  x = 99;\n"
+      "  return x;\n"
+      "}\n"
+      "print(read(new Point { x : 3, y : 4 }));\n",
       OAK_NULL },
-    { "let arr = [1, 2, 3];\n"
-      "let mut x = arr[0];\n"
-      "x = 42;\n",
+    { "fn read(arr : number[]) -> number {\n"
+      "  let x = arr[0];\n"
+      "  x = 42;\n"
+      "  return x;\n"
+      "}\n"
+      "print(read([1, 2, 3]));\n",
       OAK_NULL },
-    { "let mut x = 42;\n"
-      "x = x + 1;\n",
+    { "let x = 42;\n"
+      "x = x + 1;\n"
+      "print(x);\n",
       OAK_NULL },
     { "fn make_num() -> number { return 10; }\n"
-      "let mut x = make_num();\n"
-      "x = x * 2;\n",
+      "let x = make_num();\n"
+      "x = x * 2;\n"
+      "print(x);\n",
       OAK_NULL },
-    /* A mutable source may be bound mutably. */
+    /* A writable source stays writable however many times it is renamed. */
     { "record Point { x : number; y : number; }\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
-      "let mut copy = p;\n",
+      "let p = new Point { x : 1, y : 2 };\n"
+      "let copy = p;\n"
+      "copy.x = 99;\n"
+      "print(p.x);\n",
       OAK_NULL },
     { "record Inner { z : number; }\n"
       "record Outer { inner : Inner; }\n"
-      "let mut inner = new Inner { z : 7 };\n"
-      "let mut outer = new Outer { inner : inner };\n"
-      "let mut copy = outer.inner;\n",
-      OAK_NULL },
-    /* Narrowing to immutable is always allowed. */
-    { "record Point { x : number; y : number; }\n"
-      "let p = new Point { x : 3, y : 4 };\n"
-      "let x = p.x;\n",
-      OAK_NULL },
-    { "record Point { x : number; }\n"
-      "let mut a = new Point { x : 1 };\n"
-      "let r = a;\n"
-      "a.x = 99;\n"
-      "print(r.x);\n",
+      "let outer = new Outer { inner : new Inner { z : 7 } };\n"
+      "let copy = outer.inner;\n"
+      "copy.z = 8;\n"
+      "print(outer.inner.z);\n",
       OAK_NULL },
   };
 
@@ -92,8 +102,7 @@ UTEST_F(compiler_mut, fields_of_an_immutable_record_cannot_be_assigned)
 {
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number; }\n"
-      "let p = new Point { x : 1, y : 2 };\n"
-      "p.x = 99;\n",
+      "fn read(p : Point) { p.x = 99; }\n",
       "cannot assign to field 'x' of immutable record" },
   };
 
@@ -104,7 +113,7 @@ UTEST_F(compiler_mut, fields_of_a_mutable_record_can_be_assigned)
 {
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number; }\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
+      "let p = new Point { x : 1, y : 2 };\n"
       "p.x = 99;\n"
       "print(p.x);\n",
       OAK_NULL },
@@ -114,37 +123,120 @@ UTEST_F(compiler_mut, fields_of_a_mutable_record_can_be_assigned)
 }
 
 /*
- * The containers are the interesting case: an immutable reference must not
- * become writable by being stored somewhere mutable. Each of these would
+ * The containers are the interesting case: a read-only reference must not
+ * become writable by being stored somewhere writable. Each of these would
  * otherwise be a hole in the model.
  */
 UTEST_F(compiler_mut, immutable_references_cannot_be_stored_in_mutable_places)
 {
   static const oak_case_t cases[] = {
+    /* Rebinding is allowed, but not when it would widen what the slot grants:
+     * `b` was declared from a fresh value, so it is writable. */
     { "record Point { x : number; }\n"
-      "let a = new Point { x : 1 };\n"
-      "let mut b = new Point { x : 2 };\n"
-      "b = a;\n",
+      "fn read(a : Point) {\n"
+      "  let b = new Point { x : 2 };\n"
+      "  b = a;\n"
+      "}\n",
       "cannot store immutable reference in mutable" },
     { "record Inner { v : number; }\n"
       "record Outer { inner : Inner; }\n"
-      "let i = new Inner { v : 7 };\n"
-      "let mut o = new Outer { inner : new Inner { v : 0 } };\n"
-      "o.inner = i;\n",
+      "fn read(i : Inner) {\n"
+      "  let o = new Outer { inner : new Inner { v : 0 } };\n"
+      "  o.inner = i;\n"
+      "}\n",
       "cannot store immutable reference in mutable" },
     { "record Point { x : number; }\n"
-      "let p = new Point { x : 1 };\n"
-      "let mut points = new Point[];\n"
-      "points.push(p);\n",
+      "fn read(p : Point) {\n"
+      "  let points = new Point[];\n"
+      "  points.push(p);\n"
+      "}\n",
       "cannot store immutable reference in mutable" },
     { "record Point { x : number; }\n"
-      "let p = new Point { x : 1 };\n"
-      "let mut points = new [string:Point];\n"
-      "points['p'] = p;\n",
+      "fn read(p : Point) {\n"
+      "  let points = new [string:Point];\n"
+      "  points['p'] = p;\n"
+      "}\n",
       "cannot store immutable reference in mutable" },
   };
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
+/* A literal is a temporary, so nothing else holds it -- but writing through it
+ * reaches whatever was put inside. Building one over a read-only reference
+ * therefore yields a read-only literal rather than an error: the diagnostic
+ * arrives at the write, like every other narrowing. */
+UTEST_F(compiler_mut, a_literal_is_only_as_writable_as_its_contents)
+{
+  static const oak_case_t error_cases[] = {
+    { "record Point { x : number; }\n"
+      "fn read(p : Point) {\n"
+      "  let arr = [p];\n"
+      "  arr[0].x = 9;\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
+    { "record Point { x : number; }\n"
+      "record Holder { p : Point; }\n"
+      "fn read(p : Point) {\n"
+      "  let h = new Holder { p : p };\n"
+      "  h.p.x = 9;\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
+    { "record Point { x : number; }\n"
+      "fn read(p : Point) {\n"
+      "  let m = ['a' : p];\n"
+      "  m['a'].x = 9;\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
+    /* A literal nested inside another must not launder either. */
+    { "record Point { x : number; }\n"
+      "record Holder { points : Point[]; }\n"
+      "fn read(p : Point) {\n"
+      "  let h = new Holder { points : [p] };\n"
+      "  h.points[0].x = 9;\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(error_cases);
+
+  /* Scalars read out of a read-only record are copies, so they do not make the
+   * literal that holds them read-only. */
+  static const oak_case_t ok_cases[] = {
+    { "record Point { x : number; y : number; }\n"
+      "fn read(p : Point) -> number {\n"
+      "  let coords = [p.x, p.y];\n"
+      "  coords[0] = 99;\n"
+      "  return coords[0];\n"
+      "}\n"
+      "print(read(new Point { x : 1, y : 2 }));\n",
+      OAK_NULL },
+  };
+
+  OAK_EXPECT_OK_CASES(ok_cases);
+}
+
+/* Rebinding a local points this frame's slot somewhere else, which no other
+ * holder can observe, so it needs no permission of its own. */
+UTEST_F(compiler_mut, rebinding_a_local_is_always_allowed)
+{
+  static const oak_case_t cases[] = {
+    { "let x = 1;\n"
+      "x = 2;\n"
+      "print(x);\n",
+      OAK_NULL },
+    /* A read-only slot may be rebound; it just stays read-only. */
+    { "record Point { x : number; }\n"
+      "fn read(a : Point, b : Point) -> number {\n"
+      "  let p = a;\n"
+      "  p = b;\n"
+      "  return p.x;\n"
+      "}\n"
+      "print(read(new Point { x : 1 }, new Point { x : 2 }));\n",
+      OAK_NULL },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
 }
 
 UTEST_F(compiler_mut, mut_parameters_require_a_mutable_argument)
@@ -152,8 +244,7 @@ UTEST_F(compiler_mut, mut_parameters_require_a_mutable_argument)
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number; }\n"
       "fn move_point(mut p : Point) -> number { return p.x; }\n"
-      "let p = new Point { x : 1, y : 2 };\n"
-      "move_point(p);\n",
+      "fn read(p : Point) { move_point(p); }\n",
       "cannot pass an immutable value to a mutable parameter" },
   };
 
@@ -165,11 +256,11 @@ UTEST_F(compiler_mut, mut_parameters_accept_mutable_and_copied_arguments)
   static const oak_case_t cases[] = {
     { "record Point { x : number; y : number; }\n"
       "fn move_point(mut p : Point) -> number { return p.x; }\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
-      "move_point(p);\n",
+      "let p = new Point { x : 1, y : 2 };\n"
+      "print(move_point(p));\n",
       OAK_NULL },
     /* A number is copied into the parameter, so the caller's binding does not
-     * need to be mutable. */
+     * need to be writable. */
     { "fn double(mut x : number) -> number { x = x * 2; return x; }\n"
       "let n = 5;\n"
       "print(double(n));\n",
@@ -178,8 +269,9 @@ UTEST_F(compiler_mut, mut_parameters_accept_mutable_and_copied_arguments)
      * passed to several parameters at once. */
     { "record Point { x : number; y : number; }\n"
       "fn add_y(mut a : Point, b : Point) { a.y = a.y + b.y; }\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
-      "add_y(p, p);\n",
+      "let p = new Point { x : 1, y : 2 };\n"
+      "add_y(p, p);\n"
+      "print(p.y);\n",
       OAK_NULL },
     { "record Point { x : number; y : number; }\n"
       "fn swap(mut a : Point, mut b : Point) {\n"
@@ -187,9 +279,10 @@ UTEST_F(compiler_mut, mut_parameters_accept_mutable_and_copied_arguments)
       "  a.x = b.x;\n"
       "  b.x = tmp;\n"
       "}\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
-      "let mut q = new Point { x : 3, y : 4 };\n"
-      "swap(p, q);\n",
+      "let p = new Point { x : 1, y : 2 };\n"
+      "let q = new Point { x : 3, y : 4 };\n"
+      "swap(p, q);\n"
+      "print(p.x);\n",
       OAK_NULL },
   };
 
@@ -206,8 +299,7 @@ UTEST_F(compiler_mut, mut_self_methods_require_a_mutable_receiver)
       "    return self.x + self.y;\n"
       "  }\n"
       "}\n"
-      "let p = new Point { x : 1, y : 2 };\n"
-      "p.shift(3, 4);\n",
+      "fn read(p : Point) { p.shift(3, 4); }\n",
       "cannot call mutable method on an immutable receiver" },
   };
 
@@ -224,17 +316,74 @@ UTEST_F(compiler_mut, self_methods_match_their_receivers_mutability)
       "    return self.x + self.y;\n"
       "  }\n"
       "}\n"
-      "let mut p = new Point { x : 1, y : 2 };\n"
+      "let p = new Point { x : 1, y : 2 };\n"
       "print(p.shift(3, 4));\n",
       OAK_NULL },
-    /* A read-only method is callable on an immutable receiver. */
+    /* A read-only method is callable on a read-only receiver. */
     { "record Point { x : number; y : number;\n"
       "  fn sum() -> number { return self.x + self.y; }\n"
       "}\n"
-      "let p = new Point { x : 3, y : 4 };\n"
-      "print(p.sum());\n",
+      "fn read(p : Point) -> number { return p.sum(); }\n"
+      "print(read(new Point { x : 3, y : 4 }));\n",
       OAK_NULL },
   };
 
   OAK_EXPECT_OK_CASES(cases);
+}
+
+/* A loop variable is a reference into the collection, so it carries the same
+ * access. Before access was inherited there was no way to spell this: loop
+ * variables were always read-only, and elements could not be updated in
+ * place. */
+UTEST_F(compiler_mut, loop_variables_inherit_the_collections_access)
+{
+  static const oak_case_t error_cases[] = {
+    { "record Point { x : number;\n"
+      "  fn mut bump() { self.x = self.x + 1; }\n"
+      "}\n"
+      "fn read(points : Point[]) {\n"
+      "  for p in points { p.bump(); }\n"
+      "}\n",
+      "cannot call mutable method on an immutable receiver" },
+    { "record Point { x : number; }\n"
+      "fn read(points : Point[]) {\n"
+      "  for p in points { p.x = 9; }\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
+    /* Map values are places in the collection too. */
+    { "record Point { x : number; }\n"
+      "fn read(points : [string:Point]) {\n"
+      "  for k, p in points { p.x = 9; }\n"
+      "}\n",
+      "cannot assign to field 'x' of immutable record" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(error_cases);
+
+  static const oak_case_t ok_cases[] = {
+    { "record Point { x : number;\n"
+      "  fn mut bump() { self.x = self.x + 1; }\n"
+      "}\n"
+      "let points = [new Point { x : 1 }, new Point { x : 2 }];\n"
+      "for p in points { p.bump(); }\n"
+      "for p in points { print(p.x); }\n",
+      OAK_NULL },
+    { "record Point { x : number; }\n"
+      "let points = new [string:Point];\n"
+      "points['a'] = new Point { x : 1 };\n"
+      "for k, p in points { p.x = 9; }\n"
+      "print(points['a'].x);\n",
+      OAK_NULL },
+    /* A `mut` parameter hands the body writable elements. */
+    { "record Point { x : number; }\n"
+      "fn bump_all(mut points : Point[]) {\n"
+      "  for p in points { p.x = p.x + 1; }\n"
+      "}\n"
+      "let points = [new Point { x : 1 }];\n"
+      "bump_all(points);\n"
+      "print(points[0].x);\n",
+      OAK_NULL },
+  };
+
+  OAK_EXPECT_OK_CASES(ok_cases);
 }

@@ -10,7 +10,7 @@ static void collect_module_scope_names(oak_compiler_t* c,
         OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
     if (!item || item->kind != OAK_NODE_STMT_LET_ASSIGNMENT)
       continue;
-    const oak_ast_node_t* assign = item->rhs;
+    const oak_ast_node_t* assign = item->child;
     if (!assign || assign->kind != OAK_NODE_STMT_ASSIGNMENT)
       continue;
     const oak_ast_node_t* ident = assign->lhs;

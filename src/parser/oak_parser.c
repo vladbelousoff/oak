@@ -382,6 +382,15 @@ static const char* oak_parser_migration_hint(const oak_parser_t* parser,
            "immutable receiver, or 'fn mut name()' for a mutable one";
   }
 
+  /* Writing `mut` after `let` used to be how you asked for a writable binding.
+     The grammar no longer has that slot, so the `mut` lands where an expression
+     was expected and says nothing about why. */
+  if (oak_token_kind(token) == OAK_TOKEN_MUT)
+  {
+    return "a binding does not take 'mut': its access is inherited from the "
+           "initializer; 'mut' marks function parameters and receivers";
+  }
+
   if (oak_token_kind(token) == OAK_TOKEN_DOT &&
       (parser->detail_context == OAK_NODE_FN_PARAMS_AND_RET ||
        parser->detail_context == OAK_NODE_FN_PARAM_LIST ||

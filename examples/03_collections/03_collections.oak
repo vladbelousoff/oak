@@ -1,10 +1,10 @@
-let mut scores = new number[];
+let scores = new number[];
 scores.push(10);
 scores.push(20);
 scores.push(30);
 print(scores.size());
 
-let mut total = 0;
+let total = 0;
 for score in scores {
   total += score;
 }
@@ -18,7 +18,7 @@ for i, score in scores {
 scores[1] = 25;
 print(scores[1]);
 
-let mut inventory = new [string:number];
+let inventory = new [string:number];
 inventory['apples'] = 4;
 inventory['pears'] = 6;
 inventory['plums'] = 3;
@@ -29,7 +29,7 @@ print(inventory.has('apples'));
 print(inventory.delete('plums'));
 print(inventory.has('plums'));
 
-let mut fruit_total = 0;
+let fruit_total = 0;
 for name, count in inventory {
   fruit_total += count;
 }

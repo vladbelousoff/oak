@@ -14,8 +14,8 @@ for i from 1 to 16 {
   }
 }
 
-let mut n = 13;
-let mut steps = 0;
+let n = 13;
+let steps = 0;
 while n != 1 {
   if n % 2 == 0 {
     n = n // 2;

@@ -82,14 +82,14 @@ UTEST_F(vm_exec, math_builtins_need_no_import)
 UTEST_F(vm_exec, arrays_index_push_and_iterate)
 {
   static const oak_case_t cases[] = {
-    { "let mut nums = [1, 2, 3];\n"
+    { "let nums = [1, 2, 3];\n"
       "nums.push(4);\n"
       "nums[0] = 10;\n"
       "print(nums[0]);\n"
       "print(nums.size());\n",
       "10\n4" },
-    { "let mut nums = [1, 2, 3, 4];\n"
-      "let mut total = 0;\n"
+    { "let nums = [1, 2, 3, 4];\n"
+      "let total = 0;\n"
       "for value in nums {\n"
       "  if value == 2 { continue; }\n"
       "  if value == 4 { break; }\n"
@@ -99,7 +99,7 @@ UTEST_F(vm_exec, arrays_index_push_and_iterate)
       "4" },
     /* The indexed form of for-in yields position and value. */
     { "let nums = [10, 20, 30];\n"
-      "let mut total = 0;\n"
+      "let total = 0;\n"
       "for i, value in nums { total += i + value; }\n"
       "print(total);\n",
       "63" },
@@ -109,11 +109,11 @@ UTEST_F(vm_exec, arrays_index_push_and_iterate)
       "  arr.push(99);\n"
       "  return arr.size();\n"
       "}\n"
-      "let mut nums = [1, 2];\n"
+      "let nums = [1, 2];\n"
       "print(append(nums));\n"
       "print(nums.size());\n",
       "3\n3" },
-    { "let mut nums = [1, 5, 3];\n"
+    { "let nums = [1, 5, 3];\n"
       "nums[0] += 4;\n"
       "nums[1] -= 1;\n"
       "nums[2] *= 3;\n"
@@ -130,19 +130,16 @@ UTEST_F(vm_exec, array_typing_is_enforced_at_compile_time)
 {
   static const oak_case_t cases[] = {
     { "let bad = [1, 'two'];\n", "element type mismatch" },
-    { "let mut arr = new number[];\n"
+    { "let arr = new number[];\n"
       "arr.push('oops');\n",
       "cannot push value of type 'string'" },
-    { "let mut arr = [1, 2, 3];\n"
+    { "let arr = [1, 2, 3];\n"
       "arr[0] = 'oops';\n",
       "cannot assign value of type 'string'" },
-    /* An immutable array rejects both mutating forms. */
-    { "let arr = [1, 2, 3];\n"
-      "arr.push(4);\n",
-      "immutable" },
-    { "let arr = [1, 2, 3];\n"
-      "arr[0] = 4;\n",
-      "immutable" },
+    /* An immutable array rejects both mutating forms. A parameter without
+     * `mut` is where read-only access comes from. */
+    { "fn read(arr : number[]) { arr.push(4); }\n", "immutable" },
+    { "fn read(arr : number[]) { arr[0] = 4; }\n", "immutable" },
     { "fn first(arr : number[]) -> number { return arr[0]; }\n"
       "first(42);\n",
       "expected type" },
@@ -158,8 +155,8 @@ UTEST_F(vm_exec, array_typing_is_enforced_at_compile_time)
 UTEST_F(vm_exec, untyped_empty_collection_literals_are_rejected)
 {
   static const oak_case_t cases[] = {
-    { "let mut arr = [];\n", OAK_NULL },
-    { "let mut m = [:];\n", OAK_NULL },
+    { "let arr = [];\n", OAK_NULL },
+    { "let m = [:];\n", OAK_NULL },
   };
 
   OAK_EXPECT_REJECTED_CASES(cases);
@@ -168,7 +165,7 @@ UTEST_F(vm_exec, untyped_empty_collection_literals_are_rejected)
 UTEST_F(vm_exec, maps_store_lookup_and_delete)
 {
   static const oak_case_t cases[] = {
-    { "let mut scores = ['x': 42, 'y': 17];\n"
+    { "let scores = ['x': 42, 'y': 17];\n"
       "scores['x'] = scores['x'] + 1;\n"
       "print(scores.size());\n"
       "print(scores['x']);\n"
@@ -180,12 +177,12 @@ UTEST_F(vm_exec, maps_store_lookup_and_delete)
       "  m['z'] = 100;\n"
       "  return m['z'];\n"
       "}\n"
-      "let mut scores = ['x': 1];\n"
+      "let scores = ['x': 1];\n"
       "print(insert(scores));\n"
       "print(scores.has('z'));\n",
       "100\ntrue" },
     { "let scores = ['a': 1, 'b': 2];\n"
-      "let mut total = 0;\n"
+      "let total = 0;\n"
       "for key, value in scores { total += value; }\n"
       "print(total);\n",
       "3" },
@@ -199,21 +196,18 @@ UTEST_F(vm_exec, map_typing_is_enforced_at_compile_time)
   static const oak_case_t cases[] = {
     { "let bad = ['a': 1, 'b': 'two'];\n", "value type mismatch" },
     { "let bad = ['a': 1, 2: 3];\n", "key type mismatch" },
-    { "let mut m = new [string:number];\n"
+    { "let m = new [string:number];\n"
       "m[1] = 2;\n",
       "map key must be of type 'string'" },
-    { "let mut m = new [string:number];\n"
+    { "let m = new [string:number];\n"
       "m['c'] = 'oops';\n",
       "cannot assign value of type 'string'" },
-    { "let mut m = new [string:number];\n"
+    { "let m = new [string:number];\n"
       "m.has(1);\n",
       "map key must be of type 'string'" },
-    { "let m = ['x': 1];\n"
-      "m['x'] = 2;\n",
-      "immutable" },
-    { "let m = ['x': 1];\n"
-      "m.delete('x');\n",
-      "immutable" },
+    /* Same for maps: read-only access comes from a parameter without `mut`. */
+    { "fn read(m : [string:number]) { m['x'] = 2; }\n", "immutable" },
+    { "fn read(m : [string:number]) { m.delete('x'); }\n", "immutable" },
   };
 
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
@@ -227,7 +221,7 @@ UTEST_F(vm_exec, records_construct_read_and_mutate)
       "fn manhattan(v : Vec2) -> number { return v.x + v.y; }\n"
       "let x = 3;\n"
       "let y = 4;\n"
-      "let mut p = new Vec2 { x, y };\n"
+      "let p = new Vec2 { x, y };\n"
       "p.x = p.x + 1;\n"
       "print(p.x);\n"
       "print(manhattan(p));\n",
@@ -241,7 +235,7 @@ UTEST_F(vm_exec, records_construct_read_and_mutate)
       "  counter.value /= 3;\n"
       "  counter.whole %= 5;\n"
       "}\n"
-      "let mut c = new Counter { value : 10, scale : 3, whole : 17 };\n"
+      "let c = new Counter { value : 10, scale : 3, whole : 17 };\n"
       "update(c, 4);\n"
       "print(c.value);\n"
       "print(c.whole);\n",
@@ -296,10 +290,10 @@ UTEST_F(vm_exec, virtual_dispatch_selects_the_concrete_implementation)
       "  h : number;\n"
       "  fn area() -> number { return self.w * self.h; }\n"
       "}\n"
-      "let mut shapes = new IShape[];\n"
+      "let shapes = new IShape[];\n"
       "shapes.push(new Circle { radius: 2 });\n"
       "shapes.push(new Rect { w: 3, h: 4 });\n"
-      "let mut total = 0;\n"
+      "let total = 0;\n"
       "for s in shapes { total += s.area(); }\n"
       "print(total);\n"
       "print(shapes[0].area());\n",
