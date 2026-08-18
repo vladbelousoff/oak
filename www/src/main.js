@@ -175,7 +175,10 @@ const view = new EditorView({
 });
 
 // ── Examples ──────────────────────────────────────────────────────────────────
-const rawExampleFiles = import.meta.glob('@examples/**/*', {
+// The package example needs a manifest, a lockfile and a mounted vendor tree,
+// none of which the playground's single-entry runner sets up, so it is not
+// bundled at all.
+const rawExampleFiles = import.meta.glob(['@examples/**/*', '!@examples/14_packages/**'], {
   eager: true,
   query: '?raw',
   import: 'default',
