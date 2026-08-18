@@ -282,8 +282,12 @@ void oak_compile_method_call(oak_compiler_t* c,
                                           oak_token_text(type_node->token),
                                           &dep))
     {
-      const oak_registered_record_t* sd =
-          oak_records_find(&c->records, oak_token_text(type_node->token));
+      /* Same reason as in oak_infer_fn_call_type: the record is exported, but
+       * `import m as a` copied no layout locally for the lookup to find. */
+      oak_ensure_dep_named_type_imported(
+          c, dep, oak_token_text(type_node->token));
+      const oak_registered_record_t* sd = oak_records_find_any(
+          &c->records, oak_token_text(type_node->token));
       const oak_registered_fn_t* sm =
           oak_find_record_method(sd, mname, 1);
       if (!sm)

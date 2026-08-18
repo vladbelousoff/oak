@@ -22,14 +22,42 @@ void oak_compiler_compile_member_access(oak_compiler_t* c,
       const char* vname = oak_token_text(fname->token);
       const oak_enum_variant_t* ev = oak_enums_find_qualified(
           &c->enums, ename, vname);
-      if (!ev)
+      if (ev)
       {
-        oak_compiler_error_at(
-            c, fname->token, "enum '%s' has no variant '%s'", ename, vname);
+        oak_compiler_emit_constant(
+            c, ev->const_idx, oak_compiler_loc_from_token(fname->token));
         return;
       }
-      oak_compiler_emit_constant(
-          c, ev->const_idx, oak_compiler_loc_from_token(fname->token));
+
+      /* Nothing local matched, which is the normal case rather than an error:
+       * `import m as a` binds the alias and registers no names, so a.E.V has
+       * no entry in c->enums to find. (It resolved before only when the same
+       * module was *also* wildcard-imported, which is why this looked like it
+       * worked.) The module's export list is the authority. */
+      const oak_module_export_enum_t* exp = oak_compiler_module_export_enum(
+          c, oak_token_text(recv->lhs->token), ename, OAK_NULL);
+      if (exp)
+      {
+        const oak_module_export_enum_variant_t* variants =
+            OAK_CDATA(oak_module_export_enum_variant_t, exp->variants);
+        for (usize i = 0; i < oak_size(exp->variants); ++i)
+        {
+          if (strcmp(variants[i].name, vname) != 0)
+            continue;
+          /* The importing chunk needs its own constant: the exporting module's
+           * constant index means nothing here. */
+          const u16 idx =
+              oak_compiler_intern_constant(c, OAK_VALUE_I32(variants[i].value));
+          if (c->has_error)
+            return;
+          oak_compiler_emit_constant(
+              c, idx, oak_compiler_loc_from_token(fname->token));
+          return;
+        }
+      }
+
+      oak_compiler_error_at(
+          c, fname->token, "enum '%s' has no variant '%s'", ename, vname);
       return;
     }
   }

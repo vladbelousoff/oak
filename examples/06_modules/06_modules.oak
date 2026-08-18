@@ -3,6 +3,7 @@
 import { sum, average, Series } from analytics.stats;
 import * from domain.project;
 import domain.project as project;
+import domain.geometry as geo;
 
 let values = [3, 5, 8, 13];
 print(sum(values));
@@ -24,3 +25,20 @@ project.finish(task);
 print(task.done);
 print(project.summary(task));
 print(task.describe());
+
+/* An alias-only import. Nothing from `domain.geometry` is in scope here --
+   `Shape`, `Kind` and `unit` are all undefined on their own -- so every line
+   below goes through `geo.`, including the field and method calls on values
+   that came back across it. */
+print(geo.Kind.Round);
+print(geo.unit().size);
+print(geo.unit().describe());
+print(geo.Shape.circle(4).grown(2).size);
+print(geo.Shape.circle(4).describe());
+
+/* The alias does not stop this file from having its own Shape. */
+record Shape {
+  label : string;
+}
+
+print(new Shape { label : 'local' }.label);

@@ -53,7 +53,7 @@ meson compile -C build-debug
 ```sh
 meson setup build
 meson compile -C build
-meson install -C build
+meson install -C build --skip-subprojects
 oak examples/01_values/01_values.oak
 ```
 
@@ -61,6 +61,23 @@ The default prefix is `~/.local`, so the binary lands in `~/.local/bin`.
 Pass `--prefix=<path>` to `meson setup` to put it somewhere else.
 
 `oak-pkg`, the package manager, installs alongside it.
+
+`--skip-subprojects` is not optional politeness. The bundled dependencies are
+absorbed statically into `acorn` and `oak-pkg`, so nothing needs them at
+runtime — but each one carries its own install rules, and a plain
+`meson install` scatters curl's and mimalloc's headers, static archives,
+pkg-config files and licence texts through the prefix alongside Oak's own. The
+flag installs the 41 files this project actually produces and nothing else.
+
+What that leaves in the prefix:
+
+| Path | What |
+|---|---|
+| `bin/oak`, `bin/oak-pkg` | the CLI and the package manager |
+| `bin/stdlib/` | the `.oak` stubs the runtime reads |
+| `lib/` | `acorn`, the runtime library |
+| `include/oak/` | the public headers, for embedders and plugin authors |
+| `lib/pkgconfig/oak.pc` | so `pkg-config --cflags --libs oak` works |
 
 ### Build options
 

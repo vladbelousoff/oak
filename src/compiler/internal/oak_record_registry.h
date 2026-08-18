@@ -44,6 +44,14 @@ struct oak_registered_record
   /* Attribute names.  Always heap-allocated; freed by registry_free. */
   const char** attrs;
   int attr_count;
+  /* 1 when this entry exists only so a value that crossed an alias-qualified
+   * reference can have its fields and methods resolved (see
+   * oak_ensure_dep_type_imported). `import m as a` binds the alias and nothing
+   * else, so the layout has to be reachable by type id while the bare name
+   * stays undefined -- oak_records_find skips these, oak_records_find_by_id
+   * does not. A later real import or local declaration of the same name simply
+   * takes the name back, because by_name is last-writer-wins. */
+  int qualified_only;
   /* 1 for inline value types (OAK_BIND_TYPE_VALUE): scalar, non-refcounted,
    * represented inline as OAK_TAG_NATIVE rather than a heap object. */
   int is_value;
@@ -72,8 +80,16 @@ oak_registered_record_t*
 oak_record_registry_insert(oak_record_registry_t* r,
                            const oak_registered_record_t* s);
 
-/* O(1) lookup by name. Returns null if not found. */
+/* O(1) lookup by name, for names that are in scope. Returns null if not found,
+ * and for a `qualified_only` entry -- which is not a name the program may
+ * write. Returns null if not found. */
 const oak_registered_record_t* oak_records_find(
+    const oak_record_registry_t* r, const char* name);
+
+/* As oak_records_find, including qualified-only entries. For the paths that
+ * already know they are resolving `alias.Type`, where the name came from the
+ * dependency's export table rather than from local scope. */
+const oak_registered_record_t* oak_records_find_any(
     const oak_record_registry_t* r, const char* name);
 
 /* O(n) lookup by type_id (infrequent; records stay small). */

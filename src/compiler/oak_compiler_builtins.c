@@ -101,6 +101,12 @@ static oak_fn_call_result_t builtin_is_float(oak_native_call_t* call,
 
 static const oak_native_binding_t native_builtins[] = {
   { "print", builtin_print, 1, OAK_TYPE_VOID },
+  /* Global rather than a method on every type: `to_string` as a method is a
+   * record's own business -- a record may define one and the builtin is only
+   * the default -- while turning a number, a bool or an array into text is a
+   * conversion like to_int, and belongs beside it. It is also the only way to
+   * build a string from a number, since `+` does not coerce. */
+  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING },
   { "to_int", builtin_to_int, 1, OAK_TYPE_NUMBER },
   { "to_float", builtin_to_float, 1, OAK_TYPE_NUMBER },
   { "is_int", builtin_is_int, 1, OAK_TYPE_BOOL },

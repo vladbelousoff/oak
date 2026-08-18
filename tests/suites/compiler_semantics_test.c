@@ -342,6 +342,54 @@ UTEST_F(compiler_semantics, unknown_and_unqualified_variants_are_rejected)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
+/* Two enums may share a variant name.
+ *
+ * This follows from the test above: a bare variant name resolves to nothing,
+ * so `Left` alone is never a question the compiler has to answer, and
+ * `Key.Left` and `MouseButton.Left` are unambiguous. The registry used to
+ * reject the pair anyway, which forced any binding that mirrors a real API to
+ * rename one of them -- raylib's mouse buttons are Left and Right, and so are
+ * its cursor keys. */
+UTEST_F(compiler_semantics, two_enums_may_share_a_variant_name)
+{
+  static const oak_case_t cases[] = {
+    { "enum Key { Left, Right }\n"
+      "enum MouseButton { Left, Right }\n"
+      "print(Key.Left);\n"
+      "print(MouseButton.Right);\n",
+      OAK_NULL },
+    /* Ordinals stay per-enum, so the shared name is the only thing shared. */
+    { "enum A { X, Y }\n"
+      "enum B { Y, X }\n"
+      "fn take_a(v : A) -> A { return v; }\n"
+      "take_a(A.Y);\n",
+      OAK_NULL },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
+}
+
+/* What the relaxation above does not relax. A name repeated inside one enum is
+ * still ambiguous, and the two types stay distinct despite the shared spelling
+ * -- which is what makes sharing safe rather than merely permitted. */
+UTEST_F(compiler_semantics, a_shared_variant_name_stays_scoped_to_its_enum)
+{
+  static const oak_case_t cases[] = {
+    { "enum Key { Left, Left }\n", "duplicate enum variant 'Left'" },
+    { "enum Key { Left, Right }\n"
+      "enum MouseButton { Left, Right }\n"
+      "print(Key.Left == MouseButton.Left);\n",
+      "may only be compared to the same enum type" },
+    { "enum Key { Left, Right }\n"
+      "enum MouseButton { Left, Right }\n"
+      "fn press(k : Key) -> Key { return k; }\n"
+      "press(MouseButton.Left);\n",
+      "expected type 'Key'" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
+}
+
 /* Variants must be comma-separated; whitespace alone does not separate them. */
 UTEST_F(compiler_semantics, space_separated_variants_are_rejected)
 {
@@ -352,4 +400,65 @@ UTEST_F(compiler_semantics, space_separated_variants_are_rejected)
   };
 
   OAK_EXPECT_REJECTED_CASES(cases);
+}
+
+/*
+ * to_string is a global conversion, and a method only on records.
+ *
+ * The split is the point. Turning a number, a bool or an array into text is a
+ * conversion like to_int, so it sits beside it as a free function; a record's
+ * text form is the record's own business, so there it is a method the type may
+ * define and the builtin is only the default. It is also the only route from a
+ * number to a string, because `+` does not coerce.
+ */
+UTEST_F(compiler_semantics, to_string_converts_any_value)
+{
+  static const oak_case_t cases[] = {
+    { "print(to_string(5));\n", "5" },
+    { "print(to_string(true));\n", "true" },
+    { "print(to_string('already'));\n", "already" },
+    /* The case the method form could not do: the result is a real string, so
+     * it binds and concatenates. */
+    { "let s = to_string(42);\n"
+      "print('score: ' + s);\n",
+      "score: 42" },
+    { "print('score: ' + to_string(42));\n", "score: 42" },
+  };
+
+  OAK_EXPECT_OUTPUT_CASES(cases);
+}
+
+UTEST_F(compiler_semantics, records_carry_to_string_as_a_method)
+{
+  static const oak_case_t cases[] = {
+    /* A record may define its own, and it wins over the builtin. */
+    { "record P {\n"
+      "  x : number;\n"
+      "  export fn to_string() -> string { return 'P'; }\n"
+      "}\n"
+      "let p = new P { x : 1 };\n"
+      "print('v=' + p.to_string());\n",
+      "v=P" },
+  };
+
+  OAK_EXPECT_OUTPUT_CASES(cases);
+}
+
+/* And nothing else has the method, so the two forms cannot be confused. */
+UTEST_F(compiler_semantics, to_string_is_not_a_method_on_non_records)
+{
+  static const oak_case_t cases[] = {
+    { "let n = 5;\n"
+      "print(n.to_string());\n",
+      "no method 'to_string' on number" },
+    { "let b = true;\n"
+      "print(b.to_string());\n",
+      "no method 'to_string' on bool" },
+    { "print('hi'.to_string());\n", "no method 'to_string' on string" },
+    { "let a = [1, 2];\n"
+      "print(a.to_string());\n",
+      "no method 'to_string' on array" },
+  };
+
+  OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }

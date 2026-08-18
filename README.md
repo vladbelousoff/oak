@@ -249,6 +249,45 @@ print(chr(128512));             /* \u{1F600} */
 cuts one in half. `upper` and `lower` map ASCII only and leave everything
 else untouched. Source that is not valid UTF-8 is a compile error.
 
+`to_string` turns any value into text. `+` never coerces, so this is the
+way to build a string out of something that is not one:
+
+```oak
+print('score: ' + to_string(42));   /* score: 42 */
+print(to_string([1, 2]));           /* the array, one element per line */
+```
+
+On a record it is a method rather than a global, and a record may define
+its own — the built-in one is only the default:
+
+```oak
+record Point {
+  x : number;
+  y : number;
+  export fn to_string() -> string { return '(' + to_string(self.x) + ')'; }
+}
+```
+
+`format` fills placeholders in a template from an array:
+
+```oak
+print('{} squared is {}'.format([4, 16]));   /* 4 squared is 16 */
+print('{1} then {0}'.format(['b', 'a']));    /* a then b */
+print('{0} twice: {0}'.format(['x']));       /* x twice: x */
+print('{{literal}}'.format(['x']));          /* {literal} */
+```
+
+`{}` takes the next argument in order, `{0}` names one by index (and may
+repeat it), and `{{` and `}}` write a literal brace. A placeholder with no
+argument to fill it is a runtime error; spare arguments are ignored.
+
+Arrays are homogeneous, so a template mixing kinds takes an array of
+strings — `to_string` is what gets them there:
+
+```oak
+print('{} scored {}'.format(['ann', to_string(5)]));
+```
+
 ### Stdlib
 
 Printing, numbers, strings, and collections need no import:

@@ -397,10 +397,20 @@ else
     # HTTPS is the one optional capability in the whole system. Without these
     # two, oak-pkg still handles git and path dependencies completely -- so a
     # missing libcurl costs a feature, not the tool.
+    # tool/tests/unittests are off for the same reason progs is off for
+    # libarchive below: oak-pkg links the library and never shells out. Leaving
+    # the tool on builds a second curl executable and, on `meson install`,
+    # drops it and curl-config into the same bindir as `oak` -- where it would
+    # shadow the system curl on PATH.
     curl_dep = dependency(
       'libcurl',
       required: get_option('https'),
       fallback: ['curl', 'curl_dep'],
+      default_options: subproject_default_options + [
+        'tool=disabled',
+        'tests=disabled',
+        'unittests=disabled',
+      ],
     )
     # tests=disabled matters beyond build time: meson runs a subproject's tests
     # as part of `meson test`, and libarchive's take well over a minute and

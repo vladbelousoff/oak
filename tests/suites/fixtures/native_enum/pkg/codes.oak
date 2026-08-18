@@ -1,0 +1,13 @@
+/* Names only -- Oak has no syntax for a variant's value, so the binding
+   supplies them and the loader checks the two agree. */
+export enum Code { Space, Right }
+
+export fn is_down(code : Code) -> bool;
+
+/* A bodied Oak function calling one of its own module's native declarations.
+   This is the shape an ergonomic wrapper is built from, and it only works if
+   the binding replaces the stub's placeholder constant rather than adding a
+   second one beside it. */
+export fn space_is_down() -> bool {
+  return is_down(Code.Space);
+}

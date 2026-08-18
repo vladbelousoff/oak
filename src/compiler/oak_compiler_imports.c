@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include "internal/oak_compiler_modules.h"
 #include "internal/oak_interface_registry.h"
 
 #include <string.h>
@@ -152,6 +153,17 @@ static void import_enum_from_dep(oak_compiler_t* c,
     return;
   }
   oak_type_registry_intern_with_id(&c->types, exp->name, enum_type_id);
+
+  /* Crossing an alias needs the type id and nothing else. `a.Colour.Red`
+   * resolves through the dependency's export table (see
+   * oak_compiler_compile_member_access) and two such values compare by that
+   * id, so there is nothing here for a local registration to answer -- and
+   * registering one would put `Colour` in scope, which `import m as a` must
+   * not do. Records are the opposite case: their fields and methods are only
+   * reachable through a local entry, which is why those get one. */
+  if (c->import_qualified_only)
+    return;
+
   {
     oak_registered_enum_t re = {
       .name = exp->name,
@@ -190,22 +202,45 @@ static void import_record_from_dep(oak_compiler_t* c,
                                    const oak_module_t* dep,
                                    const oak_module_export_record_t* exp)
 {
-  if (oak_records_find(&c->records, exp->name))
+  /* find_any, not find: a qualified-only entry for this record may already be
+   * here from an earlier `a.make_point()`, and importing its layout twice
+   * would be wasted work. It is not a name collision -- nothing could have
+   * referred to it by name. */
+  oak_registered_record_t* existing = (oak_registered_record_t*)
+      oak_records_find_any(&c->records, exp->name);
+  if (existing)
   {
-    const oak_registered_record_t* existing =
-        oak_records_find(&c->records, exp->name);
-    if (existing->source_module_id != OAK_MODULE_ID_NONE &&
-        existing->source_module_id != dep->module_id)
-      oak_compiler_error_at(c, OAK_NULL,
-                            "import collision: '%s' is already defined",
-                            exp->name);
-    return;
+    if (existing->qualified_only)
+    {
+      /* The layout is already here; this import only adds the name. That is
+       * `import m as a` followed by `import * from m`, and the second one is
+       * what puts `Point` in scope. */
+      if (!c->import_qualified_only &&
+          existing->source_module_id == dep->module_id)
+        existing->qualified_only = 0;
+      return;
+    }
+    /* The name is taken by something in scope. A qualified-only import does
+     * not want the name, only the layout, so it registers alongside rather
+     * than colliding -- which is what lets a program declare its own Point and
+     * still call `a.make_point()`. oak_records_find looks past the new entry
+     * to the one that is actually in scope. */
+    if (!c->import_qualified_only || existing->source_module_id == dep->module_id)
+    {
+      if (existing->source_module_id != OAK_MODULE_ID_NONE &&
+          existing->source_module_id != dep->module_id)
+        oak_compiler_error_at(c, OAK_NULL,
+                              "import collision: '%s' is already defined",
+                              exp->name);
+      return;
+    }
   }
   const oak_type_id_t tid = oak_type_registry_lookup(&dep->types, exp->name);
   oak_type_registry_intern_with_id(&c->types, exp->name, tid);
   oak_registered_record_t proto = { 0 };
   proto.name = exp->name;
   proto.source_module_id = dep->module_id;
+  proto.qualified_only = c->import_qualified_only;
   proto.type_id = tid;
   proto.is_value = exp->is_value;
   proto.fields =
@@ -238,7 +273,12 @@ static void import_record_from_dep(oak_compiler_t* c,
      above instead of recursing infinitely via ensure_dep_type_imported.
      We store the index (not a pointer) because ensure_dep_type_imported
      may trigger further imports that reallocate the entries array. */
-  if (!oak_compiler_declare_symbol(
+  /* No symbol for a qualified-only import: the declaration is what would make
+   * `Point` a name in this module, and `import m as a` grants only `a`. It
+   * also lets a program keep its own `record Point` -- declaring the symbol
+   * here is what used to report that as a duplicate. */
+  if (!c->import_qualified_only &&
+      !oak_compiler_declare_symbol(
           c, OAK_NULL, exp->name, OAK_SYMBOL_RECORD,
           (int)oak_size(c->records.entries), dep->module_id, 1))
     return;
@@ -862,4 +902,36 @@ void oak_populate_module_exports(oak_compiler_t* c)
   export_user_records(c, mod);
   export_user_enums(c, mod);
   export_user_interfaces(c, mod);
+}
+
+
+/*
+ * The public faces of the two helpers above, for the alias-qualified paths in
+ * type inference and method dispatch. Declared in oak_compiler_modules.h,
+ * which is where the rest of the alias machinery lives; the file-static
+ * versions stay because the import paths in this file were written against
+ * them and there is no reason to churn every call site.
+ */
+void oak_ensure_dep_type_imported(oak_compiler_t* c,
+                                  const oak_module_t* dep,
+                                  const oak_type_t* type)
+{
+  if (!c || !dep || !type)
+    return;
+  const int saved = c->import_qualified_only;
+  c->import_qualified_only = 1;
+  ensure_full_type_imported(c, dep, type);
+  c->import_qualified_only = saved;
+}
+
+void oak_ensure_dep_named_type_imported(oak_compiler_t* c,
+                                        const oak_module_t* dep,
+                                        const char* name)
+{
+  if (!c || !dep || !name)
+    return;
+  const int saved = c->import_qualified_only;
+  c->import_qualified_only = 1;
+  ensure_dep_named_type_imported(c, dep, name);
+  c->import_qualified_only = saved;
 }

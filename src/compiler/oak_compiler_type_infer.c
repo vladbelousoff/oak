@@ -200,6 +200,22 @@ void oak_infer_type(oak_compiler_t* c,
             out->id = ev ? ev->type_id : OAK_TYPE_VOID;
             return;
           }
+
+          /* `import m as a` registers no names locally, so the enum is not in
+           * c->enums and its type has to come from the module that owns it --
+           * the same id oak_compiler_compile_member_access emits a constant
+           * for. Taking it from dep->types rather than interning a fresh one
+           * is what makes a.E.V agree with a parameter declared as E. */
+          const oak_module_t* dep = OAK_NULL;
+          const oak_module_export_enum_t* exp = oak_compiler_module_export_enum(
+              c, oak_token_text(recv->lhs->token), ename, &dep);
+          if (exp && dep)
+          {
+            out->id = oak_type_registry_lookup(&dep->types, ename);
+            if (out->id < 0)
+              out->id = OAK_TYPE_VOID;
+            return;
+          }
         }
       }
       /* Local enum variant access: EnumName.Variant yields the enum's type. */

@@ -8,11 +8,10 @@ void oak_enum_registry_init(oak_enum_registry_t* r,
                             oak_allocator_t* allocator)
 {
   r->allocator = allocator;
-  r->by_name = oak_hash_map_new(allocator, sizeof(usize));
   r->enum_names = oak_hash_set_new(allocator);
   r->variants = oak_vector_new(allocator, sizeof(oak_enum_variant_t));
   r->enums = oak_vector_new(allocator, sizeof(oak_registered_enum_t));
-  OAK_ASSERT(r->by_name && r->enum_names && r->variants && r->enums);
+  OAK_ASSERT(r->enum_names && r->variants && r->enums);
 }
 
 void oak_enum_registry_free(oak_enum_registry_t* r)
@@ -24,7 +23,6 @@ void oak_enum_registry_free(oak_enum_registry_t* r)
     if (enums[i].attrs)
       oak_free(r->allocator, enums[i].attrs, OAK_HERE);
   }
-  oak_destroy(r->by_name);
   oak_destroy(r->enum_names);
   oak_destroy(r->variants);
   oak_destroy(r->enums);
@@ -48,25 +46,13 @@ oak_enum_registry_insert(oak_enum_registry_t* r,
                          const oak_enum_variant_t* v)
 {
   OAK_ASSERT(oak_push_back(r->variants, v));
-  const usize idx = oak_size(r->variants) - 1;
-  oak_enum_variant_t* variant = oak_get(r->variants, idx);
-
-  /* Index by unqualified variant name (first-wins for unqualified lookup;
-   * qualified lookup uses a linear scan and always works). */
-  if (!oak_contains_str(r->by_name, variant->name))
-    OAK_ASSERT(oak_put_str(r->by_name, variant->name, &idx));
+  oak_enum_variant_t* variant =
+      oak_get(r->variants, oak_size(r->variants) - 1);
 
   /* Record the enum type name as a set member if not already present. */
   oak_add_str(r->enum_names, variant->enum_name);
 
   return variant;
-}
-
-const oak_enum_variant_t* oak_enum_registry_find(
-    const oak_enum_registry_t* r, const char* name)
-{
-  const usize* idx = oak_cfind_str(r->by_name, name);
-  return idx ? oak_cget(r->variants, *idx) : OAK_NULL;
 }
 
 const oak_enum_variant_t*
@@ -152,13 +138,13 @@ void oak_register_native_enums(
     {
       const oak_bind_enum_variant_t* nv = &bind_variants[vi];
 
-      if (oak_enum_registry_find(&c->enums, nv->name))
+      if (oak_enums_find_qualified(&c->enums, ne->name, nv->name))
       {
         oak_compiler_error_at(
             c,
             OAK_NULL,
-            "native enum variant '%s' conflicts with an already-registered "
-            "variant",
+            "native enum '%s' declares variant '%s' twice",
+            ne->name,
             nv->name);
         return;
       }
@@ -177,6 +163,54 @@ void oak_register_native_enums(
       oak_enum_registry_insert(&c->enums, &v);
     }
   }
+}
+
+/* The native enum descriptor a source `enum` declaration in this compilation
+ * unit is the stub for, or NULL when the declaration stands on its own.
+ *
+ * Matching is by name *and* by module: a descriptor registered with
+ * oak_bind_enum_in_module("raylib", "Key") backs the `Key` declared in
+ * raylib.oak and nothing else.  A descriptor with no module (oak_bind_enum)
+ * never matches a source declaration -- oak_register_native_enums creates that
+ * enum itself, and would already have rejected a source enum of the same name
+ * as a conflict. */
+static const oak_bind_enum_t* native_enum_backing(const oak_compiler_t* c,
+                                                  const char* name)
+{
+  const char* dotted =
+      c->current_module ? c->current_module->dotted_name : OAK_NULL;
+  if (!c->opts || !dotted)
+    return OAK_NULL;
+
+  oak_bind_enum_t** enums = OAK_DATA(oak_bind_enum_t*, c->opts->native_enums);
+  for (usize i = 0; i < oak_size(c->opts->native_enums); ++i)
+  {
+    const oak_bind_enum_t* e = enums[i];
+    if (!e || !e->module_name)
+      continue;
+    if (strcmp(e->module_name, dotted) == 0 && strcmp(e->name, name) == 0)
+      return e;
+  }
+  return OAK_NULL;
+}
+
+/* The bound value for `variant_name`, or 0 with *found cleared. */
+static int native_enum_variant_value(const oak_bind_enum_t* e,
+                                     const char* variant_name,
+                                     int* found)
+{
+  const oak_bind_enum_variant_t* variants =
+      OAK_CDATA(oak_bind_enum_variant_t, e->variants);
+  for (usize i = 0; i < oak_size(e->variants); ++i)
+  {
+    if (strcmp(variants[i].name, variant_name) == 0)
+    {
+      *found = 1;
+      return variants[i].value;
+    }
+  }
+  *found = 0;
+  return 0;
 }
 
 void oak_register_program_enums(oak_compiler_t* c,
@@ -243,6 +277,15 @@ void oak_register_program_enums(oak_compiler_t* c,
       OAK_ASSERT(oak_push_back(c->enums.enums, &re));
     }
 
+    /* When a native binding backs this declaration, the binding owns the
+     * variant *values* and the declaration owns the variant *names* -- the
+     * same split the stub already has with functions and methods, where the
+     * declaration states the signature and the binding supplies the code.
+     * Every variant must appear on both sides; see the checks below. */
+    const oak_bind_enum_t* backing =
+        native_enum_backing(c, oak_token_text(name_node->token));
+    usize declared_variants = 0;
+
     int ordinal = 0;
     oak_list_entry_t* vpos;
     OAK_LIST_FOR_EACH(vpos, &variants_node->children)
@@ -254,16 +297,35 @@ void oak_register_program_enums(oak_compiler_t* c,
 
       const char* vname = oak_token_text(variant->token);
 
-      /* Duplicate variant name check (across all enums). */
-      if (oak_enum_registry_find(&c->enums, vname))
+      /* Within this enum only. Two enums sharing a variant name is not a
+       * conflict: every reference is qualified, so `Key.Left` and
+       * `MouseButton.Left` name different things and always did. */
+      if (oak_enums_find_qualified(
+              &c->enums, oak_token_text(name_node->token), vname))
       {
         oak_compiler_error_at(
             c, variant->token, "duplicate enum variant '%s'", vname);
         return;
       }
 
+      int value = ordinal;
+      if (backing)
+      {
+        int found = 0;
+        value = native_enum_variant_value(backing, vname, &found);
+        if (!found)
+        {
+          oak_compiler_error_at(
+              c, variant->token,
+              "enum '%s' declares variant '%s' with no native binding",
+              oak_token_text(name_node->token), vname);
+          return;
+        }
+        ++declared_variants;
+      }
+
       /* Store the integer value as a chunk constant. */
-      const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_I32(ordinal));
+      const u16 idx = oak_compiler_intern_constant(c, OAK_VALUE_I32(value));
       if (c->has_error)
         return;
 
@@ -271,11 +333,33 @@ void oak_register_program_enums(oak_compiler_t* c,
         .name = vname,
         .enum_name = oak_token_text(name_node->token),
         .const_idx = idx,
-        .value = ordinal,
+        .value = value,
         .type_id = enum_type_id,
       };
       oak_enum_registry_insert(&c->enums, &v);
       ++ordinal;
+    }
+
+    /* The other direction: a bound variant the declaration never mentions is
+     * unreachable from Oak, which is drift rather than a design choice. Naming
+     * one of the missing variants is enough to find the edit that caused it. */
+    if (backing && declared_variants < oak_size(backing->variants))
+    {
+      const oak_bind_enum_variant_t* variants =
+          OAK_CDATA(oak_bind_enum_variant_t, backing->variants);
+      for (usize i = 0; i < oak_size(backing->variants); ++i)
+      {
+        if (!oak_enums_find_qualified(
+                &c->enums, oak_token_text(name_node->token), variants[i].name))
+        {
+          oak_compiler_error_at(
+              c, name_node->token,
+              "native enum '%s' binds variant '%s' that the declaration is "
+              "missing",
+              oak_token_text(name_node->token), variants[i].name);
+          return;
+        }
+      }
     }
   }
 }

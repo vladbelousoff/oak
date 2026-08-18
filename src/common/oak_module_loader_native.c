@@ -115,13 +115,20 @@ void module_loader_filter_native_decls(
     OAK_ASSERT(oak_push_back(opts->native_global_fns, fn));
   }
 
+  /* Enums are the one kind NOT dropped for their own module.  A type or a
+   * function is fully described by the stub: the binding supplies only the
+   * implementation behind it, which the compiler never needs to see.  An enum
+   * is not.  A stub can name its variants but Oak's grammar has no syntax for
+   * their values (ENUM_VARIANTS -> IDENT (',' IDENT)*), so with the descriptor
+   * dropped every variant would silently take its ordinal and a binding's
+   * KEY_SPACE = 32 would reach Oak as 0.  Keeping it lets
+   * oak_register_program_enums read the values off the descriptor, and report
+   * any disagreement with the declaration rather than picking a winner. */
   oak_bind_enum_t** base_enums =
       OAK_DATA(oak_bind_enum_t*, base_opts->native_enums);
   for (usize i = 0; i < oak_size(base_opts->native_enums); ++i)
   {
     oak_bind_enum_t* e = base_enums[i];
-    if (is_native_module && e && native_module_name_eq(e->module_name, dotted))
-      continue;
     OAK_ASSERT(oak_push_back(opts->native_enums, &e));
   }
 }
@@ -202,9 +209,26 @@ void apply_native_module_function_exports(
     if (exp->stub_attrs && exp->stub_attr_count > 0)
       oak_apply_attr_hooks(
           opts, OAK_NULL, native, exp->stub_attrs, exp->stub_attr_count);
-    const u16 const_idx =
-        (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
-    exp->const_idx = const_idx;
+    /* Overwrite the placeholder in place rather than appending a new constant.
+     *
+     * The stub's bodyless `fn` compiled to a function object with no code, and
+     * exp->const_idx is the slot it occupies -- a slot the module's *own* code
+     * also references, because a bodied Oak function in the same file may call
+     * one of its native declarations (a `draw_circle_v` that unpacks a vector
+     * and calls `draw_circle` is the whole reason to allow the mix). Pointing
+     * only the export at a freshly appended constant fixed importers and left
+     * those in-module calls dispatching to a body that was never emitted. */
+    oak_value_t* slot = oak_get(mod->chunk->constants, (usize)exp->const_idx);
+    if (slot)
+    {
+      oak_value_decref(*slot);
+      *slot = OAK_VALUE_OBJ(&native->obj);
+    }
+    else
+    {
+      exp->const_idx =
+          (u16)oak_chunk_add_constant(mod->chunk, OAK_VALUE_OBJ(&native->obj));
+    }
     if (fn->param_types && fn->param_count > 0)
     {
       /* The binding declares its own parameter types; adopt them so the

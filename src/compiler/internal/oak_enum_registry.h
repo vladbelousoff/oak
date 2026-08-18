@@ -36,17 +36,24 @@ struct oak_registered_enum
 };
 
 /* Unbounded registry of enum variants.
- * by_name gives O(1) unqualified variant lookup.
+ *
+ * There is deliberately no index by bare variant name. Every reference to a
+ * variant in the language is qualified -- `EnumName.Variant`, or
+ * `alias.EnumName.Variant` across a module -- so a bare name is never resolved
+ * and an index on one could only answer a question nobody asks. It used to
+ * exist, and its one caller was a check that rejected two enums for sharing a
+ * variant name: a constraint the resolver never needed, which made
+ * `MouseButton.Left` and `Key.Left` unable to coexist.
+ *
  * enum_names gives O(1) existence check for enum type names.
- * Qualified lookup (EnumName::Variant) uses a linear scan — it is rare. */
+ * Qualified lookup uses a linear scan over `variants`. */
 typedef struct oak_enum_registry oak_enum_registry_t;
 struct oak_enum_registry
 {
   oak_allocator_t* allocator;
-  oak_container_t* by_name;    /* variant name → usize into variants */
-  oak_container_t* enum_names; /* set of enum type names             */
-  oak_container_t* variants;   /* vector of oak_enum_variant_t       */
-  oak_container_t* enums;      /* vector of oak_registered_enum_t    */
+  oak_container_t* enum_names; /* set of enum type names          */
+  oak_container_t* variants;   /* vector of oak_enum_variant_t    */
+  oak_container_t* enums;      /* vector of oak_registered_enum_t */
 };
 
 
@@ -55,16 +62,14 @@ void oak_enum_registry_init(oak_enum_registry_t* r,
 void oak_enum_registry_free(oak_enum_registry_t* r);
 
 
-/* Appends variant and indexes it by name and enum name. */
+/* Appends variant and records its enum's name as a known enum type name. */
 oak_enum_variant_t*
 oak_enum_registry_insert(oak_enum_registry_t* r,
                          const oak_enum_variant_t* v);
 
-/* O(1) lookup by unqualified variant name. Returns null if not found. */
-const oak_enum_variant_t* oak_enum_registry_find(
-    const oak_enum_registry_t* r, const char* name);
-
-/* O(n) lookup by qualified (enum_name, variant_name). */
+/* O(n) lookup by qualified (enum_name, variant_name). Also the duplicate
+ * check at registration, which is why two enums may now share a variant
+ * name and one enum still may not repeat one. */
 const oak_enum_variant_t*
 oak_enums_find_qualified(const oak_enum_registry_t* r,
                                  const char* enum_name,

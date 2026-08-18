@@ -682,3 +682,182 @@ UTEST_F(module_loader, a_module_outside_the_scope_gets_the_program_wide_mount)
 
   load_end(&f);
 }
+
+
+/*
+ * Native enum values.
+ *
+ * A stub declares an enum's variant *names*; Oak's grammar has no syntax for
+ * their values (ENUM_VARIANTS -> IDENT (',' IDENT)*), so the binding declares
+ * those. Without that the ordinals win and a binding's KEY_SPACE = 32 reaches
+ * Oak as 0 -- a wrong answer rather than an error, which is why this is
+ * checked in both directions below.
+ */
+
+#define NATIVE_ENUM_DIR OAK_TEST_FIXTURES_DIR "/native_enum"
+#define NATIVE_ENUM_ENTRY NATIVE_ENUM_DIR "/app/main.oak"
+#define NATIVE_ENUM_PKG NATIVE_ENUM_DIR "/pkg"
+
+static oak_fn_call_result_t codes_is_down(oak_native_call_t* call,
+                                          const oak_value_t* args,
+                                          const usize argc,
+                                          oak_value_t* out)
+{
+  int code;
+  if (!oak_arg_i32(call, args, argc, 0, &code))
+    return OAK_FN_CALL_RUNTIME_ERROR;
+  *out = OAK_VALUE_BOOL(code == 32);
+  return OAK_FN_CALL_OK;
+}
+
+/* Mounts fixtures/native_enum/pkg as `codes` and binds the module's enum with
+ * `variants`, so a caller can vary only what the binding claims. */
+static void load_begin_native_enum(load_fixture_t* f,
+                                   oak_allocator_t* a,
+                                   const oak_bind_enum_variant_t* variants,
+                                   const int variant_count)
+{
+  memset(&f->result, 0, sizeof f->result);
+  oak_compile_options_init(&f->opts, a);
+  oak_module_registry_init(&f->registry, a);
+
+  /* Mount before binding, the order oak_package_set_apply uses: binding makes
+   * `codes` a native module, and a mount over one of those is refused. */
+  f->rc = oak_module_loader_mount(
+      &f->opts, OAK_NULL, "codes", NATIVE_ENUM_PKG, "test/codes");
+  if (f->rc != 0)
+    return;
+
+  oak_bind_enum_t* code = oak_bind_enum_in_module(&f->opts, "codes", "Code");
+  if (code)
+    oak_bind_enum_variants(code, variants, variant_count);
+
+  const oak_bind_type_ref_t is_down_sig[] = { OAK_BIND_ENUM(code) };
+  oak_bind_fn_global(&f->opts,
+                     &(oak_bind_global_fn_t){
+                         .module_name = "codes",
+                         .name = "is_down",
+                         .impl = codes_is_down,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_BOOL),
+                         .param_types = is_down_sig,
+                         .param_count = 1,
+                     });
+
+  f->rc = oak_module_loader_load_program(
+      NATIVE_ENUM_ENTRY, &f->opts, &f->registry, &f->result);
+}
+
+/* The values the binding declares are the ones Oak sees -- not the ordinals
+ * the declaration alone would produce. */
+UTEST_F(module_loader, a_stub_enum_takes_its_values_from_the_binding)
+{
+  static const oak_bind_enum_variant_t codes[] = {
+    { "Space", 32 },
+    { "Right", 262 },
+  };
+  load_fixture_t f;
+  load_begin_native_enum(&f, OAK_A, codes, (int)OAK_COUNT_OF(codes));
+  ASSERT_EQ(0, f.rc);
+  ASSERT_EQ(0, f.result.error_count);
+
+  const oak_module_t* mod = find_module(&f.registry, "codes");
+  ASSERT_TRUE(mod != OAK_NULL);
+  const oak_module_export_enum_t* code = find_export_enum(mod, "Code");
+  ASSERT_TRUE(code != OAK_NULL);
+  ASSERT_EQ((usize)2, oak_size(code->variants));
+
+  const oak_module_export_enum_variant_t* variants =
+      OAK_CDATA(oak_module_export_enum_variant_t, code->variants);
+  EXPECT_STREQ("Space", variants[0].name);
+  EXPECT_EQ(32, variants[0].value);
+  EXPECT_STREQ("Right", variants[1].name);
+  EXPECT_EQ(262, variants[1].value);
+
+  load_end(&f);
+}
+
+/* A variant the binding never declares has no value to take, so the load is
+ * rejected naming it, rather than falling back to an ordinal that happens to
+ * mean something else in the C library. */
+UTEST_F(module_loader, a_stub_enum_variant_with_no_binding_is_rejected)
+{
+  static const oak_bind_enum_variant_t codes[] = { { "Space", 32 } };
+  load_fixture_t f;
+  load_begin_native_enum(&f, OAK_A, codes, (int)OAK_COUNT_OF(codes));
+
+  EXPECT_EQ(-1, f.rc);
+  ASSERT_GT(f.result.error_count, 0);
+  EXPECT_TRUE(strstr(f.result.errors[0].message, "Right") != OAK_NULL);
+
+  load_end(&f);
+}
+
+/* And the other direction: a bound variant the declaration never mentions is
+ * unreachable from Oak, which is drift in the stub rather than a choice. */
+UTEST_F(module_loader, a_bound_enum_variant_missing_from_the_stub_is_rejected)
+{
+  static const oak_bind_enum_variant_t codes[] = {
+    { "Space", 32 },
+    { "Right", 262 },
+    { "Left", 263 },
+  };
+  load_fixture_t f;
+  load_begin_native_enum(&f, OAK_A, codes, (int)OAK_COUNT_OF(codes));
+
+  EXPECT_EQ(-1, f.rc);
+  ASSERT_GT(f.result.error_count, 0);
+  EXPECT_TRUE(strstr(f.result.errors[0].message, "Left") != OAK_NULL);
+
+  load_end(&f);
+}
+
+/* The global-function half of a_native_module_stub_binds_every_method_to_its_impl.
+ *
+ * The binding has to land in the slot the stub's bodyless declaration already
+ * occupies, not in a fresh one beside it. Only the export table reads
+ * exp->const_idx; the module's *own* bytecode holds that index inline, so a
+ * bodied Oak function calling one of its module's native declarations resolves
+ * through the original slot. Appending instead left those calls dispatching to
+ * a placeholder -- which, as that test explains, ends the program silently
+ * rather than failing. */
+UTEST_F(module_loader, a_stub_binds_a_global_fn_in_the_slot_its_callers_use)
+{
+  static const oak_bind_enum_variant_t codes[] = {
+    { "Space", 32 },
+    { "Right", 262 },
+  };
+  load_fixture_t f;
+  load_begin_native_enum(&f, OAK_A, codes, (int)OAK_COUNT_OF(codes));
+  ASSERT_EQ(0, f.rc);
+  ASSERT_EQ(0, f.result.error_count);
+
+  const oak_module_t* mod = find_module(&f.registry, "codes");
+  ASSERT_TRUE(mod != OAK_NULL);
+  const oak_chunk_t* chunk = oak_module_chunk(mod);
+  ASSERT_TRUE(chunk != OAK_NULL);
+
+  const oak_module_export_fn_t* fns =
+      OAK_CDATA(oak_module_export_fn_t, mod->exports.fns);
+  const oak_module_export_fn_t* is_down = OAK_NULL;
+  const oak_module_export_fn_t* wrapper = OAK_NULL;
+  for (usize i = 0; i < oak_size(mod->exports.fns); ++i)
+  {
+    if (strcmp(fns[i].name, "is_down") == 0)
+      is_down = &fns[i];
+    else if (strcmp(fns[i].name, "space_is_down") == 0)
+      wrapper = &fns[i];
+  }
+  ASSERT_TRUE(is_down != OAK_NULL);
+  ASSERT_TRUE(wrapper != OAK_NULL);
+
+  ASSERT_LT((usize)is_down->const_idx, oak_size(chunk->constants));
+  const oak_value_t bound = oak_chunk_constant(chunk, (usize)is_down->const_idx);
+  EXPECT_TRUE(oak_is_native_fn(bound));
+
+  /* The bodied wrapper is still an ordinary Oak function -- the replacement is
+   * surgical, not a blanket overwrite of the module's constants. */
+  ASSERT_LT((usize)wrapper->const_idx, oak_size(chunk->constants));
+  EXPECT_TRUE(oak_is_fn(oak_chunk_constant(chunk, (usize)wrapper->const_idx)));
+
+  load_end(&f);
+}

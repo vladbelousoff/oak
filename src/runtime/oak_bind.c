@@ -106,8 +106,21 @@ void oak_compile_options_free(oak_compile_options_t* opts)
   }
   oak_destroy(opts->native_types);
   opts->native_types = OAK_NULL;
+
+  /* The param_types arrays adopted by oak_bind_fn / oak_bind_fn_global. Only
+   * these vectors own them: module_loader_filter_native_decls copies the
+   * descriptor structs into per-module vectors, so those hold the same
+   * pointers and must not free them. */
+  const oak_bind_fn_t* fns = OAK_CDATA(oak_bind_fn_t, opts->native_fns);
+  for (usize i = 0; i < oak_size(opts->native_fns); ++i)
+    oak_free(opts->allocator, (void*)fns[i].param_types, OAK_HERE);
   oak_destroy(opts->native_fns);
   opts->native_fns = OAK_NULL;
+
+  const oak_bind_global_fn_t* global_fns =
+      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
+  for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
+    oak_free(opts->allocator, (void*)global_fns[i].param_types, OAK_HERE);
   oak_destroy(opts->native_global_fns);
   opts->native_global_fns = OAK_NULL;
 
@@ -234,6 +247,36 @@ int oak_bind_field(oak_bind_type_t* type,
   return 0;
 }
 
+/* Take ownership of a signature's parameter-type array.
+ *
+ * Registration is otherwise a shallow copy of the descriptor, which made
+ * param_types borrowed: it had to stay alive until oak_compile_ex, long after
+ * the function that built it returned. Almost nobody can honour that. A table
+ * naming a runtime descriptor cannot be `static const`, so the natural
+ * spelling is a local array -- and for a plugin, whose `bind` returns before
+ * anything is compiled, a local array is always a dangling one.
+ *
+ * Copying here makes the contract "the array is read during this call", which
+ * is the only one a caller can actually satisfy. Freed by
+ * oak_compile_options_free.
+ *
+ * Returns 0 only on allocation failure; a null or empty array is success. */
+static int adopt_param_types(oak_compile_options_t* opts,
+                             const oak_bind_type_ref_t** param_types,
+                             const usize param_count)
+{
+  if (!*param_types || param_count == 0u)
+    return 1;
+
+  const usize bytes = param_count * sizeof(oak_bind_type_ref_t);
+  oak_bind_type_ref_t* owned = oak_alloc(opts->allocator, bytes, OAK_HERE);
+  if (!owned)
+    return 0;
+  memcpy(owned, *param_types, bytes);
+  *param_types = owned;
+  return 1;
+}
+
 int oak_bind_fn_global(oak_compile_options_t* opts,
                        const oak_bind_global_fn_t* p)
 {
@@ -252,6 +295,8 @@ int oak_bind_fn_global(oak_compile_options_t* opts,
                        p->param_count,
                        (unsigned)OAK_MAX_ARITY);
   oak_bind_global_fn_t entry = *p;
+  if (!adopt_param_types(opts, &entry.param_types, entry.param_count))
+    return bind_reject(opts, "out of memory registering '%s'", p->name);
   OAK_ASSERT(oak_push_back(opts->native_global_fns, &entry));
   return 0;
 }
@@ -287,6 +332,8 @@ int oak_bind_fn(oak_compile_options_t* opts,
         opts, "native method '%s' names no receiver type", p->name);
 
   oak_bind_fn_t copy = *p;
+  if (!adopt_param_types(opts, &copy.param_types, copy.param_count))
+    return bind_reject(opts, "out of memory registering '%s'", p->name);
   OAK_ASSERT(oak_push_back(opts->native_fns, &copy));
   return 0;
 }

@@ -263,8 +263,9 @@ struct oak_bind_global_fn
   oak_bind_type_ref_t return_type;
   /* Optional per-parameter types used for call-site type checking.  When
    * non-NULL, param_types must list `param_count` entries.  Registration
-   * copies this struct but not the array it points at, so the array is
-   * borrowed: the embedder owns it and it must outlive oak_compile_ex. */
+   * copies the array, so it need not outlive this call -- which is the only
+   * contract a caller can keep: a table naming a runtime descriptor cannot be
+   * `static const`, and a plugin's `bind` returns before anything compiles. */
   const oak_bind_type_ref_t* param_types;
   /* User-visible parameter count, and the length of param_types when that
    * pointer is non-NULL. */
@@ -290,8 +291,9 @@ struct oak_bind_fn
   /* Optional per-parameter types used for call-site type checking.  param_types
    * lists the user-visible parameters (excluding the implicit self for instance
    * methods) and must hold `param_count` entries when non-NULL.  Registration
-   * copies this struct but not the array it points at, so the array is
-   * borrowed: the embedder owns it and it must outlive oak_compile_ex. */
+   * copies the array, so it need not outlive this call -- which is the only
+   * contract a caller can keep: a table naming a runtime descriptor cannot be
+   * `static const`, and a plugin's `bind` returns before anything compiles. */
   const oak_bind_type_ref_t* param_types;
   /* User-visible parameter count: for STATIC_METHOD, the full argument count;
    * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM).

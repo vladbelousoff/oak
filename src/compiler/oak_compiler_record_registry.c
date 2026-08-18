@@ -1,4 +1,5 @@
 #include "internal/oak_compiler.h"
+#include <string.h>
 
 
 void oak_record_registry_init(oak_record_registry_t* r,
@@ -52,6 +53,27 @@ oak_record_registry_insert(oak_record_registry_t* r,
 }
 
 const oak_registered_record_t* oak_records_find(
+    const oak_record_registry_t* r, const char* name)
+{
+  const oak_registered_record_t* e = oak_records_find_any(r, name);
+  /* A qualified-only entry is reachable by type id but not by bare name: it
+   * was pulled in to resolve `a.make_point().x`, and `import m as a` must not
+   * make `Point` mean anything on its own. */
+  if (!e || !e->qualified_only)
+    return e;
+
+  /* by_name is last-writer-wins, so an out-of-scope entry can be sitting on a
+   * name that a real record also holds -- a program may declare its own Point
+   * and still call a.make_point(). Both are registered; only one is in scope. */
+  const oak_registered_record_t* entries =
+      OAK_CDATA(oak_registered_record_t, r->entries);
+  for (usize i = 0; i < oak_size(r->entries); ++i)
+    if (!entries[i].qualified_only && strcmp(entries[i].name, name) == 0)
+      return &entries[i];
+  return OAK_NULL;
+}
+
+const oak_registered_record_t* oak_records_find_any(
     const oak_record_registry_t* r, const char* name)
 {
   const usize* idx = oak_cfind_str(r->by_name, name);

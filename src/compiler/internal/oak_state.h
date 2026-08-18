@@ -93,6 +93,10 @@ struct oak_compiler
   oak_module_registry_t* module_registry;
   oak_module_t* current_module;
   int allow_bodyless_fns;
+  /* Set while a type is pulled across an alias-qualified reference, so the
+   * import path knows to register the layout without putting the name in
+   * scope. See oak_ensure_dep_type_imported. */
+  int import_qualified_only;
   /* Compile options (borrowed; NULL when compiling standalone). Used by
    * attribute callback dispatch to look up named attribute bindings. */
   const oak_compile_options_t* opts;

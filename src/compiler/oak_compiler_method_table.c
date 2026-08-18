@@ -136,20 +136,17 @@ static void validate_map_key_arg(oak_compiler_t* c,
 static const oak_builtin_method_def_t array_method_table[] = {
   { "push", builtin_push, 2, OAK_TYPE_NUMBER, 1, validate_array_push_args },
   { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, OAK_NULL },
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static const oak_builtin_method_def_t map_method_table[] = {
   { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, OAK_NULL },
   { "has", builtin_has, 2, OAK_TYPE_BOOL, 0, validate_map_key_arg },
   { "delete", builtin_delete, 2, OAK_TYPE_BOOL, 1, validate_map_key_arg },
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
 static const oak_builtin_method_def_t string_method_table[] = {
   { "format", builtin_string_format, 2, OAK_TYPE_STRING, 0, OAK_NULL },
   { "size", builtin_size, 1, OAK_TYPE_NUMBER, 0, OAK_NULL },
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
   { "upper", oak_str_upper, 1, OAK_TYPE_STRING, 0, OAK_NULL },
   { "lower", oak_str_lower, 1, OAK_TYPE_STRING, 0, OAK_NULL },
   { "trim", oak_str_trim, 1, OAK_TYPE_STRING, 0, OAK_NULL },
@@ -164,13 +161,11 @@ static const oak_builtin_method_def_t string_method_table[] = {
   { "to_camel_case", oak_str_to_camel_case, 1, OAK_TYPE_STRING, 0, OAK_NULL },
 };
 
-static const oak_builtin_method_def_t bool_method_table[] = {
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
-};
-
-static const oak_builtin_method_def_t number_method_table[] = {
-  { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
-};
+/* Numbers and bools have no builtin methods. They used to carry `to_string`,
+ * which is now the global to_string() -- see native_builtins in
+ * oak_compiler_builtins.c. The find functions below remain so that
+ * `n.anything()` is still reported as "no method on number" rather than
+ * falling through to a worse diagnostic; they scan a table of length zero. */
 
 static const oak_builtin_method_def_t record_builtin_method_table[] = {
   { "to_string", builtin_to_string, 1, OAK_TYPE_STRING, 0, OAK_NULL },
@@ -275,33 +270,11 @@ const oak_method_binding_t* oak_find_string_method(
       c->builtin_methods.string, c->builtin_methods.string_count, name);
 }
 
-void oak_register_bool_methods(oak_compiler_t* c)
-{
-  register_method_table_from_defs(c,
-                                  c->builtin_methods.bool_,
-                                  &c->builtin_methods.bool_count,
-                                  OAK_MAX_BOOL_METHODS,
-                                  "bool",
-                                  bool_method_table,
-                                  OAK_COUNT_OF(bool_method_table));
-}
-
 const oak_method_binding_t* oak_find_bool_method(
     oak_compiler_t* c, const char* name)
 {
   return method_binding_find(
       c->builtin_methods.bool_, c->builtin_methods.bool_count, name);
-}
-
-void oak_register_number_methods(oak_compiler_t* c)
-{
-  register_method_table_from_defs(c,
-                                  c->builtin_methods.number,
-                                  &c->builtin_methods.number_count,
-                                  OAK_MAX_NUMBER_METHODS,
-                                  "number",
-                                  number_method_table,
-                                  OAK_COUNT_OF(number_method_table));
 }
 
 const oak_method_binding_t* oak_find_number_method(

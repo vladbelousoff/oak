@@ -80,9 +80,7 @@ static void register_builtin_symbols(oak_compiler_t* c)
   CHECK_ERROR(c);
   oak_register_string_methods(c);
   CHECK_ERROR(c);
-  oak_register_bool_methods(c);
   CHECK_ERROR(c);
-  oak_register_number_methods(c);
   CHECK_ERROR(c);
   oak_register_record_methods(c);
 }

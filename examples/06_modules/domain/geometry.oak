@@ -1,0 +1,28 @@
+/* Reached only through an alias in the entry module, which is the point: none
+   of these names is in scope there, and every use goes through `geo.`. */
+
+export enum Kind { Round, Square }
+
+export record Shape {
+  kind : Kind;
+  size : number;
+
+  export fn static circle(size : number) -> Shape {
+    return new Shape { kind : Kind.Round, size : size };
+  }
+
+  export fn grown(by : number) -> Shape {
+    return new Shape { kind : self.kind, size : self.size + by };
+  }
+
+  export fn describe() -> string {
+    if self.kind == Kind.Round {
+      return 'round';
+    }
+    return 'square';
+  }
+}
+
+export fn unit() -> Shape {
+  return new Shape { kind : Kind.Square, size : 1 };
+}

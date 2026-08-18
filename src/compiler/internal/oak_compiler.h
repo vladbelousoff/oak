@@ -188,8 +188,6 @@ const oak_method_binding_t* oak_find_map_method(
 const oak_method_binding_t* oak_find_string_method(
     oak_compiler_t* c, const char* name);
 
-void oak_register_bool_methods(oak_compiler_t* c);
-void oak_register_number_methods(oak_compiler_t* c);
 void oak_register_record_methods(oak_compiler_t* c);
 
 const oak_method_binding_t* oak_find_bool_method(

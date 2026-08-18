@@ -40,14 +40,18 @@ static void infer_method_call_type(oak_compiler_t* c,
   if (recv->kind == OAK_NODE_MEMBER_ACCESS && recv->lhs && recv->rhs &&
       recv->lhs->kind == OAK_NODE_IDENT && recv->rhs->kind == OAK_NODE_IDENT)
   {
+    const oak_module_t* dep = OAK_NULL;
     if (oak_compiler_module_export_record(c,
                                           oak_token_text(recv->lhs->token),
                                           oak_token_text(recv->rhs->token),
-                                          OAK_NULL))
+                                          &dep))
     {
-      const oak_registered_record_t* sd =
-          oak_records_find(
-              &c->records, oak_token_text(recv->rhs->token));
+      /* The record is exported, but an alias-only import left no local copy of
+       * its layout, so the lookup below would find nothing. */
+      oak_ensure_dep_named_type_imported(
+          c, dep, oak_token_text(recv->rhs->token));
+      const oak_registered_record_t* sd = oak_records_find_any(
+          &c->records, oak_token_text(recv->rhs->token));
       const oak_registered_fn_t* sm =
           oak_find_record_method(sd, mn, 1);
       if (sm)
@@ -75,11 +79,16 @@ static void infer_method_call_type(oak_compiler_t* c,
 
     /* Case 2: alias.fn — cross-module free function. */
     {
+      const oak_module_t* dep = OAK_NULL;
       const oak_module_export_fn_t* fexp =
-          oak_compiler_module_export_fn(c, rname, mn, OAK_NULL);
+          oak_compiler_module_export_fn(c, rname, mn, &dep);
       if (fexp)
       {
         *out = fexp->return_type;
+        /* The id names a type in the dependency's registry. Bring its layout
+         * across, or `a.make_point().x` has a receiver the record registry has
+         * never heard of. */
+        oak_ensure_dep_type_imported(c, dep, out);
         if (out->id == OAK_TYPE_VOID)
           out->kind = OAK_TYPE_KIND_SCALAR;
         return;
@@ -142,6 +151,17 @@ static void infer_method_call_type(oak_compiler_t* c,
         }
         else
           native_method_return_type(c, sm, call, 1, out);
+        return;
+      }
+      /* No declared method of that name, so it may be one of the builtins
+       * every record carries. Dispatch already falls back this way; without
+       * the same fallback here `p.to_string()` compiles and runs but infers
+       * as void, which fails the moment the result is bound or concatenated. */
+      const oak_method_binding_t* bm =
+          oak_find_record_builtin_method(c, mn);
+      if (bm)
+      {
+        out->id = bm->return_type_id;
         return;
       }
     }

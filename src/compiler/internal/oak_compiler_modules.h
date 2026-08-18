@@ -38,6 +38,32 @@ oak_compiler_module_export_record(const oak_compiler_t* c,
                                   const char* type_name,
                                   const oak_module_t** out_mod);
 
+/*
+ * Bring a dependency's type layout into this compilation on demand.
+ *
+ * `import m as a` binds the alias and imports nothing else, which is what an
+ * alias is for. But a value obtained through it -- `a.make_point()` -- carries
+ * a type id from m's registry, and field access, method dispatch and inference
+ * all resolve a receiver through the *local* record registry. Without the
+ * layout they see an unknown type and reject `.x` on a perfectly good record.
+ *
+ * So the layout is pulled across the moment a type actually crosses the alias,
+ * rather than eagerly at import: only the types a program really uses arrive,
+ * and a module aliased for one function does not drag its whole vocabulary
+ * into the namespace.
+ *
+ * Both are no-ops for builtins and for a type already known locally, and both
+ * are the machinery a selective import already uses for the types named in an
+ * imported signature.
+ */
+void oak_ensure_dep_type_imported(oak_compiler_t* c,
+                                  const oak_module_t* dep,
+                                  const oak_type_t* type);
+
+void oak_ensure_dep_named_type_imported(oak_compiler_t* c,
+                                        const oak_module_t* dep,
+                                        const char* name);
+
 /* Like oak_compiler_module_export_fn but for enum exports. */
 const oak_module_export_enum_t*
 oak_compiler_module_export_enum(const oak_compiler_t* c,

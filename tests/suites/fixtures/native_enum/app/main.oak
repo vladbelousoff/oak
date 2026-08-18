@@ -1,0 +1,7 @@
+/* The raylib case in miniature: a native package whose stub declares an enum
+   whose values are the ones the C library actually uses, not 0, 1, 2, and a
+   bodied helper in the same module that calls through to a native. */
+import { Code, is_down, space_is_down } from codes;
+
+print(is_down(Code.Space));
+print(space_is_down());
