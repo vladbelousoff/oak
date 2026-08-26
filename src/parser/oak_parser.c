@@ -124,6 +124,8 @@ static const char* oak_parser_token_kind_display(
       return "'let'";
     case OAK_TOKEN_MUT:
       return "'mut'";
+    case OAK_TOKEN_STATIC:
+      return "'static'";
     case OAK_TOKEN_IF:
       return "'if'";
     case OAK_TOKEN_ELSE:

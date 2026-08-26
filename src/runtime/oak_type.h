@@ -8,6 +8,8 @@
 
 typedef struct oak_allocator oak_allocator_t;
 struct oak_bind_type_ref;
+struct oak_bind_fn;
+struct oak_obj_native_fn;
 
 /* A typed slot.
  * - kind == OAK_TYPE_KIND_ARRAY  → value is an array whose element type is

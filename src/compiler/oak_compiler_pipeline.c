@@ -112,8 +112,7 @@ static void register_callable_symbols(oak_compiler_t* c,
   oak_validate_record_interfaces(c);
 }
 
-static void emit_deferred_bodies(oak_compiler_t* c,
-                                 const oak_ast_node_t* program)
+static void emit_deferred_bodies(oak_compiler_t* c)
 {
   for (int i = 0; i < c->scope.local_count; ++i)
     oak_chunk_end_debug_local(c->chunk, c->scope.locals[i].slot);
@@ -198,7 +197,7 @@ void oak_compiler_compile_program(oak_compiler_t* c,
   compile_program_items(c, program);
   CHECK_ERROR(c);
 
-  emit_deferred_bodies(c, program);
+  emit_deferred_bodies(c);
   CHECK_ERROR(c);
 
   oak_populate_module_exports(c);
