@@ -22,7 +22,8 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
                                     .allocator = vm->allocator,
                                     .user_data = native->attr_hooks[hi].ud,
                                     .fn_name = native->name,
-                                    .self_type = native->self_type };
+                                    .self_type = native->self_type,
+                                    .kind = native->kind };
     const oak_fn_call_result_t r =
         native->attr_hooks[hi].cb(&hook_call,
                                   native->name,
@@ -42,7 +43,8 @@ static oak_vm_result_t vm_call_native(oak_vm_t* vm,
                              .allocator = vm->allocator,
                              .user_data = native->user_data,
                              .fn_name = native->name,
-                             .self_type = native->self_type };
+                             .self_type = native->self_type,
+                             .kind = native->kind };
   oak_value_t result = OAK_VALUE_NONE;
   /* Sampled so a callback that reported through oak_native_error keeps its
    * own message; only a silent failure falls back to the generic one. */

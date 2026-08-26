@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_bind_kind.h"
 #include "oak_compiler.h"
 #include "oak_container.h"
 #include "oak_count_of.h"
@@ -20,6 +21,12 @@ typedef struct oak_module oak_module_t;
 typedef struct oak_bind_type oak_bind_type_t;
 typedef struct oak_bind_enum oak_bind_enum_t;
 
+/* A native module: the namespace a binding is exported from, so Oak source
+ * reaches it as `module.name` once it has imported the module.  Opaque --
+ * make one with oak_bind_module() and hand the handle to the oak_bind_* calls
+ * that take a module.  A null handle always means the global namespace. */
+typedef struct oak_bind_module oak_bind_module_t;
+
 
 typedef enum oak_bind_type_kind oak_bind_type_kind_t;
 enum oak_bind_type_kind
@@ -34,18 +41,14 @@ enum oak_bind_type_kind
 };
 
 /* The largest argument count a call instruction can encode (one byte).
- * oak_bind_fn_global and oak_bind_fn reject a descriptor whose VM arity
+ * oak_bind_fn rejects a descriptor whose VM arity
  * would exceed it -- for an instance method that is param_count + 1
  * (implicit self), so the user-visible maximum there is 254. */
 #define OAK_MAX_ARITY 255u
 
-/* Where a native method is bound on its receiver type (see oak_bind_fn). */
-typedef enum oak_bind_fn_kind oak_bind_fn_kind_t;
-enum oak_bind_fn_kind
-{
-  OAK_BIND_FN_INSTANCE_METHOD,
-  OAK_BIND_FN_STATIC_METHOD,
-};
+/* oak_bind_fn_kind_t is declared in oak_bind_kind.h (included above): a
+ * native callback receives it as oak_native_call_t::kind, so it has to sit
+ * below oak_value.h rather than here. */
 
 
 /* A compile-time type slot used for native fields, function parameters, and
@@ -227,10 +230,10 @@ struct oak_bind_field
 struct oak_bind_type
 {
   oak_bind_type_kind_t kind;
-  /* Optional native module name. When set, the type is exported from that
-   * synthetic module and imported as `module.Type`; when NULL, it is
-   * registered in the global namespace as before. */
-  const char* module_name;
+  /* The module this type is exported from, or NULL for the global namespace.
+   * Assigned from the `module` argument to oak_bind_type; read it back with
+   * oak_bind_module_name if you need the name. */
+  const oak_bind_module_t* module; /* private */
   const char* name;
   /* Assigned when this descriptor is installed into a module/compiler
    * registry. Embedders should reference the descriptor, not this value. */
@@ -250,39 +253,18 @@ struct oak_bind_type
 };
 
 
-/* Use oak_bind_fn_global() to register a free function or module-scoped
- * function (e.g. math.sqrt).  Global functions are not attached to any type. */
-typedef struct oak_bind_global_fn oak_bind_global_fn_t;
-struct oak_bind_global_fn
-{
-  /* NULL for a top-level global; "math" to scope it as `math.fn()`. */
-  const char* module_name;
-  const char* name;
-  oak_native_fn_t impl;
-  /* Return type.  Build with OAK_BIND_SCALAR/ARRAY/MAP. */
-  oak_bind_type_ref_t return_type;
-  /* Optional per-parameter types used for call-site type checking.  When
-   * non-NULL, param_types must list `param_count` entries.  Registration
-   * copies the array, so it need not outlive this call -- which is the only
-   * contract a caller can keep: a table naming a runtime descriptor cannot be
-   * `static const`, and a plugin's `bind` returns before anything compiles. */
-  const oak_bind_type_ref_t* param_types;
-  /* User-visible parameter count, and the length of param_types when that
-   * pointer is non-NULL. */
-  usize param_count;
-  /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
-   * borrowed and must outlive every chunk compiled with this binding. */
-  void* user_data;
-};
-
-
-/* Use oak_bind_fn() to register instance or static methods on a native type.
- * For global or module-scoped functions use oak_bind_fn_global() instead. */
+/* Every native function, free or method, registered with oak_bind_fn() or the
+ * batch form oak_bind_fns().  One descriptor rather than one per kind: a free
+ * function and a method differ in how they are reached, not in what they are,
+ * and everything downstream of registration already treated them alike. */
 typedef struct oak_bind_fn oak_bind_fn_t;
 struct oak_bind_fn
 {
-  oak_bind_fn_kind_t kind; /* INSTANCE_METHOD or STATIC_METHOD */
-  /* Native record descriptor for the receiver type. */
+  /* FREE (the default), INSTANCE_METHOD or STATIC_METHOD. */
+  oak_bind_fn_kind_t kind;
+  /* Native record descriptor for the receiver type.  Required for the two
+   * METHOD kinds, and must be NULL for FREE -- a free function has no
+   * receiver, and one that names a type is a mistake worth reporting. */
   const oak_bind_type_t* receiver_type;
   const char* name;
   oak_native_fn_t impl;
@@ -295,13 +277,18 @@ struct oak_bind_fn
    * contract a caller can keep: a table naming a runtime descriptor cannot be
    * `static const`, and a plugin's `bind` returns before anything compiles. */
   const oak_bind_type_ref_t* param_types;
-  /* User-visible parameter count: for STATIC_METHOD, the full argument count;
-   * for INSTANCE_METHOD, excludes implicit self (compiler adds +1 for VM).
-   * Also the length of param_types when that pointer is non-NULL. */
+  /* User-visible parameter count: for FREE and STATIC_METHOD, the full
+   * argument count; for INSTANCE_METHOD, excludes implicit self (compiler adds
+   * +1 for VM).  Also the length of param_types when that pointer is
+   * non-NULL. */
   usize param_count;
   /* Optional pointer surfaced to `impl` as oak_native_call_t::user_data;
    * borrowed and must outlive every chunk compiled with this binding. */
   void* user_data;
+  /* The module this function is exported from, or NULL for the global
+   * namespace.  For FREE it is assigned from the `module` argument to
+   * oak_bind_fn; for a method it is inherited from `receiver_type`. */
+  const oak_bind_module_t* module; /* private */
 };
 
 
@@ -317,9 +304,9 @@ struct oak_bind_enum_variant
 
 struct oak_bind_enum
 {
-  /* Optional native module name. When set, variants are exported from that
-   * synthetic module and referenced as `module.Enum.Variant`. */
-  const char* module_name;
+  /* The module these variants are exported from, or NULL for the global
+   * namespace.  Assigned from the `module` argument to oak_bind_enum. */
+  const oak_bind_module_t* module; /* private */
   const char* name;
   /* Assigned when this descriptor is installed into a module/compiler
    * registry. Embedders should reference the descriptor via OAK_BIND_ENUM,
@@ -426,14 +413,21 @@ struct oak_compile_options
   /* Optional: path or label for the Oak source (borrowed). Set on the chunk. */
   const char* source_name;
 
+  /* Native modules (owned; populated by oak_bind_module).  A namespace is a
+   * native module because a handle for it was made here, whether or not
+   * anything has been bound into it yet. */
+  oak_container_t* native_modules; /* vector of oak_bind_module_t* */
+
   /* Native record types (owned; populated by oak_bind_type). */
   oak_container_t* native_types; /* vector of oak_bind_type_t* */
 
   /* Native method bindings (owned; populated by oak_bind_fn). */
   oak_container_t* native_fns; /* vector of oak_bind_fn_t */
 
-  /* Native global and module-scoped functions (owned; populated by oak_bind_fn_global). */
-  oak_container_t* native_global_fns; /* oak_bind_global_fn_t */
+  /* Native free functions, global or module-scoped (owned; populated by
+   * oak_bind_fn).  Split from native_fns at registration by kind, because the
+   * compiler declares the two in different passes. */
+  oak_container_t* native_free_fns; /* vector of oak_bind_fn_t */
 
   /* Native enums (owned; populated by oak_bind_enum / oak_bind_enum_variant).
    */
@@ -513,14 +507,48 @@ OAK_API void oak_compile_options_init(oak_compile_options_t* opts,
 OAK_API void oak_compile_options_free(oak_compile_options_t* opts);
 
 
+/* Declare the native module `name`, and return a handle for the oak_bind_*
+ * calls that take one.  Interned: asking twice for the same name yields the
+ * same handle, so bindings split across translation units share `opts` and
+ * nothing else.  The name is copied, so it need not outlive this call.
+ *
+ * Declaring a module claims the namespace: it becomes a native module here,
+ * not once the first binding happens to name it.  That is what makes
+ * oak_module_loader_mount refuse to mount over it.
+ *
+ * Returns NULL on invalid arguments, having recorded the reason on `opts`. */
+OAK_API oak_bind_module_t* oak_bind_module(oak_compile_options_t* opts,
+                                           const char* name);
+
+/* The name a module was declared with, or NULL for a NULL handle -- so this
+ * reads a descriptor's `module` field without a null check of its own. */
+OAK_API const char* oak_bind_module_name(const oak_bind_module_t* module);
+
+
 /* Allocate a native type descriptor, register it in opts, and return a pointer
  * for subsequent field/method/signature bindings. The descriptor is owned by
  * opts and freed by oak_compile_options_free; do not free it separately.
+ *
+ * `module` is the module to export the type from, so Oak source names it
+ * `module.Type`, or NULL to register it in the global namespace.
+ *
  * `name` is borrowed and must outlive `opts`.
- * Returns NULL if opts or name is NULL. */
+ * Returns NULL on invalid arguments, having recorded the reason on `opts`. */
 OAK_API oak_bind_type_t* oak_bind_type(oak_compile_options_t* opts,
+                                       oak_bind_module_t* module,
                                        oak_bind_type_kind_t kind,
                                        const char* name);
+
+/* The type named `name` in `module` (NULL for the global namespace), or NULL
+ * if no such type was registered on `opts`.
+ *
+ * So that a binding spread over several files does not have to thread its own
+ * table of descriptors between them: whoever needs the type asks for it. Does
+ * not register anything, and records nothing on a miss -- a miss is an
+ * ordinary answer here, not a rejection. */
+OAK_API oak_bind_type_t* oak_bind_type_find(oak_compile_options_t* opts,
+                                            const oak_bind_module_t* module,
+                                            const char* name);
 
 /* Declare that a native record implements an Oak interface. The name is
  * resolved during compilation, once source and imported interfaces are
@@ -533,15 +561,6 @@ OAK_API oak_bind_type_t* oak_bind_type(oak_compile_options_t* opts,
  * refused. `interface_name` is copied. Returns 0, or -1 on rejection. */
 OAK_API int oak_bind_type_implements(oak_bind_type_t* type,
                                      const char* interface_name);
-
-/* As oak_bind_type, but exports the type from the synthetic module
- * `module_name` so Oak source refers to it as `module.Type`.
- * Both `module_name` and `name` are borrowed and must outlive `opts`. */
-OAK_API oak_bind_type_t* oak_bind_type_in_module(
-    oak_compile_options_t* opts,
-    const char* module_name,
-    oak_bind_type_kind_t kind,
-    const char* name);
 
 /* Register a field on a native type.  Fields are assigned indices in
  * registration order, matching the order the compiler resolves them.
@@ -561,13 +580,15 @@ OAK_API int oak_bind_field(oak_bind_type_t* type,
  * binding can be written as a static table rather than a run of near-identical
  * compound literals:
  *
- *   static const oak_bind_fn_t methods[] = {
+ *   const oak_bind_fn_t fns[] = {
+ *     { .name = "open", .impl = file_open, .param_count = 2,
+ *       .return_type = OAK_BIND_NATIVE(t) },
  *     { .kind = OAK_BIND_FN_INSTANCE_METHOD, .receiver_type = t,
  *       .name = "read", .impl = file_read, .param_count = 0,
  *       .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
  *     ...
  *   };
- *   oak_bind_fns(opts, methods, (int)OAK_COUNT_OF(methods));
+ *   oak_bind_fns(opts, io, fns, (int)OAK_COUNT_OF(fns));
  *
  * Note the table cannot be `static const` when it references a descriptor
  * returned at run time by oak_bind_type; make it a local array in that case.
@@ -580,46 +601,51 @@ OAK_API int oak_bind_fields(oak_bind_type_t* type,
                             const oak_bind_field_t* fields,
                             int count);
 OAK_API int oak_bind_fns(oak_compile_options_t* opts,
+                         oak_bind_module_t* module,
                          const oak_bind_fn_t* fns,
                          int count);
-OAK_API int oak_bind_fns_global(oak_compile_options_t* opts,
-                                const oak_bind_global_fn_t* fns,
-                                int count);
 OAK_API int oak_bind_enum_variants(oak_bind_enum_t* e,
                                    const oak_bind_enum_variant_t* variants,
                                    int count);
 
-/* Register a global or module-scoped native function.
- * Use this for free functions like `to_int(v)` or `math.sqrt(v)`.
- * Returns 0 on success, -1 on invalid arguments. */
-OAK_API int oak_bind_fn_global(oak_compile_options_t* opts,
-                               const oak_bind_global_fn_t* params);
-
-/* Register a native instance or static method on a native type.
- * `params->kind` must be OAK_BIND_FN_INSTANCE_METHOD or OAK_BIND_FN_STATIC_METHOD.
- * `params->receiver_type` must be a descriptor from a prior oak_bind_type() call.
+/* Register a native function: free, or an instance or static method.
+ *
+ * `module` is the module to export it from, or NULL for the global namespace.
+ * It applies to a FREE binding; a method takes its module from
+ * `params->receiver_type` instead, and a `module` that disagrees with the
+ * receiver's is refused rather than silently overriding it.
+ *
+ *   FREE: `param_count` is the full argument count; called as `name(...)`
+ *   globally or `module.name(...)` in a module.  `receiver_type` must be NULL.
  *   INSTANCE_METHOD: `param_count` excludes implicit self (compiler adds +1
- *   for VM).
+ *   for VM).  `receiver_type` must be a descriptor from oak_bind_type().
  *   STATIC_METHOD: `param_count` is the full argument count; called as
- *   TypeName.name(...).
- * Returns 0 on success, -1 on invalid arguments. */
+ *   TypeName.name(...).  `receiver_type` as above.
+ *
+ * Returns 0 on success, -1 on rejection. */
 OAK_API int oak_bind_fn(oak_compile_options_t* opts,
+                        oak_bind_module_t* module,
                         const oak_bind_fn_t* params);
 
 /* Allocate a native enum descriptor and register it in opts.  Returns a
  * pointer for subsequent oak_bind_enum_variant calls; the descriptor is owned
- * by opts and freed by oak_compile_options_free.  `name` is borrowed and must
- * outlive `opts`.  Returns NULL on invalid arguments. */
+ * by opts and freed by oak_compile_options_free.
+ *
+ * `module` exports the variants from that module, so Oak source refers to them
+ * as `module.Enum.Variant`, or NULL for the global namespace.
+ *
+ * `name` is borrowed and must outlive `opts`.
+ * Returns NULL on invalid arguments, having recorded the reason on `opts`. */
 OAK_API oak_bind_enum_t* oak_bind_enum(oak_compile_options_t* opts,
+                                       oak_bind_module_t* module,
                                        const char* name);
 
-/* As oak_bind_enum, but exports the variants from the synthetic module
- * `module_name` so Oak source refers to them as `module.Enum.Variant`.
- * Both `module_name` and `name` are borrowed and must outlive `opts`. */
-OAK_API oak_bind_enum_t* oak_bind_enum_in_module(
-    oak_compile_options_t* opts,
-    const char* module_name,
-    const char* name);
+/* The enum named `name` in `module` (NULL for the global namespace), or NULL
+ * if none was registered on `opts`.  The oak_bind_type_find of enums; see
+ * there for why. */
+OAK_API oak_bind_enum_t* oak_bind_enum_find(oak_compile_options_t* opts,
+                                            const oak_bind_module_t* module,
+                                            const char* name);
 
 /* Append a variant to a native enum.  Values are forwarded to Oak as integer
  * constants as-is; uniqueness of *values* within an enum is not enforced.

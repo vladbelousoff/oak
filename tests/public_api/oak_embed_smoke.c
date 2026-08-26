@@ -162,8 +162,8 @@ int main(void)
   opts.emit_debug_info = 1;
 
   /* Registration must precede oak_compile_ex. */
-  CHECK(oak_bind_fn_global(&opts,
-                           &(oak_bind_global_fn_t){
+  CHECK(oak_bind_fn(&opts, OAK_NULL,
+                           &(oak_bind_fn_t){
                                .name = "native_add",
                                .impl = native_add,
                                .return_type =
@@ -171,8 +171,8 @@ int main(void)
                                .param_types = add_params,
                                .param_count = OAK_COUNT_OF(add_params),
                            }) == 0);
-  CHECK(oak_bind_fn_global(&opts,
-                           &(oak_bind_global_fn_t){
+  CHECK(oak_bind_fn(&opts, OAK_NULL,
+                           &(oak_bind_fn_t){
                                .name = "native_divide",
                                .impl = native_divide,
                                .return_type =
@@ -182,7 +182,7 @@ int main(void)
                            }) == 0);
 
   oak_bind_type_t* counter =
-      oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Counter");
+      oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Counter");
   CHECK(counter != OAK_NULL);
   CHECK(oak_bind_field(counter,
                        &(oak_bind_field_t){
@@ -191,7 +191,7 @@ int main(void)
                            .getter = counter_get_value,
                            .setter = counter_set_value,
                        }) == 0);
-  CHECK(oak_bind_fn(&opts,
+  CHECK(oak_bind_fn(&opts, OAK_NULL,
                     &(oak_bind_fn_t){
                         .kind = OAK_BIND_FN_INSTANCE_METHOD,
                         .receiver_type = counter,
@@ -204,7 +204,7 @@ int main(void)
    * declaration below has to carry the same clause. */
   CHECK(oak_bind_type_implements(counter, "ICounter") == 0);
 
-  oak_bind_enum_t* colour = oak_bind_enum(&opts, "Colour");
+  oak_bind_enum_t* colour = oak_bind_enum(&opts, OAK_NULL, "Colour");
   CHECK(colour != OAK_NULL);
   static const oak_bind_enum_variant_t colours[] = {
     { "Red", 0 },
@@ -221,7 +221,7 @@ int main(void)
   {
     oak_compile_options_t probe;
     oak_compile_options_init(&probe, &allocator);
-    oak_bind_enum_t* dup = oak_bind_enum(&probe, "Colour");
+    oak_bind_enum_t* dup = oak_bind_enum(&probe, OAK_NULL, "Colour");
     CHECK(dup != OAK_NULL);
     CHECK(oak_bind_enum_variants(dup, colours, (int)OAK_COUNT_OF(colours)) == 0);
     CHECK(oak_bind_enum_variant(dup, "Red", 7) == -1);

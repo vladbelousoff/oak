@@ -8,8 +8,8 @@
  * the form the standard library's own `io.oak` uses -- and the library supplies
  * the implementations by registering them on `oak_compile_options_t`.  That is
  * why `bind` has the shape it does: it is the same code an embedder already
- * writes with `oak_bind_fn_global` and `oak_bind_type_in_module`, moved into a
- * library that ships separately from the host.  Everything downstream of it --
+ * writes with `oak_bind_module`, `oak_bind_type` and `oak_bind_fns`, moved
+ * into a library that ships separately from the host.  Everything downstream of it --
  * type checking, the bodyless-declaration validation, module exports -- is
  * unchanged and unaware that a plugin was involved.
  *
@@ -41,7 +41,7 @@ extern "C" {
 /* Bumped whenever the struct below or the expectations around `bind` change.
  * A plugin built against a different number is refused rather than called:
  * there is no version of "try it and see" that fails safely across an ABI. */
-#define OAK_PLUGIN_ABI 1u
+#define OAK_PLUGIN_ABI 2u
 
 /* The symbol looked up in the shared library. */
 #define OAK_PLUGIN_ENTRY "oak_plugin_main"

@@ -1,5 +1,5 @@
 /*
- * Native function binding: oak_bind_fn_global and oak_bind_fn.
+ * Native function binding: oak_bind_fn, free and method.
  *
  * Two halves. First, registration validation -- what the descriptor API
  * accepts and what it refuses. Second, what a registered binding does to
@@ -214,21 +214,21 @@ UTEST_F(bind_fn, an_unattributed_function_runs_no_hook)
 UTEST_F(bind_fn, a_global_function_is_recorded_with_its_descriptor)
 {
   oak_compile_options_t opts;
-  const oak_bind_global_fn_t* recorded;
+  const oak_bind_fn_t* recorded;
 
   oak_compile_options_init(&opts, OAK_A);
 
   ASSERT_EQ(0,
-            oak_bind_fn_global(
-                &opts,
-                &(oak_bind_global_fn_t){
+            oak_bind_fn(
+                &opts, OAK_NULL,
+                &(oak_bind_fn_t){
                     .name = "my_global",
                     .impl = native_answer,
                     .param_count = 1,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
 
-  ASSERT_EQ(1u, oak_size(opts.native_global_fns));
-  recorded = &OAK_CDATA(oak_bind_global_fn_t, opts.native_global_fns)[0];
+  ASSERT_EQ(1u, oak_size(opts.native_free_fns));
+  recorded = &OAK_CDATA(oak_bind_fn_t, opts.native_free_fns)[0];
   EXPECT_STREQ("my_global", recorded->name);
   EXPECT_EQ(1u, recorded->param_count);
   EXPECT_EQ(OAK_TYPE_NUMBER, recorded->return_type.id);
@@ -244,11 +244,11 @@ UTEST_F(bind_fn, an_instance_method_is_recorded_against_its_receiver)
   oak_bind_type_t* t;
 
   oak_compile_options_init(&opts, OAK_A);
-  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "MyVec");
+  t = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "MyVec");
   ASSERT_TRUE(t != OAK_NULL);
 
   ASSERT_EQ(0,
-            oak_bind_fn(&opts,
+            oak_bind_fn(&opts, OAK_NULL,
                         &(oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
                             .receiver_type = t,
@@ -274,18 +274,18 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
 
   /* No name. */
   EXPECT_EQ(-1,
-            oak_bind_fn_global(
-                &opts,
-                &(oak_bind_global_fn_t){
+            oak_bind_fn(
+                &opts, OAK_NULL,
+                &(oak_bind_fn_t){
                     .name = OAK_NULL,
                     .impl = native_answer,
                     .param_count = 0,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   /* No implementation. */
   EXPECT_EQ(-1,
-            oak_bind_fn_global(
-                &opts,
-                &(oak_bind_global_fn_t){
+            oak_bind_fn(
+                &opts, OAK_NULL,
+                &(oak_bind_fn_t){
                     .name = "no_impl",
                     .impl = OAK_NULL,
                     .param_count = 0,
@@ -295,35 +295,35 @@ UTEST_F(bind_fn, malformed_descriptors_are_refused)
    * emitted rather than fail. An arity mistakenly written as a negative int
    * lands here too, since the field is unsigned. */
   EXPECT_EQ(-1,
-            oak_bind_fn_global(
-                &opts,
-                &(oak_bind_global_fn_t){
+            oak_bind_fn(
+                &opts, OAK_NULL,
+                &(oak_bind_fn_t){
                     .name = "too_many",
                     .impl = native_answer,
                     .param_count = OAK_MAX_ARITY + 1u,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   EXPECT_EQ(-1,
-            oak_bind_fn_global(
-                &opts,
-                &(oak_bind_global_fn_t){
+            oak_bind_fn(
+                &opts, OAK_NULL,
+                &(oak_bind_fn_t){
                     .name = "wrapped",
                     .impl = native_answer,
                     .param_count = (usize)-1,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
 
-  EXPECT_EQ(0u, oak_size(opts.native_global_fns));
+  EXPECT_EQ(0u, oak_size(opts.native_free_fns));
 
   /* The ceiling itself is accepted, so the check is a bound and not an
    * off-by-one that quietly costs a parameter. */
   EXPECT_EQ(0,
-            oak_bind_fn_global(
-                &opts,
-                &(oak_bind_global_fn_t){
+            oak_bind_fn(
+                &opts, OAK_NULL,
+                &(oak_bind_fn_t){
                     .name = "at_the_limit",
                     .impl = native_answer,
                     .param_count = OAK_MAX_ARITY,
                     .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
-  EXPECT_EQ(1u, oak_size(opts.native_global_fns));
+  EXPECT_EQ(1u, oak_size(opts.native_free_fns));
 
   oak_compile_options_free(&opts);
 }
@@ -336,11 +336,11 @@ UTEST_F(bind_fn, an_instance_method_reserves_one_slot_for_self)
   oak_bind_type_t* t;
 
   oak_compile_options_init(&opts, OAK_A);
-  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Recv");
+  t = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Recv");
   ASSERT_TRUE(t != OAK_NULL);
 
   EXPECT_EQ(-1,
-            oak_bind_fn(&opts,
+            oak_bind_fn(&opts, OAK_NULL,
                         &(oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
                             .receiver_type = t,
@@ -351,7 +351,7 @@ UTEST_F(bind_fn, an_instance_method_reserves_one_slot_for_self)
   EXPECT_EQ(0u, oak_size(opts.native_fns));
 
   EXPECT_EQ(0,
-            oak_bind_fn(&opts,
+            oak_bind_fn(&opts, OAK_NULL,
                         &(oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
                             .receiver_type = t,
@@ -371,7 +371,7 @@ UTEST_F(bind_fn, several_functions_can_be_registered)
 
   oak_compile_options_init(&opts, OAK_A);
 
-  /* oak_bind_fn_global() shallow-copies the descriptor, so the option list
+  /* oak_bind_fn() shallow-copies the descriptor, so the option list
    * ends up holding these pointers, not copies of the text. The storage has to
    * outlive every use of `opts` -- a buffer scoped to the loop body would
    * leave all eight entries pointing at a dead stack frame. */
@@ -381,15 +381,15 @@ UTEST_F(bind_fn, several_functions_can_be_registered)
   {
     snprintf(names[i], sizeof(names[i]), "fn_%d", i);
     EXPECT_EQ(0,
-              oak_bind_fn_global(
-                  &opts,
-                  &(oak_bind_global_fn_t){
+              oak_bind_fn(
+                  &opts, OAK_NULL,
+                  &(oak_bind_fn_t){
                       .name = names[i],
                       .impl = native_answer,
                       .param_count = 0,
                       .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) }));
   }
-  EXPECT_EQ(8u, oak_size(opts.native_global_fns));
+  EXPECT_EQ(8u, oak_size(opts.native_free_fns));
 
   oak_compile_options_free(&opts);
 }
@@ -401,38 +401,38 @@ static oak_run_result_t run_with_add(oak_allocator_t* a, const char* src)
   oak_run_result_t r;
 
   oak_compile_options_init(&opts, a);
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "native_add",
                          .impl = native_add,
                          .param_count = 2,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "native_double",
                          .impl = native_double,
                          .param_count = 1,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "native_answer",
                          .impl = native_answer,
                          .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "native_void",
                          .impl = native_void,
                          .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "native_explains",
                          .impl = native_explains,
                          .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID) });
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "native_silent",
                          .impl = native_silent,
                          .param_count = 0,
@@ -577,14 +577,14 @@ UTEST_F(bind_fn, a_duplicate_global_name_fails_to_compile)
   oak_run_result_t r;
 
   oak_compile_options_init(&opts, OAK_A);
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "dup",
                          .impl = native_answer,
                          .param_count = 0,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "dup",
                          .impl = native_answer,
                          .param_count = 0,
@@ -646,15 +646,15 @@ static oak_run_result_t run_with_enum_param(oak_allocator_t* a,
   oak_run_result_t r;
 
   oak_compile_options_init(&opts, a);
-  oak_bind_enum_t* colour = oak_bind_enum(&opts, "Colour");
+  oak_bind_enum_t* colour = oak_bind_enum(&opts, OAK_NULL, "Colour");
   oak_bind_enum_variant(colour, "Red", 0);
   oak_bind_enum_variant(colour, "Green", 1);
 
   const oak_bind_type_ref_t params[] = {
     use_enum_ref ? OAK_BIND_ENUM(colour) : OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
   };
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "takes_colour",
                          .impl = native_double,
                          .param_count = 1,
@@ -685,4 +685,58 @@ UTEST_F(bind_fn, a_parameter_can_be_typed_as_a_native_enum)
     oak_test_explain(&bad, src);
   else
     EXPECT_TRUE(oak_test_contains(bad.diag, "expected type 'number'"));
+}
+
+/* args[0] is a receiver only for an instance method.
+ *
+ * The check used to be "self_type is set", which was right only because
+ * nothing but a method had one. A free function returning a native record now
+ * carries a self_type too -- that is what lets a constructor bound as both
+ * `module.open` and `Type.open` reach its own descriptor -- so reading args[0]
+ * as a receiver on the strength of self_type would reinterpret whatever the
+ * first argument happened to be. */
+UTEST_F(bind_fn, only_an_instance_method_has_a_receiver_in_args)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* cog;
+  oak_vm_t vm;
+  oak_value_t self;
+  oak_native_call_t call;
+  int instance = 7;
+  void* got = OAK_NULL;
+
+  oak_compile_options_init(&opts, OAK_A);
+  cog = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Cog");
+  ASSERT_TRUE(cog != OAK_NULL);
+
+  oak_vm_init(&vm, OAK_A);
+  self = oak_vm_native_record_new(&vm, cog, &instance);
+
+  call.vm = &vm;
+  call.allocator = OAK_A;
+  call.user_data = OAK_NULL;
+  call.fn_name = "teeth";
+  call.self_type = cog;
+
+  call.kind = OAK_BIND_FN_INSTANCE_METHOD;
+  EXPECT_EQ(1, oak_arg_self(&call, &self, 1, &got));
+  EXPECT_TRUE(got == &instance);
+
+  /* Same self_type, same argument -- refused on the kind alone. */
+  call.kind = OAK_BIND_FN_STATIC_METHOD;
+  EXPECT_EQ(0, oak_arg_self(&call, &self, 1, &got));
+  call.kind = OAK_BIND_FN_FREE;
+  EXPECT_EQ(0, oak_arg_self(&call, &self, 1, &got));
+
+  /* But a free function still reaches its type, which is the point of
+   * carrying one: oak_native_self_new builds an instance either way. */
+  {
+    const oak_value_t made = oak_native_self_new(&call, &instance);
+    EXPECT_TRUE(oak_native_instance(made) == &instance);
+    oak_obj_decref(oak_value_obj_resolve(made));
+  }
+
+  oak_obj_decref(oak_value_obj_resolve(self));
+  oak_vm_free(&vm);
+  oak_compile_options_free(&opts);
 }

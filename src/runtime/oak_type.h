@@ -81,6 +81,13 @@ const char* oak_type_registry_name(const oak_type_registry_t* reg,
  * consumer and silently dropped in another. */
 void oak_lower_bind_ref(const struct oak_bind_type_ref* r, oak_type_t* out);
 
+/* Carry the parts of a binding a callback sees onto the native-fn object it is
+ * interned as: its kind, and the native record type it is about.  Every site
+ * that interns a binding needs both set the same way, so they are set in one
+ * place -- see oak_native_call_t::self_type for what "about" means. */
+void oak_native_fn_attach_binding(struct oak_obj_native_fn* native,
+                                  const struct oak_bind_fn* binding);
+
 /* Convenience helpers for oak_type_t. */
 static inline void oak_type_clear(oak_type_t* t)
 {

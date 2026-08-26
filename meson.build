@@ -149,6 +149,7 @@ test_inc = include_directories('tests/support')
 oak_public_headers = files(
   'include/oak_allocator.h',
   'include/oak_bind.h',
+  'include/oak_bind_kind.h',
   'include/oak_chunk.h',
   'include/oak_compiler.h',
   'include/oak_container.h',

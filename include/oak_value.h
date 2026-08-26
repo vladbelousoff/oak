@@ -1,5 +1,6 @@
 #pragma once
 
+#include "oak_bind_kind.h"
 #include "oak_export.h"
 #include "oak_refcount.h"
 #include "oak_types.h"
@@ -560,11 +561,17 @@ struct oak_obj_native_fn
   const char* name;
   /* Forwarded to the callback through oak_native_call_t::user_data. */
   void* user_data;
-  /* Receiver type when this is a method bound with oak_bind_fn; null for
-   * global functions and builtins.  Forwarded as oak_native_call_t::self_type.
-   * Set after construction by whoever interns the method, so oak_native_fn_new
-   * keeps its signature. */
+  /* The native record type this binding is about: the receiver for a method,
+   * and for a free function the type it returns when its declared return type
+   * names one.  Null for builtins and for anything returning a plain value.
+   * Forwarded as oak_native_call_t::self_type.  Set after construction by
+   * whoever interns the binding, so oak_native_fn_new keeps its signature. */
   const oak_bind_type_t* self_type;
+  /* How the binding is reached, forwarded as oak_native_call_t::kind.  Only a
+   * method has a receiver, which self_type alone can no longer say now that a
+   * free function may carry one too.  Set alongside self_type; builtins leave
+   * it OAK_BIND_FN_FREE. */
+  oak_bind_fn_kind_t kind;
   oak_attr_hook_entry_t* attr_hooks;
   int attr_hook_count;
 };
@@ -635,19 +642,25 @@ struct oak_native_call
 {
   oak_vm_t* vm;
   oak_allocator_t* allocator;
-  /* Per-binding user pointer from oak_bind_global_fn_t / oak_bind_fn_t;
-   * null for builtins and bindings that did not set one. */
+  /* Per-binding user pointer from oak_bind_fn_t; null for builtins and
+   * bindings that did not set one. */
   void* user_data;
   /* Name the binding was registered under; null for anonymous natives.
    * Error messages raised with oak_native_error are prefixed with it, so a
    * callback rarely needs to read it directly. */
   const char* fn_name;
-  /* The receiver type, for a method registered with oak_bind_fn; null for
-   * global functions and builtins.  Reach it through oak_arg_self and
-   * oak_native_self_new rather than reading it: a binding no longer has to
+  /* The native record type this binding is about, or null if there is none:
+   * the receiver for a method, and for a free function the type it returns
+   * when its declared return type names one.  Reach it through oak_arg_self
+   * and oak_native_self_new rather than reading it: a binding no longer has to
    * pass its own descriptor through user_data just to unwrap its receiver or
-   * construct another instance of itself. */
+   * construct another instance of itself -- and because a free function gets
+   * one too, a constructor bound both as `io.open` and as `File.open` is the
+   * same callback with no descriptor smuggled alongside. */
   const oak_bind_type_t* self_type;
+  /* How this binding is reached.  Only an INSTANCE_METHOD has a receiver in
+   * args[0], which is what oak_arg_self checks. */
+  oak_bind_fn_kind_t kind;
 };
 
 static inline oak_obj_string_t*

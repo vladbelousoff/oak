@@ -229,25 +229,30 @@ without calling it still aborts the script, but the message is only
 ### Registering a function
 
 ```c
-oak_bind_fn_global(&opts,
-                   &(oak_bind_global_fn_t){
-                       .module_name = OAK_NULL,
-                       .name = "add",
-                       .impl = add,
-                       .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
-                       .param_types = add_params,
-                       .param_count = OAK_COUNT_OF(add_params),
-                       .user_data = OAK_NULL,
-                   });
+oak_bind_fn(&opts, OAK_NULL,
+            &(oak_bind_fn_t){
+                .name = "add",
+                .impl = add,
+                .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
+                .param_types = add_params,
+                .param_count = OAK_COUNT_OF(add_params),
+                .user_data = OAK_NULL,
+            });
 ```
+
+`oak_bind_fn` registers every native function, free or method. The
+descriptor's `.kind` says which, and defaults to `OAK_BIND_FN_FREE`,
+so a row naming only a function and its implementation is a free
+function.
 
 Set `.param_types` and `.param_count` as separate fields. When types
 are declared they must agree; set `.param_count` without an array
-only for a binding with no declared parameter types. The array is
-borrowed and must outlive `oak_compile_ex`, so it cannot be a local.
+only for a binding with no declared parameter types. Registration
+copies the array, so it may be a local: the contract is that it is
+read during the call.
 
-Set `module_name` to put the function in an importable module instead
-of the global namespace — see [Module-scoped bindings](#module-scoped-bindings).
+Pass a module as the second argument to put the function in an
+importable module instead of the global namespace — see [Module-scoped bindings](#module-scoped-bindings).
 `param_types` is optional but recommended: with it, the compiler
 type-checks call sites.
 
@@ -508,14 +513,43 @@ kind as well as name and arity: `fn static` has to match
 Bodyless signatures compile only when `allow_bodyless_fns` is set
 on the compile options for that module.
 
-**2. Native bindings** registered under the matching module name
-with `oak_bind_type_in_module()`, `oak_bind_enum_in_module()`, and
-the `module_name` field on function descriptors
+**2. Native bindings** registered into a module handle. Declare the
+module once with `oak_bind_module()` and pass the handle to every
+binding that belongs to it
 ([`src/stdlib/oak_stdlib_file.c`](../src/stdlib/oak_stdlib_file.c)):
 
 ```c
-oak_bind_type_t* file =
-    oak_bind_type_in_module(&opts, "io", OAK_BIND_TYPE_RECORD, "File");
+oak_bind_module_t* io = oak_bind_module(&opts, "io");
+
+oak_bind_type_t* file = oak_bind_type(&opts, io, OAK_BIND_TYPE_RECORD, "File");
+oak_bind_enum_t* mode = oak_bind_enum(&opts, io, "FileMode");
+
+const oak_bind_fn_t fns[] = {
+  /* io.open: no .kind, so a free function */
+  { .name = "open", .impl = file_open, .param_count = 2,
+    .return_type = OAK_BIND_NATIVE(file) },
+  { .kind = OAK_BIND_FN_INSTANCE_METHOD, .receiver_type = file,
+    .name = "read", .impl = file_read,
+    .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING) },
+};
+oak_bind_fns(&opts, io, fns, (int)OAK_COUNT_OF(fns));
+```
+
+The handle is interned, so asking for `"io"` again anywhere returns
+the same module: a binding spread across several files needs to share
+the options and nothing else. Names are checked when the handle is
+made rather than when an import later fails to resolve.
+
+A method takes its module from its receiver type, so the `io` above
+applies to the free `open` and is merely confirmed for the methods; a
+module that disagrees with the receiver's is refused.
+
+Free functions and methods live in one table because they are one
+descriptor. Where a file needs a type another file registered, ask
+for it rather than threading a struct of descriptors between them:
+
+```c
+oak_bind_type_t* file = oak_bind_type_find(&opts, io, "File");
 ```
 
 Programs compiled through the module loader
@@ -555,8 +589,8 @@ and one exported symbol:
 
 static int bind(oak_compile_options_t* opts)
 {
-  oak_bind_type_t* file =
-      oak_bind_type_in_module(opts, "io", OAK_BIND_TYPE_RECORD, "File");
+  oak_bind_module_t* io = oak_bind_module(opts, "io");
+  oak_bind_type_t* file = oak_bind_type(opts, io, OAK_BIND_TYPE_RECORD, "File");
   /* ...exactly the calls you would make in-process... */
   return 0;
 }

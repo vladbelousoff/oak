@@ -12,6 +12,17 @@
 #include <string.h>
 
 
+/* A declared native module.  Nothing but an owned name and a back-pointer to
+ * the options that own it -- the bindings themselves stay in the flat vectors
+ * on the options, keyed by this handle.  Heap-allocated one at a time, with
+ * only pointers in the vector, so a handle stays valid however many more
+ * modules are declared after it. */
+struct oak_bind_module
+{
+  oak_compile_options_t* opts;
+  char* name;
+};
+
 /* Record why a binding was rejected, so oak_compile_ex can report it instead
  * of the compile failing much later at the first use of the missing name.
  * Always returns -1, which is what every caller returns. */
@@ -38,6 +49,16 @@ static int bind_reject(oak_compile_options_t* opts, const char* fmt, ...)
   return -1;
 }
 
+/* A copy of `s` owned by `a`, or null if it could not be made. */
+static char* bind_str_dup(oak_allocator_t* a, const char* s)
+{
+  const usize len = strlen(s) + 1u;
+  char* copy = oak_alloc(a, len, OAK_HERE);
+  if (copy)
+    memcpy(copy, s, len);
+  return copy;
+}
+
 void oak_lower_bind_ref(const struct oak_bind_type_ref* r, oak_type_t* out)
 {
   oak_type_clear(out);
@@ -53,6 +74,21 @@ void oak_lower_bind_ref(const struct oak_bind_type_ref* r, oak_type_t* out)
   out->is_weak = r->is_weak;
 }
 
+void oak_native_fn_attach_binding(oak_obj_native_fn_t* native,
+                                  const oak_bind_fn_t* binding)
+{
+  if (!native || !binding)
+    return;
+  native->kind = binding->kind;
+  /* A method is about its receiver.  A free function is about whatever native
+   * record it returns, if it returns one -- which is what lets a constructor
+   * bound both as `module.open` and as `Type.open` be one callback, reaching
+   * its own descriptor through oak_native_self_new either way. */
+  native->self_type = binding->kind == OAK_BIND_FN_FREE
+                          ? binding->return_type.type
+                          : binding->receiver_type;
+}
+
 void oak_compile_options_init(oak_compile_options_t* opts,
                              oak_allocator_t* allocator)
 {
@@ -60,12 +96,14 @@ void oak_compile_options_init(oak_compile_options_t* opts,
     return;
   opts->allocator = allocator;
   opts->source_name = OAK_NULL;
+  opts->native_modules =
+      oak_vector_new(allocator, sizeof(oak_bind_module_t*));
   opts->native_types = oak_vector_new(allocator,
                                          sizeof(oak_bind_type_t*));
   opts->native_fns = oak_vector_new(allocator,
                                        sizeof(oak_bind_fn_t));
-  opts->native_global_fns =
-      oak_vector_new(allocator, sizeof(oak_bind_global_fn_t));
+  opts->native_free_fns =
+      oak_vector_new(allocator, sizeof(oak_bind_fn_t));
   opts->native_enums = oak_vector_new(allocator,
                                          sizeof(oak_bind_enum_t*));
   opts->native_attrs = oak_vector_new(allocator,
@@ -73,8 +111,8 @@ void oak_compile_options_init(oak_compile_options_t* opts,
   opts->bind_errors = oak_vector_new(allocator, sizeof(char*));
   opts->module_mounts =
       oak_vector_new(allocator, sizeof(oak_module_mount_t));
-  OAK_ASSERT(opts->native_types && opts->native_fns &&
-             opts->native_global_fns && opts->native_enums &&
+  OAK_ASSERT(opts->native_modules && opts->native_types && opts->native_fns &&
+             opts->native_free_fns && opts->native_enums &&
              opts->native_attrs && opts->bind_errors &&
              opts->module_mounts);
   opts->emit_debug_info = 1;
@@ -117,12 +155,12 @@ void oak_compile_options_free(oak_compile_options_t* opts)
   oak_destroy(opts->native_fns);
   opts->native_fns = OAK_NULL;
 
-  const oak_bind_global_fn_t* global_fns =
-      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
-  for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
-    oak_free(opts->allocator, (void*)global_fns[i].param_types, OAK_HERE);
-  oak_destroy(opts->native_global_fns);
-  opts->native_global_fns = OAK_NULL;
+  const oak_bind_fn_t* free_fns =
+      OAK_CDATA(oak_bind_fn_t, opts->native_free_fns);
+  for (usize i = 0; i < oak_size(opts->native_free_fns); ++i)
+    oak_free(opts->allocator, (void*)free_fns[i].param_types, OAK_HERE);
+  oak_destroy(opts->native_free_fns);
+  opts->native_free_fns = OAK_NULL;
 
   oak_bind_enum_t** enums =
       OAK_DATA(oak_bind_enum_t*, opts->native_enums);
@@ -142,30 +180,99 @@ void oak_compile_options_free(oak_compile_options_t* opts)
   oak_destroy(opts->bind_errors);
   opts->bind_errors = OAK_NULL;
 
+  oak_bind_module_t** modules =
+      OAK_DATA(oak_bind_module_t*, opts->native_modules);
+  for (usize i = 0; i < oak_size(opts->native_modules); ++i)
+  {
+    oak_free(opts->allocator, modules[i]->name, OAK_HERE);
+    oak_free(opts->allocator, modules[i], OAK_HERE);
+  }
+  oak_destroy(opts->native_modules);
+  opts->native_modules = OAK_NULL;
+
   oak_module_mounts_free(opts->allocator, opts->module_mounts);
   opts->module_mounts = OAK_NULL;
 }
 
 
-oak_bind_type_t* oak_bind_type(oak_compile_options_t* opts,
-                                      const oak_bind_type_kind_t kind,
-                                      const char* name)
+oak_bind_module_t* oak_bind_module(oak_compile_options_t* opts,
+                                   const char* name)
 {
-  return oak_bind_type_in_module(opts, OAK_NULL, kind, name);
+  if (!opts)
+    return OAK_NULL;
+  if (!name || !name[0])
+  {
+    bind_reject(opts, "a native module has no name");
+    return OAK_NULL;
+  }
+
+  /* Interned, so bindings split across translation units need share nothing
+   * but the options, and two handles are equal exactly when they name the same
+   * module.  A linear scan is right at the scale this holds: a program binds a
+   * handful of modules, and the alternative is a second vector to keep in step
+   * with this one. */
+  oak_bind_module_t** existing =
+      OAK_DATA(oak_bind_module_t*, opts->native_modules);
+  for (usize i = 0; i < oak_size(opts->native_modules); ++i)
+    if (strcmp(existing[i]->name, name) == 0)
+      return existing[i];
+
+  oak_bind_module_t* m =
+      oak_alloc(opts->allocator, sizeof(oak_bind_module_t), OAK_HERE);
+  if (!m)
+    return OAK_NULL;
+  m->opts = opts;
+  m->name = bind_str_dup(opts->allocator, name);
+  if (!m->name)
+  {
+    oak_free(opts->allocator, m, OAK_HERE);
+    bind_reject(opts, "out of memory declaring module '%s'", name);
+    return OAK_NULL;
+  }
+  OAK_ASSERT(oak_push_back(opts->native_modules, &m));
+  return m;
 }
 
-oak_bind_type_t* oak_bind_type_in_module(
-    oak_compile_options_t* opts,
-    const char* module_name,
-    const oak_bind_type_kind_t kind,
-    const char* name)
+const char* oak_bind_module_name(const oak_bind_module_t* module)
 {
-  if (!opts || !name)
+  return module ? module->name : OAK_NULL;
+}
+
+/* Whether `module` may be used with `opts`.  A handle carries the options it
+ * was declared on, so one borrowed from another options struct -- easy enough
+ * to do when a host compiles more than one program -- is caught here rather
+ * than misfiling the binding. */
+static int module_belongs(oak_compile_options_t* opts,
+                          const oak_bind_module_t* module,
+                          const char* what,
+                          const char* name)
+{
+  if (!module || module->opts == opts)
+    return 1;
+  bind_reject(opts,
+              "%s '%s' names module '%s' from a different oak_compile_options_t",
+              what, name ? name : "?", module->name);
+  return 0;
+}
+
+oak_bind_type_t* oak_bind_type(oak_compile_options_t* opts,
+                               oak_bind_module_t* module,
+                               const oak_bind_type_kind_t kind,
+                               const char* name)
+{
+  if (!opts)
+    return OAK_NULL;
+  if (!name || !name[0])
+  {
+    bind_reject(opts, "a native type has no name");
+    return OAK_NULL;
+  }
+  if (!module_belongs(opts, module, "native type", name))
     return OAK_NULL;
 
   oak_bind_type_t* t =
       oak_alloc(opts->allocator, sizeof(oak_bind_type_t), OAK_HERE);
-  t->module_name = module_name;
+  t->module = module;
   t->kind = kind;
   t->name = name;
   t->resolved_type_id = OAK_TYPE_VOID;
@@ -181,6 +288,19 @@ oak_bind_type_t* oak_bind_type_in_module(
   return t;
 }
 
+oak_bind_type_t* oak_bind_type_find(oak_compile_options_t* opts,
+                                    const oak_bind_module_t* module,
+                                    const char* name)
+{
+  if (!opts || !name)
+    return OAK_NULL;
+  oak_bind_type_t** types = OAK_DATA(oak_bind_type_t*, opts->native_types);
+  for (usize i = 0; i < oak_size(opts->native_types); ++i)
+    if (types[i]->module == module && strcmp(types[i]->name, name) == 0)
+      return types[i];
+  return OAK_NULL;
+}
+
 int oak_bind_type_implements(oak_bind_type_t* type,
                              const char* interface_name)
 {
@@ -192,11 +312,9 @@ int oak_bind_type_implements(oak_bind_type_t* type,
       return bind_reject(type->opts,
                          "duplicate implemented interface '%s' on '%s'",
                          interface_name, type->name);
-  const usize len = strlen(interface_name) + 1u;
-  char* copy = oak_alloc(type->allocator, len, OAK_HERE);
+  char* copy = bind_str_dup(type->allocator, interface_name);
   if (!copy)
     return -1;
-  memcpy(copy, interface_name, len);
   OAK_ASSERT(oak_push_back(type->interface_names, &copy));
   return 0;
 }
@@ -230,11 +348,9 @@ int oak_bind_field(oak_bind_type_t* type,
           type->opts, "duplicate field '%s.%s'", type->name, p->name);
   }
 
-  const usize len = strlen(p->name) + 1u;
-  char* name_copy = oak_alloc(type->allocator, len, OAK_HERE);
+  char* name_copy = bind_str_dup(type->allocator, p->name);
   if (!name_copy)
     return -1;
-  memcpy(name_copy, p->name, len);
 
   oak_bind_field_t f = {
     .name = name_copy,
@@ -277,84 +393,107 @@ static int adopt_param_types(oak_compile_options_t* opts,
   return 1;
 }
 
-int oak_bind_fn_global(oak_compile_options_t* opts,
-                       const oak_bind_global_fn_t* p)
+/* "native function" or "native method", for diagnostics that read naturally
+ * whichever kind went wrong. */
+static const char* fn_what(const oak_bind_fn_kind_t kind)
 {
-  if (!opts || !p)
-    return -1;
-  if (!p->name)
-    return bind_reject(opts, "a global native function has no name");
-  if (!p->impl)
-    return bind_reject(opts, "native function '%s' has no implementation",
-                       p->name);
-  if (p->param_count > OAK_MAX_ARITY)
-    return bind_reject(opts,
-                       "native function '%s' declares %zu parameters, above "
-                       "the maximum of %u",
-                       p->name,
-                       p->param_count,
-                       (unsigned)OAK_MAX_ARITY);
-  oak_bind_global_fn_t entry = *p;
-  if (!adopt_param_types(opts, &entry.param_types, entry.param_count))
-    return bind_reject(opts, "out of memory registering '%s'", p->name);
-  OAK_ASSERT(oak_push_back(opts->native_global_fns, &entry));
-  return 0;
+  return kind == OAK_BIND_FN_FREE ? "native function" : "native method";
 }
 
 int oak_bind_fn(oak_compile_options_t* opts,
+                oak_bind_module_t* module,
                 const oak_bind_fn_t* p)
 {
-  if (!opts || !p)
+  if (!opts)
     return -1;
+  if (!p)
+    return bind_reject(opts, "a native binding has no descriptor");
+  if (p->kind != OAK_BIND_FN_FREE &&
+      p->kind != OAK_BIND_FN_INSTANCE_METHOD &&
+      p->kind != OAK_BIND_FN_STATIC_METHOD)
+    return bind_reject(opts, "native binding '%s' has an unknown binding kind",
+                       p->name ? p->name : "?");
+
+  const char* what = fn_what(p->kind);
   if (!p->name)
-    return bind_reject(opts, "a native method has no name");
+    return bind_reject(opts, "a %s has no name", what);
   if (!p->impl)
-    return bind_reject(opts, "native method '%s' has no implementation",
-                       p->name);
+    return bind_reject(opts, "%s '%s' has no implementation", what, p->name);
   if (p->param_count > OAK_MAX_ARITY ||
       (p->kind == OAK_BIND_FN_INSTANCE_METHOD &&
        p->param_count + 1u > OAK_MAX_ARITY))
     return bind_reject(opts,
-                       "native method '%s' declares %zu parameters%s, above "
+                       "%s '%s' declares %zu parameters%s, above "
                        "the maximum of %u",
+                       what,
                        p->name,
                        p->param_count,
                        p->kind == OAK_BIND_FN_INSTANCE_METHOD
                            ? " plus implicit self"
                            : "",
                        (unsigned)OAK_MAX_ARITY);
-  if (p->kind != OAK_BIND_FN_INSTANCE_METHOD &&
-      p->kind != OAK_BIND_FN_STATIC_METHOD)
-    return bind_reject(
-        opts, "native method '%s' has an unknown binding kind", p->name);
-  if (!p->receiver_type)
-    return bind_reject(
-        opts, "native method '%s' names no receiver type", p->name);
+  if (!module_belongs(opts, module, what, p->name))
+    return -1;
 
   oak_bind_fn_t copy = *p;
+  if (p->kind == OAK_BIND_FN_FREE)
+  {
+    /* A free function has no receiver, so a descriptor naming one is asking
+     * for a method and forgot to say so -- report it rather than register a
+     * function whose receiver_type nothing will ever read. */
+    if (p->receiver_type)
+      return bind_reject(opts,
+                         "native function '%s' names a receiver type; set "
+                         ".kind to bind it as a method",
+                         p->name);
+    copy.module = module;
+  }
+  else
+  {
+    if (!p->receiver_type)
+      return bind_reject(opts, "%s '%s' names no receiver type", what,
+                         p->name);
+    /* A method lives wherever its receiver does.  Overriding that silently
+     * would put the method in one module and the type it is called on in
+     * another, so a `module` that disagrees is refused instead. */
+    if (module && p->receiver_type->module != module)
+      return bind_reject(opts,
+                         "%s '%s' is bound in module '%s' but its receiver "
+                         "type '%s' belongs to %s",
+                         what, p->name, module->name, p->receiver_type->name,
+                         p->receiver_type->module
+                             ? p->receiver_type->module->name
+                             : "the global namespace");
+    copy.module = p->receiver_type->module;
+  }
+
   if (!adopt_param_types(opts, &copy.param_types, copy.param_count))
     return bind_reject(opts, "out of memory registering '%s'", p->name);
-  OAK_ASSERT(oak_push_back(opts->native_fns, &copy));
+  OAK_ASSERT(oak_push_back(p->kind == OAK_BIND_FN_FREE ? opts->native_free_fns
+                                                       : opts->native_fns,
+                           &copy));
   return 0;
 }
 
-oak_bind_enum_t* oak_bind_enum(oak_compile_options_t* opts,
-                                      const char* name)
-{
-  return oak_bind_enum_in_module(opts, OAK_NULL, name);
-}
 
-oak_bind_enum_t* oak_bind_enum_in_module(
-    oak_compile_options_t* opts,
-    const char* module_name,
-    const char* name)
+
+oak_bind_enum_t* oak_bind_enum(oak_compile_options_t* opts,
+                               oak_bind_module_t* module,
+                               const char* name)
 {
-  if (!opts || !name)
+  if (!opts)
+    return OAK_NULL;
+  if (!name || !name[0])
+  {
+    bind_reject(opts, "a native enum has no name");
+    return OAK_NULL;
+  }
+  if (!module_belongs(opts, module, "native enum", name))
     return OAK_NULL;
 
   oak_bind_enum_t* e =
       oak_alloc(opts->allocator, sizeof(oak_bind_enum_t), OAK_HERE);
-  e->module_name = module_name;
+  e->module = module;
   e->name = name;
   e->resolved_type_id = OAK_TYPE_VOID;
   e->opts = opts;
@@ -365,6 +504,19 @@ oak_bind_enum_t* oak_bind_enum_in_module(
 
   OAK_ASSERT(oak_push_back(opts->native_enums, &e));
   return e;
+}
+
+oak_bind_enum_t* oak_bind_enum_find(oak_compile_options_t* opts,
+                                    const oak_bind_module_t* module,
+                                    const char* name)
+{
+  if (!opts || !name)
+    return OAK_NULL;
+  oak_bind_enum_t** enums = OAK_DATA(oak_bind_enum_t*, opts->native_enums);
+  for (usize i = 0; i < oak_size(opts->native_enums); ++i)
+    if (enums[i]->module == module && strcmp(enums[i]->name, name) == 0)
+      return enums[i];
+  return OAK_NULL;
 }
 
 int oak_bind_enum_variant(oak_bind_enum_t* e,
@@ -558,31 +710,26 @@ int oak_bind_fields(oak_bind_type_t* type,
 }
 
 int oak_bind_fns(oak_compile_options_t* opts,
+                 oak_bind_module_t* module,
                  const oak_bind_fn_t* fns,
                  const int count)
 {
-  if (!opts || (count > 0 && !fns))
+  if (!opts)
     return -1;
+  if (count > 0 && !fns)
+    return bind_reject(opts, "a native binding table of %d has no entries",
+                       count);
   int rc = 0;
   for (int i = 0; i < count; ++i)
   {
-    if (oak_bind_fn(opts, &fns[i]) != 0)
+    if (oak_bind_fn(opts, module, &fns[i]) != 0)
+    {
+      /* The entry's own rejection says what was wrong with it; this says
+       * which entry, which a table of thirty otherwise-alike rows needs. */
+      bind_reject(opts, "...as entry %d of a binding table for %s", i,
+                  module ? module->name : "the global namespace");
       rc = -1;
-  }
-  return rc;
-}
-
-int oak_bind_fns_global(oak_compile_options_t* opts,
-                        const oak_bind_global_fn_t* fns,
-                        const int count)
-{
-  if (!opts || (count > 0 && !fns))
-    return -1;
-  int rc = 0;
-  for (int i = 0; i < count; ++i)
-  {
-    if (oak_bind_fn_global(opts, &fns[i]) != 0)
-      rc = -1;
+    }
   }
   return rc;
 }

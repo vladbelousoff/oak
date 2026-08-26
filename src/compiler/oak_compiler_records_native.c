@@ -25,18 +25,19 @@ find_module_by_dotted(const oak_module_registry_t* reg,
 
 /* Whether a module-scoped binding belongs in the namespace being compiled.
  *
- * A descriptor with no module_name is global and always belongs. One that
- * names a module belongs only while that module itself is being compiled --
- * everywhere else it is reached through `import`, and the module loader
- * installs it on the module's exports.
+ * A descriptor with no module is global and always belongs. One that names a
+ * module belongs only while that module itself is being compiled -- everywhere
+ * else it is reached through `import`, and the module loader installs it on
+ * the module's exports.
  *
- * Without this check oak_bind_type_in_module(opts, "io", ..., "File") also
- * registered a bare global `File`, with all its methods, in every compilation
- * unit. The enum and global-function passes already filtered on module_name;
- * the type and method passes did not. */
+ * Without this check oak_bind_type(opts, io, ..., "File") also registered a
+ * bare global `File`, with all its methods, in every compilation unit. The
+ * enum and free-function passes already filtered on the module; the type and
+ * method passes did not. */
 static int binding_is_in_scope(const oak_compiler_t* c,
-                               const char* module_name)
+                               const oak_bind_module_t* module)
 {
+  const char* module_name = oak_bind_module_name(module);
   if (!module_name)
     return 1;
   return c->current_module && c->current_module->dotted_name &&
@@ -77,7 +78,7 @@ void oak_register_native_types(
        ++i)
   {
     oak_bind_type_t* nt = native_types[i];
-    if (!nt || !binding_is_in_scope(c, nt->module_name))
+    if (!nt || !binding_is_in_scope(c, nt->module))
       continue;
     nt->resolved_type_id = oak_type_registry_intern(&c->types, nt->name);
   }
@@ -89,7 +90,7 @@ void oak_register_native_types(
        ++i)
   {
     oak_bind_type_t* nt = native_types[i];
-    if (!nt || !binding_is_in_scope(c, nt->module_name))
+    if (!nt || !binding_is_in_scope(c, nt->module))
       continue;
 
     if (oak_records_find(&c->records, nt->name))
@@ -175,18 +176,19 @@ void oak_register_native_fns(oak_compiler_t* c,
 
   /* Both loops resume from their cursors so a second registration pass only
    * sees bindings added since the first (see native_*_cursor). */
-  const oak_bind_global_fn_t* global_fns =
-      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
-  for (usize i = (usize)c->native_global_fns_cursor;
-       i < oak_size(opts->native_global_fns);
+  const oak_bind_fn_t* free_fns =
+      OAK_CDATA(oak_bind_fn_t, opts->native_free_fns);
+  for (usize i = (usize)c->native_free_fns_cursor;
+       i < oak_size(opts->native_free_fns);
        ++i)
   {
-    const oak_bind_global_fn_t* b = &global_fns[i];
-    if (!b->name || !b->impl || b->module_name)
+    const oak_bind_fn_t* b = &free_fns[i];
+    if (!b->name || !b->impl || b->module)
       continue;
 
     oak_obj_native_fn_t* native = oak_native_fn_new(
         c->allocator, b->impl, b->param_count, b->name, b->user_data);
+    oak_native_fn_attach_binding(native, b);
     const u16 idx =
         oak_compiler_intern_constant(c, OAK_VALUE_OBJ(&native->obj));
 
@@ -221,7 +223,7 @@ void oak_register_native_fns(oak_compiler_t* c,
       return;
   }
 
-  c->native_global_fns_cursor = (int)oak_size(opts->native_global_fns);
+  c->native_free_fns_cursor = (int)oak_size(opts->native_free_fns);
 
   const oak_bind_fn_t* native_fns =
       OAK_CDATA(oak_bind_fn_t, opts->native_fns);
@@ -233,7 +235,7 @@ void oak_register_native_fns(oak_compiler_t* c,
     if (!b->name || !b->impl)
       continue;
     if (b->receiver_type &&
-        !binding_is_in_scope(c, b->receiver_type->module_name))
+        !binding_is_in_scope(c, b->receiver_type->module))
       continue;
 
     /* The compiler's registries index and offset with signed arithmetic (the
@@ -248,17 +250,18 @@ void oak_register_native_fns(oak_compiler_t* c,
     /* Reaches the callback as oak_native_call_t::self_type, so a method can
      * unwrap its receiver and construct new instances of its own type without
      * the binding passing the descriptor through user_data. */
-    native->self_type = b->receiver_type;
+    oak_native_fn_attach_binding(native, b);
 
     /* Apply runtime attribute hooks from the module stub, if the receiver type
      * belongs to a module that has a compiled stub with attributed methods. */
     if (c->module_registry && c->opts)
     {
       const oak_bind_type_t* bind_type = b->receiver_type;
-      if (bind_type && bind_type->module_name)
+      if (bind_type && bind_type->module)
       {
         const oak_module_t* stub_mod =
-            find_module_by_dotted(c->module_registry, bind_type->module_name);
+            find_module_by_dotted(c->module_registry,
+                                  oak_bind_module_name(bind_type->module));
         if (stub_mod)
         {
           const oak_module_export_record_t* rec_exp =

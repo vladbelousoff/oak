@@ -180,7 +180,11 @@ int oak_arg_self(oak_native_call_t* call,
                  const usize argc,
                  void** out)
 {
-  if (!call || !call->self_type)
+  /* Checked on the kind, not on self_type: a static method and a free function
+   * returning a native record both carry a self_type, and neither has args[0]
+   * as a receiver.  Reading one as a receiver would reinterpret whatever the
+   * first argument happens to be. */
+  if (!call || call->kind != OAK_BIND_FN_INSTANCE_METHOD || !call->self_type)
   {
     oak_native_error(call, "no receiver: not bound as an instance method");
     return 0;

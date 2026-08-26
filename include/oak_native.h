@@ -18,8 +18,7 @@
  *   oak_fn_call_result_t   OAK_FN_CALL_OK / OAK_FN_CALL_RUNTIME_ERROR
  *   oak_attr_runtime_cb_t  the pre-call hook signature for bound attributes
  *
- * Register the callback with oak_bind_fn_global() or oak_bind_fn() from
- * oak_bind.h.
+ * Register the callback with oak_bind_fn() from oak_bind.h, free or method.
  */
 
 /* No declarations of its own — oak_value.h carries the guard. */

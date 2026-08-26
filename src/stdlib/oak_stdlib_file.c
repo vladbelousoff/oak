@@ -50,16 +50,6 @@ static void file_destroy(void* instance, void* user_data)
  * descriptor in scope. At run time an enum is just its integer value, which is
  * what oak_arg_i32 below checks for. */
 
-/* open() is bound twice -- as the module-level io.open and as the static
- * method io.File.open -- and only the method has a receiver type. Take the
- * descriptor from whichever the call supplies, so neither registration needs a
- * file static that would tie two oak_compile_options_t in one process
- * together. */
-static const oak_bind_type_t* file_type_of(const oak_native_call_t* call)
-{
-  return call->self_type ? call->self_type
-                         : (const oak_bind_type_t*)call->user_data;
-}
 
 static oak_fn_call_result_t file_open(oak_native_call_t* call,
                                       const oak_value_t* args,
@@ -99,7 +89,10 @@ static oak_fn_call_result_t file_open(oak_native_call_t* call,
   }
   h->fp = fp;
   h->mode = requested;
-  *out = oak_vm_native_record_new(call->vm, file_type_of(call), h);
+  /* Bound twice -- as the module-level io.open and as the static method
+   * io.File.open -- and both carry the File descriptor as self_type: a method
+   * from its receiver, a free function from its declared return type. */
+  *out = oak_native_self_new(call, h);
   return OAK_FN_CALL_OK;
 }
 
@@ -264,10 +257,9 @@ static oak_fn_call_result_t file_close(oak_native_call_t* call,
   return OAK_FN_CALL_OK;
 }
 
-/* The compile-time signature for write(). Static, not a local in the function
- * below: param_types is borrowed, so the array has to outlive oak_compile_ex.
- * The callback no longer reads it -- oak_arg_cstring does that check and says
- * what went wrong -- but declaring it still buys call-site checking in Oak. */
+/* The compile-time signature for write().  The callback no longer reads it --
+ * oak_arg_cstring does that check and says what went wrong -- but declaring it
+ * still buys call-site checking in Oak. */
 static const oak_bind_type_ref_t file_write_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
 };
@@ -276,14 +268,15 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
 {
   if (!opts)
     return;
+  oak_bind_module_t* io = oak_bind_module(opts, "io");
   oak_bind_type_t* t =
-      oak_bind_type_in_module(opts, "io", OAK_BIND_TYPE_RECORD, "File");
+      oak_bind_type(opts, io, OAK_BIND_TYPE_RECORD, "File");
   if (!t)
     return;
   t->destructor = file_destroy;
   t->user_data = opts->allocator;
 
-  oak_bind_enum_t* mode = oak_bind_enum_in_module(opts, "io", "FileMode");
+  oak_bind_enum_t* mode = oak_bind_enum(opts, io, "FileMode");
   if (mode)
   {
     static const oak_bind_enum_variant_t modes[] = {
@@ -301,21 +294,14 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
     OAK_BIND_SCALAR(OAK_TYPE_STRING),
     OAK_BIND_ENUM(mode),
   };
-  const oak_bind_global_fn_t globals[] = {
-    { .module_name = "io",
-      .name = "open",
+  const oak_bind_fn_t fns[] = {
+    /* The module-level io.open.  No .kind, so a free function; its declared
+     * return type is what gives the callback the File descriptor. */
+    { .name = "open",
       .impl = file_open,
       .return_type = OAK_BIND_NATIVE(t),
       .param_types = mode ? open_sig : OAK_NULL,
-      .param_count = 2,
-      /* A global function has no receiver, so this is the only way the
-       * descriptor reaches file_open; the static method below gets it as
-       * self_type instead (see file_type_of). */
-      .user_data = t },
-  };
-  oak_bind_fns_global(opts, globals, (int)OAK_COUNT_OF(globals));
-
-  const oak_bind_fn_t methods[] = {
+      .param_count = 2 },
     { .kind = OAK_BIND_FN_STATIC_METHOD,
       .receiver_type = t,
       .name = "open",
@@ -355,5 +341,5 @@ void oak_stdlib_register_file(oak_compile_options_t* opts)
       .return_type = OAK_BIND_SCALAR(OAK_TYPE_VOID),
       .param_count = 0 },
   };
-  oak_bind_fns(opts, methods, (int)OAK_COUNT_OF(methods));
+  oak_bind_fns(opts, io, fns, (int)OAK_COUNT_OF(fns));
 }

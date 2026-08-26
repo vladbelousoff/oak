@@ -104,7 +104,7 @@ acme-zlib/
   "version": "1.2.0",
   "module": "zlib",
   "src": "src",
-  "native": { "abi": 1, "lib": "zlib", "dir": "native" }
+  "native": { "abi": 2, "lib": "zlib", "dir": "native" }
 }
 ```
 
@@ -147,7 +147,6 @@ static oak_fn_call_result_t compress_impl(oak_native_call_t* call,
   /* ... */
 }
 
-/* Static, because param_types is borrowed and must outlive compilation. */
 static const oak_bind_type_ref_t compress_params[] = {
   OAK_BIND_SCALAR_INIT(OAK_TYPE_STRING),
   OAK_BIND_SCALAR_INIT(OAK_TYPE_NUMBER),
@@ -155,15 +154,15 @@ static const oak_bind_type_ref_t compress_params[] = {
 
 static int bind(oak_compile_options_t* opts)
 {
-  return oak_bind_fn_global(opts,
-                            &(oak_bind_global_fn_t){
-                                .module_name = "zlib",
-                                .name = "compress",
-                                .impl = compress_impl,
-                                .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
-                                .param_types = compress_params,
-                                .param_count = OAK_COUNT_OF(compress_params),
-                            });
+  oak_bind_module_t* zlib = oak_bind_module(opts, "zlib");
+  return oak_bind_fn(opts, zlib,
+                     &(oak_bind_fn_t){
+                         .name = "compress",
+                         .impl = compress_impl,
+                         .return_type = OAK_BIND_SCALAR(OAK_TYPE_STRING),
+                         .param_types = compress_params,
+                         .param_count = OAK_COUNT_OF(compress_params),
+                     });
 }
 
 static const oak_plugin_t plugin = {

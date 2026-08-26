@@ -1,33 +1,29 @@
 #include "internal/oak_module_loader.h"
 
-static int native_module_name_eq(const char* module_name, const char* dotted)
+static int native_module_eq(const oak_bind_module_t* module,
+                            const char* dotted)
 {
-  return module_name && dotted && strcmp(module_name, dotted) == 0;
+  const char* name = oak_bind_module_name(module);
+  return name && dotted && strcmp(name, dotted) == 0;
 }
 
+/* Whether `dotted` names a module declared with oak_bind_module.
+ *
+ * Declaring the module is what claims the namespace, not binding into it: the
+ * answer no longer depends on how far through its bindings a host has got, so
+ * oak_module_loader_mount refuses to mount over a module whose bindings come
+ * later.  It also costs one short scan rather than one over every binding, on
+ * a path taken per import, per mount and per module compiled. */
 int opts_has_native_module(const oak_compile_options_t* opts,
                            const char* dotted)
 {
   if (!opts || !dotted)
     return 0;
-  const oak_bind_global_fn_t* global_fns =
-      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
-  for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
-    if (native_module_name_eq(global_fns[i].module_name, dotted))
+  oak_bind_module_t** modules =
+      OAK_DATA(oak_bind_module_t*, opts->native_modules);
+  for (usize i = 0; i < oak_size(opts->native_modules); ++i)
+    if (native_module_eq(modules[i], dotted))
       return 1;
-
-  oak_bind_type_t** types =
-      OAK_DATA(oak_bind_type_t*, opts->native_types);
-  for (usize i = 0; i < oak_size(opts->native_types); ++i)
-    if (types[i] && native_module_name_eq(types[i]->module_name, dotted))
-      return 1;
-
-  oak_bind_enum_t** enums =
-      OAK_DATA(oak_bind_enum_t*, opts->native_enums);
-  for (usize i = 0; i < oak_size(opts->native_enums); ++i)
-    if (enums[i] && native_module_name_eq(enums[i]->module_name, dotted))
-      return 1;
-
   return 0;
 }
 
@@ -47,7 +43,7 @@ static char* native_canonical_path_dup(oak_allocator_t* a,
 static int native_type_in_module(const oak_bind_type_t* type,
                                  const char* dotted)
 {
-  return type && native_module_name_eq(type->module_name, dotted);
+  return type && native_module_eq(type->module, dotted);
 }
 
 /* Value form of oak_lower_bind_ref, for the export structs built as compound
@@ -78,19 +74,19 @@ void module_loader_filter_native_decls(
       oak_vector_new(opts->allocator, sizeof(oak_bind_type_t*));
   opts->native_fns =
       oak_vector_new(opts->allocator, sizeof(oak_bind_fn_t));
-  opts->native_global_fns =
-      oak_vector_new(opts->allocator, sizeof(oak_bind_global_fn_t));
+  opts->native_free_fns =
+      oak_vector_new(opts->allocator, sizeof(oak_bind_fn_t));
   opts->native_enums =
       oak_vector_new(opts->allocator, sizeof(oak_bind_enum_t*));
   OAK_ASSERT(opts->native_types && opts->native_fns &&
-             opts->native_global_fns && opts->native_enums);
+             opts->native_free_fns && opts->native_enums);
 
   oak_bind_type_t** base_types =
       OAK_DATA(oak_bind_type_t*, base_opts->native_types);
   for (usize i = 0; i < oak_size(base_opts->native_types); ++i)
   {
     oak_bind_type_t* type = base_types[i];
-    if (is_native_module && type && native_module_name_eq(type->module_name, dotted))
+    if (is_native_module && type && native_module_eq(type->module, dotted))
       continue;
     OAK_ASSERT(oak_push_back(opts->native_types, &type));
   }
@@ -105,14 +101,14 @@ void module_loader_filter_native_decls(
     OAK_ASSERT(oak_push_back(opts->native_fns, fn));
   }
 
-  const oak_bind_global_fn_t* base_global_fns =
-      OAK_CDATA(oak_bind_global_fn_t, base_opts->native_global_fns);
-  for (usize i = 0; i < oak_size(base_opts->native_global_fns); ++i)
+  const oak_bind_fn_t* base_free_fns =
+      OAK_CDATA(oak_bind_fn_t, base_opts->native_free_fns);
+  for (usize i = 0; i < oak_size(base_opts->native_free_fns); ++i)
   {
-    const oak_bind_global_fn_t* fn = &base_global_fns[i];
-    if (is_native_module && native_module_name_eq(fn->module_name, dotted))
+    const oak_bind_fn_t* fn = &base_free_fns[i];
+    if (is_native_module && native_module_eq(fn->module, dotted))
       continue;
-    OAK_ASSERT(oak_push_back(opts->native_global_fns, fn));
+    OAK_ASSERT(oak_push_back(opts->native_free_fns, fn));
   }
 
   /* Enums are the one kind NOT dropped for their own module.  A type or a
@@ -145,7 +141,7 @@ void module_loader_free_filtered_native_decls(
    * structs they point at, which the embedder owns). */
   oak_destroy(opts->native_types);
   oak_destroy(opts->native_fns);
-  oak_destroy(opts->native_global_fns);
+  oak_destroy(opts->native_free_fns);
   oak_destroy(opts->native_enums);
 }
 
@@ -156,7 +152,7 @@ void module_loader_free_filtered_native_decls(
  * that has a stub takes the ordinary compile path instead, and the compiler
  * deliberately skips bindings that name another module (they are reached
  * through `import`, not by being in scope), so nothing on that path ever
- * assigns them -- they would keep the OAK_TYPE_VOID that oak_bind_type_in_module
+ * assigns them -- they would keep the OAK_TYPE_VOID that oak_bind_type
  * left behind, and every match against a stub declaration below would fail.
  *
  * Both passes run before any signature is lowered, because a parameter or
@@ -169,7 +165,7 @@ static void resolve_native_module_type_ids(
   for (usize i = 0; i < oak_size(opts->native_types); ++i)
   {
     oak_bind_type_t* type = types[i];
-    if (!type || !native_module_name_eq(type->module_name, mod->dotted_name))
+    if (!type || !native_module_eq(type->module, mod->dotted_name))
       continue;
     type->resolved_type_id = oak_type_registry_intern(&mod->types, type->name);
   }
@@ -178,7 +174,7 @@ static void resolve_native_module_type_ids(
   for (usize i = 0; i < oak_size(opts->native_enums); ++i)
   {
     oak_bind_enum_t* e = enums[i];
-    if (!e || !native_module_name_eq(e->module_name, mod->dotted_name))
+    if (!e || !native_module_eq(e->module, mod->dotted_name))
       continue;
     e->resolved_type_id = oak_type_registry_intern(&mod->types, e->name);
   }
@@ -191,12 +187,12 @@ void apply_native_module_function_exports(
   if (!mod || !mod->chunk || !opts || !opts_has_native_module(opts, mod->dotted_name))
     return;
   resolve_native_module_type_ids(mod, opts);
-  const oak_bind_global_fn_t* global_fns =
-      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
-  for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
+  const oak_bind_fn_t* free_fns =
+      OAK_CDATA(oak_bind_fn_t, opts->native_free_fns);
+  for (usize i = 0; i < oak_size(opts->native_free_fns); ++i)
   {
-    const oak_bind_global_fn_t* fn = &global_fns[i];
-    if (!native_module_name_eq(fn->module_name, mod->dotted_name))
+    const oak_bind_fn_t* fn = &free_fns[i];
+    if (!native_module_eq(fn->module, mod->dotted_name))
       continue;
     const oak_symbol_t* symbol =
         oak_symbol_registry_find(&mod->exports, fn->name);
@@ -287,7 +283,7 @@ void apply_native_module_function_exports(
           continue;
         oak_obj_native_fn_t* native = oak_native_fn_new(
             mod->allocator, fn->impl, me->arity, fn->name, fn->user_data);
-        native->self_type = fn->receiver_type;
+        oak_native_fn_attach_binding(native, fn);
         if (me->stub_attrs && me->stub_attr_count > 0)
           oak_apply_attr_hooks(
               opts, OAK_NULL, native, me->stub_attrs, me->stub_attr_count);
@@ -396,26 +392,26 @@ find_native_type_decl(const oak_compile_options_t* opts,
   for (usize i = 0; i < oak_size(opts->native_types); ++i)
   {
     const oak_bind_type_t* type = types[i];
-    if (type && native_module_name_eq(type->module_name, dotted) &&
+    if (type && native_module_eq(type->module, dotted) &&
         strcmp(type->name, name) == 0)
       return type;
   }
   return OAK_NULL;
 }
 
-static int native_global_fn_decl_exists(const oak_compile_options_t* opts,
+static int native_free_fn_decl_exists(const oak_compile_options_t* opts,
                                         const char* dotted,
                                         const char* name,
                                         usize arity)
 {
   if (!opts)
     return 0;
-  const oak_bind_global_fn_t* global_fns =
-      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
-  for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
+  const oak_bind_fn_t* free_fns =
+      OAK_CDATA(oak_bind_fn_t, opts->native_free_fns);
+  for (usize i = 0; i < oak_size(opts->native_free_fns); ++i)
   {
-    const oak_bind_global_fn_t* fn = &global_fns[i];
-    if (native_module_name_eq(fn->module_name, dotted) &&
+    const oak_bind_fn_t* fn = &free_fns[i];
+    if (native_module_eq(fn->module, dotted) &&
         strcmp(fn->name, name) == 0 && fn->param_count == arity)
       return 1;
   }
@@ -466,7 +462,7 @@ int validate_bodyless_native_decls(oak_module_loader_result_t* out,
       const oak_ast_node_t* name_node = loader_fn_decl_name_node(item);
       const char* name = oak_token_text(name_node->token);
       const usize arity = loader_fn_decl_param_count(item);
-      if (!native_global_fn_decl_exists(opts, mod->dotted_name, name, arity))
+      if (!native_free_fn_decl_exists(opts, mod->dotted_name, name, arity))
       {
         loader_error(out,
                      "%s: bodyless function '%s' has no native binding",
@@ -547,7 +543,7 @@ oak_module_t* create_native_module(
   for (usize i = 0; i < oak_size(opts->native_types); ++i)
   {
     oak_bind_type_t* type = native_types[i];
-    if (!type || !native_module_name_eq(type->module_name, dotted))
+    if (!type || !native_module_eq(type->module, dotted))
       continue;
     type->resolved_type_id = oak_type_registry_intern(&mod->types, type->name);
   }
@@ -562,18 +558,18 @@ oak_module_t* create_native_module(
     for (usize i = 0; i < oak_size(opts->native_enums); ++i)
     {
       oak_bind_enum_t* e = early_enums[i];
-      if (!e || !native_module_name_eq(e->module_name, dotted))
+      if (!e || !native_module_eq(e->module, dotted))
         continue;
       e->resolved_type_id = oak_type_registry_intern(&mod->types, e->name);
     }
   }
 
-  const oak_bind_global_fn_t* global_fns =
-      OAK_CDATA(oak_bind_global_fn_t, opts->native_global_fns);
-  for (usize i = 0; i < oak_size(opts->native_global_fns); ++i)
+  const oak_bind_fn_t* free_fns =
+      OAK_CDATA(oak_bind_fn_t, opts->native_free_fns);
+  for (usize i = 0; i < oak_size(opts->native_free_fns); ++i)
   {
-    const oak_bind_global_fn_t* fn = &global_fns[i];
-    if (!native_module_name_eq(fn->module_name, dotted))
+    const oak_bind_fn_t* fn = &free_fns[i];
+    if (!native_module_eq(fn->module, dotted))
       continue;
     oak_obj_native_fn_t* native =
         oak_native_fn_new(a, fn->impl, fn->param_count, fn->name, fn->user_data);
@@ -600,7 +596,7 @@ oak_module_t* create_native_module(
   for (usize i = 0; i < oak_size(opts->native_types); ++i)
   {
     const oak_bind_type_t* type = native_types[i];
-    if (!type || !native_module_name_eq(type->module_name, dotted))
+    if (!type || !native_module_eq(type->module, dotted))
       continue;
     oak_module_export_record_t exp = { 0 };
     exp.name = type->name;
@@ -643,7 +639,7 @@ oak_module_t* create_native_module(
                                      : (int)fn->param_count + 1;
       oak_obj_native_fn_t* native = oak_native_fn_new(
           a, fn->impl, (usize)vm_arity, fn->name, fn->user_data);
-      native->self_type = fn->receiver_type;
+      oak_native_fn_attach_binding(native, fn);
       oak_module_export_record_method_t method = { 0 };
       method.name = fn->name;
       method.const_idx =
@@ -676,7 +672,7 @@ oak_module_t* create_native_module(
   for (usize i = 0; i < oak_size(opts->native_enums); ++i)
   {
     oak_bind_enum_t* e = native_enums[i];
-    if (!e || !native_module_name_eq(e->module_name, dotted))
+    if (!e || !native_module_eq(e->module, dotted))
       continue;
     /* The type ID was interned in the early pass above, exactly as the native
      * types get one. Importers resolve an exported enum by looking its name up

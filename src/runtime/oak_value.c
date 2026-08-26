@@ -293,6 +293,7 @@ oak_obj_native_fn_t* oak_native_fn_new(oak_allocator_t* a,
   native->name = name;
   native->user_data = user_data;
   native->self_type = OAK_NULL;
+  native->kind = OAK_BIND_FN_FREE;
   native->attr_hooks = OAK_NULL;
   native->attr_hook_count = 0;
   return native;

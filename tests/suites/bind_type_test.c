@@ -41,7 +41,7 @@ static oak_bind_type_t* bind_record_with_field(oak_compile_options_t* opts,
                                                const char* type_name,
                                                const char* field)
 {
-  oak_bind_type_t* t = oak_bind_type(opts, OAK_BIND_TYPE_RECORD, type_name);
+  oak_bind_type_t* t = oak_bind_type(opts, OAK_NULL, OAK_BIND_TYPE_RECORD, type_name);
   if (t)
     oak_bind_field(t,
                    &(oak_bind_field_t){
@@ -58,7 +58,7 @@ UTEST_F(bind_type, a_type_descriptor_is_created_and_registered)
   oak_bind_type_t* t;
 
   oak_compile_options_init(&opts, OAK_A);
-  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "MyType");
+  t = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "MyType");
 
   ASSERT_TRUE(t != OAK_NULL);
   EXPECT_STREQ("MyType", t->name);
@@ -72,7 +72,7 @@ UTEST_F(bind_type, a_type_without_a_name_is_refused)
   oak_compile_options_t opts;
 
   oak_compile_options_init(&opts, OAK_A);
-  EXPECT_TRUE(oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, OAK_NULL) == OAK_NULL);
+  EXPECT_TRUE(oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, OAK_NULL) == OAK_NULL);
   EXPECT_EQ(0u, oak_size(opts.native_types));
   oak_compile_options_free(&opts);
 }
@@ -86,7 +86,7 @@ UTEST_F(bind_type, fields_are_recorded_in_registration_order)
   const oak_bind_field_t* fields;
 
   oak_compile_options_init(&opts, OAK_A);
-  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTColor");
+  t = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "NTColor");
   ASSERT_TRUE(t != OAK_NULL);
 
   ASSERT_EQ(0,
@@ -133,7 +133,7 @@ UTEST_F(bind_type, malformed_fields_are_refused)
   oak_bind_type_t* t;
 
   oak_compile_options_init(&opts, OAK_A);
-  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTBad");
+  t = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "NTBad");
   ASSERT_TRUE(t != OAK_NULL);
 
   /* No getter. */
@@ -191,7 +191,7 @@ static oak_run_result_t compile_with_ntvec(oak_allocator_t* a,
   oak_run_result_t r;
 
   oak_compile_options_init(&opts, a);
-  t = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "NTVec");
+  t = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "NTVec");
   oak_bind_field(t,
                  &(oak_bind_field_t){
                      .name = "x",
@@ -446,13 +446,13 @@ UTEST_F(bind_type, descriptor_typed_fields_match_their_record_declaration)
   oak_run_result_t wrong_type;
 
   oak_compile_options_init(&opts, OAK_A);
-  inner = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Inner");
+  inner = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Inner");
   ASSERT_TRUE(inner != OAK_NULL);
-  colour = oak_bind_enum(&opts, "Tint");
+  colour = oak_bind_enum(&opts, OAK_NULL, "Tint");
   ASSERT_TRUE(colour != OAK_NULL);
   EXPECT_EQ(0, oak_bind_enum_variant(colour, "Red", 0));
 
-  owner = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Owner");
+  owner = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Owner");
   ASSERT_TRUE(owner != OAK_NULL);
   EXPECT_EQ(0,
             oak_bind_field(owner,
@@ -534,8 +534,8 @@ UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
   int theirs_instance = 9;
 
   oak_compile_options_init(&opts, OAK_A);
-  mine = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Mine");
-  theirs = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Theirs");
+  mine = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Mine");
+  theirs = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Theirs");
   ASSERT_TRUE(mine != OAK_NULL && theirs != OAK_NULL);
 
   /* The receiver check compares descriptors by identity, so nothing here needs
@@ -549,6 +549,7 @@ UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
   call.user_data = OAK_NULL;
   call.fn_name = "peek";
   call.self_type = mine;
+  call.kind = OAK_BIND_FN_INSTANCE_METHOD;
 
   s_wrong_self_instance_seen = 0;
   OAK_EXPECT_ENUM(OAK_FN_CALL_RUNTIME_ERROR,
@@ -571,22 +572,24 @@ UTEST_F(bind_type, a_receiver_of_the_wrong_native_type_is_refused)
  * A type bound into a module is reachable only through that module. It used to
  * be registered in the global namespace as well, so oak_stdlib_register made a
  * bare `File` -- and every one of its methods -- visible in every program,
- * alongside the `io.File` that was intended. The enum and global-function
- * passes already filtered on module_name; the type and method passes did not.
+ * alongside the `io.File` that was intended. The enum and free-function
+ * passes already filtered on the module; the type and method passes did not.
  */
 UTEST_F(bind_type, a_module_scoped_type_is_not_also_a_global)
 {
   oak_compile_options_t opts;
+  oak_bind_module_t* gear;
   oak_bind_type_t* scoped;
   oak_bind_type_t* global;
   oak_run_result_t bare;
   oak_run_result_t unscoped;
 
   oak_compile_options_init(&opts, OAK_A);
-  scoped = oak_bind_type_in_module(&opts, "gear", OAK_BIND_TYPE_RECORD, "Cog");
+  gear = oak_bind_module(&opts, "gear");
+  scoped = oak_bind_type(&opts, gear, OAK_BIND_TYPE_RECORD, "Cog");
   ASSERT_TRUE(scoped != OAK_NULL);
   EXPECT_EQ(0,
-            oak_bind_fn(&opts,
+            oak_bind_fn(&opts, gear,
                         &(oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
                             .receiver_type = scoped,
@@ -605,12 +608,12 @@ UTEST_F(bind_type, a_module_scoped_type_is_not_also_a_global)
   if (bare.compiled)
     oak_test_explain(&bare, "fn f(c : Cog) -> number { return c.teeth(); }");
 
-  /* A type bound with no module is still global, so this is a filter on
-   * module_name and not a blanket refusal. */
-  global = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Sprocket");
+  /* A type bound with no module is still global, so this is a filter on the
+   * module and not a blanket refusal. */
+  global = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Sprocket");
   ASSERT_TRUE(global != OAK_NULL);
   EXPECT_EQ(0,
-            oak_bind_fn(&opts,
+            oak_bind_fn(&opts, OAK_NULL,
                         &(oak_bind_fn_t){
                             .kind = OAK_BIND_FN_INSTANCE_METHOD,
                             .receiver_type = global,
@@ -636,7 +639,7 @@ UTEST_F(bind_type, a_fieldless_native_type_rejects_a_record_body)
   oak_run_result_t r;
 
   oak_compile_options_init(&opts, OAK_A);
-  ASSERT_TRUE(oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Shared") != OAK_NULL);
+  ASSERT_TRUE(oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Shared") != OAK_NULL);
 
   r = oak_test_source_opts(OAK_A, "record Shared { x : number; }\n", &opts);
   EXPECT_FALSE(r.compiled);
@@ -702,9 +705,9 @@ static oak_fn_call_result_t handle_id(oak_native_call_t* call,
 
 static oak_bind_type_t* bind_handle(oak_compile_options_t* opts)
 {
-  oak_bind_type_t* h = oak_bind_type(opts, OAK_BIND_TYPE_VALUE, "Handle");
+  oak_bind_type_t* h = oak_bind_type(opts, OAK_NULL, OAK_BIND_TYPE_VALUE, "Handle");
 
-  oak_bind_fn(opts,
+  oak_bind_fn(opts, OAK_NULL,
               &(oak_bind_fn_t){
                   .kind = OAK_BIND_FN_INSTANCE_METHOD,
                   .receiver_type = h,
@@ -712,8 +715,8 @@ static oak_bind_type_t* bind_handle(oak_compile_options_t* opts)
                   .impl = handle_id,
                   .param_count = 0,
                   .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER) });
-  oak_bind_fn_global(opts,
-                     &(oak_bind_global_fn_t){
+  oak_bind_fn(opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "make_handle",
                          .impl = make_handle,
                          .param_count = 0,
@@ -827,9 +830,9 @@ UTEST_F(bind_type, value_types_of_different_types_are_not_comparable)
 
   oak_compile_options_init(&opts, OAK_A);
   bind_handle(&opts);
-  other = oak_bind_type(&opts, OAK_BIND_TYPE_VALUE, "Token");
-  oak_bind_fn_global(&opts,
-                     &(oak_bind_global_fn_t){
+  other = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_VALUE, "Token");
+  oak_bind_fn(&opts, OAK_NULL,
+                     &(oak_bind_fn_t){
                          .name = "make_token",
                          .impl = make_handle,
                          .param_count = 0,
@@ -859,7 +862,7 @@ UTEST_F(bind_type, a_native_field_can_be_declared_weak)
   const oak_bind_field_t* fields;
 
   oak_compile_options_init(&opts, OAK_A);
-  node = oak_bind_type(&opts, OAK_BIND_TYPE_RECORD, "Node");
+  node = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Node");
   ASSERT_TRUE(node != OAK_NULL);
   EXPECT_EQ(0,
             oak_bind_field(node,
@@ -888,6 +891,196 @@ UTEST_F(bind_type, a_native_field_can_be_declared_weak)
     if (!r.compiled)
       oak_test_explain(&r, "fn f(n : Node) -> number { return n.tag; }");
   }
+
+  oak_compile_options_free(&opts);
+}
+
+/* A module handle is interned: two asks for one name give one module, so a
+ * binding split across translation units shares the options and nothing else,
+ * and pointer identity is a usable test for "same module". */
+UTEST_F(bind_type, a_module_handle_is_interned_by_name)
+{
+  oak_compile_options_t opts;
+  oak_bind_module_t* first;
+  oak_bind_module_t* again;
+  oak_bind_module_t* other;
+
+  oak_compile_options_init(&opts, OAK_A);
+
+  first = oak_bind_module(&opts, "gear");
+  again = oak_bind_module(&opts, "gear");
+  other = oak_bind_module(&opts, "cog");
+
+  ASSERT_TRUE(first != OAK_NULL);
+  EXPECT_TRUE(first == again);
+  EXPECT_TRUE(first != other);
+  EXPECT_STREQ("gear", oak_bind_module_name(first));
+  EXPECT_STREQ("cog", oak_bind_module_name(other));
+  /* Null-safe, which is what lets a descriptor's module be read without a
+   * guard at every site that compares it against a module name. */
+  EXPECT_TRUE(oak_bind_module_name(OAK_NULL) == OAK_NULL);
+  EXPECT_EQ(2u, oak_size(opts.native_modules));
+
+  oak_compile_options_free(&opts);
+}
+
+/* The name is copied, not borrowed, so a handle outlives the buffer it was
+ * named from -- a contract the other oak_bind_* name pointers cannot make. */
+UTEST_F(bind_type, a_module_copies_the_name_it_is_given)
+{
+  oak_compile_options_t opts;
+  char scratch[8];
+  oak_bind_module_t* mod;
+
+  oak_compile_options_init(&opts, OAK_A);
+  memcpy(scratch, "gear", 5);
+  mod = oak_bind_module(&opts, scratch);
+  ASSERT_TRUE(mod != OAK_NULL);
+  memcpy(scratch, "junk", 5);
+
+  EXPECT_STREQ("gear", oak_bind_module_name(mod));
+  EXPECT_TRUE(oak_bind_module(&opts, "gear") == mod);
+
+  oak_compile_options_free(&opts);
+}
+
+/* A nameless module is refused, and says so: the point of the handle is that a
+ * bad module name fails here rather than as a missing import much later. */
+UTEST_F(bind_type, a_module_with_no_name_is_refused_and_recorded)
+{
+  oak_compile_options_t opts;
+
+  oak_compile_options_init(&opts, OAK_A);
+
+  EXPECT_TRUE(oak_bind_module(&opts, OAK_NULL) == OAK_NULL);
+  EXPECT_TRUE(oak_bind_module(&opts, "") == OAK_NULL);
+  EXPECT_EQ(0u, oak_size(opts.native_modules));
+  EXPECT_EQ(2u, oak_size(opts.bind_errors));
+
+  oak_compile_options_free(&opts);
+}
+
+/* An unnamed type or enum is refused the same way.  This used to return null
+ * with nothing recorded, so the oak_bind_field calls that followed returned -1
+ * in silence too and the only symptom was a type nobody had noticed was
+ * missing. */
+UTEST_F(bind_type, an_unnamed_type_or_enum_is_refused_and_recorded)
+{
+  oak_compile_options_t opts;
+
+  oak_compile_options_init(&opts, OAK_A);
+
+  EXPECT_TRUE(oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, OAK_NULL) ==
+              OAK_NULL);
+  EXPECT_TRUE(oak_bind_enum(&opts, OAK_NULL, "") == OAK_NULL);
+  EXPECT_EQ(0u, oak_size(opts.native_types));
+  EXPECT_EQ(0u, oak_size(opts.native_enums));
+  EXPECT_EQ(2u, oak_size(opts.bind_errors));
+
+  oak_compile_options_free(&opts);
+}
+
+/* Descriptors are findable by name and module, so a binding spread over
+ * several files does not have to thread its own table of them between them. */
+UTEST_F(bind_type, a_descriptor_is_found_by_its_module_and_name)
+{
+  oak_compile_options_t opts;
+  oak_bind_module_t* gear;
+  oak_bind_module_t* cog;
+  oak_bind_type_t* scoped;
+  oak_bind_type_t* global;
+  oak_bind_enum_t* teeth;
+
+  oak_compile_options_init(&opts, OAK_A);
+  gear = oak_bind_module(&opts, "gear");
+  cog = oak_bind_module(&opts, "cog");
+  scoped = oak_bind_type(&opts, gear, OAK_BIND_TYPE_RECORD, "Wheel");
+  global = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Wheel");
+  teeth = oak_bind_enum(&opts, gear, "Teeth");
+  ASSERT_TRUE(scoped != OAK_NULL && global != OAK_NULL && teeth != OAK_NULL);
+
+  EXPECT_TRUE(oak_bind_type_find(&opts, gear, "Wheel") == scoped);
+  EXPECT_TRUE(oak_bind_enum_find(&opts, gear, "Teeth") == teeth);
+  /* The module is part of the key: the same name in another module, or in the
+   * global namespace, is a different type. */
+  EXPECT_TRUE(oak_bind_type_find(&opts, OAK_NULL, "Wheel") == global);
+  EXPECT_TRUE(oak_bind_type_find(&opts, cog, "Wheel") == OAK_NULL);
+  EXPECT_TRUE(oak_bind_type_find(&opts, gear, "Axle") == OAK_NULL);
+  /* A miss is an ordinary answer, not a rejection. */
+  EXPECT_EQ(0u, oak_size(opts.bind_errors));
+
+  oak_compile_options_free(&opts);
+}
+
+/* A free function has no receiver, so a descriptor naming one meant to set
+ * .kind and did not -- now that FREE is the zero value, that is the slip worth
+ * catching. */
+UTEST_F(bind_type, a_free_function_naming_a_receiver_is_refused)
+{
+  oak_compile_options_t opts;
+  oak_bind_type_t* cog;
+
+  oak_compile_options_init(&opts, OAK_A);
+  cog = oak_bind_type(&opts, OAK_NULL, OAK_BIND_TYPE_RECORD, "Cog");
+  ASSERT_TRUE(cog != OAK_NULL);
+
+  EXPECT_EQ(-1,
+            oak_bind_fn(&opts, OAK_NULL,
+                        &(oak_bind_fn_t){ .receiver_type = cog,
+                                          .name = "teeth",
+                                          .impl = stub_method,
+                                          .param_count = 0 }));
+  EXPECT_EQ(0u, oak_size(opts.native_free_fns));
+  EXPECT_TRUE(oak_size(opts.bind_errors) > 0u);
+
+  oak_compile_options_free(&opts);
+}
+
+/* A method lives wherever its receiver does.  Binding one into another module
+ * would put the method and the type it is called on in different namespaces,
+ * so the disagreement is refused rather than quietly resolved either way. */
+UTEST_F(bind_type, a_method_bound_against_a_foreign_module_is_refused)
+{
+  oak_compile_options_t opts;
+  oak_bind_module_t* gear;
+  oak_bind_module_t* cog;
+  oak_bind_type_t* wheel;
+
+  oak_compile_options_init(&opts, OAK_A);
+  gear = oak_bind_module(&opts, "gear");
+  cog = oak_bind_module(&opts, "cog");
+  wheel = oak_bind_type(&opts, gear, OAK_BIND_TYPE_RECORD, "Wheel");
+  ASSERT_TRUE(wheel != OAK_NULL);
+
+  EXPECT_EQ(-1,
+            oak_bind_fn(&opts, cog,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = wheel,
+                            .name = "spin",
+                            .impl = stub_method,
+                            .param_count = 0 }));
+  EXPECT_EQ(0u, oak_size(opts.native_fns));
+
+  /* The receiver's own module is fine, and so is leaving it unsaid. */
+  EXPECT_EQ(0,
+            oak_bind_fn(&opts, gear,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = wheel,
+                            .name = "spin",
+                            .impl = stub_method,
+                            .param_count = 0 }));
+  EXPECT_EQ(0,
+            oak_bind_fn(&opts, OAK_NULL,
+                        &(oak_bind_fn_t){
+                            .kind = OAK_BIND_FN_INSTANCE_METHOD,
+                            .receiver_type = wheel,
+                            .name = "stop",
+                            .impl = stub_method,
+                            .param_count = 0 }));
+  EXPECT_EQ(2u, oak_size(opts.native_fns));
+  EXPECT_TRUE(OAK_CDATA(oak_bind_fn_t, opts.native_fns)[1].module == gear);
 
   oak_compile_options_free(&opts);
 }

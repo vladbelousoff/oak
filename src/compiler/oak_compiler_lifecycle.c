@@ -32,7 +32,7 @@ oak_chunk_t* oak_compiler_init(oak_compiler_t* c,
   oak_interface_registry_init(&c->interfaces, allocator);
   oak_symbol_registry_init(&c->symbols, allocator);
   c->native_types_cursor = 0;
-  c->native_global_fns_cursor = 0;
+  c->native_free_fns_cursor = 0;
   c->native_fns_cursor = 0;
   c->cycle_reach = OAK_NULL;
   c->cycle_reach_count = 0;

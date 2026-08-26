@@ -112,7 +112,7 @@ struct oak_compiler
    * oak_compiler_report_bind_errors): attribute callbacks bind more
    * mid-compile, and each message must surface exactly once. */
   int bind_errors_cursor;
-  int native_global_fns_cursor;
+  int native_free_fns_cursor;
   int native_fns_cursor;
   /* Strong-ownership reachability over record registry entries, computed by
    * oak_compiler_check_cycles: cycle_reach[i * n + j] != 0 iff record i can

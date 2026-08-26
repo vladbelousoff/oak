@@ -93,7 +93,7 @@ void oak_register_native_enums(
     oak_bind_enum_t* ne = native_enums[i];
     if (!ne)
       continue;
-    if (ne->module_name)
+    if (ne->module)
       continue;
 
     if (oak_is_enum_name(&c->enums, ne->name))
@@ -169,7 +169,7 @@ void oak_register_native_enums(
  * unit is the stub for, or NULL when the declaration stands on its own.
  *
  * Matching is by name *and* by module: a descriptor registered with
- * oak_bind_enum_in_module("raylib", "Key") backs the `Key` declared in
+ * oak_bind_enum(opts, raylib, "Key") backs the `Key` declared in
  * raylib.oak and nothing else.  A descriptor with no module (oak_bind_enum)
  * never matches a source declaration -- oak_register_native_enums creates that
  * enum itself, and would already have rejected a source enum of the same name
@@ -186,9 +186,10 @@ static const oak_bind_enum_t* native_enum_backing(const oak_compiler_t* c,
   for (usize i = 0; i < oak_size(c->opts->native_enums); ++i)
   {
     const oak_bind_enum_t* e = enums[i];
-    if (!e || !e->module_name)
+    const char* e_module = e ? oak_bind_module_name(e->module) : OAK_NULL;
+    if (!e_module)
       continue;
-    if (strcmp(e->module_name, dotted) == 0 && strcmp(e->name, name) == 0)
+    if (strcmp(e_module, dotted) == 0 && strcmp(e->name, name) == 0)
       return e;
   }
   return OAK_NULL;

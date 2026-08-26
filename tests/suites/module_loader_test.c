@@ -392,8 +392,9 @@ static void load_begin_synthetic(load_fixture_t* f,
   oak_compile_options_init(&f->opts, a);
   f->opts.allow_synthetic_native_modules = 1;
 
+  oak_bind_module_t* toy = oak_bind_module(&f->opts, "toy");
   oak_bind_type_t* box =
-      oak_bind_type_in_module(&f->opts, "toy", OAK_BIND_TYPE_RECORD, "Box");
+      oak_bind_type(&f->opts, toy, OAK_BIND_TYPE_RECORD, "Box");
   if (box)
   {
     box->destructor = toy_destroy;
@@ -416,7 +417,7 @@ static void load_begin_synthetic(load_fixture_t* f,
         .return_type = OAK_BIND_SCALAR(OAK_TYPE_NUMBER),
         .param_count = 0 },
     };
-    oak_bind_fns(&f->opts, methods, (int)OAK_COUNT_OF(methods));
+    oak_bind_fns(&f->opts, toy, methods, (int)OAK_COUNT_OF(methods));
   }
 
   oak_module_registry_init(&f->registry, a);
@@ -614,6 +615,34 @@ UTEST_F(module_loader, a_mount_cannot_shadow_a_native_module)
   oak_compile_options_free(&opts);
 }
 
+/* Declaring the module is what claims the namespace, not binding into it.
+ *
+ * The claim used to be a scan for a binding that named the module, so whether
+ * a mount was refused depended on how far through its registrations a host had
+ * got: mount `json`, bind `json.parse` afterwards, and both quietly coexisted.
+ * A handle exists from the moment it is asked for, so there is no window. */
+UTEST_F(module_loader, declaring_a_module_claims_its_namespace)
+{
+  oak_compile_options_t opts;
+  oak_compile_options_init(&opts, OAK_A);
+
+  /* Nothing is bound into it -- the handle alone is the claim. */
+  ASSERT_TRUE(oak_bind_module(&opts, "json") != OAK_NULL);
+  EXPECT_EQ((usize)0, oak_size(opts.native_types));
+  EXPECT_EQ((usize)0, oak_size(opts.native_free_fns));
+
+  EXPECT_EQ(-1, oak_module_loader_mount(&opts, OAK_NULL, "json", MOUNT_PKG,
+                                        OAK_NULL));
+  EXPECT_EQ((usize)0, oak_size(opts.module_mounts));
+
+  /* A namespace nobody declared is still mountable. */
+  EXPECT_EQ(0, oak_module_loader_mount(&opts, OAK_NULL, "yaml", MOUNT_PKG,
+                                       OAK_NULL));
+  EXPECT_EQ((usize)1, oak_size(opts.module_mounts));
+
+  oak_compile_options_free(&opts);
+}
+
 /* Malformed mounts are rejected rather than stored, so a typo cannot silently
  * produce a mount that never matches anything. */
 UTEST_F(module_loader, a_mount_rejects_a_dotted_or_empty_namespace)
@@ -721,21 +750,22 @@ static void load_begin_native_enum(load_fixture_t* f,
   oak_compile_options_init(&f->opts, a);
   oak_module_registry_init(&f->registry, a);
 
-  /* Mount before binding, the order oak_package_set_apply uses: binding makes
-   * `codes` a native module, and a mount over one of those is refused. */
+  /* Mount before declaring the module, the order oak_package_set_apply uses:
+   * oak_bind_module makes `codes` a native module, and a mount over one of
+   * those is refused. */
   f->rc = oak_module_loader_mount(
       &f->opts, OAK_NULL, "codes", NATIVE_ENUM_PKG, "test/codes");
   if (f->rc != 0)
     return;
 
-  oak_bind_enum_t* code = oak_bind_enum_in_module(&f->opts, "codes", "Code");
+  oak_bind_module_t* codes = oak_bind_module(&f->opts, "codes");
+  oak_bind_enum_t* code = oak_bind_enum(&f->opts, codes, "Code");
   if (code)
     oak_bind_enum_variants(code, variants, variant_count);
 
   const oak_bind_type_ref_t is_down_sig[] = { OAK_BIND_ENUM(code) };
-  oak_bind_fn_global(&f->opts,
-                     &(oak_bind_global_fn_t){
-                         .module_name = "codes",
+  oak_bind_fn(&f->opts, codes,
+                     &(oak_bind_fn_t){
                          .name = "is_down",
                          .impl = codes_is_down,
                          .return_type = OAK_BIND_SCALAR(OAK_TYPE_BOOL),

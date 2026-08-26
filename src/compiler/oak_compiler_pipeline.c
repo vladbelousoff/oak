@@ -168,7 +168,7 @@ int oak_compiler_register_native_options(oak_compiler_t* c,
   }
 
   if (oak_size(opts->native_fns) > 0 ||
-      oak_size(opts->native_global_fns) > 0)
+      oak_size(opts->native_free_fns) > 0)
   {
     oak_register_native_fns(c, opts);
     if (c->has_error)
