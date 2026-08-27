@@ -50,6 +50,40 @@ UTEST_F(compiler_mut, a_binding_inherits_its_sources_access)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
+/* A function is a heap object, and so refcounted, but nothing can be written
+ * through one: it has no fields, no elements, and no method that mutates it.
+ * Storing a named function in a record field is how a callback is registered,
+ * and the access model has no reason to stand in the way of it. */
+UTEST_F(compiler_mut, a_function_is_not_mutable_state)
+{
+  static const oak_case_t cases[] = {
+    { "record D { cb : () -> void; }\n"
+      "fn hi() { print('hi'); }\n"
+      "let d = new D { cb : hi };\n"
+      "d.cb = hi;\n"
+      "print('ok');\n",
+      OAK_NULL },
+    /* A literal holding a named function stays writable, where a literal
+       holding a read-only record reference would not. */
+    { "record D { cb : () -> void; n : number; }\n"
+      "fn hi() { print('hi'); }\n"
+      "let d = new D { cb : hi, n : 0 };\n"
+      "d.n = 1;\n"
+      "print(d.n);\n",
+      OAK_NULL },
+    /* And it may be handed to a `mut` parameter. */
+    { "record D { cb : () -> void; }\n"
+      "fn hi() { print('hi'); }\n"
+      "fn install(mut d : D, f : () -> void) { d.cb = f; }\n"
+      "let d = new D { cb : hi };\n"
+      "install(d, hi);\n"
+      "print('ok');\n",
+      OAK_NULL },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
+}
+
 /* Scalars are copied rather than referenced, so their source's access is
  * irrelevant -- as are fresh values, which nothing else can be holding. */
 UTEST_F(compiler_mut, a_binding_from_a_copy_or_a_fresh_value_is_writable)

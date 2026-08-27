@@ -222,7 +222,8 @@ void oak_compiler_compile_stmt_assignment(oak_compiler_t* c,
   oak_infer_type(c, rhs, &rhs_ty);
   const int target_idx = oak_local_at_slot(c, slot);
   if (target_idx >= 0 && c->scope.locals[target_idx].is_mutable &&
-      oak_compiler_type_is_refcounted(c, &c->scope.locals[target_idx].type) &&
+      oak_compiler_type_carries_mutable_state(
+          c, &c->scope.locals[target_idx].type) &&
       oak_reject_immutable_ref_for_mutable_storage(
           c, rhs, rhs_ty, rhs->token, "binding"))
     return;

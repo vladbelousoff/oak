@@ -125,7 +125,7 @@ static void validate_call_arg_types_for_decl(oak_compiler_t* c,
     }
 
     if (oak_param_is_mut(param) &&
-        oak_compiler_type_is_refcounted(c, &want) &&
+        oak_compiler_type_carries_mutable_state(c, &want) &&
         !oak_compiler_expr_is_mutable_place(c, arg_expr))
     {
       const oak_token_t* err_tok =
@@ -194,7 +194,7 @@ static void validate_call_arg_types_for_imported(
                             oak_type_full_name(c, got));
     }
     if (fn->param_mut_flags && fn->param_mut_flags[slot] &&
-        oak_compiler_type_is_refcounted(c, &want) &&
+        oak_compiler_type_carries_mutable_state(c, &want) &&
         !oak_compiler_expr_is_mutable_place(c, arg_expr))
     {
       const oak_token_t* err_tok =
