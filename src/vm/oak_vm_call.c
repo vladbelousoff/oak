@@ -290,12 +290,20 @@ static oak_vm_result_t oak_vm_call_impl(oak_vm_t* vm,
 
   r = oak_vm_resume(vm);
 
-  if (r == OAK_VM_OK && out_result)
+  if (r == OAK_VM_OK)
   {
+    /* The result is popped whether or not the caller wants it. Leaving it for
+     * a null out_result would grow the stack by one slot per call, which an
+     * embedder driving a loop from C -- a frame callback, an event handler --
+     * hits as a stack overflow a few hundred iterations in, far from the call
+     * that caused it. Discarding a value still owns it, hence the decref. */
+    oak_value_t result = OAK_VALUE_NONE;
     if (vm->sp > vm->stack)
-      *out_result = oak_vm_pop(vm);
+      result = oak_vm_pop(vm);
+    if (out_result)
+      *out_result = result;
     else
-      *out_result = OAK_VALUE_NONE;
+      oak_value_decref(result);
   }
 
   vm->ip = saved_ip;
