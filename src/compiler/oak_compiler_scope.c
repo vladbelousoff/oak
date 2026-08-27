@@ -183,7 +183,7 @@ static int oak_literal_element_is_mutable(oak_compiler_t* c,
   oak_type_t ty;
   oak_type_clear(&ty);
   oak_infer_type(c, elem, &ty);
-  if (!oak_compiler_type_is_refcounted(c, &ty))
+  if (!oak_compiler_type_carries_mutable_state(c, &ty))
     return 1;
   return oak_compiler_expr_is_mutable_place(c, elem);
 }
@@ -335,7 +335,7 @@ int oak_reject_immutable_ref_for_mutable_storage(
     const oak_token_t* err_tok,
     const char* target)
 {
-  if (!oak_compiler_type_is_refcounted(c, &ty))
+  if (!oak_compiler_type_carries_mutable_state(c, &ty))
     return 0;
   if (oak_reject_immutable_refs_inside_literal(c, expr, target))
     return 1;

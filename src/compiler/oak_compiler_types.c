@@ -27,6 +27,21 @@ int oak_compiler_type_is_refcounted(oak_compiler_t* c,
   return 1;
 }
 
+/* Whether a reference of this type can be used to reach mutable state.
+ *
+ * The access model exists to stop a read-only reference being laundered into
+ * a writable place and then written through. That is only a hazard for a type
+ * something can be written through: a function is refcounted, because it is a
+ * heap object, but it exposes no fields, no elements and no methods that
+ * mutate it, so aliasing one grants nothing. */
+int oak_compiler_type_carries_mutable_state(oak_compiler_t* c,
+                                            const oak_type_t* ty)
+{
+  if (ty->kind == OAK_TYPE_KIND_FN)
+    return 0;
+  return oak_compiler_type_is_refcounted(c, ty);
+}
+
 static const oak_token_t* type_node_token(
     const oak_ast_node_t* type_node)
 {

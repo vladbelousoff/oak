@@ -140,6 +140,13 @@ int oak_type_accepts(const oak_type_t* want,
 int oak_compiler_type_is_refcounted(oak_compiler_t* c,
                                     const oak_type_t* ty);
 
+/* Like oak_compiler_type_is_refcounted, but also returns 0 for function
+ * types, which are heap objects that expose nothing mutable. This is the
+ * predicate the read-only/read-write access model asks; refcounting and weak
+ * references still ask the one above. */
+int oak_compiler_type_carries_mutable_state(oak_compiler_t* c,
+                                            const oak_type_t* ty);
+
 /* Fails compilation if the expression has no value: either it is typed as
  * void (a call to a void fn) or inference could not resolve it at all. The
  * cause is diagnosed from the AST first, so the message names the undefined
