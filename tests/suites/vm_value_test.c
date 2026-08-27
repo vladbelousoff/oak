@@ -323,6 +323,63 @@ UTEST_F(vm_value, values_cannot_cross_between_vm_tables)
   oak_vm_free(&vm_b);
 }
 
+/* Returns a value, which is the whole point: the caller below discards it. */
+static oak_fn_call_result_t returns_a_number(oak_native_call_t* call,
+                                             const oak_value_t* args,
+                                             const usize argc,
+                                             oak_value_t* out_result)
+{
+  (void)call;
+  (void)args;
+  (void)argc;
+  *out_result = OAK_VALUE_I32(7);
+  return OAK_FN_CALL_OK;
+}
+
+/* Discarding a result must still pop it.
+ *
+ * An embedder that drives a loop from C -- a frame callback, an event handler
+ * -- calls with a null out_result every iteration and never looks at what
+ * comes back. Leaving the value on the stack costs one slot per call, so the
+ * failure is a stack overflow hundreds of iterations later, nowhere near the
+ * call that caused it. Looping past the stack size is what makes the test
+ * fail on the leak rather than on a coincidence. */
+UTEST_F(vm_value, vm_call_pops_a_result_the_caller_discards)
+{
+  oak_vm_t vm;
+  oak_chunk_t dummy_chunk = { 0 };
+  oak_obj_native_fn_t* native;
+  oak_value_t fn_val;
+  usize i;
+
+  oak_vm_init(&vm, OAK_A);
+  vm.chunk = &dummy_chunk;
+
+  native = oak_native_fn_new(OAK_A, returns_a_number, 0, "returns", OAK_NULL);
+  ASSERT_TRUE(native != OAK_NULL);
+  fn_val = OAK_VALUE_OBJ(native);
+
+  for (i = 0; i < OAK_STACK_MAX + 16u; ++i)
+  {
+    OAK_EXPECT_ENUM(OAK_VM_OK,
+                    oak_vm_call(&vm, fn_val, OAK_NULL, 0, OAK_NULL));
+    ASSERT_EQ(vm.stack, vm.sp);
+  }
+
+  /* And the value still reaches a caller that does want it. */
+  {
+    oak_value_t out = OAK_VALUE_NONE;
+    OAK_EXPECT_ENUM(OAK_VM_OK, oak_vm_call(&vm, fn_val, OAK_NULL, 0, &out));
+    EXPECT_TRUE(oak_is_i32(out));
+    EXPECT_EQ(7, oak_as_i32(out));
+    EXPECT_EQ(vm.stack, vm.sp);
+  }
+
+  oak_obj_decref((oak_obj_t*)native);
+  vm.chunk = OAK_NULL;
+  oak_vm_free(&vm);
+}
+
 /* The host-call entry point must reject a foreign callable before it sets up a
  * frame, and must leave the stack balanced when it does. */
 UTEST_F(vm_value, vm_call_rejects_a_callable_from_another_vm)
