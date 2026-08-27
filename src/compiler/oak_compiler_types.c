@@ -8,10 +8,21 @@ int oak_compiler_type_is_refcounted(oak_compiler_t* c,
     return 0;
   if (ty->kind == OAK_TYPE_KIND_SCALAR && ty->id >= OAK_TYPE_FIRST_USER)
   {
+    /* Records and enums share the user-scalar id range, so the id alone does
+     * not say which one this is -- and only a record is heap-allocated. The
+     * question is therefore asked of the record registry rather than answered
+     * from the range: a heap record is one that is registered and is not an
+     * inline value type, and anything else with a user id is an enum, which
+     * is an integer constant that aliases nothing.
+     *
+     * Defaulting the unregistered case to "not refcounted" is what makes an
+     * enum work wherever it is declared. A record always has an entry here --
+     * its fields and methods are unreachable without one, which is why even a
+     * qualified-only import registers records and deliberately does not
+     * register enums -- so the fallthrough cannot be a record. */
     const oak_registered_record_t* r =
         oak_records_find_by_id(&c->records, ty->id);
-    if (r && r->is_value)
-      return 0;
+    return r && !r->is_value;
   }
   return 1;
 }

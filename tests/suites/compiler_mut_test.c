@@ -50,6 +50,50 @@ UTEST_F(compiler_mut, a_binding_inherits_its_sources_access)
   OAK_EXPECT_COMPILE_ERROR_CASES(cases);
 }
 
+/* An enum variant is an integer constant, so it belongs with the scalars the
+ * access model exempts rather than with the heap values it protects. It is
+ * singled out here because its type id sits in the same range as a record's,
+ * which is the one thing that could make it look like a reference. */
+UTEST_F(compiler_mut, an_enum_is_a_value_and_never_an_immutable_reference)
+{
+  static const oak_case_t cases[] = {
+    { "enum Mode { A, B }\n"
+      "record R { m : Mode; }\n"
+      "let r = new R { m : Mode.A };\n"
+      "r.m = Mode.B;\n"
+      "print(r.m);\n",
+      OAK_NULL },
+    /* Reaching the variant through a binding must not change the answer. */
+    { "enum Mode { A, B }\n"
+      "record R { m : Mode; }\n"
+      "let r = new R { m : Mode.A };\n"
+      "let next = Mode.B;\n"
+      "r.m = next;\n"
+      "print(r.m);\n",
+      OAK_NULL },
+    /* Nor must reading it out of a read-only parameter: storing a real
+       reference from `src` into a writable record is exactly what the model
+       forbids, and an enum has to be exempt from that. */
+    { "enum Mode { A, B }\n"
+      "record R { m : Mode; }\n"
+      "fn copy_mode(src : R, mut dst : R) {\n"
+      "  dst.m = src.m;\n"
+      "}\n"
+      "let a = new R { m : Mode.B };\n"
+      "let b = new R { m : Mode.A };\n"
+      "copy_mode(a, b);\n"
+      "print(b.m);\n",
+      OAK_NULL },
+    { "enum Mode { A, B }\n"
+      "let modes = [ Mode.A ];\n"
+      "modes[0] = Mode.B;\n"
+      "print(modes[0]);\n",
+      OAK_NULL },
+  };
+
+  OAK_EXPECT_OK_CASES(cases);
+}
+
 /* A function is a heap object, and so refcounted, but nothing can be written
  * through one: it has no fields, no elements, and no method that mutates it.
  * Storing a named function in a record field is how a callback is registered,
