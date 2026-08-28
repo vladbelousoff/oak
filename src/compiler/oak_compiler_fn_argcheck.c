@@ -235,15 +235,6 @@ void oak_check_method_args(
     validate_call_arg_types_for_imported(c, call, m);
 }
 
-void oak_check_args_against_decl(oak_compiler_t* c,
-                                   const oak_ast_node_t* call,
-                                   const oak_ast_node_t* decl)
-{
-  if (!decl)
-    return;
-  validate_call_arg_types_for_decl(c, call, decl);
-}
-
 void oak_check_interface_method_args(
     oak_compiler_t* c,
     const oak_ast_node_t* call,

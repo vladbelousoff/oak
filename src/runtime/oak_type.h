@@ -149,8 +149,3 @@ static inline int oak_type_is_refcounted(const oak_type_t* t)
     return 1;
   return 0;
 }
-
-static inline int oak_type_is_interface(const oak_type_t* t)
-{
-  return t->kind == OAK_TYPE_KIND_INTERFACE;
-}

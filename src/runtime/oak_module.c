@@ -113,12 +113,6 @@ oak_module_registry_new(oak_module_registry_t* reg,
   return mod;
 }
 
-const oak_symbol_t* oak_module_find_export_symbol(
-    const oak_module_t* mod, const char* name)
-{
-  return oak_symbol_registry_find(&mod->exports, name);
-}
-
 const oak_module_export_fn_t* oak_module_find_export_fn(
     const oak_module_t* mod, const char* name)
 {

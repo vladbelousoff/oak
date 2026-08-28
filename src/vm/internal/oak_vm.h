@@ -74,12 +74,6 @@ static inline oak_value_t oak_vm_pop(oak_vm_t* vm)
   return *--vm->sp;
 }
 
-static inline oak_value_t oak_vm_peek(const oak_vm_t* vm,
-                                             const int distance)
-{
-  return vm->sp[-1 - distance];
-}
-
 static inline u8 oak_vm_read_u8(oak_vm_t* vm)
 {
   return *vm->ip++;
@@ -119,15 +113,8 @@ oak_vm_result_t oak_vm_numeric_binary(oak_vm_t* vm,
                                            oak_value_t a,
                                            oak_value_t b);
 
-oak_vm_result_t oak_vm_numeric_compare(oak_vm_t* vm,
-                                            u8 binop,
-                                            oak_value_t a,
-                                            oak_value_t b);
-
-oak_vm_result_t oak_vm_op_call(oak_vm_t* vm);
 oak_vm_result_t oak_vm_op_call_with_argc(oak_vm_t* vm, u8 argc);
 oak_vm_result_t oak_vm_op_call_virtual(oak_vm_t* vm);
-oak_vm_result_t oak_vm_op_return(oak_vm_t* vm);
 
 /* oak_vm_object.c — array / map / record / field opcodes */
 oak_vm_result_t vm_object_dispatch(oak_vm_t* vm,

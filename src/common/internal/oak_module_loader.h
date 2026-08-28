@@ -55,8 +55,6 @@ int   path_dir_exists(const char* path);
  * determined. Caller owns the returned string. */
 char* path_executable_dir(oak_allocator_t* a);
 char* dotted_name_from_path(oak_allocator_t* a, const oak_ast_node_t* path_node);
-const oak_ast_node_t* dotted_path_last_segment(
-    const oak_ast_node_t* path_node);
 
 
 /* Strips OAK_NODE_ATTR_DECL / OAK_NODE_EXPORT_DECL wrappers and returns the

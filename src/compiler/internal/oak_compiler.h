@@ -440,11 +440,6 @@ void oak_check_method_args(
     const oak_ast_node_t* call,
     const oak_registered_fn_t* m);
 
-/* Validate argument types directly against an AST decl node. */
-void oak_check_args_against_decl(oak_compiler_t* c,
-                                   const oak_ast_node_t* call,
-                                   const oak_ast_node_t* decl);
-
 /* Validate argument types for an interface method call.  Uses sig_decl when
  * available (local interface), falls back to param_types (imported interface). */
 typedef struct oak_interface_method oak_interface_method_t;

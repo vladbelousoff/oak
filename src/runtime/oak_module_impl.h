@@ -156,10 +156,6 @@ struct oak_module
 /* Export lookups.  Internal: the export tables are keyed on oak_type_t and
  * oak_symbol_t, neither of which is public. */
 
-/* Look up any exported top-level symbol in the module's single namespace. */
-const oak_symbol_t* oak_module_find_export_symbol(const oak_module_t* mod,
-                                                  const char* name);
-
 /* Look up a function export. Returns null if not found. */
 const oak_module_export_fn_t* oak_module_find_export_fn(
     const oak_module_t* mod, const char* name);

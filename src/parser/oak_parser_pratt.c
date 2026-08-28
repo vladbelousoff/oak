@@ -188,25 +188,6 @@ oak_ast_node_t* oak_parser_parse_pratt(oak_parser_t* p,
         lhs = node;
         break;
       }
-      case OAK_PRATT_CAST:
-      {
-        oak_ast_node_t* type_node =
-            oak_parser_parse_rule(p, OAK_NODE_TYPE_NAME);
-        if (!type_node)
-        {
-          oak_parser_detail_expected_node(p, rule->node_kind, OAK_NODE_TYPE_NAME);
-          return OAK_NULL;
-        }
-        oak_ast_node_t* node =
-            oak_arena_alloc(p->arena, sizeof(oak_ast_node_t));
-        if (!node)
-          return OAK_NULL;
-        node->kind = rule->node_kind;
-        node->lhs = lhs;
-        node->rhs = type_node;
-        lhs = node;
-        break;
-      }
       default:
         lhs = parse_pratt_binary(p, kind, rule, lhs);
         if (!lhs)

@@ -20,7 +20,6 @@ enum
   OAK_BP_MULTIPLY_L    = 11,
   OAK_BP_MULTIPLY_R    = 12,
   OAK_BP_UNARY_R       = 13,
-  OAK_BP_CAST_L        = 14,
   OAK_BP_POSTFIX_L     = 15,  /* call (), index [] */
   OAK_BP_MEMBER_L      = 17,
   OAK_BP_MEMBER_R      = 18,

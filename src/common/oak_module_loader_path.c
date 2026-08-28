@@ -180,13 +180,3 @@ char* dotted_name_from_path(oak_allocator_t* a,
   buf[w] = 0;
   return buf;
 }
-
-const oak_ast_node_t* dotted_path_last_segment(
-    const oak_ast_node_t* path_node)
-{
-  const oak_ast_node_t* last = OAK_NULL;
-  oak_list_entry_t* pos;
-  OAK_LIST_FOR_EACH(pos, &path_node->children) last =
-      OAK_CONTAINER_OF(pos, oak_ast_node_t, link);
-  return last;
-}

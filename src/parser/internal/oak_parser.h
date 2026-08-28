@@ -63,7 +63,6 @@ enum oak_pratt_op
   OAK_PRATT_GROUP,
   OAK_PRATT_CALL,
   OAK_PRATT_INDEX,
-  OAK_PRATT_CAST,
 };
 
 typedef struct oak_pratt_rule oak_pratt_rule_t;

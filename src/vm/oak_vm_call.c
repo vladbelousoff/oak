@@ -242,11 +242,6 @@ oak_vm_result_t oak_vm_op_call_with_argc(oak_vm_t* vm,
   return vm_call_bytecode(vm, argc, fn_slot, fn_val);
 }
 
-oak_vm_result_t oak_vm_op_call(oak_vm_t* vm)
-{
-  return oak_vm_op_call_with_argc(vm, oak_vm_read_u8(vm));
-}
-
 static u8 halt_trampoline[] = { 0 /* OAK_OP_HALT */ };
 
 static oak_vm_result_t oak_vm_call_impl(oak_vm_t* vm,
@@ -320,35 +315,4 @@ oak_vm_result_t oak_vm_call(oak_vm_t* vm,
 {
   oak_vm_clear_last_error(vm);
   return oak_vm_call_impl(vm, fn_val, args, argc, out_result);
-}
-
-oak_vm_result_t oak_vm_op_return(oak_vm_t* vm)
-{
-  if (vm->frame_count == 0)
-  {
-    oak_vm_runtime_error(vm, "'return' outside of a function");
-    return OAK_VM_RUNTIME_ERROR;
-  }
-
-  const usize depth_before = (usize)(vm->sp - vm->stack);
-  if (depth_before == 0)
-  {
-    oak_vm_runtime_error(vm, "stack underflow in return");
-    return OAK_VM_RUNTIME_ERROR;
-  }
-
-  oak_value_t result = oak_vm_pop(vm);
-  oak_call_frame_t* frame = &vm->frames[--vm->frame_count];
-  const usize fn_slot = frame->fn_slot;
-
-  for (usize i = fn_slot; i < depth_before - 1u; ++i)
-    oak_value_decref(vm->stack[i]);
-
-  vm->stack[fn_slot] = result;
-  vm->sp = vm->stack + fn_slot + 1u;
-  vm->ip = frame->return_ip;
-  vm->stack_base = frame->caller_stack_base;
-  if (frame->return_chunk)
-    vm->chunk = frame->return_chunk;
-  return OAK_VM_OK;
 }
