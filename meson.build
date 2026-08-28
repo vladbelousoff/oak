@@ -46,6 +46,14 @@ strict_args = is_msvc ? ['/we4013', '/we4133'] : [
 warning_args = (is_msvc ? ['/wd4200'] : ['-Wno-unused-function']) + strict_args
 debug_defines = is_debug ? ['-DOAK_TRACK_MEMORY', '-DOAK_DEBUG_LOGGING'] : []
 platform_defines = is_msvc ? ['-D_CRT_SECURE_NO_WARNINGS'] : ['-D_XOPEN_SOURCE=700']
+if host_machine.system() == 'darwin'
+  # _XOPEN_SOURCE selects a strict POSIX subset, and on Darwin that subset is
+  # all the headers then expose: INADDR_LOOPBACK and SO_NOSIGPIPE (both used by
+  # oak_net.c) sit behind the BSD-extension guards and vanish. Darwin's default
+  # level already covers everything _XOPEN_SOURCE=700 asks for, so ask for that
+  # level instead of the subset.
+  platform_defines = ['-D_DARWIN_C_SOURCE']
+endif
 release_symbol_args = []
 if is_release
   release_symbol_args = is_msvc ? ['/Z7'] : ['-g']
