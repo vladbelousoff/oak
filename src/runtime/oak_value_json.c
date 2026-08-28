@@ -120,6 +120,28 @@ static yyjson_mut_val* yyjson_unhandled(yyjson_mut_doc* doc,
   return yyjson_mut_null(doc);
 }
 
+/* A weak reference is a back edge: it exists precisely because following it
+ * strongly would close a cycle, so serializing its target would walk the graph
+ * in circles until the depth cap cut it off. Print the identity of the target
+ * instead — enough to tell two back edges apart, and never recursive. */
+static yyjson_mut_val* yyjson_weak_ref(yyjson_mut_doc* doc, oak_value_t value)
+{
+  void* const target = (void*)oak_value_obj_resolve(value);
+  char buf[96];
+  if (oak_is_record(value))
+  {
+    const oak_obj_record_t* const s = oak_as_record(value);
+    (void)snprintf(buf,
+                   sizeof(buf),
+                   "<weak %s @%p>",
+                   s->type_name ? s->type_name : "record",
+                   target);
+  }
+  else
+    (void)snprintf(buf, sizeof(buf), "<weak @%p>", target);
+  return yyjson_mut_strcpy(doc, buf);
+}
+
 static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
                                            oak_value_t value,
                                            unsigned depth)
@@ -128,6 +150,8 @@ static yyjson_mut_val* oak_value_to_yyjson(yyjson_mut_doc* doc,
     return yyjson_mut_null(doc);
   if (oak_is_none_like(value))
     return yyjson_mut_null(doc);
+  if (oak_is_weak_obj(value))
+    return yyjson_weak_ref(doc, value);
   if (oak_is_bool(value))
     return oak_as_bool(value) ? yyjson_mut_true(doc) : yyjson_mut_false(doc);
   if (oak_is_number(value))

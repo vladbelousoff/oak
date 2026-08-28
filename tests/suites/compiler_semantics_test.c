@@ -444,6 +444,51 @@ UTEST_F(compiler_semantics, records_carry_to_string_as_a_method)
   OAK_EXPECT_OUTPUT_CASES(cases);
 }
 
+/*
+ * A weak field prints as the identity of its target, never as its contents.
+ *
+ * A weak reference is there to break an ownership cycle, so it is exactly the
+ * edge that points back into the part of the graph already being printed.
+ * Following it would print the same records over and over until the depth cap
+ * stopped it, so the builtin stops at the edge itself; the strong fields around
+ * it still nest as deeply as they go.
+ */
+UTEST_F(compiler_semantics, to_string_does_not_follow_a_weak_field)
+{
+  const oak_run_result_t r = oak_test_source(OAK_A,
+                                             "record Parent {\n"
+                                             "  name : string;\n"
+                                             "  child : Child;\n"
+                                             "}\n"
+                                             "record Child {\n"
+                                             "  name : string;\n"
+                                             "  parent : Parent weak;\n"
+                                             "}\n"
+                                             "let c = new Child {\n"
+                                             "  name : 'c',\n"
+                                             "  parent : none\n"
+                                             "};\n"
+                                             "let p = new Parent {\n"
+                                             "  name : 'p',\n"
+                                             "  child : c\n"
+                                             "};\n"
+                                             "c.parent = p;\n"
+                                             "print(to_string(p));\n");
+  ASSERT_TRUE(r.compiled);
+  ASSERT_EQ(OAK_VM_OK, r.run);
+  /* The strong field is still expanded. */
+  EXPECT_TRUE(strstr(r.out, "\"child\"") != OAK_NULL);
+  EXPECT_TRUE(strstr(r.out, "\"name\": \"c\"") != OAK_NULL);
+  /* The weak one names its target instead of repeating it. */
+  EXPECT_TRUE(strstr(r.out, "\"parent\": \"<weak Parent @") != OAK_NULL);
+  /* One occurrence of the outer record, so nothing walked back around. */
+  {
+    const char* at = strstr(r.out, "\"name\": \"p\"");
+    ASSERT_TRUE(at != OAK_NULL);
+    EXPECT_TRUE(strstr(at + 1, "\"name\": \"p\"") == OAK_NULL);
+  }
+}
+
 /* And nothing else has the method, so the two forms cannot be confused. */
 UTEST_F(compiler_semantics, to_string_is_not_a_method_on_non_records)
 {

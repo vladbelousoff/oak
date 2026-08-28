@@ -257,6 +257,12 @@ print('score: ' + to_string(42));   /* score: 42 */
 print(to_string([1, 2]));           /* the array, one element per line */
 ```
 
+A record prints its fields, and a field that holds another record prints
+that record's fields too — except a `weak` field, which prints the
+identity of its target rather than its contents. A weak reference is the
+edge that points back into the graph already being printed, so following
+it would repeat the same records over and over.
+
 On a record it is a method rather than a global, and a record may define
 its own — the built-in one is only the default:
 
